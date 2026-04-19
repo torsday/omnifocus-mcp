@@ -1,0 +1,41 @@
+name: Feature
+description: A new tool, resource, or capability derived from SPEC.md / DESIGN.md
+title: "<verb-first imperative summary>"
+labels: ["type: feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: confirm the work is in `SPEC.md`'s functional requirements or has an ADR authorizing it. Unplanned features should either update the spec first or be scoped as a spike.
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why this work exists and what it enables. Link to DESIGN.md §N and/or the relevant ADR.
+      placeholder: |
+        Implements `tag_set_location` per SPEC.md Functional Requirements and DESIGN.md §6. Geolocation is a first-class OmniFocus feature; this tool exposes set/clear with the `TagLocation` schema from `docs/domain-reference.md`.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Observable, testable outcomes. One per line.
+      placeholder: |
+        - [ ] Tool registered in the MCP tool catalog with a description matching the what/when-not/returns/side-effects shape
+        - [ ] Input schema validates lat/lon/radius/trigger via zod
+        - [ ] Happy + error + edge paths covered by unit tests against InMemoryAdapter
+        - [ ] Integration test passes against live OF
+        - [ ] Cache invalidated for the affected tag
+    validations:
+      required: true
+  - type: textarea
+    id: technical
+    attributes:
+      label: Technical Notes
+      description: Files, patterns, constraints. Omit if genuinely empty.
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Blocked-by / blocks relationships, with issue numbers.
