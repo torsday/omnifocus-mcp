@@ -28,30 +28,18 @@ Cross-reference as you read. An `In Progress` item with no commits in 3 days is 
 
 ### 2. Prioritization
 
-Pick the highest tier with a clear, actionable issue. Within a tier prefer: **higher Priority** → **lower Phase number** → **smaller Size** → **reversible over irreversible** → **unblocking over isolated**.
+**Filter by model first.** This command is meant to run unattended (often inside a `/loop`), so silently skip model-mismatched candidates instead of pausing — the operator may not be present to answer. Every open issue in this project is labeled `model: opus` or `model: sonnet`. Identify your current model from the system prompt:
 
-### 2a. Model check (after picking the top candidate)
+- `claude-opus-*` → **opus**; only issues with `model: opus` are eligible
+- `claude-sonnet-*` → **sonnet**; only issues with `model: sonnet` are eligible
 
-Every open issue in this project is labeled `model: opus` or `model: sonnet`. Identify your current model from the system prompt:
+Drop every candidate whose model label doesn't match. If every candidate is filtered out, stop and report:
 
-- `claude-opus-*` → **opus**
-- `claude-sonnet-*` → **sonnet**
+> No model-compatible work in the Ready set. Ready issues: `#N (model: X), …`. Switch models or re-label. See CLAUDE.md "Model split" for the rationale.
 
-Compare to the chosen issue's label:
+**Then pick** the highest tier with a clear, actionable issue. Within a tier prefer: **higher Priority** → **lower Phase number** → **smaller Size** → **reversible over irreversible** → **unblocking over isolated**.
 
-- **Match** — proceed to Decision.
-- **Mismatch** — pause with AskUserQuestion. The user labeled the issue for a reason (cost, quality, or both); don't default without asking.
-
-  Prompt shape:
-
-  - `question`: `"Issue #<N> '<title>' is labeled model: <X> but you're running <Y>. How should I proceed?"`
-  - `header`: `"Model mismatch"`
-  - `options`:
-    1. `"Work it on <current-model> anyway"` — proceed; note the override in the commit body
-    2. `"Skip and pick the next candidate"` — may cascade through multiple mismatches; stop and report if none match after cascading
-    3. `"Stop — I'll switch models and re-invoke"` — halt cleanly; no work done this turn
-
-  Act on the answer. CLAUDE.md "Model split" explains which kinds of work fall to which tier, in case the user wants to re-label.
+(For explicitly-invoked commands where interactive confirmation is better — `/adr`, `/spec`, `/tasking`, `/debug`, `/security-review` — see their own front-matter for the pause-with-AskUserQuestion pattern.)
 
 #### Tier 1 — Something is broken
 
