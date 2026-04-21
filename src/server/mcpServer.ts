@@ -18,6 +18,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { parseConfig, redactConfig } from "../config/env.js";
 import { logger } from "../logging/logger.js";
+import { installStdoutGuard } from "./stdoutGuard.js";
 
 const PACKAGE_VERSION = "0.0.1";
 const SERVER_NAME = "omnifocus-mcp";
@@ -41,6 +42,10 @@ export function createMcpServer(): McpServer {
  * is running.
  */
 export async function startServer(): Promise<void> {
+  // Guard stdout before anything else — a stray write before connect would
+  // corrupt the MCP framing.
+  installStdoutGuard();
+
   const config = parseConfig();
 
   // Apply validated log level before the first structured log event.

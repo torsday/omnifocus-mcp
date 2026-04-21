@@ -37,7 +37,9 @@ export type ErrorCode =
   | "OF_TRANSPORT_UNAVAILABLE"
   | "OF_SCRIPT_ERROR"
   // Lifecycle — stop and reconnect
-  | "OF_SHUTTING_DOWN";
+  | "OF_SHUTTING_DOWN"
+  // Protocol guard — stray write to stdout (MCP transport channel)
+  | "OF_STRAY_STDOUT";
 
 /** Constructor options shared by every concrete error. */
 export interface ErrorOptions {
