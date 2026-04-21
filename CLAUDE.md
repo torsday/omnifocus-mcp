@@ -57,17 +57,30 @@ pnpm typecheck            # tsc --noEmit
 - Conventional Commits via `~/src/github.com/torsday/llm_prompts/commit.md` when asked
 - PR review via `~/src/github.com/torsday/llm_prompts/review_pr.md`
 
-## Workflow prompts
+## Workflow slash commands
 
-| Situation                       | Prompt                              |
-| ------------------------------- | ----------------------------------- |
-| New feature                     | `systems_design.md` → `tasking.md`  |
-| Architectural decision          | `systems_design.md` → `adr.md`      |
-| Pre-commit quality gate         | `refactor_changes.md`               |
-| Tests                           | `unit_tests.md` / `integration_tests.md` |
-| Debug a broken tool             | `debug.md`                          |
-| Security review                 | `security_review.md`                |
-| Autonomous session              | `next.md`                           |
+Project-local (in `.claude/commands/`) override global skills when in this repo.
+
+| Command         | Scope         | Does                                                                                                |
+| --------------- | ------------- | --------------------------------------------------------------------------------------------------- |
+| `/next`         | project-local | Pick highest-priority Ready issue, implement end-to-end, keep board honest                          |
+| `/adr`          | project-local | Write ADR with correct numbering, cross-refs to DESIGN/CLAUDE/README                                |
+| `/issue`        | project-local | Create GitHub issue with project labels, milestone, project-board add, field population             |
+| `/release`      | project-local | Cut release — version, CHANGELOG, tag, npm publish, GitHub release                                  |
+| `/commit`       | global        | Atomic Conventional Commits from staged changes                                                     |
+| `/review-pr`    | global        | PR review across correctness, reliability, design, tests, security                                  |
+| `/coding`       | global        | Engineering standards — always-on via CLAUDE.md but invokable on demand                             |
+| `/debug`        | global        | Reproduce → isolate → hypothesize → verify → fix                                                    |
+| `/refactor`     | global        | Refactor for engineering excellence                                                                 |
+| `/refactor-changes` | global    | Pre-commit quality gate on current diff                                                             |
+| `/security-review` | global     | Severity-graded security audit                                                                      |
+| `/unit-tests`   | global        | Goldilocks unit tests                                                                               |
+| `/integration-tests` | global   | Contract-verified integration tests                                                                 |
+| `/spec`         | global        | Interview → write SPEC.md                                                                           |
+| `/tasking`      | global        | Decompose spec → sequenced task list                                                                |
+| `/tracker`      | global        | Setup/refactor issue tracker                                                                        |
+| `/release-notes` | global       | CHANGELOG + release notes                                                                           |
+| `/observability` | global       | Logging, metrics, tracing, alerting                                                                 |
 
 ## Reference docs
 
