@@ -1,0 +1,45 @@
+{
+  "name": "@torsday/omnifocus-mcp",
+  "version": "0.0.1",
+  "description": "MCP server exposing the full OmniFocus surface to LLM agents (placeholder — implementation in progress; see https://github.com/torsday/omnifocus-mcp for the backlog).",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "omnifocus",
+    "claude",
+    "llm",
+    "macos",
+    "agent-tools",
+    "gtd",
+    "jxa"
+  ],
+  "homepage": "https://github.com/torsday/omnifocus-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/torsday/omnifocus-mcp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/torsday/omnifocus-mcp.git"
+  },
+  "license": "MIT",
+  "author": "Ty Torsday",
+  "type": "module",
+  "bin": {
+    "omnifocus-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "darwin"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

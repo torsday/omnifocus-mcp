@@ -1,0 +1,13 @@
+node_modules/
+*.log
+.DS_Store
+.env
+.env.local
+.vscode/
+.idea/
+
+# Build outputs (src/ will exist after M0; dist/ is inlined bundle from tsup)
+# For v0.0.1 placeholder, dist/index.js is committed (no src/ yet).
+# When M0 lands, switch to:
+#   dist/
+#   !dist/.gitkeep
