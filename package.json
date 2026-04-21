@@ -27,19 +27,42 @@
   "bin": {
     "omnifocus-mcp": "./dist/index.js"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE",
-    "CHANGELOG.md"
-  ],
+  "files": ["dist", "README.md", "LICENSE", "CHANGELOG.md"],
   "engines": {
     "node": ">=20"
   },
-  "os": [
-    "darwin"
-  ],
+  "os": ["darwin"],
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "OMNIFOCUS_INTEGRATION=1 vitest run --dir tests/integration",
+    "prepublishOnly": "pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.4.0",
+    "lru-cache": "^10.2.0",
+    "pino": "^9.0.0",
+    "ulid": "^2.3.0",
+    "zod": "^3.23.0",
+    "zod-to-json-schema": "^3.23.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.7.0",
+    "@types/node": "^20.12.0",
+    "@vitest/coverage-v8": "^1.5.0",
+    "fast-check": "^3.17.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.5.0"
+  },
+  "packageManager": "pnpm@9.0.0"
 }
