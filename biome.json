@@ -51,6 +51,23 @@
       "suspicious": {
         "noExplicitAny": "error",
         "noConsoleLog": "error"
+      },
+      "nursery": {
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "paths": {
+              "http": "Network access is forbidden (DESIGN §18).",
+              "https": "Network access is forbidden (DESIGN §18).",
+              "node:http": "Network access is forbidden (DESIGN §18).",
+              "node:https": "Network access is forbidden (DESIGN §18).",
+              "node-fetch": "Network access is forbidden — use JXA/OmniJS transport.",
+              "axios": "Network access is forbidden — use JXA/OmniJS transport.",
+              "undici": "Network access is forbidden — use JXA/OmniJS transport.",
+              "cross-fetch": "Network access is forbidden — use JXA/OmniJS transport."
+            }
+          }
+        }
       }
     }
   },
