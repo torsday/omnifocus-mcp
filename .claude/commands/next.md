@@ -127,7 +127,24 @@ Apply the standards in the matrix below. Do not re-specify them — just follow 
 5. **Commit:** `commit.md` — atomic, Conventional Commits, `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`. One concern per commit; split if the diff has multiple.
 6. **Push + open PR:** `gh pr create` with the template from `.github/PULL_REQUEST_TEMPLATE.md`. Reference `Closes #N`. **Flip the project board Status from `In Progress` to `In Review`** — signals on the Kanban that coding is done and the work is awaiting merge.
 7. **Merge when green.** `gh pr merge --squash --auto`. Don't skip hooks (`--no-verify` is never the answer).
-8. **Close the issue (auto-closed by `Closes #N`)** — verify it actually closed, then flip the project Status from `In Review` to `Done`.
+8. **Close-out checklist — run every step, in order. Do not skip even if you think the previous cycle covered it.**
+
+   ```bash
+   # a. Verify the issue auto-closed from the PR's "Closes #N" keyword
+   gh issue view <N> --json state --jq '.state'   # must print "CLOSED"
+
+   # b. Flip project Status: In Review → Done
+   # (see scripts/set-ready-status.sh for the GraphQL mutation pattern; option ID "c2f7c066")
+
+   # c. Remove the in-progress label so the issue card stops showing the chip
+   gh issue edit <N> --remove-label "status: in-progress"
+
+   # d. Find dependents and flip eligible ones to Ready
+   gh issue list --state open --search "\"Blocked by: #<N>\"" --json number
+   # For each dependent with no remaining open blockers, flip Status Todo → Ready
+   ```
+
+   If any step a–c fails, stop and surface — do not continue to tracker maintenance with a half-closed issue. Drift on the board is worse than a skipped cycle.
 
 If the work is larger than one session, complete one coherent slice. Leave the system in a **runnable, green-tests** state. Do not leave half-migrated seams or in-flight schema changes.
 
