@@ -8,8 +8,10 @@ The repo's bootstrap already created:
 
 - Six custom fields: **Status**, **Phase**, **Priority**, **Size**, **Risk** (+ GitHub's built-in Labels, Milestone, Repository)
 - **Status** option set expanded to: `Ready` · `Todo` · `In Progress` · `In Review` · `Blocked` · `Done`
-- 91 issues populated with Phase / Priority / Size / Risk field values derived from labels
-- 25 unblocked issues flipped to `Status = Ready`; the other 66 default to `Todo`
+- 94 issues populated with Phase / Priority / Size / Risk field values derived from labels
+- Current distribution: **7 Done · 26 Ready · 61 Todo** (shift as work ships)
+
+The project ships with a single default **View 1** (table layout). None of the views below are created yet — Projects v2's GraphQL API has no `createProjectV2View` mutation, so they must be added in the web UI. Follow the steps below once; they persist.
 
 Once the views below are laid out, the board becomes a live picture of what's ready now, what's moving, and what's stuck. See [`dependency-graph.md`](./dependency-graph.md) for the shape behind those 25 Ready items.
 
@@ -17,19 +19,22 @@ All that remains is laying out the views below.
 
 ---
 
-## View 1 — Kanban (by Status)
+## View 1 — Kanban (by Status) — **reconfigure the existing default view**
 
 **Purpose:** day-to-day execution board. Drag issues across status columns.
 
-1. Click the **+** next to the current view tab
-2. Name it `🗂️ Kanban`
-3. Layout: **Board**
-4. Group by: **Status**
-5. Visible fields (click "Fields" → toggle): `Title`, `Labels`, `Priority`, `Size`, `Phase`, `Risk`, `Milestone`
-6. Sort by: `Priority` ascending, then `Phase` ascending (so P0 M0 items bubble to the top of the `Ready` column)
-7. Save view
+> The project's first tab already exists as "View 1" in Table layout. Reconfigure it in place rather than creating a new view.
 
-Six status columns appear: `Ready` (pick from here) → `Todo` (queued behind dependencies) → `In Progress` → `In Review` → `Blocked` → `Done`. The `Ready` column should start with ~25 items; drag into `In Progress` as you pick them up.
+1. Click the **"View 1"** tab → the ⌄ dropdown → **Rename** to `🗂️ Kanban`
+2. Open the view's **Layout** picker (top-right, next to the filter bar) → switch from **Table** to **Board**
+3. Group by: **Status**
+4. Visible fields (click "Fields" → toggle): `Title`, `Labels`, `Priority`, `Size`, `Phase`, `Risk`, `Milestone`
+5. Sort by: `Priority` ascending, then `Phase` ascending (so P0 M0 items bubble to the top of the `Ready` column)
+6. Save changes to the view
+
+Six status columns appear: `Ready` (pick from here) → `Todo` (queued behind dependencies) → `In Progress` → `In Review` → `Blocked` → `Done`. The `Ready` column should currently show ~26 items; `/ship-next` automatically flips them through `In Progress` → `In Review` → `Done`.
+
+After this, `https://github.com/users/torsday/projects/4/views/1` will load as a board.
 
 ---
 
@@ -123,4 +128,4 @@ Unless a view has a specific reason otherwise, the default sort order is:
 2. **Phase** ascending (M0 → M5)
 3. **Size** ascending (XS → XL)
 
-Apply this to the default "View 1" as well — click the sort icon (↕) in the Title column, then add secondary sorts via `+ Sort by`. That bubbles every XS-sized P0 M0 item to the top wherever you look.
+Apply this to every view you create — click the sort icon (↕) in the Title column, then add secondary sorts via `+ Sort by`. That bubbles every XS-sized P0 M0 item to the top wherever you look.

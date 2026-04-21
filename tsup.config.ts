@@ -1,4 +1,5 @@
 import { defineConfig } from "tsup";
+import { scriptInlinerPlugin } from "./src/scripts/scriptLoader.js";
 
 export default defineConfig({
   entry: ["src/index.ts"],
@@ -14,4 +15,5 @@ export default defineConfig({
   clean: true,
   dts: false,
   shims: false,
+  esbuildPlugins: [scriptInlinerPlugin()],
 });

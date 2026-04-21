@@ -10,6 +10,36 @@ This prompt is the autonomous-session loop for `omnifocus-mcp`. The canonical `n
 
 ## Protocol
 
+### 0. Drift self-heal (run every cycle, before Discovery)
+
+Interrupted previous cycles can leave the tracker inconsistent. Repair drift first so Discovery sees clean state. Both checks are idempotent.
+
+**Board constants** (project `torsday/projects/4`):
+- Project ID: `PVT_kwHOAARNgc4BVGvQ`
+- Status field ID: `PVTSSF_lAHOAARNgc4BVGvQzhQkx-E`
+- `Done` option ID: `c2f7c066`
+
+**a. Stale `status: in-progress` labels on CLOSED issues:**
+```bash
+for n in $(gh issue list --state closed --label "status: in-progress" --json number --jq '.[].number'); do
+  gh issue edit "$n" --remove-label "status: in-progress"
+done
+```
+
+**b. CLOSED issues whose project Status is not `Done`:**
+```bash
+gh api graphql -f query='query { user(login: "torsday") { projectV2(number: 4) { items(first: 100) { nodes { id content { ... on Issue { number state } } fieldValues(first: 20) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { field { ... on ProjectV2SingleSelectField { name } } name } } } } } } } }' \
+  --jq '[.data.user.projectV2.items.nodes[] | {itemId: .id, n: .content.number, state: .content.state, status: ([.fieldValues.nodes[]? | select(.field.name=="Status") | .name][0])} | select(.state=="CLOSED" and .status!="Done")]'
+```
+For each item returned, run:
+```bash
+gh api graphql -f query="mutation { updateProjectV2ItemFieldValue(input: {projectId: \"PVT_kwHOAARNgc4BVGvQ\", itemId: \"$ITEM_ID\", fieldId: \"PVTSSF_lAHOAARNgc4BVGvQzhQkx-E\", value: {singleSelectOptionId: \"c2f7c066\"}}) { projectV2Item { id } } }"
+```
+
+Report drift repaired in one line (e.g. `Drift self-heal: flipped #9 #10 #21 to Done, cleared 3 stale labels`). If none, stay silent.
+
+---
+
 ### 1. Discovery (read broadly; stop when you have a confident picture)
 
 Start from the tracker. Everything else is context for the chosen work.
