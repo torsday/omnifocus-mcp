@@ -6,14 +6,21 @@
  */
 
 import { readFileSync } from "node:fs";
-import { glob } from "node:fs/promises";
-import { relative } from "node:path";
+import { readdir } from "node:fs/promises";
+import { join, relative } from "node:path";
 import { type Violation, checkFileContent } from "../src/linting/customRules.js";
 
-async function collectSourceFiles(): Promise<string[]> {
+async function collectSourceFiles(dir = "src"): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true });
   const files: string[] = [];
-  for await (const f of glob("src/**/*.{ts,js}", { exclude: (p) => p.includes("node_modules") })) {
-    files.push(f);
+  for (const e of entries) {
+    if (e.name === "node_modules") continue;
+    const full = join(dir, e.name);
+    if (e.isDirectory()) {
+      files.push(...(await collectSourceFiles(full)));
+    } else if (e.isFile() && /\.(ts|js)$/.test(e.name)) {
+      files.push(full);
+    }
   }
   return files.sort();
 }
