@@ -50,6 +50,16 @@ pnpm typecheck            # tsc --noEmit
 - JXA is single-threaded relative to OF's main thread. Serialize mutations; never parallelize writes.
 - Never log to stdout. MCP uses stdio transport and any stray stdout byte corrupts the protocol.
 
+## Model split
+
+Every open issue carries a `model: opus` or `model: sonnet` label. `/next` filters candidates by the label matching the current model.
+
+**Use Opus** for: concurrency primitives, async/callback races, integration seams that cross ≥3 primitives, batch atomicity, subtle correctness. Issues currently tagged: adapter/transport work (#16, #17, #18, #19, #20, #22), lifecycle (#25), test harnesses (#30, #31), first-service-integration and update-surface (#36, #39, #41), custom perspective evaluate (#55), repetition schema (#60), batch ops (#65), raw-script escape hatch (#75), E2E harness (#80).
+
+**Use Sonnet** for everything else: well-specified primitives, schema helpers, standalone docs and config, most CRUD surface, test scaffolding.
+
+Expected split: ~20% Opus, ~80% Sonnet. Re-label if an issue's complexity profile shifts during implementation.
+
 ## Branch and PR conventions
 
 - Work on whatever branch the user is on; never branch without being asked

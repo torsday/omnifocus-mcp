@@ -28,7 +28,18 @@ Cross-reference as you read. An `In Progress` item with no commits in 3 days is 
 
 ### 2. Prioritization
 
-Pick the highest tier with a clear, actionable issue. Within a tier prefer: **higher Priority** → **lower Phase number** → **smaller Size** → **reversible over irreversible** → **unblocking over isolated**.
+**Filter by model first.** Every issue in this project is labeled `model: opus` or `model: sonnet`. Identify your current model from the system prompt:
+
+- `claude-opus-*` → **opus**; only issues with `model: opus` are eligible
+- `claude-sonnet-*` → **sonnet**; only issues with `model: sonnet` are eligible
+
+Drop every candidate whose model label doesn't match. If every candidate is filtered out, stop and report:
+
+> No model-compatible work in the Ready set. Ready issues: `#N (model: X), …`. Switch models or override. See CLAUDE.md for the split rationale.
+
+Do not silently do work that doesn't match — cost and quality discipline depends on respecting the label.
+
+**Then pick** the highest tier with a clear, actionable issue. Within a tier prefer: **higher Priority** → **lower Phase number** → **smaller Size** → **reversible over irreversible** → **unblocking over isolated**.
 
 #### Tier 1 — Something is broken
 
