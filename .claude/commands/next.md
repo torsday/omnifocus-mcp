@@ -125,9 +125,9 @@ Apply the standards in the matrix below. Do not re-specify them — just follow 
 3. **Test:** `pnpm typecheck && pnpm lint && pnpm test`. If adapter-touching, also `OMNIFOCUS_INTEGRATION=1 pnpm test:integration`.
 4. **Self-review via `review_pr.md`:** run the review on your own diff before asking humans. Catches more issues cheaply.
 5. **Commit:** `commit.md` — atomic, Conventional Commits, `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`. One concern per commit; split if the diff has multiple.
-6. **Push + open PR:** `gh pr create` with the template from `.github/PULL_REQUEST_TEMPLATE.md`. Reference `Closes #N`.
+6. **Push + open PR:** `gh pr create` with the template from `.github/PULL_REQUEST_TEMPLATE.md`. Reference `Closes #N`. **Flip the project board Status from `In Progress` to `In Review`** — signals on the Kanban that coding is done and the work is awaiting merge.
 7. **Merge when green.** `gh pr merge --squash --auto`. Don't skip hooks (`--no-verify` is never the answer).
-8. **Close the issue (auto-closed by `Closes #N`)** — verify it actually closed.
+8. **Close the issue (auto-closed by `Closes #N`)** — verify it actually closed, then flip the project Status from `In Review` to `Done`.
 
 If the work is larger than one session, complete one coherent slice. Leave the system in a **runnable, green-tests** state. Do not leave half-migrated seams or in-flight schema changes.
 
