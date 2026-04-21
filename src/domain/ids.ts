@@ -29,11 +29,11 @@ import { z } from "zod";
 // Branded types
 // ---------------------------------------------------------------------------
 
-declare const TaskIdBrand: unique symbol;
-declare const ProjectIdBrand: unique symbol;
-declare const TagIdBrand: unique symbol;
-declare const FolderIdBrand: unique symbol;
-declare const AttachmentIdBrand: unique symbol;
+export const TaskIdBrand: unique symbol = Symbol("TaskId");
+export const ProjectIdBrand: unique symbol = Symbol("ProjectId");
+export const TagIdBrand: unique symbol = Symbol("TagId");
+export const FolderIdBrand: unique symbol = Symbol("FolderId");
+export const AttachmentIdBrand: unique symbol = Symbol("AttachmentId");
 
 export type TaskId = string & { readonly [TaskIdBrand]: "TaskId" };
 export type ProjectId = string & { readonly [ProjectIdBrand]: "ProjectId" };
