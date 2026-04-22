@@ -29,17 +29,16 @@ import { z } from "zod";
 // Branded types
 // ---------------------------------------------------------------------------
 
-export const TaskIdBrand: unique symbol = Symbol("TaskId");
-export const ProjectIdBrand: unique symbol = Symbol("ProjectId");
-export const TagIdBrand: unique symbol = Symbol("TagId");
-export const FolderIdBrand: unique symbol = Symbol("FolderId");
-export const AttachmentIdBrand: unique symbol = Symbol("AttachmentId");
-
-export type TaskId = string & { readonly [TaskIdBrand]: "TaskId" };
-export type ProjectId = string & { readonly [ProjectIdBrand]: "ProjectId" };
-export type TagId = string & { readonly [TagIdBrand]: "TagId" };
-export type FolderId = string & { readonly [FolderIdBrand]: "FolderId" };
-export type AttachmentId = string & { readonly [AttachmentIdBrand]: "AttachmentId" };
+// Brand keys are string literals (not `unique symbol`) per ADR-0008. Symbol
+// brands cause TS4023 "cannot be named" errors in declaration emit when a
+// schema typed by the brand crosses module boundaries (the symbol type is
+// not nameable from consuming `.d.ts` files); string-literal brands sidestep
+// that entirely while preserving cross-kind type-safety.
+export type TaskId = string & { readonly __brand: "TaskId" };
+export type ProjectId = string & { readonly __brand: "ProjectId" };
+export type TagId = string & { readonly __brand: "TagId" };
+export type FolderId = string & { readonly __brand: "FolderId" };
+export type AttachmentId = string & { readonly __brand: "AttachmentId" };
 
 // ---------------------------------------------------------------------------
 // Runtime validation

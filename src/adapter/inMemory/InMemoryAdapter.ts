@@ -45,6 +45,7 @@ import type {
   CreateTagInput,
   CreateTaskInput,
   OmniFocusAdapter,
+  SearchFilter,
   SyncStatus,
   TaskFilter,
   UpdateFolderInput,

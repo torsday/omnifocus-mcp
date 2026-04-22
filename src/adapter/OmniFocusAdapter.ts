@@ -33,7 +33,7 @@
 import type { Folder } from "../domain/folder.js";
 import type { FolderId, ProjectId, TagId, TaskId } from "../domain/ids.js";
 import type { Project } from "../domain/project.js";
-import type { Tag } from "../domain/tag.js";
+import type { Tag, TagLocation } from "../domain/tag.js";
 import type { RepetitionRule, Task } from "../domain/task.js";
 
 // ---------------------------------------------------------------------------
