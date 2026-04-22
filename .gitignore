@@ -5,6 +5,8 @@ node_modules/
 .env.local
 .vscode/
 .idea/
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # Build outputs (src/ will exist after M0; dist/ is inlined bundle from tsup)
 # For v0.0.1 placeholder, dist/index.js is committed (no src/ yet).
