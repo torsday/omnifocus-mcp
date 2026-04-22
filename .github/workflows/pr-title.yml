@@ -29,6 +29,7 @@ jobs:
             ci
             chore
             revert
+            spike
           requireScope: false
           subjectPattern: ^[a-z].+[^.]$
           subjectPatternError: |
