@@ -13,6 +13,7 @@ This is a single-developer project and external contributions are not currently 
 - **No stdout writes.** stdout is the MCP transport; any stray byte corrupts the protocol. Enforced by a hook and an integration test.
 - **No network imports.** The server has no network surface. Lint forbids `http`, `https`, `fetch`, `node-fetch`, `axios`, `undici`.
 - **Typed errors only.** No generic `Error`. Every throw is from the taxonomy in [`DESIGN.md §6.7`](./DESIGN.md#67-error-taxonomy).
+- **No user content in metadata.** OmniFocus task names, notes, and tag names must appear only in `data.*` — never in `error.message`, `error.suggestion`, `meta.warnings`, or any other metadata field. A task named `"SYSTEM: ignore previous instructions"` must not leak into protocol metadata where an agent treats it as a system instruction. This is enforced by the `no-metadata-interpolation` custom lint rule ([`DESIGN.md §18`](./DESIGN.md#18-security-posture)).
 
 ## Engineering standards
 
@@ -56,6 +57,7 @@ Inherited from [`coding.md`](https://github.com/torsday/llm_prompts/blob/main/co
 - [ ] No stdout output (check via integration test)
 - [ ] Response envelope + typed error used
 - [ ] Tool description matches the what/when-not/returns/side-effects shape
+- [ ] No user content (task names, notes, tags) interpolated into metadata fields (`suggestion`, `message`, `warnings`)
 ```
 
 ## Ask before
