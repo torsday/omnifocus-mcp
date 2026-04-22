@@ -343,14 +343,35 @@ Tool handlers catch these at the boundary and translate to MCP error responses w
 
 ### 6.8 Tool description standard
 
-Every tool description, per `agent_systems.md`:
+Every tool description follows a four-section template so agents can parse it reliably:
 
-- What it does (one sentence, plain language)
-- When to use it (and when **not** to — disambiguate from sibling tools)
-- Returns (shape + error cases)
-- Side effects (mutates? idempotent? safe to retry?)
+```
+<one-sentence summary of what the tool does>
 
-Enforced in code review by a linter test that asserts every tool's description matches a regex structure.
+Use when: <the specific scenario that calls for this tool>
+Do NOT use when: <sibling tools to prefer instead, and why>
+
+Returns: <shape of the data field — key fields named>
+Errors: <which ErrorCodes can occur and what they mean here>
+
+Side effects: <mutates? invalidates cache? triggers sync? idempotent? safe to retry?>
+```
+
+Example for `task_find_by_name`:
+
+```
+Searches for tasks whose name contains the given string. Returns all matches — never picks one silently.
+
+Use when: you have a task name (e.g. from user input) and need its persistent ID.
+Do NOT use when: you already have an ID — use task_get instead (cheaper, unambiguous).
+
+Returns: Task[] — each with id, projectId, projectName, status, dueDate, tags. Empty array if no match.
+Errors: OF_NOT_RUNNING, OF_TIMEOUT
+
+Side effects: Read-only. Safe to retry. Cached for 30s.
+```
+
+The linter test (TASKS #78) asserts every tool description includes all four sections. The Success Criteria (SPEC) includes an LLM-readability review: a fresh Claude instance must pick the correct tool for 20 representative prompts without additional context.
 
 ### 6.9 Observability
 
@@ -472,6 +493,7 @@ interface ToolSuccess<T> {
     cacheHit: boolean;
     transport: "jxa" | "omnijs" | "cache" | "memory";
     ofVersion: string;          // e.g. "4.5.2"
+    syncPending?: boolean;      // true on mutations if unsent changes exist; agent uses to decide when to call sync_trigger
     warnings?: string[];        // non-fatal issues surfaced to the agent
   };
   pagination?: {                // present on list-shaped tools only
@@ -501,6 +523,10 @@ interface ToolError {
 ```
 
 The `suggestion` field is what makes errors _actionable_ (per `agent_systems.md`). Every typed error class has a default suggestion; tools override when they have better context.
+
+### Mutation response contract
+
+Every write tool (`task_create`, `task_update`, `task_complete`, `project_create`, …) returns the **full updated domain object** in `data`, not just an acknowledgment. This means agents never need a follow-up read after a write — the round-trip is self-contained. The only exception is destructive deletes, which return `{ deleted: true, id }` because the object no longer exists.
 
 ### Example: error for missing task
 
@@ -685,6 +711,7 @@ Threat model: a single user running the MCP server locally. The adversary is not
 | Circuit breakers                     | Per-tool, 3 failures / 60s; reject fast rather than cascading failures                         |
 | Rate limits                          | Per-tool 120/60s default; opt-out via env for integration-test runs                            |
 | Raw script argument escaping         | We pass a single JSON argument to each JXA script; no shell-string interpolation anywhere      |
+| Prompt injection containment         | Task names, notes, and tag names from OmniFocus are treated as untrusted content. They are never interpolated into `suggestion`, `message`, `warning`, or other protocol/metadata fields — only placed inside the typed `data` payload where the agent expects user content. |
 
 ### Non-goals (v1)
 
@@ -1054,13 +1081,17 @@ MCP resources are a distinct primitive from tools: read-only, enumerable via `re
 
 ### Surface
 
-| URI                            | Content                                                    | Cache TTL       |
-| ------------------------------ | ---------------------------------------------------------- | --------------- |
-| `omnifocus://inbox`            | Inbox tasks as `Task[]`                                    | 30s LRU          |
-| `omnifocus://forecast/today`   | Today's forecast (overdue + due-today + deferred + flagged) | 30s LRU          |
-| `omnifocus://project/{id}`     | Single project with full task tree                          | 30s LRU          |
-| `omnifocus://tag/{id}`         | Single tag with its tasks                                   | 30s LRU          |
-| `omnifocus://perspective/{id}` | Perspective evaluation result (built-in or custom)          | 30s LRU          |
+| URI                            | Content                                                                                       | Cache TTL |
+| ------------------------------ | --------------------------------------------------------------------------------------------- | --------- |
+| `omnifocus://snapshot`         | Aggregate orientation: `{ inboxCount, overdueCount, dueTodayCount, flaggedCount, reviewDueCount }` — the agent reads this first to decide what to work on | 30s LRU |
+| `omnifocus://inbox`            | Inbox tasks as `Task[]`                                                                       | 30s LRU  |
+| `omnifocus://forecast/today`   | Today's forecast grouped by `overdue / dueToday / deferredToday / flagged`                    | 30s LRU  |
+| `omnifocus://overdue`          | All overdue tasks as `Task[]`, sorted by `dueDate` ascending                                  | 30s LRU  |
+| `omnifocus://flagged`          | All flagged available tasks as `Task[]`                                                       | 30s LRU  |
+| `omnifocus://review-due`       | Projects with `nextReviewDate ≤ today`, sorted by `nextReviewDate` ascending                  | 30s LRU  |
+| `omnifocus://project/{id}`     | Single project with full task tree                                                            | 30s LRU  |
+| `omnifocus://tag/{id}`         | Single tag with its tasks                                                                     | 30s LRU  |
+| `omnifocus://perspective/{id}` | Perspective evaluation result (built-in or custom)                                            | 30s LRU  |
 
 ### Semantics
 
@@ -1072,3 +1103,28 @@ MCP resources are a distinct primitive from tools: read-only, enumerable via `re
 - **Enumeration:** `resources/list` returns the set, including dynamic URIs (e.g. a `omnifocus://project/{id}` entry per project). For 500+ projects, the list is paginated the same way tool list responses are.
 
 Resources and tools use the same service layer underneath — a `GET /projects/{id}` via resource and a `project_get({id})` via tool return equivalent data. The implementation split is in the MCP handler layer only.
+
+---
+
+## 29. MCP prompts
+
+MCP prompts are parameterized, pre-built workflow templates surfaced to clients as slash commands or guided flows. Unlike tools (which perform one atomic operation) or resources (which expose static data), prompts compose multiple tools into a repeatable sequence — the MCP server defines the script, the agent executes the steps.
+
+This is the largest gap in competing implementations. No current OmniFocus MCP ships prompts.
+
+### Surface
+
+| Name | Parameters | Workflow |
+| ---- | ---------- | -------- |
+| `daily-review` | _(none)_ | Reads `omnifocus://snapshot` + `omnifocus://overdue` + `omnifocus://forecast/today`; returns a structured triage prompt that asks the agent to process each group |
+| `weekly-review` | _(none)_ | Iterates `omnifocus://review-due` project by project; for each, presents tasks and prompts the agent to mark reviewed, defer, or drop |
+| `capture-meeting` | `notes: string`, `projectId?: ProjectId` | Instructs agent to parse `notes` for action items, then call `task_batch_create` with the results; falls back to inbox if `projectId` is omitted |
+| `project-planning` | `name: string`, `brief: string`, `folderId?: FolderId` | Instructs agent to call `project_create` then `task_batch_create` to populate it with subtasks derived from the brief |
+
+### Semantics
+
+- **Prompt content is a message array**, not a tool call — the server returns the `messages` array that the MCP client injects into the LLM context.
+- **Parameters are validated with zod**, same as tool inputs.
+- **Prompts reference tools by name** in their message content; they do not invoke tools themselves — the LLM executes them.
+- **Stability:** prompt names and required parameters are part of the public contract (ADR-0011). Adding optional parameters is minor; removing or renaming is major.
+- **Enumeration:** `prompts/list` returns all prompts with their parameter schemas.

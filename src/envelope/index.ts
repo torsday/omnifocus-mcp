@@ -41,6 +41,12 @@ export interface ResponseMeta {
   transport: Transport;
   /** The OmniFocus version the adapter observed, e.g. `"4.5.2"`. `"unknown"` on cold path. */
   ofVersion: string;
+  /**
+   * True on any mutation response when the server has made writes not yet pushed to Omni Sync.
+   * Always false (or absent) on read-only responses. Agents use this to decide when to call
+   * `sync_trigger` rather than relying on documentation alone.
+   */
+  syncPending?: boolean;
   /** Non-fatal issues the agent should see inline (e.g. zod refinement warnings). */
   warnings?: string[];
 }

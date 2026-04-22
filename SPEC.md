@@ -23,6 +23,7 @@ Grouped by noun. Every requirement is testable against a live OF install (integr
 
 - [ ] List tasks with filters: project, tag, flagged, available, blocked, completed-since, due-before/after, deferred-before/after, parent
 - [ ] Get a single task by persistent ID, including subtasks
+- [ ] Get many tasks by ID list in a single call (`task_get_many`) — one JXA round-trip for up to 100 IDs; returns `Task[]` in the same order as the input; missing IDs noted in `meta.warnings`
 - [ ] Create a task in the inbox, in a specific project, or as a subtask of another task
 - [ ] Update any editable task property: name, note (plain + rich), flagged, due, defer, estimated minutes, tags (add/remove), sequential/parallel, completed-by-children
 - [ ] Complete / uncomplete / drop / undrop a task
@@ -109,13 +110,37 @@ Grouped by noun. Every requirement is testable against a live OF install (integr
 - [ ] `run_jxa_script` — execute arbitrary JXA, return parsed JSON (disabled unless `OMNIFOCUS_ALLOW_RAW_SCRIPT=1`)
 - [ ] `run_omnijs_script` — execute arbitrary OmniJS, return parsed JSON (same gate)
 
+### Prompts
+
+MCP prompts are parameterized workflow templates surfaced to clients as slash commands or guided flows. They compose existing tools into repeatable sequences — the agent executes the steps, the prompt defines the script.
+
+- [ ] `daily-review` — loads `omnifocus://snapshot`, `omnifocus://overdue`, and `omnifocus://forecast/today`; produces a prioritised triage prompt for the agent
+- [ ] `weekly-review` — iterates `omnifocus://review-due` project by project; for each, presents tasks and asks the agent to mark reviewed or defer
+- [ ] `capture-meeting` — accepts `notes: string` param; instructs the agent to extract action items and call `task_batch_create` with the results in a target project
+- [ ] `project-planning` — accepts `name: string` and `brief: string`; instructs the agent to call `project_create` then `task_batch_create` to populate it with subtasks
+
 ### Resources
 
-- [ ] `omnifocus://inbox` — current inbox contents
-- [ ] `omnifocus://forecast/today` — today's forecast
-- [ ] `omnifocus://project/{id}` — single project with task tree
-- [ ] `omnifocus://perspective/{id}` — evaluated perspective
-- [ ] `omnifocus://tag/{id}` — single tag with task list
+Read-only, enumerable via `resources/list`, cached same as tools. Resources let an agent load structured context without spending a tool call.
+
+- [ ] `omnifocus://snapshot` — aggregate orientation: inbox count, overdue count, due-today count, flagged count, review-due count. The agent reads this first to decide what to work on.
+- [ ] `omnifocus://inbox` — current inbox contents as `Task[]`
+- [ ] `omnifocus://forecast/today` — today's forecast grouped by overdue / due-today / deferred-today / flagged
+- [ ] `omnifocus://overdue` — all overdue tasks as `Task[]`, sorted by due date ascending
+- [ ] `omnifocus://flagged` — all flagged available tasks as `Task[]`
+- [ ] `omnifocus://review-due` — projects with `nextReviewDate ≤ today`, sorted by `nextReviewDate` ascending
+- [ ] `omnifocus://project/{id}` — single project with full task tree
+- [ ] `omnifocus://perspective/{id}` — evaluated perspective result (built-in or custom)
+- [ ] `omnifocus://tag/{id}` — single tag with its task list
+
+### Agent ergonomics
+
+Cross-cutting requirements that make the MCP excellent for LLM agents specifically.
+
+- [ ] **Mutation responses return the full updated domain object.** `task_create` returns the created `Task`; `task_update` returns the updated `Task`; `project_complete` returns the updated `Project`. Agents must never need a follow-up read after a write.
+- [ ] **Name lookups return all matches with disambiguation context.** `task_find_by_name` and `search_query` return every matching item with its `id`, `projectId`, `projectName`, `status`, `dueDate`, and `tags`. Agents can choose the right match without a second call.
+- [ ] **Tool descriptions follow the four-part standard** (see `DESIGN.md §6.8`): what it does, when not to use it, what it returns, side effects. Every description passes the LLM-readability review in Success Criteria.
+- [ ] **Prompt injection resistance at the response boundary.** Task names, notes, and tag names from OmniFocus are treated as untrusted data. They are never interpolated into `suggestion`, `message`, or other metadata fields — only surfaced inside the typed `data` payload where agents expect content.
 
 ## Non-Functional Requirements
 

@@ -1,7 +1,7 @@
 # ADR-0002: Dual transport — JXA primary, OmniJS fallback — behind a single adapter
 
 **Date:** 2026-04-19
-**Status:** Accepted
+**Status:** Accepted — amended 2026-04-21 (OmniJS invocation method superseded; see amendment below)
 
 ---
 
@@ -10,7 +10,7 @@
 OmniFocus has no public network API. Programmatic access lives at three levels:
 
 1. **JXA** (`osascript -l JavaScript`) — Scripting Bridge dictionary, synchronous, returns structured values. Stable, broad, but has gaps: custom perspective evaluation, plug-in invocation, a handful of newer settings.
-2. **OmniJS via URL scheme** — Omni's strategic cross-platform API. Covers everything including custom perspectives and plug-ins. Asynchronous; return values require writing to a file the caller reads back, because URL-scheme invocations don't have a native return channel.
+2. **OmniJS via `evaluateJavascript` bridge** — `Application("OmniFocus").evaluateJavascript(script)` called from `osascript -l JavaScript`. Omni's strategic cross-platform API via JXA. Synchronous, no dialogs, full return value. *(See amendment below — the URL-scheme path originally listed here was invalidated by spike #125.)*
 3. **Direct SQLite read** — undocumented, unstable, unsupported. Rejected (noted in `DESIGN.md` §1).
 
 The project scope commits to full OF coverage (`project_scope.md`). No single transport covers the full surface cleanly.
@@ -33,7 +33,7 @@ Default routing:
 | Option | Pros | Cons |
 | ------ | ---- | ---- |
 | JXA only | Simplest; sync returns; fewer moving parts | Fails the full-coverage requirement; ~15% of OF unreachable |
-| OmniJS only | Omni's strategic API; future-proof | Async callback dance for every call; every tool gets harder; filesystem roundtrip for every return value |
+| OmniJS only | Omni's strategic API; future-proof | Async callback dance for every call (URL scheme); `evaluateJavascript` is synchronous but JXA-side overhead still adds ~130ms |
 | **Dual transport with router** | Each feature routes to the transport that fits best; router is testable in isolation; services unaware | More code; two script dialects; router itself must be tested carefully |
 | Dual transport, per-service selection | Services pick their transport | Transport concern leaks into services; violates layering; harder to test |
 
@@ -53,7 +53,7 @@ Default routing:
 
 **Risks**
 
-- **OmniJS callback hangs** if OF is wedged — mitigated by a 45s per-call timeout on `OmniJsTransport` (default; overridable via `OMNIFOCUS_OMNIJS_TIMEOUT_MS`), plus circuit breaker at the tool level
+- **OmniJS hangs** if OF is wedged — mitigated by a 45s per-call timeout on `OmniJsTransport` (default; overridable via `OMNIFOCUS_OMNIJS_TIMEOUT_MS`), plus circuit breaker at the tool level; `evaluateJavascript` propagates errors synchronously so polling-timeout risk is eliminated
 - **Silent divergence** between a feature's JXA and OmniJS implementations — mitigated by picking one transport per feature, not both
 - **Omni deprecating JXA** — unlikely near-term; if it happens, each operation can be migrated to OmniJS in isolation because of the router seam
 
@@ -63,3 +63,44 @@ Default routing:
 - `SPEC.md` — the functional surface that requires full coverage
 - Omni Automation docs (omni-automation.com) — OmniJS reference
 - OmniFocus Scripting Dictionary (accessible via Script Editor → File → Open Dictionary) — JXA reference
+
+---
+
+## Amendment — 2026-04-21: OmniJS invocation via `evaluateJavascript`, not URL scheme
+
+**Spike issues:** [#2](https://github.com/torsday/omnifocus-mcp/issues/2), [#125](https://github.com/torsday/omnifocus-mcp/issues/125)
+**Spike doc:** `docs/spikes/2026-04-omnijs-spike.md`
+
+The original design described OmniJS invocation via the `omnifocus://localhost/omnijs-run?script=...` URL scheme. Spike investigation invalidated this path:
+
+| Problem | Impact |
+|---------|--------|
+| Security dialog on every call | Blocks unattended MCP server use |
+| OmniFocus 4 sandbox | File writes to `/tmp`, `~/Downloads`, `~/Documents` silently blocked |
+| No network access | `fetch()` blocked inside OmniJS scripts |
+| URL encoding subtleties | `encodeURIComponent` insufficient; IIFE syntax breaks OF's URL parser |
+| Slow result retrieval | Only viable pattern: sentinel inbox task polled via JXA; p50 ≈ 3–5s, outliers 60s+ |
+
+**Adopted instead:** `Application("OmniFocus").evaluateJavascript(script)` called via `osascript -l JavaScript`.
+
+```typescript
+const { stdout } = await execFileAsync("osascript", [
+  "-l", "JavaScript",
+  "-e", `Application("OmniFocus").evaluateJavascript(${JSON.stringify(script)})`,
+]);
+const result = JSON.parse(stdout.trim());
+```
+
+**Properties of this approach:**
+- No security dialogs — uses the macOS Automation channel already granted to `osascript`
+- Synchronous return value — no polling, no sentinel tasks
+- p50 ~130ms (ping), ~500ms (780 tasks), ~191ms (321KB payload)
+- Errors propagate as non-zero exit + stderr
+- Concurrent calls serialise on OF's JXA thread; both complete
+
+**API shape delta** (OmniJS inside `evaluateJavascript` vs URL-scheme OmniJS):
+- `flattenedTasks` and `flattenedProjects` are **properties** (array-like), not function calls
+- `inbox.tasks` is `undefined` — use `new Task(name)` to add to inbox
+- `setTimeout`/`setInterval` not available
+
+**Rule for all future OmniJS scripts:** use `evaluateJavascript` exclusively. The URL-scheme path is permanently dropped. Any open issue referencing the URL-scheme OmniJS transport should be re-read against this amendment before implementation begins.

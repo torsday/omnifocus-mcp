@@ -87,6 +87,7 @@ Apply across every task; not a phase of their own.
 - [ ] [feature] Pagination cursor codec: encode/decode `{ lastId, lastCreatedAt, filterHash }` — P0, S 🟢
 - [ ] [feature] `TaskService` + `task_list` (with filters + pagination) — P0, M 🟡
 - [ ] [feature] `task_get` — P0, S 🟢
+- [ ] [feature] `task_get_many` — bulk fetch up to 100 tasks by ID list in one JXA round-trip; missing IDs surfaced in `meta.warnings` — P1, S 🟢
 - [ ] [feature] `task_create` (inbox / project / subtask) — P0, M 🟡
 - [ ] [feature] `task_update` (name, plain note, flagged, due, defer, estimated, tags, sequential/parallel, completedByChildren) — P0, L 🟡
 - [ ] [feature] `task_complete`, `task_uncomplete`, `task_drop`, `task_undrop` — P0, M 🟢
@@ -98,6 +99,9 @@ Apply across every task; not a phase of their own.
 - [ ] [feature] `project_complete`, `project_drop`, `project_move` — P0, S 🟢
 - [ ] [feature] `project_delete` (hard removal, irreversible; distinct from drop) — P1, S 🔴
 - [ ] [feature] Cache invalidation wired for all Milestone-1 mutations — P0, S 🟡
+- [ ] [feature] Mutation responses return full domain object — every write tool's `data` field is the updated entity, not an ack; delete tools return `{ deleted: true, id }` — P1, S 🟢
+      _Applies to:_ all M1 write handlers and all subsequent milestones.
+- [ ] [feature] `meta.syncPending` — handler harness sets `true` on every mutation response; `sync_trigger` and `sync_status` reset it; agents use it to decide when to sync without reading documentation — P1, S 🟢
 - [ ] [test] Unit suite for Milestone 1 against `InMemoryAdapter` — P0, M 🟢
 - [ ] [test] Script-tier tests for each Milestone-1 JXA script — P0, M 🟡
 - [ ] [test] Integration tests gated on `OMNIFOCUS_INTEGRATION=1` — P0, M 🟡
@@ -120,7 +124,9 @@ Apply across every task; not a phase of their own.
       _Blocked by:_ OmniJsTransport + TransportRouter (M0)
 - [ ] [feature] `forecast_get` (range, include flags) — P0, M 🟡
 - [ ] [feature] `search_query` (name / note / fulltext with filters + pagination) — P1, L 🟡
-- [ ] [feature] MCP resources — `omnifocus://inbox`, `omnifocus://forecast/today`, `omnifocus://project/{id}`, `omnifocus://tag/{id}`, `omnifocus://perspective/{id}` (built-in + custom) — P1, M 🟢
+      _Disambiguation contract:_ every match includes `id`, `projectId`, `projectName`, `status`, `dueDate`, `tags` so agents can choose without a second call.
+- [ ] [feature] Prompt injection containment — enforce in handler harness that `suggestion`, `message`, `warnings` fields never contain raw task/note/tag content from OmniFocus; content stays inside `data` only — P1, S 🟢
+- [ ] [feature] MCP resources — `omnifocus://snapshot`, `omnifocus://inbox`, `omnifocus://forecast/today`, `omnifocus://overdue`, `omnifocus://flagged`, `omnifocus://review-due`, `omnifocus://project/{id}`, `omnifocus://tag/{id}`, `omnifocus://perspective/{id}` (built-in + custom) — P1, M 🟢
 - [ ] [test] Script + integration tests for M2 including custom-perspective coverage on OmniJS path — P0, M 🟡
 
 **Phase exit:** an agent can evaluate any perspective (built-in or custom) by name or ID. Rich-perspective workflows are unlocked.
@@ -166,6 +172,8 @@ Apply across every task; not a phase of their own.
 
 **Outcome:** ready to ship; a stranger can install and use it in five minutes.
 
+- [ ] [feature] MCP prompts — `daily-review`, `weekly-review`, `capture-meeting`, `project-planning` — registered via `prompts/list`; parameter-validated with zod; return MCP message arrays — P1, M 🟢
+      _Blocked by:_ MCP resources (#58), `task_batch_create` (#65)
 - [ ] [feature] Loop-detection middleware (repeat-call warning in response) — P2, M 🟢
 - [ ] [feature] `internal_status` tool (uptime, OF version, running, last sync, cache stats, circuit states, queue depth) — P2, S 🟢
 - [ ] [test] Tool-description lint test — every tool matches the what/when-not/returns/side-effects shape — P2, S 🟢
@@ -261,6 +269,9 @@ All spec-level open questions are closed (see `SPEC.md` "Open Questions — all 
 | 44 | feature | project_complete / drop / move                                                  | M1 Core surface   | P0       | S    | #42        |
 | 45 | feature | Cache invalidation wiring for M1 mutations                                      | M1 Core surface   | P0       | S    | #21, #39   |
 | 46 | test    | M1 unit suite against InMemoryAdapter                                           | M1 Core surface   | P0       | M    | #36–#44    |
+| 37a | feature | task_get_many — bulk fetch up to 100 tasks by ID list in one JXA round-trip      | M1 Core surface  | P1       | S    | #37        |
+| 46a | feature | Mutation responses return full domain object (write tools return updated entity) | M1 Core surface  | P1       | S    | #27        |
+| 46b | feature | meta.syncPending — set true on all mutation responses until sync_trigger runs     | M1 Core surface  | P1       | S    | #27, #73   |
 | 47 | test    | M1 script-tier tests                                                            | M1 Core surface   | P0       | M    | #36–#44    |
 | 48 | test    | M1 integration tests (gated)                                                    | M1 Core surface   | P0       | M    | #46, #32   |
 | 49 | feature | Tag schema + tag_list + tag_get                                                 | M2 Metadata       | P1       | S    | #16        |
@@ -272,7 +283,8 @@ All spec-level open questions are closed (see `SPEC.md` "Open Questions — all 
 | 55 | feature | perspective_evaluate for custom perspectives (OmniJS)                           | M2 Metadata       | P0       | L    | #19, #53   |
 | 56 | feature | forecast_get                                                                    | M2 Metadata       | P0       | M    | #16        |
 | 57 | feature | search_query (with pagination)                                                  | M2 Metadata       | P1       | L    | #35        |
-| 58 | feature | MCP resources (inbox, forecast/today, project, tag, perspective)                | M2 Metadata       | P1       | M    | #36, #42, #53 |
+| 57a | feature | Prompt injection containment in handler harness                                | M2 Metadata       | P1       | S    | #27        |
+| 58 | feature | MCP resources (snapshot, inbox, forecast/today, overdue, flagged, review-due, project, tag, perspective) | M2 Metadata | P1 | M | #36, #42, #53 |
 | 59 | test    | M2 script + integration tests incl. custom perspectives                         | M2 Metadata       | P0       | M    | #49–#58    |
 | 60 | feature | RepetitionRule schema with cross-field validation                               | M3 Advanced       | P1       | M    | #34        |
 | 61 | feature | task_set_repetition, task_clear_repetition; wire into task_update               | M3 Advanced       | P1       | M    | #60        |
@@ -290,6 +302,7 @@ All spec-level open questions are closed (see `SPEC.md` "Open Questions — all 
 | 73 | feature | sync_trigger + sync_status                                                      | M4 Long tail      | P2       | S    | #16        |
 | 74 | feature | plugin_invoke (generic)                                                         | M4 Long tail      | P3       | M    | #19        |
 | 75 | feature | run_jxa_script / run_omnijs_script (opt-in, audit-logged) 🔴                    | M4 Long tail      | P2       | M    | #19        |
+| 75a | feature | MCP prompts (daily-review, weekly-review, capture-meeting, project-planning)    | M5 Polish         | P1       | M    | #58, #65   |
 | 76 | feature | Loop-detection middleware                                                       | M5 Polish         | P2       | M    | #27        |
 | 77 | feature | internal_status tool                                                            | M5 Polish         | P2       | S    | #27        |
 | 78 | test    | Tool-description lint test                                                      | M5 Polish         | P2       | S    | —          |
