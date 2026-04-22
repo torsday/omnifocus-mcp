@@ -5,8 +5,8 @@
  * API from @modelcontextprotocol/sdk. No tools are registered here — they
  * arrive from per-noun registrations in M1+.
  *
- * Signal handlers for SIGINT/SIGTERM initiate graceful shutdown (#26). Until
- * that issue lands, we do a best-effort close and exit.
+ * Signal handlers for SIGINT/SIGTERM delegate to `shutdownController` (#26),
+ * which drains in-flight calls, flushes logs, and exits 0.
  *
  * Cold-start target: < 500ms on a warm macOS (DESIGN §17).
  *
@@ -18,6 +18,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { parseConfig, redactConfig } from "../config/env.js";
 import { logger } from "../logging/logger.js";
+import { shutdownController } from "./shutdown.js";
 import { installStdoutGuard } from "./stdoutGuard.js";
 
 const PACKAGE_VERSION = "0.0.1";
@@ -40,6 +41,8 @@ export function createMcpServer(): McpServer {
  * Boot the MCP server over stdio, parse config, wire signal handlers,
  * and emit the `server.started` event. Never returns while the server
  * is running.
+ *
+ * Unhandled exceptions log at `fatal` and exit 1 (DESIGN §17).
  */
 export async function startServer(): Promise<void> {
   // Guard stdout before anything else — a stray write before connect would
@@ -54,15 +57,26 @@ export async function startServer(): Promise<void> {
   const server = createMcpServer();
   const transport = new StdioServerTransport();
 
-  // Graceful shutdown — full implementation lands in #26.
-  const shutdown = async (reason: string) => {
-    logger.info({ event: "server.shutdown", reason, graceMs: 0 }, "shutting down");
-    await server.close();
-    process.exit(0);
-  };
+  // Graceful shutdown — delegate to shutdownController so tool handlers can
+  // call assertNotShuttingDown() and in-flight queues drain cleanly.
+  process.on("SIGINT", () => {
+    void shutdownController.initiate("SIGINT");
+  });
+  process.on("SIGTERM", () => {
+    void shutdownController.initiate("SIGTERM");
+  });
 
-  process.on("SIGINT", () => void shutdown("SIGINT"));
-  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  // Unhandled rejection / exception: log fatal and exit 1 (DESIGN §17).
+  process.on("unhandledRejection", (reason) => {
+    logger.fatal({ event: "server.unhandled_rejection", reason }, "unhandled rejection");
+    logger.flush();
+    process.exit(1);
+  });
+  process.on("uncaughtException", (err) => {
+    logger.fatal({ event: "server.uncaught_exception", err }, "uncaught exception");
+    logger.flush();
+    process.exit(1);
+  });
 
   await server.connect(transport);
 
