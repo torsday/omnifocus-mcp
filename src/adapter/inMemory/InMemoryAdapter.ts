@@ -1,0 +1,705 @@
+/**
+ * `InMemoryAdapter` — minimal test double for `OmniFocusAdapter`.
+ *
+ * **Scope (DESIGN §19):** CRUD on tasks/projects/tags/folders, filter
+ * application with the same semantics as JXA, and the basic error conditions
+ * (`NotFound` on unknown IDs, `ValidationError` on bad input).
+ *
+ * **Out of scope by design** — exercised only in the integration tier
+ * against real OmniFocus:
+ * - `available` / `blocked` derivation (full task-graph reachability)
+ * - cascade effects of recurring-task completion (next-occurrence spawn)
+ * - perspective evaluation
+ * - sync mechanics, attachments, TaskPaper/OPML round-trips
+ *
+ * Methods that fall outside the in-memory scope (`syncTrigger`, etc.) return
+ * sensible no-op results so services can be tested end-to-end without
+ * pretending the simulator is OmniFocus. Callers that depend on real OF
+ * semantics for those surfaces must use the integration tier.
+ *
+ * Determinism: ID generation is a monotonic counter prefixed by kind; date
+ * generation flows through an injectable `now()` clock. Tests can pin both.
+ *
+ * @see DESIGN.md §6.3, §6.6, §19
+ * @see src/adapter/OmniFocusAdapter.ts — interface this satisfies
+ */
+
+import type { Folder } from "../../domain/folder.js";
+import {
+  type FolderId,
+  FolderId as FolderIdCtor,
+  type ProjectId,
+  ProjectId as ProjectIdCtor,
+  type TagId,
+  TagId as TagIdCtor,
+  type TaskId,
+  TaskId as TaskIdCtor,
+} from "../../domain/ids.js";
+import type { Project } from "../../domain/project.js";
+import type { Tag } from "../../domain/tag.js";
+import type { Task } from "../../domain/task.js";
+import { NotFound, ValidationError } from "../../errors/index.js";
+import type {
+  CreateFolderInput,
+  CreateProjectInput,
+  CreateTagInput,
+  CreateTaskInput,
+  OmniFocusAdapter,
+  SyncStatus,
+  TaskFilter,
+  UpdateFolderInput,
+  UpdateProjectInput,
+  UpdateTagInput,
+  UpdateTaskInput,
+} from "../OmniFocusAdapter.js";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+export interface InMemoryAdapterOptions {
+  /** Override for the system clock. Returns ISO-8601-with-offset on each call. */
+  now?: () => Date;
+  /** Seed for the ID counter. Defaults to 0. */
+  idSeed?: number;
+}
+
+function isoOf(d: Date): string {
+  // toISOString returns Zulu form ("2026-04-21T17:30:00.000Z") which is a valid
+  // ISO-8601 with offset (Z == +00:00). The domain dates module accepts this.
+  return d.toISOString();
+}
+
+// ---------------------------------------------------------------------------
+// Adapter
+// ---------------------------------------------------------------------------
+
+export class InMemoryAdapter implements OmniFocusAdapter {
+  private readonly now: () => Date;
+  private idCounter: number;
+
+  private readonly tasks = new Map<TaskId, Task>();
+  private readonly projects = new Map<ProjectId, Project>();
+  private readonly tags = new Map<TagId, Tag>();
+  private readonly folders = new Map<FolderId, Folder>();
+
+  private lastSyncAt: string | null = null;
+
+  constructor(options: InMemoryAdapterOptions = {}) {
+    this.now = options.now ?? (() => new Date());
+    this.idCounter = options.idSeed ?? 0;
+  }
+
+  // -- ID generation --------------------------------------------------------
+
+  private nextId<B extends string>(prefix: string, ctor: { of(s: string): B }): B {
+    this.idCounter += 1;
+    // Pad to keep IDs sortable; pattern still matches ^[A-Za-z0-9_-]{3,64}$.
+    return ctor.of(`${prefix}_${this.idCounter.toString().padStart(6, "0")}`);
+  }
+
+  // -- Tasks ----------------------------------------------------------------
+
+  async listTasks(filter: TaskFilter): Promise<Task[]> {
+    return Array.from(this.tasks.values()).filter((t) => this.matchesTask(t, filter));
+  }
+
+  async getTask(id: TaskId): Promise<Task> {
+    const task = this.tasks.get(id);
+    if (task === undefined) {
+      throw new NotFound(`Task not found: ${id}`, { details: { resource: "task", id } });
+    }
+    return task;
+  }
+
+  async getTasksMany(ids: TaskId[]): Promise<(Task | null)[]> {
+    return ids.map((id) => this.tasks.get(id) ?? null);
+  }
+
+  async createTask(input: CreateTaskInput): Promise<TaskId> {
+    if (input.name.trim() === "") {
+      throw new ValidationError("Task name must be non-empty", {
+        details: { field: "name" },
+      });
+    }
+    if (input.projectId !== undefined && input.parentId !== undefined) {
+      throw new ValidationError("createTask: provide projectId OR parentId, not both", {
+        details: { field: "projectId|parentId" },
+      });
+    }
+    if (input.projectId !== undefined && !this.projects.has(input.projectId)) {
+      throw new NotFound(`Project not found: ${input.projectId}`, {
+        details: { resource: "project", id: input.projectId },
+      });
+    }
+    if (input.parentId !== undefined && !this.tasks.has(input.parentId)) {
+      throw new NotFound(`Parent task not found: ${input.parentId}`, {
+        details: { resource: "task", id: input.parentId },
+      });
+    }
+    for (const tagId of input.tagIds ?? []) {
+      if (!this.tags.has(tagId)) {
+        throw new NotFound(`Tag not found: ${tagId}`, {
+          details: { resource: "tag", id: tagId },
+        });
+      }
+    }
+
+    const id = this.nextId("task", TaskIdCtor);
+    const now = isoOf(this.now()) as Task["createdAt"];
+    const task: Task = {
+      id,
+      name: input.name,
+      note: input.note ?? null,
+      noteHtml: input.noteHtml ?? null,
+      projectId: input.projectId ?? null,
+      parentId: input.parentId ?? null,
+      tagIds: [...(input.tagIds ?? [])],
+      deferDate: (input.deferDate ?? null) as Task["deferDate"],
+      dueDate: (input.dueDate ?? null) as Task["dueDate"],
+      estimatedMinutes: input.estimatedMinutes ?? null,
+      flagged: input.flagged ?? false,
+      completed: false,
+      completedAt: null,
+      dropped: false,
+      droppedAt: null,
+      // Availability/blocked derivation is integration-only (DESIGN §19); the
+      // in-memory double assumes a freshly-created task is available + unblocked.
+      available: true,
+      blocked: false,
+      sequential: input.sequential ?? false,
+      completedByChildren: input.completedByChildren ?? false,
+      repetition: null,
+      createdAt: now,
+      modifiedAt: now,
+    };
+    this.tasks.set(id, task);
+    this.bumpProjectTaskCount(task.projectId, +1);
+    return id;
+  }
+
+  async updateTask(id: TaskId, patch: UpdateTaskInput): Promise<void> {
+    const task = await this.getTask(id);
+    if (patch.name !== undefined && patch.name.trim() === "") {
+      throw new ValidationError("Task name must be non-empty", { details: { field: "name" } });
+    }
+    if (patch.tagIds !== undefined) {
+      for (const tagId of patch.tagIds) {
+        if (!this.tags.has(tagId)) {
+          throw new NotFound(`Tag not found: ${tagId}`, {
+            details: { resource: "tag", id: tagId },
+          });
+        }
+      }
+    }
+    const updated: Task = {
+      ...task,
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      ...(patch.note !== undefined ? { note: patch.note } : {}),
+      ...(patch.noteHtml !== undefined ? { noteHtml: patch.noteHtml } : {}),
+      ...(patch.flagged !== undefined ? { flagged: patch.flagged } : {}),
+      ...(patch.deferDate !== undefined ? { deferDate: patch.deferDate as Task["deferDate"] } : {}),
+      ...(patch.dueDate !== undefined ? { dueDate: patch.dueDate as Task["dueDate"] } : {}),
+      ...(patch.estimatedMinutes !== undefined ? { estimatedMinutes: patch.estimatedMinutes } : {}),
+      ...(patch.tagIds !== undefined ? { tagIds: [...patch.tagIds] } : {}),
+      ...(patch.sequential !== undefined ? { sequential: patch.sequential } : {}),
+      ...(patch.completedByChildren !== undefined
+        ? { completedByChildren: patch.completedByChildren }
+        : {}),
+      ...(patch.repetition !== undefined ? { repetition: patch.repetition } : {}),
+      modifiedAt: isoOf(this.now()) as Task["modifiedAt"],
+    };
+    this.tasks.set(id, updated);
+  }
+
+  async completeTask(id: TaskId, at?: Date): Promise<void> {
+    const task = await this.getTask(id);
+    const completedAt = isoOf(at ?? this.now()) as Task["completedAt"];
+    this.tasks.set(id, {
+      ...task,
+      completed: true,
+      completedAt,
+      modifiedAt: completedAt as unknown as Task["modifiedAt"],
+    });
+    this.bumpProjectCompletedCount(task.projectId, +1);
+  }
+
+  async uncompleteTask(id: TaskId): Promise<void> {
+    const task = await this.getTask(id);
+    if (!task.completed) return;
+    this.tasks.set(id, {
+      ...task,
+      completed: false,
+      completedAt: null,
+      modifiedAt: isoOf(this.now()) as Task["modifiedAt"],
+    });
+    this.bumpProjectCompletedCount(task.projectId, -1);
+  }
+
+  async dropTask(id: TaskId, at?: Date): Promise<void> {
+    const task = await this.getTask(id);
+    const droppedAt = isoOf(at ?? this.now()) as Task["droppedAt"];
+    this.tasks.set(id, {
+      ...task,
+      dropped: true,
+      droppedAt,
+      modifiedAt: droppedAt as unknown as Task["modifiedAt"],
+    });
+  }
+
+  async undropTask(id: TaskId): Promise<void> {
+    const task = await this.getTask(id);
+    if (!task.dropped) return;
+    this.tasks.set(id, {
+      ...task,
+      dropped: false,
+      droppedAt: null,
+      modifiedAt: isoOf(this.now()) as Task["modifiedAt"],
+    });
+  }
+
+  async deleteTask(id: TaskId): Promise<void> {
+    const task = await this.getTask(id);
+    this.tasks.delete(id);
+    this.bumpProjectTaskCount(task.projectId, -1);
+    if (task.completed) this.bumpProjectCompletedCount(task.projectId, -1);
+  }
+
+  async moveTask(
+    id: TaskId,
+    destination: { projectId?: ProjectId; parentId?: TaskId },
+  ): Promise<void> {
+    const task = await this.getTask(id);
+    if (destination.projectId !== undefined && destination.parentId !== undefined) {
+      throw new ValidationError("moveTask: provide projectId OR parentId, not both", {
+        details: { field: "projectId|parentId" },
+      });
+    }
+    if (destination.projectId !== undefined && !this.projects.has(destination.projectId)) {
+      throw new NotFound(`Project not found: ${destination.projectId}`, {
+        details: { resource: "project", id: destination.projectId },
+      });
+    }
+    if (destination.parentId !== undefined && !this.tasks.has(destination.parentId)) {
+      throw new NotFound(`Parent task not found: ${destination.parentId}`, {
+        details: { resource: "task", id: destination.parentId },
+      });
+    }
+    this.bumpProjectTaskCount(task.projectId, -1);
+    if (task.completed) this.bumpProjectCompletedCount(task.projectId, -1);
+
+    const newProjectId = destination.projectId ?? null;
+    this.tasks.set(id, {
+      ...task,
+      projectId: newProjectId,
+      parentId: destination.parentId ?? null,
+      modifiedAt: isoOf(this.now()) as Task["modifiedAt"],
+    });
+    this.bumpProjectTaskCount(newProjectId, +1);
+    if (task.completed) this.bumpProjectCompletedCount(newProjectId, +1);
+  }
+
+  // -- Projects -------------------------------------------------------------
+
+  async listProjects(
+    filter: { folderId?: FolderId; status?: Project["status"] } = {},
+  ): Promise<Project[]> {
+    return Array.from(this.projects.values()).filter((p) => {
+      if (filter.folderId !== undefined && p.folderId !== filter.folderId) return false;
+      if (filter.status !== undefined && p.status !== filter.status) return false;
+      return true;
+    });
+  }
+
+  async getProject(id: ProjectId): Promise<Project> {
+    const project = this.projects.get(id);
+    if (project === undefined) {
+      throw new NotFound(`Project not found: ${id}`, { details: { resource: "project", id } });
+    }
+    return project;
+  }
+
+  async createProject(input: CreateProjectInput): Promise<ProjectId> {
+    if (input.name.trim() === "") {
+      throw new ValidationError("Project name must be non-empty", {
+        details: { field: "name" },
+      });
+    }
+    if (input.folderId !== undefined && !this.folders.has(input.folderId)) {
+      throw new NotFound(`Folder not found: ${input.folderId}`, {
+        details: { resource: "folder", id: input.folderId },
+      });
+    }
+
+    const id = this.nextId("proj", ProjectIdCtor);
+    const now = isoOf(this.now()) as Project["createdAt"];
+    const project: Project = {
+      id,
+      name: input.name,
+      note: input.note ?? null,
+      noteHtml: input.noteHtml ?? null,
+      folderId: input.folderId ?? null,
+      tagIds: [...(input.tagIds ?? [])],
+      status: input.status ?? "active",
+      completionCriterion: input.completionCriterion ?? "parallel",
+      deferDate: (input.deferDate ?? null) as Project["deferDate"],
+      dueDate: (input.dueDate ?? null) as Project["dueDate"],
+      estimatedMinutes: input.estimatedMinutes ?? null,
+      flagged: input.flagged ?? false,
+      reviewIntervalDays: input.reviewIntervalDays ?? null,
+      nextReviewDate: null,
+      lastReviewDate: null,
+      completed: false,
+      completedAt: null,
+      dropped: false,
+      droppedAt: null,
+      taskCount: 0,
+      completedTaskCount: 0,
+      createdAt: now,
+      modifiedAt: now,
+    };
+    this.projects.set(id, project);
+    this.bumpFolderProjectCount(project.folderId, +1);
+    return id;
+  }
+
+  async updateProject(id: ProjectId, patch: UpdateProjectInput): Promise<void> {
+    const project = await this.getProject(id);
+    if (patch.name !== undefined && patch.name.trim() === "") {
+      throw new ValidationError("Project name must be non-empty", { details: { field: "name" } });
+    }
+    const updated: Project = {
+      ...project,
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      ...(patch.note !== undefined ? { note: patch.note } : {}),
+      ...(patch.noteHtml !== undefined ? { noteHtml: patch.noteHtml } : {}),
+      ...(patch.status !== undefined ? { status: patch.status } : {}),
+      ...(patch.completionCriterion !== undefined
+        ? { completionCriterion: patch.completionCriterion }
+        : {}),
+      ...(patch.deferDate !== undefined
+        ? { deferDate: patch.deferDate as Project["deferDate"] }
+        : {}),
+      ...(patch.dueDate !== undefined ? { dueDate: patch.dueDate as Project["dueDate"] } : {}),
+      ...(patch.estimatedMinutes !== undefined ? { estimatedMinutes: patch.estimatedMinutes } : {}),
+      ...(patch.flagged !== undefined ? { flagged: patch.flagged } : {}),
+      ...(patch.tagIds !== undefined ? { tagIds: [...patch.tagIds] } : {}),
+      ...(patch.reviewIntervalDays !== undefined
+        ? { reviewIntervalDays: patch.reviewIntervalDays }
+        : {}),
+      modifiedAt: isoOf(this.now()) as Project["modifiedAt"],
+    };
+    this.projects.set(id, updated);
+  }
+
+  async completeProject(id: ProjectId, at?: Date): Promise<void> {
+    const project = await this.getProject(id);
+    const completedAt = isoOf(at ?? this.now()) as Project["completedAt"];
+    this.projects.set(id, {
+      ...project,
+      status: "done",
+      completed: true,
+      completedAt,
+      modifiedAt: completedAt as unknown as Project["modifiedAt"],
+    });
+  }
+
+  async dropProject(id: ProjectId, at?: Date): Promise<void> {
+    const project = await this.getProject(id);
+    const droppedAt = isoOf(at ?? this.now()) as Project["droppedAt"];
+    this.projects.set(id, {
+      ...project,
+      status: "dropped",
+      dropped: true,
+      droppedAt,
+      modifiedAt: droppedAt as unknown as Project["modifiedAt"],
+    });
+  }
+
+  async moveProject(id: ProjectId, destination: { folderId: FolderId | null }): Promise<void> {
+    const project = await this.getProject(id);
+    if (destination.folderId !== null && !this.folders.has(destination.folderId)) {
+      throw new NotFound(`Folder not found: ${destination.folderId}`, {
+        details: { resource: "folder", id: destination.folderId },
+      });
+    }
+    this.bumpFolderProjectCount(project.folderId, -1);
+    this.projects.set(id, {
+      ...project,
+      folderId: destination.folderId,
+      modifiedAt: isoOf(this.now()) as Project["modifiedAt"],
+    });
+    this.bumpFolderProjectCount(destination.folderId, +1);
+  }
+
+  async deleteProject(id: ProjectId): Promise<void> {
+    const project = await this.getProject(id);
+    // Cascade: orphaned tasks become inbox tasks (matches OF behavior loosely;
+    // real OF prompts the user). Out-of-scope details fall to the integration tier.
+    for (const [taskId, task] of this.tasks) {
+      if (task.projectId === id) {
+        this.tasks.set(taskId, { ...task, projectId: null });
+      }
+    }
+    this.projects.delete(id);
+    this.bumpFolderProjectCount(project.folderId, -1);
+  }
+
+  async markProjectReviewed(id: ProjectId): Promise<void> {
+    const project = await this.getProject(id);
+    const now = this.now();
+    const lastReviewDate = isoOf(now) as Project["lastReviewDate"];
+    let nextReviewDate: Project["nextReviewDate"] = null;
+    if (project.reviewIntervalDays !== null) {
+      const next = new Date(now);
+      next.setUTCDate(next.getUTCDate() + project.reviewIntervalDays);
+      nextReviewDate = isoOf(next) as Project["nextReviewDate"];
+    }
+    this.projects.set(id, {
+      ...project,
+      lastReviewDate,
+      nextReviewDate,
+      modifiedAt: lastReviewDate as unknown as Project["modifiedAt"],
+    });
+  }
+
+  // -- Tags -----------------------------------------------------------------
+
+  async listTags(filter: { parentId?: TagId; status?: Tag["status"] } = {}): Promise<Tag[]> {
+    return Array.from(this.tags.values()).filter((t) => {
+      if (filter.parentId !== undefined && t.parentId !== filter.parentId) return false;
+      if (filter.status !== undefined && t.status !== filter.status) return false;
+      return true;
+    });
+  }
+
+  async getTag(id: TagId): Promise<Tag> {
+    const tag = this.tags.get(id);
+    if (tag === undefined) {
+      throw new NotFound(`Tag not found: ${id}`, { details: { resource: "tag", id } });
+    }
+    return tag;
+  }
+
+  async createTag(input: CreateTagInput): Promise<TagId> {
+    if (input.name.trim() === "") {
+      throw new ValidationError("Tag name must be non-empty", { details: { field: "name" } });
+    }
+    if (input.parentId !== undefined && !this.tags.has(input.parentId)) {
+      throw new NotFound(`Parent tag not found: ${input.parentId}`, {
+        details: { resource: "tag", id: input.parentId },
+      });
+    }
+
+    const id = this.nextId("tag", TagIdCtor);
+    const now = isoOf(this.now()) as Tag["createdAt"];
+    const tag: Tag = {
+      id,
+      name: input.name,
+      parentId: input.parentId ?? null,
+      status: input.status ?? "active",
+      location: null,
+      allowsNextAction: input.allowsNextAction ?? true,
+      taskCount: 0,
+      createdAt: now,
+      modifiedAt: now,
+    };
+    this.tags.set(id, tag);
+    return id;
+  }
+
+  async updateTag(id: TagId, patch: UpdateTagInput): Promise<void> {
+    const tag = await this.getTag(id);
+    if (patch.name !== undefined && patch.name.trim() === "") {
+      throw new ValidationError("Tag name must be non-empty", { details: { field: "name" } });
+    }
+    if (patch.parentId !== undefined && patch.parentId !== null && !this.tags.has(patch.parentId)) {
+      throw new NotFound(`Parent tag not found: ${patch.parentId}`, {
+        details: { resource: "tag", id: patch.parentId },
+      });
+    }
+    this.tags.set(id, {
+      ...tag,
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      ...(patch.parentId !== undefined ? { parentId: patch.parentId } : {}),
+      ...(patch.status !== undefined ? { status: patch.status } : {}),
+      ...(patch.allowsNextAction !== undefined ? { allowsNextAction: patch.allowsNextAction } : {}),
+      modifiedAt: isoOf(this.now()) as Tag["modifiedAt"],
+    });
+  }
+
+  async deleteTag(id: TagId): Promise<void> {
+    await this.getTag(id);
+    // Drop the tag from any task carrying it.
+    for (const [taskId, task] of this.tasks) {
+      if (task.tagIds.includes(id)) {
+        this.tasks.set(taskId, {
+          ...task,
+          tagIds: task.tagIds.filter((t) => t !== id),
+        });
+      }
+    }
+    this.tags.delete(id);
+  }
+
+  // -- Folders --------------------------------------------------------------
+
+  async listFolders(filter: { parentId?: FolderId } = {}): Promise<Folder[]> {
+    return Array.from(this.folders.values()).filter((f) => {
+      if (filter.parentId !== undefined && f.parentId !== filter.parentId) return false;
+      return true;
+    });
+  }
+
+  async getFolder(id: FolderId): Promise<Folder> {
+    const folder = this.folders.get(id);
+    if (folder === undefined) {
+      throw new NotFound(`Folder not found: ${id}`, { details: { resource: "folder", id } });
+    }
+    return folder;
+  }
+
+  async createFolder(input: CreateFolderInput): Promise<FolderId> {
+    if (input.name.trim() === "") {
+      throw new ValidationError("Folder name must be non-empty", {
+        details: { field: "name" },
+      });
+    }
+    if (input.parentId !== undefined && !this.folders.has(input.parentId)) {
+      throw new NotFound(`Parent folder not found: ${input.parentId}`, {
+        details: { resource: "folder", id: input.parentId },
+      });
+    }
+
+    const id = this.nextId("fold", FolderIdCtor);
+    const now = isoOf(this.now()) as Folder["createdAt"];
+    const folder: Folder = {
+      id,
+      name: input.name,
+      parentId: input.parentId ?? null,
+      projectCount: 0,
+      subfolderCount: 0,
+      createdAt: now,
+      modifiedAt: now,
+    };
+    this.folders.set(id, folder);
+    if (folder.parentId !== null) this.bumpFolderSubfolderCount(folder.parentId, +1);
+    return id;
+  }
+
+  async updateFolder(id: FolderId, patch: UpdateFolderInput): Promise<void> {
+    const folder = await this.getFolder(id);
+    if (patch.name !== undefined && patch.name.trim() === "") {
+      throw new ValidationError("Folder name must be non-empty", { details: { field: "name" } });
+    }
+    if (
+      patch.parentId !== undefined &&
+      patch.parentId !== null &&
+      !this.folders.has(patch.parentId)
+    ) {
+      throw new NotFound(`Parent folder not found: ${patch.parentId}`, {
+        details: { resource: "folder", id: patch.parentId },
+      });
+    }
+    if (patch.parentId !== undefined && patch.parentId !== folder.parentId) {
+      if (folder.parentId !== null) this.bumpFolderSubfolderCount(folder.parentId, -1);
+      if (patch.parentId !== null) this.bumpFolderSubfolderCount(patch.parentId, +1);
+    }
+    this.folders.set(id, {
+      ...folder,
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      ...(patch.parentId !== undefined ? { parentId: patch.parentId } : {}),
+      modifiedAt: isoOf(this.now()) as Folder["modifiedAt"],
+    });
+  }
+
+  async deleteFolder(id: FolderId): Promise<void> {
+    const folder = await this.getFolder(id);
+    if (folder.projectCount > 0 || folder.subfolderCount > 0) {
+      throw new ValidationError(
+        `Folder is not empty (projects=${folder.projectCount}, subfolders=${folder.subfolderCount})`,
+        { details: { resource: "folder", id } },
+      );
+    }
+    this.folders.delete(id);
+    if (folder.parentId !== null) this.bumpFolderSubfolderCount(folder.parentId, -1);
+  }
+
+  // -- Sync (no-op stubs; integration tier owns real semantics) ------------
+
+  async syncTrigger(): Promise<SyncStatus> {
+    this.lastSyncAt = isoOf(this.now());
+    return { lastSyncAt: this.lastSyncAt, inFlight: false };
+  }
+
+  async getLastSync(): Promise<SyncStatus> {
+    return { lastSyncAt: this.lastSyncAt, inFlight: false };
+  }
+
+  // -- Internal helpers -----------------------------------------------------
+
+  private matchesTask(task: Task, filter: TaskFilter): boolean {
+    if (filter.projectId !== undefined && task.projectId !== filter.projectId) return false;
+    if (filter.parentId !== undefined && task.parentId !== filter.parentId) return false;
+    if (filter.tagId !== undefined && !task.tagIds.includes(filter.tagId)) return false;
+    if (filter.flagged !== undefined && task.flagged !== filter.flagged) return false;
+    if (filter.completed !== undefined && task.completed !== filter.completed) return false;
+    if (filter.available !== undefined && task.available !== filter.available) return false;
+    if (filter.blocked !== undefined && task.blocked !== filter.blocked) return false;
+    if (filter.completedSince !== undefined) {
+      if (task.completedAt === null || task.completedAt < filter.completedSince) return false;
+    }
+    if (filter.dueBefore !== undefined) {
+      if (task.dueDate === null || task.dueDate >= filter.dueBefore) return false;
+    }
+    if (filter.dueAfter !== undefined) {
+      if (task.dueDate === null || task.dueDate <= filter.dueAfter) return false;
+    }
+    if (filter.deferredBefore !== undefined) {
+      if (task.deferDate === null || task.deferDate >= filter.deferredBefore) return false;
+    }
+    if (filter.deferredAfter !== undefined) {
+      if (task.deferDate === null || task.deferDate <= filter.deferredAfter) return false;
+    }
+    return true;
+  }
+
+  private bumpProjectTaskCount(projectId: ProjectId | null, delta: number): void {
+    if (projectId === null) return;
+    const project = this.projects.get(projectId);
+    if (project === undefined) return;
+    this.projects.set(projectId, {
+      ...project,
+      taskCount: Math.max(0, project.taskCount + delta),
+    });
+  }
+
+  private bumpProjectCompletedCount(projectId: ProjectId | null, delta: number): void {
+    if (projectId === null) return;
+    const project = this.projects.get(projectId);
+    if (project === undefined) return;
+    this.projects.set(projectId, {
+      ...project,
+      completedTaskCount: Math.max(0, project.completedTaskCount + delta),
+    });
+  }
+
+  private bumpFolderProjectCount(folderId: FolderId | null, delta: number): void {
+    if (folderId === null) return;
+    const folder = this.folders.get(folderId);
+    if (folder === undefined) return;
+    this.folders.set(folderId, {
+      ...folder,
+      projectCount: Math.max(0, folder.projectCount + delta),
+    });
+  }
+
+  private bumpFolderSubfolderCount(folderId: FolderId, delta: number): void {
+    const folder = this.folders.get(folderId);
+    if (folder === undefined) return;
+    this.folders.set(folderId, {
+      ...folder,
+      subfolderCount: Math.max(0, folder.subfolderCount + delta),
+    });
+  }
+}
