@@ -193,6 +193,14 @@ export class JxaTransport implements OmniFocusAdapter {
     return notYetWired("deleteFolder");
   }
 
+  // -- Search ---------------------------------------------------------------
+
+  async searchTasks(
+    _filter: import("../OmniFocusAdapter.js").SearchFilter,
+  ): Promise<import("../../domain/task.js").Task[]> {
+    return notYetWired("searchTasks");
+  }
+
   // -- Sync (wired) ---------------------------------------------------------
 
   async syncTrigger(): Promise<SyncStatus> {

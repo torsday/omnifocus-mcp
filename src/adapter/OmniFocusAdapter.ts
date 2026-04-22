@@ -127,6 +127,25 @@ export interface UpdateProjectInput {
   reviewIntervalDays?: number | null;
 }
 
+/**
+ * Filter for full-text task search. `q` is matched against `name`, `note`,
+ * or both depending on `scope`. Additional fields narrow the match set.
+ */
+export interface SearchFilter {
+  /** Search query string. Case-insensitive; empty string matches all. */
+  q: string;
+  /** Which fields to search. Default: "all". */
+  scope?: "name" | "note" | "all";
+  /** Restrict to tasks in this project. */
+  projectId?: ProjectId;
+  /** Restrict to tasks carrying ALL of these tags. */
+  tagIds?: TagId[];
+  /** true = flagged only; false = unflagged only; omit = all. */
+  flagged?: boolean;
+  /** "exclude" = active only; "only" = completed only; "any" = both. */
+  completed?: "any" | "only" | "exclude";
+}
+
 export interface CreateTagInput {
   name: string;
   parentId?: TagId;
@@ -215,6 +234,15 @@ export interface OmniFocusAdapter {
   createFolder(input: CreateFolderInput): Promise<FolderId>;
   updateFolder(id: FolderId, patch: UpdateFolderInput): Promise<void>;
   deleteFolder(id: FolderId): Promise<void>;
+
+  // -- Search ----------------------------------------------------------------
+
+  /**
+   * Full-text search across tasks. Implementations may push the search to
+   * the underlying transport (JXA predicate, OmniJS filter) or perform it
+   * in-process. Returns matching tasks in adapter-natural order.
+   */
+  searchTasks(filter: SearchFilter): Promise<Task[]>;
 
   // -- Sync ------------------------------------------------------------------
 
