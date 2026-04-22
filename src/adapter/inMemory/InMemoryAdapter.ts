@@ -626,6 +626,46 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     if (folder.parentId !== null) this.bumpFolderSubfolderCount(folder.parentId, -1);
   }
 
+  // -- Search ---------------------------------------------------------------
+
+  /**
+   * In-memory full-text search across task name and/or note.
+   *
+   * Matching is case-insensitive substring search. Additional filter fields
+   * (projectId, tagIds, flagged, completed) narrow the result set with the
+   * same semantics as `listTasks`. Returns matching tasks in creation order.
+   */
+  async searchTasks(filter: SearchFilter): Promise<Task[]> {
+    const q = filter.q.toLowerCase();
+    const scope = filter.scope ?? "all";
+
+    return Array.from(this.tasks.values()).filter((task) => {
+      // Text match
+      const inName = scope !== "note" && task.name.toLowerCase().includes(q);
+      const inNote = scope !== "name" && (task.note ?? "").toLowerCase().includes(q);
+      if (!inName && !inNote) return false;
+
+      // projectId filter
+      if (filter.projectId !== undefined && task.projectId !== filter.projectId) return false;
+
+      // tagIds filter (task must carry ALL requested tags)
+      if (filter.tagIds !== undefined && filter.tagIds.length > 0) {
+        const taskTagSet = new Set(task.tagIds);
+        if (!filter.tagIds.every((tid) => taskTagSet.has(tid))) return false;
+      }
+
+      // flagged filter
+      if (filter.flagged !== undefined && task.flagged !== filter.flagged) return false;
+
+      // completed filter
+      const isCompleted = task.completedAt !== null;
+      if (filter.completed === "only" && !isCompleted) return false;
+      if (filter.completed === "exclude" && isCompleted) return false;
+
+      return true;
+    });
+  }
+
   // -- Sync (no-op stubs; integration tier owns real semantics) ------------
 
   async syncTrigger(): Promise<SyncStatus> {

@@ -196,6 +196,14 @@ export class OmniJsTransport implements OmniFocusAdapter {
     return notYetWired("deleteFolder");
   }
 
+  // -- Search ---------------------------------------------------------------
+
+  async searchTasks(
+    _filter: import("../OmniFocusAdapter.js").SearchFilter,
+  ): Promise<import("../../domain/task.js").Task[]> {
+    return notYetWired("searchTasks");
+  }
+
   // -- Sync -----------------------------------------------------------------
 
   // Sync is a document-level operation exposed by JXA, not OmniJS. The
