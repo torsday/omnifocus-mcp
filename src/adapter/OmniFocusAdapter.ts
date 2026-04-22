@@ -139,6 +139,8 @@ export interface UpdateTagInput {
   parentId?: TagId | null;
   status?: "active" | "on-hold" | "dropped";
   allowsNextAction?: boolean;
+  /** Set or clear the location trigger on the tag. Pass `null` to remove the location. */
+  location?: TagLocation | null;
 }
 
 export interface CreateFolderInput {

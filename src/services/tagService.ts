@@ -184,4 +184,42 @@ export class TagService {
   async setAllowsNextAction(id: TagId, value: boolean): Promise<void> {
     await this.adapter.updateTag(id, { allowsNextAction: value });
   }
+
+  /**
+   * Set a geographic location trigger on the tag (OmniFocus Pro only).
+   *
+   * The JXA adapter will throw `FeatureRequiresPro` when running against
+   * OmniFocus Standard — this service method is transparent to that error
+   * and lets it propagate to the MCP tool layer.
+   *
+   * @param id — tag to update
+   * @param location — location trigger data (lat/lon/radius/trigger/optional name)
+   * @throws {NotFound} when no tag with `id` exists.
+   * @throws {FeatureRequiresPro} (from adapter) on OmniFocus Standard.
+   */
+  async setLocation(id: TagId, location: TagLocation): Promise<void> {
+    await this.adapter.updateTag(id, { location });
+  }
+
+  /**
+   * Clear the geographic location trigger on the tag.
+   *
+   * @param id — tag to update
+   * @throws {NotFound} when no tag with `id` exists.
+   */
+  async clearLocation(id: TagId): Promise<void> {
+    await this.adapter.updateTag(id, { location: null });
+  }
+
+  /**
+   * Get the current location trigger for a tag (null if none set).
+   *
+   * @param id — tag to query
+   * @returns The location trigger, or null if not set.
+   * @throws {NotFound} when no tag with `id` exists.
+   */
+  async getLocation(id: TagId): Promise<{ location: TagLocation | null; cacheHit: boolean }> {
+    const tag = await this.adapter.getTag(id);
+    return { location: tag.location, cacheHit: false };
+  }
 }
