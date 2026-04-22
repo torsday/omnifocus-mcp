@@ -45,7 +45,19 @@ Every issue gets:
 - **Size:** one of `size: XS` (≤2h), `size: S` (½ day), `size: M` (1 day), `size: L` (2–3 days), `size: XL` (≥1 week — split instead)
 - **Phase:** one of `phase: M0 foundation`, `phase: M1 core`, `phase: M2 metadata`, `phase: M3 advanced`, `phase: M4 long-tail`, `phase: M5 polish`
 - **Domain:** one or more of `domain: task|project|tag|folder|perspective|forecast|review|search|note|attachment|repetition|batch|export|sync|transport|observability|security|lifecycle|config|resources`
+- **Model:** exactly one of `model: opus` or `model: sonnet` — see "Model — pick which" below
 - **Risk** (only if medium or high): `risk: high`, `risk: medium`
+
+### Model — pick which
+
+Every issue must carry exactly one of `model: opus` or `model: sonnet`. This lets `/next` and `/ship-next` filter the Ready queue by the active model so parallel loop threads (one Opus, one Sonnet) never collide on the same issue. See `CLAUDE.md` § "Model split" for the project-specific application of this heuristic.
+
+| Label           | When                                                                                                                                                                                                |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `model: opus`   | Sustained reasoning, judgment calls, ambiguous requirements, central design, ADRs, security-adjacent changes, error taxonomy, complex algorithms, large refactors, spikes, tool descriptions, SPI work |
+| `model: sonnet` | Well-spec'd execution, CRUD, mapping layers, handler patterns following an established template, validation gates, mechanical tests, infra/CI scripts, docs, small bug fixes                        |
+
+When in doubt, label `opus` — over-using opus is cheap; under-using it produces lower-quality work on hard problems. Re-label freely as you learn what's actually hard.
 
 ### Milestone
 
@@ -61,10 +73,10 @@ Match the phase:
 ### Commands — create + wire
 
 ```bash
-# Create the issue
+# Create the issue. The label set MUST include exactly one model: label.
 gh issue create \
   --title "<title>" \
-  --label "<comma,separated,labels>" \
+  --label "<type,priority,size,phase,domain[,risk],model: opus|sonnet>" \
   --milestone "<milestone>" \
   --body "$(cat <<'EOF'
 <body>

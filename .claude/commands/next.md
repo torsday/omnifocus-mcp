@@ -114,11 +114,28 @@ Before any code, state:
 > **Passed over:** the next 1–2 candidates and a one-line reason they ranked lower
 > **Scope edges:** what's explicitly out of scope for this session
 
-Then flip the issue's project Status to `In Progress` and optionally add a `status: in-progress` label:
+**Immediately flip the issue's project Status to `In Progress`, add the label, and post a start comment — do this before writing a single line of code:**
 
 ```bash
+# 1. Add label
 gh issue edit <N> --add-label "status: in-progress"
-# Also update the project Status field (via GraphQL; see scripts/set-ready-status.sh for the mutation pattern)
+
+# 2. Get the project item ID for this issue
+ITEM_ID=$(gh api graphql -f query='query { user(login: "torsday") { projectV2(number: 4) { items(first: 100) { nodes { id content { ... on Issue { number } } } } } } }' \
+  --jq ".data.user.projectV2.items.nodes[] | select(.content.number == <N>) | .id")
+
+# 3. Post a start comment so the issue timeline shows activity
+gh issue comment <N> --body "🚧 Work started — branch \`<branch>\`."
+
+# 4. Flip Status → In Progress (option ID: 381a1e62)
+gh api graphql -f query="mutation {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: \"PVT_kwHOAARNgc4BVGvQ\"
+    itemId: \"$ITEM_ID\"
+    fieldId: \"PVTSSF_lAHOAARNgc4BVGvQzhQkx-E\"
+    value: { singleSelectOptionId: \"381a1e62\" }
+  }) { projectV2Item { id } }
+}"
 ```
 
 ---
@@ -155,16 +172,33 @@ Apply the standards in the matrix below. Do not re-specify them — just follow 
 3. **Test:** `pnpm typecheck && pnpm lint && pnpm test`. If adapter-touching, also `OMNIFOCUS_INTEGRATION=1 pnpm test:integration`.
 4. **Self-review via `review_pr.md`:** run the review on your own diff before asking humans. Catches more issues cheaply.
 5. **Commit:** `commit.md` — atomic, Conventional Commits, `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`. One concern per commit; split if the diff has multiple.
-6. **Push + open PR:** `gh pr create` with the template from `.github/PULL_REQUEST_TEMPLATE.md`. Reference `Closes #N`. **Flip the project board Status from `In Progress` to `In Review`** — signals on the Kanban that coding is done and the work is awaiting merge.
-7. **Merge when green.** `gh pr merge --squash --auto`. Don't skip hooks (`--no-verify` is never the answer).
+6. **Push + open PR:** `gh pr create` with the template from `.github/PULL_REQUEST_TEMPLATE.md`. Reference `Closes #N`. Then immediately flip Status → **In Review** (option ID `04079029`):
+   ```bash
+   gh api graphql -f query="mutation {
+     updateProjectV2ItemFieldValue(input: {
+       projectId: \"PVT_kwHOAARNgc4BVGvQ\"
+       itemId: \"$ITEM_ID\"
+       fieldId: \"PVTSSF_lAHOAARNgc4BVGvQzhQkx-E\"
+       value: { singleSelectOptionId: \"04079029\" }
+     }) { projectV2Item { id } }
+   }"
+   ```
+7. **Merge when green.** `gh pr merge --squash`. Don't skip hooks (`--no-verify` is never the answer).
 8. **Close-out checklist — run every step, in order. Do not skip even if you think the previous cycle covered it.**
 
    ```bash
    # a. Verify the issue auto-closed from the PR's "Closes #N" keyword
    gh issue view <N> --json state --jq '.state'   # must print "CLOSED"
 
-   # b. Flip project Status: In Review → Done
-   # (see scripts/set-ready-status.sh for the GraphQL mutation pattern; option ID "c2f7c066")
+   # b. Flip project Status: In Review → Done (option ID: c2f7c066)
+   gh api graphql -f query="mutation {
+     updateProjectV2ItemFieldValue(input: {
+       projectId: \"PVT_kwHOAARNgc4BVGvQ\"
+       itemId: \"$ITEM_ID\"
+       fieldId: \"PVTSSF_lAHOAARNgc4BVGvQzhQkx-E\"
+       value: { singleSelectOptionId: \"c2f7c066\" }
+     }) { projectV2Item { id } }
+   }"
 
    # c. Remove the in-progress label so the issue card stops showing the chip
    gh issue edit <N> --remove-label "status: in-progress"
