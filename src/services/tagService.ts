@@ -1,21 +1,31 @@
 /**
- * `TagService` — service-layer surface for tag queries.
+ * `TagService` — service-layer surface for tag queries and mutations.
  *
- * Wraps the `OmniFocusAdapter` with a thin cache layer (ADR-0006) and
- * exposes `list()` and `get()` for the `tag_list` and `tag_get` MCP tools.
+ * Wraps `OmniFocusAdapter` and exposes read (`list`, `get`) and write
+ * (`create`, `update`, `delete`, `move`, `setStatus`, `setAllowsNextAction`)
+ * operations for the MCP tool layer.
  *
  * Design notes:
- * - `list()` delegates directly to `adapter.listTags()` — the adapter already
- *   supports `parentId` and `status` filters, so no post-filtering is needed.
- * - `get()` raises `NotFound` (via the adapter) when the id is unknown.
- * - Cache keys: `tags:list:<parentId|'all'>:<status|'all'>` and `tag:<id>`.
- *   Any tag mutation should invalidate these; that work lands in #50 (CRUD).
+ * - All reads delegate directly to the adapter — tag sets are small enough
+ *   that unbounded listing is safe (no pagination required).
+ * - Mutations delegate to `adapter.createTag / updateTag / deleteTag`.
+ *   `move`, `setStatus`, and `setAllowsNextAction` are thin specialisations of
+ *   `updateTag` exposed as separate tools to give agents atomic, composable
+ *   operations (DESIGN agent_systems §atomic).
+ * - Cache invalidation: TagService does not yet wire an LRU cache (that
+ *   integration lands with the full service-layer cache pass in #36). Any
+ *   future cache layer must be invalidated on every write method here.
  *
  * @see DESIGN.md §26 — reference implementation
  * @see docs/domain-reference.md — Tag schema
+ * @see src/adapter/OmniFocusAdapter.ts — CreateTagInput / UpdateTagInput
  */
 
-import type { OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
+import type {
+  CreateTagInput,
+  OmniFocusAdapter,
+  UpdateTagInput,
+} from "../adapter/OmniFocusAdapter.js";
 import type { TagId } from "../domain/ids.js";
 import type { Tag } from "../domain/tag.js";
 
@@ -23,10 +33,9 @@ import type { Tag } from "../domain/tag.js";
 // Public shapes
 // ---------------------------------------------------------------------------
 
-/** Input to {@link TagService.list}. All fields are optional — the full tag
- *  set is small enough that an unfiltered list is always safe. */
+/** Input to {@link TagService.list}. All fields optional. */
 export interface TagListInput {
-  /** Restrict to direct children of this parent tag. Omit for all root tags. */
+  /** Restrict to direct children of this parent tag. Omit for root tags. */
   parentId?: TagId;
   /** Filter by status. Omit for all statuses. */
   status?: Tag["status"];
@@ -35,31 +44,34 @@ export interface TagListInput {
 /** Result of {@link TagService.list}. */
 export interface TagListResult {
   tags: Tag[];
-  /** True if this response came from cache. */
   cacheHit: boolean;
 }
 
 /** Result of {@link TagService.get}. */
 export interface TagGetResult {
   tag: Tag;
-  /** True if this response came from cache. */
   cacheHit: boolean;
+}
+
+/** Result of write operations that return an ID. */
+export interface TagCreateResult {
+  id: TagId;
 }
 
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
 
-/** Dependencies the service needs — injected at construction time. */
+/** Dependencies injected at construction time. */
 export interface TagServiceDeps {
   adapter: OmniFocusAdapter;
 }
 
 /**
- * Service layer for tag read operations.
+ * Service layer for tag read and write operations.
  *
- * Construct with `{ adapter }`. All methods are async and pure — they have
- * no side effects beyond populating / reading the adapter's data.
+ * Construct with `{ adapter }`. All methods are async and
+ * free of hidden state — side effects are limited to the adapter.
  */
 export class TagService {
   private readonly adapter: OmniFocusAdapter;
@@ -67,6 +79,10 @@ export class TagService {
   constructor({ adapter }: TagServiceDeps) {
     this.adapter = adapter;
   }
+
+  // --------------------------------------------------------------------------
+  // Reads
+  // --------------------------------------------------------------------------
 
   /**
    * List tags, optionally filtered by parent or status.
@@ -92,5 +108,80 @@ export class TagService {
   async get(id: TagId): Promise<TagGetResult> {
     const tag = await this.adapter.getTag(id);
     return { tag, cacheHit: false };
+  }
+
+  // --------------------------------------------------------------------------
+  // Writes
+  // --------------------------------------------------------------------------
+
+  /**
+   * Create a new tag.
+   *
+   * @param input — name (required), optional parentId, status, allowsNextAction
+   * @returns Branded ID of the newly created tag.
+   * @throws {ValidationError} when name is empty.
+   * @throws {NotFound} when parentId references a non-existent tag.
+   */
+  async create(input: CreateTagInput): Promise<TagCreateResult> {
+    const id = await this.adapter.createTag(input);
+    return { id };
+  }
+
+  /**
+   * Update mutable fields on an existing tag (partial patch).
+   *
+   * @param id — tag to update
+   * @param patch — fields to change (omit to leave unchanged)
+   * @throws {NotFound} when no tag with `id` exists.
+   * @throws {ValidationError} when `name` is present but empty.
+   */
+  async update(id: TagId, patch: UpdateTagInput): Promise<void> {
+    await this.adapter.updateTag(id, patch);
+  }
+
+  /**
+   * Hard-delete a tag.  Irreversible.
+   *
+   * @param id — tag to delete
+   * @throws {NotFound} when no tag with `id` exists.
+   */
+  async delete(id: TagId): Promise<void> {
+    await this.adapter.deleteTag(id);
+  }
+
+  /**
+   * Move a tag to a new parent (or promote it to root by passing `null`).
+   *
+   * Implemented as `updateTag(id, { parentId })` — a distinct tool
+   * is exposed so agents have an atomic, intention-clear operation.
+   *
+   * @param id — tag to move
+   * @param parentId — new parent tag ID, or `null` to promote to root
+   * @throws {NotFound} when `id` or the new `parentId` doesn't exist.
+   */
+  async move(id: TagId, parentId: TagId | null): Promise<void> {
+    await this.adapter.updateTag(id, { parentId });
+  }
+
+  /**
+   * Set the lifecycle status of a tag (active / on-hold / dropped).
+   *
+   * @param id — tag to update
+   * @param status — new status value
+   * @throws {NotFound} when no tag with `id` exists.
+   */
+  async setStatus(id: TagId, status: Tag["status"]): Promise<void> {
+    await this.adapter.updateTag(id, { status });
+  }
+
+  /**
+   * Toggle whether the tag allows next-action selection in OmniFocus.
+   *
+   * @param id — tag to update
+   * @param value — true to enable, false to disable
+   * @throws {NotFound} when no tag with `id` exists.
+   */
+  async setAllowsNextAction(id: TagId, value: boolean): Promise<void> {
+    await this.adapter.updateTag(id, { allowsNextAction: value });
   }
 }
