@@ -6,10 +6,16 @@ import {
   type ToolEnvelope,
   type ToolError,
   type ToolSuccess,
+  type Warning,
   err,
   isError,
   isSuccess,
   ok,
+  warnDeprecatedField,
+  warnDryRun,
+  warnIdsNotFound,
+  warnResultTruncated,
+  warnSyncPending,
 } from "./index.js";
 
 const baseMeta: ResponseMeta = {
@@ -39,13 +45,12 @@ describe("ok()", () => {
     expect("pagination" in envelope).toBe(false);
   });
 
-  it("we propagate meta.warnings into the envelope verbatim", () => {
-    const metaWithWarnings: ResponseMeta = {
-      ...baseMeta,
-      warnings: ["rate limit approaching"],
-    };
+  it("we propagate meta.warnings (Warning[]) into the envelope verbatim", () => {
+    const warning: Warning = warnSyncPending();
+    const metaWithWarnings: ResponseMeta = { ...baseMeta, warnings: [warning] };
     const envelope = ok({ done: true }, metaWithWarnings);
-    expect(envelope.meta.warnings).toEqual(["rate limit approaching"]);
+    expect(envelope.meta.warnings).toHaveLength(1);
+    expect(envelope.meta.warnings?.[0].code).toBe("WARN_SYNC_PENDING");
   });
 });
 
@@ -138,6 +143,7 @@ describe("envelope shape — snapshot locks", () => {
           },
           "message": "Task not found",
           "name": "NotFound",
+          "remediationClass": "input",
           "suggestion": "Confirm the ID with the corresponding \`*_list\` tool. Use OmniFocus persistent IDs, not names.",
         },
         "meta": {
@@ -170,6 +176,44 @@ describe("isSuccess / isError type guards", () => {
     if (isError(envelope)) {
       expect(envelope.error.code).toBe("OF_VALIDATION");
     }
+  });
+});
+
+describe("Warning builders", () => {
+  it("warnIdsNotFound includes missing IDs in details", () => {
+    const w = warnIdsNotFound(["id1", "id2"]);
+    expect(w.code).toBe("WARN_IDS_NOT_FOUND");
+    expect(w.details?.missing).toEqual(["id1", "id2"]);
+    expect(w.suggestion).toBeDefined();
+  });
+
+  it("warnResultTruncated includes limit in details", () => {
+    const w = warnResultTruncated(500);
+    expect(w.code).toBe("WARN_RESULT_TRUNCATED");
+    expect(w.details?.limit).toBe(500);
+    expect(w.suggestion).toBeDefined();
+  });
+
+  it("warnSyncPending has no details", () => {
+    const w = warnSyncPending();
+    expect(w.code).toBe("WARN_SYNC_PENDING");
+    expect(w.details).toBeUndefined();
+    expect(w.suggestion).toBeDefined();
+  });
+
+  it("warnDeprecatedField includes field and replacement in details", () => {
+    const w = warnDeprecatedField("oldField", "newField");
+    expect(w.code).toBe("WARN_DEPRECATED_FIELD");
+    expect(w.details?.field).toBe("oldField");
+    expect(w.details?.replacement).toBe("newField");
+    expect(w.suggestion).toContain("newField");
+  });
+
+  it("warnDryRun has no details", () => {
+    const w = warnDryRun();
+    expect(w.code).toBe("WARN_DRY_RUN");
+    expect(w.details).toBeUndefined();
+    expect(w.suggestion).toBeDefined();
   });
 });
 
