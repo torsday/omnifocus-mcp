@@ -524,6 +524,7 @@ export class InMemoryAdapter implements OmniFocusAdapter {
       ...(patch.parentId !== undefined ? { parentId: patch.parentId } : {}),
       ...(patch.status !== undefined ? { status: patch.status } : {}),
       ...(patch.allowsNextAction !== undefined ? { allowsNextAction: patch.allowsNextAction } : {}),
+      ...(patch.location !== undefined ? { location: patch.location } : {}),
       modifiedAt: isoOf(this.now()) as Tag["modifiedAt"],
     });
   }
