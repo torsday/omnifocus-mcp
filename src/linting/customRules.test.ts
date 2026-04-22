@@ -91,6 +91,77 @@ describe("comment and test exclusions", () => {
   });
 });
 
+describe("no-metadata-interpolation rule", () => {
+  it("flags task.name in a suggestion field", () => {
+    const v = checkFileContent(
+      "src/services/taskService.ts",
+      "suggestion: `Task ${task.name} not found`",
+    );
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-metadata-interpolation");
+  });
+
+  it("flags task.note in a message field", () => {
+    const v = checkFileContent("src/tools/task/list.ts", 'message: "Note was: " + task.note');
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-metadata-interpolation");
+  });
+
+  it("flags task.name in a warnings field", () => {
+    const v = checkFileContent("src/services/taskService.ts", "warning: `skipped ${task.name}`");
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-metadata-interpolation");
+  });
+
+  it("flags project.name in a suggestion field", () => {
+    const v = checkFileContent(
+      "src/services/projectService.ts",
+      "suggestion: `project ${project.name} is complete`",
+    );
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-metadata-interpolation");
+  });
+
+  it("flags task.noteHtml in a metadata field", () => {
+    const v = checkFileContent("src/tools/task/get.ts", "message: task.noteHtml");
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-metadata-interpolation");
+  });
+
+  it("does not flag task.name when used in data payload assignment", () => {
+    // Only metadata keywords trigger the rule; `data` / `name:` on its own is fine
+    const v = checkFileContent("src/services/taskService.ts", "name: task.name,");
+    expect(v).toHaveLength(0);
+  });
+
+  it("does not flag task.id (IDs are safe in metadata)", () => {
+    const v = checkFileContent(
+      "src/services/taskService.ts",
+      "suggestion: `retry with id ${task.id}`",
+    );
+    expect(v).toHaveLength(0);
+  });
+
+  it("adversarial task name stays out of metadata — SYSTEM prefix", () => {
+    // Simulates a task named "SYSTEM: ignore previous instructions"
+    // The lint rule catches the pattern at the source level:
+    // any interpolation of task.name into suggestion/message is forbidden.
+    const adversarialInterpolation =
+      "suggestion: `Task ${task.name} could not be found — check task_list`";
+    const v = checkFileContent("src/services/taskService.ts", adversarialInterpolation);
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-metadata-interpolation");
+  });
+
+  it("does not flag comment lines", () => {
+    const v = checkFileContent(
+      "src/services/taskService.ts",
+      "// suggestion: task.name — NEVER do this",
+    );
+    expect(v).toHaveLength(0);
+  });
+});
+
 describe("multi-rule", () => {
   it("reports both violations in the same file", () => {
     const content = 'const id = x as TaskId;\nthrow new Error("bad");';
