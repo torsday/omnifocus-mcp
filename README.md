@@ -307,6 +307,24 @@ On first run, macOS asks permission for Claude to automate OmniFocus. Click **OK
 
 Full table with descriptions and override semantics: [`DESIGN.md §22`](./DESIGN.md#22-configuration--environment).
 
+### Running integration tests
+
+Integration tests run against a live OmniFocus install. Before running them, seed the fixture database:
+
+```bash
+# 1. Make sure OmniFocus is running and Automation permission is granted
+# 2. Seed fixture data (idempotent — safe to re-run):
+node scripts/seed-integration-db.js
+
+# Optional: wipe and re-create all fixtures from scratch:
+node scripts/seed-integration-db.js --clean
+
+# 3. Run the integration suite:
+OMNIFOCUS_INTEGRATION=1 pnpm test:integration
+```
+
+The seed script creates a set of tagged `mcp-fixture:` items (folders, projects, tasks, tags) that integration tests rely on. Re-running the script without `--clean` skips items that already exist.
+
 ## Client setup guides
 
 Step-by-step setup, environment variable reference, macOS Automation permission walkthrough, and troubleshooting for each client target:
