@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CircuitOpen,
+  ConflictError,
   FeatureRequiresOfVersion,
   FeatureRequiresPro,
   NotFound,
@@ -100,6 +101,7 @@ describe("instanceof discrimination", () => {
       { instance: new FeatureRequiresOfVersion("OF 4 needed"), ctor: FeatureRequiresOfVersion },
       { instance: new ValidationError("bad"), ctor: ValidationError },
       { instance: new NotFound("missing"), ctor: NotFound },
+      { instance: new ConflictError("stale"), ctor: ConflictError },
       { instance: new Timeout("slow"), ctor: Timeout },
       { instance: new RateLimited("limited"), ctor: RateLimited },
       { instance: new QueueFull("full"), ctor: QueueFull },
@@ -118,6 +120,101 @@ describe("instanceof discrimination", () => {
   });
 });
 
+describe("remediationClass — machine-readable agent action", () => {
+  it("environment errors stop the agent and require user action", () => {
+    expect(new OmniFocusNotRunning().remediationClass).toBe("environment");
+    expect(new PermissionDenied().remediationClass).toBe("environment");
+    expect(new FeatureRequiresPro("").remediationClass).toBe("environment");
+    expect(new FeatureRequiresOfVersion("").remediationClass).toBe("environment");
+  });
+
+  it("input errors tell the agent to fix the input before retrying", () => {
+    expect(new ValidationError("").remediationClass).toBe("input");
+    expect(new NotFound("").remediationClass).toBe("input");
+    expect(new ConflictError("").remediationClass).toBe("input");
+  });
+
+  it("transient errors tell the agent to wait and retry", () => {
+    expect(new Timeout("").remediationClass).toBe("transient");
+    expect(new RateLimited("").remediationClass).toBe("transient");
+    expect(new QueueFull("").remediationClass).toBe("transient");
+    expect(new CircuitOpen("").remediationClass).toBe("transient");
+  });
+
+  it("infrastructure errors tell the agent to retry once then surface to user", () => {
+    expect(new TransportUnavailable("").remediationClass).toBe("infrastructure");
+    expect(new ScriptError("").remediationClass).toBe("infrastructure");
+  });
+
+  it("lifecycle errors tell the agent to reconnect", () => {
+    expect(new ServerShuttingDown().remediationClass).toBe("lifecycle");
+  });
+
+  it("remediationClass appears in toJSON output", () => {
+    const json = new NotFound("task missing").toJSON();
+    expect(json.remediationClass).toBe("input");
+  });
+
+  it("base OmniFocusError has no remediationClass when not set", () => {
+    const err = new OmniFocusError("OF_VALIDATION", "raw");
+    expect(err.remediationClass).toBeUndefined();
+    expect(err.toJSON()).toEqual({ name: "OmniFocusError", code: "OF_VALIDATION", message: "raw" });
+  });
+
+  it("caller can override remediationClass via options", () => {
+    const err = new Timeout("slow", { remediationClass: "infrastructure" });
+    expect(err.remediationClass).toBe("infrastructure");
+  });
+});
+
+describe("ConflictError — optimistic-concurrency violation", () => {
+  it("has code OF_CONFLICT and remediationClass input", () => {
+    const err = new ConflictError("Task was modified");
+    expect(err.code).toBe("OF_CONFLICT");
+    expect(err.remediationClass).toBe("input");
+    expect(err.name).toBe("ConflictError");
+  });
+
+  it("suggestion tells the agent to re-read and retry with fresh modifiedAt", () => {
+    expect(new ConflictError("").suggestion).toContain("modifiedAt");
+  });
+
+  it("caller can attach details with the stale and current timestamps", () => {
+    const err = new ConflictError("Stale write", {
+      details: { expected: "2026-04-21T10:00:00-07:00", actual: "2026-04-21T10:05:00-07:00" },
+    });
+    expect(err.details?.expected).toBeDefined();
+    expect(err.details?.actual).toBeDefined();
+  });
+
+  it("serializes cleanly to the error envelope shape", () => {
+    const json = new ConflictError("Conflict").toJSON();
+    expect(json.code).toBe("OF_CONFLICT");
+    expect(json.remediationClass).toBe("input");
+    expect(json.suggestion).toBeDefined();
+  });
+});
+
+describe("retryAfterMs — structured wait time on transient errors", () => {
+  it("RateLimited includes retryAfterMs: 60000 in details by default", () => {
+    expect(new RateLimited("too fast").details?.retryAfterMs).toBe(60_000);
+  });
+
+  it("CircuitOpen includes retryAfterMs: 60000 in details by default", () => {
+    expect(new CircuitOpen("open").details?.retryAfterMs).toBe(60_000);
+  });
+
+  it("caller can override retryAfterMs via details", () => {
+    const err = new RateLimited("slow", { details: { retryAfterMs: 30_000 } });
+    expect(err.details?.retryAfterMs).toBe(30_000);
+  });
+
+  it("retryAfterMs appears in toJSON details", () => {
+    const json = new CircuitOpen("").toJSON();
+    expect(json.details?.retryAfterMs).toBe(60_000);
+  });
+});
+
 describe("error code coverage — every documented code has a class", () => {
   it("we have a concrete class for each code in DESIGN §6.7", () => {
     const expectedCodes = new Set([
@@ -127,6 +224,7 @@ describe("error code coverage — every documented code has a class", () => {
       "OF_FEATURE_REQUIRES_VERSION",
       "OF_VALIDATION",
       "OF_NOT_FOUND",
+      "OF_CONFLICT",
       "OF_TIMEOUT",
       "OF_RATE_LIMITED",
       "OF_QUEUE_FULL",
@@ -143,6 +241,7 @@ describe("error code coverage — every documented code has a class", () => {
       new FeatureRequiresOfVersion("").code,
       new ValidationError("").code,
       new NotFound("").code,
+      new ConflictError("").code,
       new Timeout("").code,
       new RateLimited("").code,
       new QueueFull("").code,
@@ -153,6 +252,6 @@ describe("error code coverage — every documented code has a class", () => {
     ]);
 
     expect(actualCodes).toEqual(expectedCodes);
-    expect(actualCodes.size).toBe(13);
+    expect(actualCodes.size).toBe(14);
   });
 });

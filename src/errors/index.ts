@@ -28,6 +28,7 @@ export type ErrorCode =
   // Input — agent should fix the input before retrying
   | "OF_VALIDATION"
   | "OF_NOT_FOUND"
+  | "OF_CONFLICT"
   // Transient — agent may retry after waiting
   | "OF_TIMEOUT"
   | "OF_RATE_LIMITED"
@@ -41,6 +42,25 @@ export type ErrorCode =
   // Protocol guard — stray write to stdout (MCP transport channel)
   | "OF_STRAY_STDOUT";
 
+/**
+ * Machine-readable remediation class. Agents switch on this to decide what
+ * to do next without parsing `message` or `suggestion` text.
+ *
+ * | Class          | Agent action                                              |
+ * | -------------- | --------------------------------------------------------- |
+ * | environment    | Stop; user must act (launch OF, grant permission)         |
+ * | input          | Fix the input and retry                                   |
+ * | transient      | Wait `details.retryAfterMs` ms then retry                 |
+ * | infrastructure | Retry once; if still failing, surface to user             |
+ * | lifecycle      | Reconnect to a fresh server instance                      |
+ */
+export type RemediationClass =
+  | "environment"
+  | "input"
+  | "transient"
+  | "infrastructure"
+  | "lifecycle";
+
 /** Constructor options shared by every concrete error. */
 export interface ErrorOptions {
   /** Human-readable next step for the agent or operator. Overrides class default. */
@@ -49,6 +69,8 @@ export interface ErrorOptions {
   details?: Record<string, unknown>;
   /** Underlying cause for chaining; surfaced via `Error.cause`. */
   cause?: unknown;
+  /** Overrides the subclass default remediation class. Rarely needed. */
+  remediationClass?: RemediationClass;
 }
 
 /** Wire shape produced by `toJSON()` and consumed by the response envelope. */
@@ -56,6 +78,8 @@ export interface SerializedError {
   name: string;
   code: ErrorCode;
   message: string;
+  /** Machine-readable remediation class — agents switch on this to decide next action. */
+  remediationClass?: RemediationClass;
   suggestion?: string;
   details?: Record<string, unknown>;
 }
@@ -73,6 +97,7 @@ export interface SerializedError {
  */
 export class OmniFocusError extends Error {
   public readonly code: ErrorCode;
+  public readonly remediationClass?: RemediationClass;
   public readonly suggestion?: string;
   public readonly details?: Record<string, unknown>;
 
@@ -80,6 +105,7 @@ export class OmniFocusError extends Error {
     super(message, options.cause !== undefined ? { cause: options.cause } : undefined);
     this.name = new.target.name;
     this.code = code;
+    if (options.remediationClass !== undefined) this.remediationClass = options.remediationClass;
     if (options.suggestion !== undefined) this.suggestion = options.suggestion;
     if (options.details !== undefined) this.details = options.details;
   }
@@ -91,6 +117,7 @@ export class OmniFocusError extends Error {
       code: this.code,
       message: this.message,
     };
+    if (this.remediationClass !== undefined) out.remediationClass = this.remediationClass;
     if (this.suggestion !== undefined) out.suggestion = this.suggestion;
     if (this.details !== undefined) out.details = this.details;
     return out;
@@ -110,6 +137,7 @@ export function isOmniFocusError(value: unknown): value is OmniFocusError {
 export class OmniFocusNotRunning extends OmniFocusError {
   constructor(options: ErrorOptions = {}) {
     super("OF_NOT_RUNNING", "OmniFocus is not running.", {
+      remediationClass: "environment",
       suggestion: "Launch OmniFocus and retry.",
       ...options,
     });
@@ -120,6 +148,7 @@ export class OmniFocusNotRunning extends OmniFocusError {
 export class PermissionDenied extends OmniFocusError {
   constructor(options: ErrorOptions = {}) {
     super("OF_PERMISSION_DENIED", "Automation permission for OmniFocus is denied.", {
+      remediationClass: "environment",
       suggestion:
         "Open System Settings → Privacy & Security → Automation; grant this terminal or client access to OmniFocus.",
       ...options,
@@ -131,6 +160,7 @@ export class PermissionDenied extends OmniFocusError {
 export class FeatureRequiresPro extends OmniFocusError {
   constructor(message: string, options: ErrorOptions = {}) {
     super("OF_FEATURE_REQUIRES_PRO", message, {
+      remediationClass: "environment",
       suggestion: "This feature requires OmniFocus Pro. Upgrade or use a different tool.",
       ...options,
     });
@@ -141,6 +171,7 @@ export class FeatureRequiresPro extends OmniFocusError {
 export class FeatureRequiresOfVersion extends OmniFocusError {
   constructor(message: string, options: ErrorOptions = {}) {
     super("OF_FEATURE_REQUIRES_VERSION", message, {
+      remediationClass: "environment",
       suggestion:
         "This feature requires a newer OmniFocus version. Update OmniFocus or use a different tool.",
       ...options,
@@ -156,6 +187,7 @@ export class FeatureRequiresOfVersion extends OmniFocusError {
 export class ValidationError extends OmniFocusError {
   constructor(message: string, options: ErrorOptions = {}) {
     super("OF_VALIDATION", message, {
+      remediationClass: "input",
       suggestion: "Fix the input and retry. See `details` for field-level reasons.",
       ...options,
     });
@@ -166,8 +198,25 @@ export class ValidationError extends OmniFocusError {
 export class NotFound extends OmniFocusError {
   constructor(message: string, options: ErrorOptions = {}) {
     super("OF_NOT_FOUND", message, {
+      remediationClass: "input",
       suggestion:
         "Confirm the ID with the corresponding `*_list` tool. Use OmniFocus persistent IDs, not names.",
+      ...options,
+    });
+  }
+}
+
+/**
+ * Thrown when an optimistic-concurrency assertion fails — the resource was
+ * modified between the agent's read and its write. The agent should re-read
+ * the resource, merge changes, and retry with the fresh `modifiedAt`.
+ */
+export class ConflictError extends OmniFocusError {
+  constructor(message: string, options: ErrorOptions = {}) {
+    super("OF_CONFLICT", message, {
+      remediationClass: "input",
+      suggestion:
+        "The resource was modified since you read it. Re-read with the corresponding `*_get` tool, merge your changes, and retry with the fresh `modifiedAt` value.",
       ...options,
     });
   }
@@ -181,6 +230,7 @@ export class NotFound extends OmniFocusError {
 export class Timeout extends OmniFocusError {
   constructor(message: string, options: ErrorOptions = {}) {
     super("OF_TIMEOUT", message, {
+      remediationClass: "transient",
       suggestion: "Retry once. If repeated, OmniFocus may be wedged — relaunch it.",
       ...options,
     });
@@ -191,9 +241,10 @@ export class Timeout extends OmniFocusError {
 export class RateLimited extends OmniFocusError {
   constructor(message: string, options: ErrorOptions = {}) {
     super("OF_RATE_LIMITED", message, {
-      suggestion:
-        "Wait before retrying. The default window is 60 seconds. See `details.retryAfterMs`.",
+      remediationClass: "transient",
+      suggestion: "Wait details.retryAfterMs milliseconds then retry.",
       ...options,
+      details: { retryAfterMs: 60_000, ...options.details },
     });
   }
 }
@@ -202,6 +253,7 @@ export class RateLimited extends OmniFocusError {
 export class QueueFull extends OmniFocusError {
   constructor(message: string, options: ErrorOptions = {}) {
     super("OF_QUEUE_FULL", message, {
+      remediationClass: "transient",
       suggestion: "The write queue is saturated. Wait for in-flight writes to drain, then retry.",
       ...options,
     });
@@ -212,9 +264,11 @@ export class QueueFull extends OmniFocusError {
 export class CircuitOpen extends OmniFocusError {
   constructor(message: string, options: ErrorOptions = {}) {
     super("OF_CIRCUIT_OPEN", message, {
+      remediationClass: "transient",
       suggestion:
-        "This tool failed repeatedly and is rejecting calls fast. Investigate, then wait for the circuit to half-open (default 60 seconds).",
+        "This tool failed repeatedly and is rejecting calls fast. Wait details.retryAfterMs milliseconds for the circuit to half-open.",
       ...options,
+      details: { retryAfterMs: 60_000, ...options.details },
     });
   }
 }
@@ -227,6 +281,7 @@ export class CircuitOpen extends OmniFocusError {
 export class TransportUnavailable extends OmniFocusError {
   constructor(message: string, options: ErrorOptions = {}) {
     super("OF_TRANSPORT_UNAVAILABLE", message, {
+      remediationClass: "infrastructure",
       suggestion:
         "The required transport is unreachable. Verify OmniFocus is running and responsive.",
       ...options,
@@ -238,6 +293,7 @@ export class TransportUnavailable extends OmniFocusError {
 export class ScriptError extends OmniFocusError {
   constructor(message: string, options: ErrorOptions = {}) {
     super("OF_SCRIPT_ERROR", message, {
+      remediationClass: "infrastructure",
       suggestion:
         "The OmniFocus script failed. Inspect `details.transport` and `details.reason` for context.",
       ...options,
@@ -253,6 +309,7 @@ export class ScriptError extends OmniFocusError {
 export class ServerShuttingDown extends OmniFocusError {
   constructor(options: ErrorOptions = {}) {
     super("OF_SHUTTING_DOWN", "Server is shutting down; not accepting new requests.", {
+      remediationClass: "lifecycle",
       suggestion: "Reconnect to a fresh server instance.",
       ...options,
     });
