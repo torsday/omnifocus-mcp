@@ -14,13 +14,50 @@
 ## Table of contents
 
 - [What it is](#what-it-is)
+- [Quick start](#quick-start)
+- [Example interactions](#example-interactions)
+- [If you are an AI agent](#if-you-are-an-ai-agent)
 - [Architecture at a glance](#architecture-at-a-glance)
 - [Status and roadmap](#status-and-roadmap)
-- [Install (once built)](#install-once-built)
+- [Install](#install)
+- [Client setup guides](#client-setup-guides)
 - [Design documents](#design-documents)
 - [Project conventions](#project-conventions)
 - [Contributing](#contributing)
 - [License](#license)
+
+---
+
+## Quick start
+
+1. **Install**
+   ```bash
+   npm install -g @torsday/omnifocus-mcp
+   ```
+
+2. **Connect Claude Desktop** — add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+   ```json
+   {
+     "mcpServers": {
+       "omnifocus": {
+         "command": "omnifocus-mcp",
+         "args": [],
+         "env": { "OMNIFOCUS_LOG_LEVEL": "info" }
+       }
+     }
+   }
+   ```
+
+3. **Connect Claude Code**:
+   ```bash
+   claude mcp add omnifocus omnifocus-mcp
+   ```
+
+4. **Grant macOS Automation permission** on first use — Claude will prompt to control OmniFocus; click **OK**. If denied by mistake: **System Settings → Privacy & Security → Automation → [app] → OmniFocus** ✓
+
+5. **Verify** — ask Claude: *"Use the internal_status tool and tell me what it returns."*
+
+Detailed per-client guides live in [`docs/clients/`](./docs/clients/).
 
 ---
 
@@ -33,6 +70,164 @@
 - **Typed everything.** Zod at the API boundary, branded opaque IDs, ISO-8601 with offset dates, discriminated error hierarchy.
 - **Agent-aware.** Every tool description follows the [`agent_systems.md`](https://github.com/torsday/llm_prompts/blob/main/agent_systems.md) "what / when not / returns / side effects" standard. Errors carry `{ code, message, suggestion, details }` so agents know what to do next.
 - **Safe by default.** No network surface, no stdout writes (MCP uses stdio), opt-in escape hatches, circuit breakers, rate limits, write serialization.
+
+## Example interactions
+
+These show the kind of work you can ask Claude to do once omnifocus-mcp is connected.
+
+---
+
+**"What's in my inbox right now?"**
+
+Claude calls `task_list` with `{ "available": true, "limit": 20 }` and returns a formatted list of actionable inbox tasks with their IDs, due dates, and flags.
+
+---
+
+**"Create a task to 'review Q2 budget' due Friday, flagged, in the Finance project."**
+
+1. Claude calls `project_list` to find the Finance project ID.
+2. Calls `task_create` with `{ "name": "review Q2 budget", "projectId": "<id>", "dueDate": "end-of-week", "flagged": true }`.
+3. Returns the created task with its persistent ID and confirms the due date resolved to the correct Friday.
+
+---
+
+**"Mark all my overdue tasks as deferred to tomorrow."**
+
+1. Claude calls `task_list` with `{ "dueBefore": "today", "available": true }` to find overdue items.
+2. For each task, calls `task_update` with `{ "deferDate": "tomorrow" }`.
+3. Reports a summary: *"Deferred 7 overdue tasks to tomorrow. Call sync_trigger if you want iCloud to update immediately."*
+
+---
+
+**"Show me what's due this week in the Work perspective."**
+
+Claude calls `perspective_task_list` with `{ "perspectiveName": "Work" }` and `{ "dueWithin": "this-week" }`, then presents a structured view grouped by project.
+
+---
+
+## If you are an AI agent
+
+This section is written for you. It covers the conventions you need to use this MCP effectively without trial and error.
+
+### IDs, not names
+
+Every OmniFocus resource — tasks, projects, tags, folders — is identified by a **persistent opaque ID** (e.g. `"hKx9vLmNp2"`). Names collide and change; IDs don't. Always resolve names to IDs with the corresponding `*_list` tool before calling any other tool.
+
+### Error codes and what to do next
+
+Every error carries a stable `code`, a human-readable `suggestion`, and a machine-readable `remediationClass`:
+
+| `remediationClass` | Meaning | Your action |
+|--------------------|---------|-------------|
+| `environment` | OmniFocus is not running, permissions denied, or a Pro/version feature is missing | Stop. Surface `suggestion` to the user; do not retry automatically |
+| `input` | Bad ID, invalid field value, or schema violation | Fix the input using `details` for specifics; retry |
+| `transient` | Timeout, rate limit, queue full, or circuit open | Wait `details.retryAfterMs` ms, then retry once |
+| `infrastructure` | JXA or OmniJS script failed | Retry once; if still failing, surface to user |
+| `lifecycle` | Server is shutting down | Reconnect to a fresh server instance |
+
+`RateLimited` and `CircuitOpen` always include `details.retryAfterMs` (default `60000` ms). Do not poll faster than that.
+
+### Dates
+
+All date inputs accept either **ISO-8601 with UTC offset** (`"2026-04-22T09:00:00-07:00"`) or a **relative shortcut**:
+
+`today` · `tomorrow` · `yesterday` · `this-week` · `next-week` · `end-of-week` · `end-of-month`
+
+Shortcuts resolve to midnight in the server's local timezone.
+
+### Mutations and sync
+
+Every write tool returns the full updated domain object, not just an acknowledgement. The response `meta.syncPending` is `true` immediately after a write — OmniFocus has saved locally but not yet synced to iCloud. Call `sync_trigger` if cross-device visibility matters; otherwise the sync happens automatically within a few minutes.
+
+### Null consistency
+
+All optional scalar fields are **always present** in responses, set to `null` when unset. You can safely destructure without null-checks on field presence.
+
+### Idempotency — safe retries
+
+Every mutation tool accepts an optional `idempotencyKey?: string`. If you supply one and the call succeeds, replaying the exact same key within 5 minutes returns the cached result with `meta.idempotencyReplay: true` and skips the OmniFocus call. Use a deterministic key scoped to your session and intent (e.g. `"session-abc/create-task-standup"`).
+
+### Dry-run — validate before committing
+
+Every mutation tool accepts `dryRun?: boolean`. When `true`, input is fully validated and the would-be result is returned, but nothing is written to OmniFocus. `meta.dryRun: true` is set on the response. Use this to confirm inputs before destructive operations.
+
+### Additive tag edits — no read-modify-write needed
+
+`task_update` accepts `addTags`, `removeTags`, and `setFlagged` patch fields alongside the existing full-replacement `tags` field. Prefer these for incremental edits — they apply a diff atomically inside the write queue with no race against concurrent user edits.
+
+### Conflict detection — optimistic concurrency
+
+Pass `expectedModifiedAt` with mutations. If the resource was modified since your read, the server returns `OF_CONFLICT` (`remediationClass: "input"`). Re-read with `*_get`, merge, and retry with the fresh `modifiedAt`.
+
+### Capabilities pre-flight
+
+Read `omnifocus://capabilities` once at session start. It returns OF version, edition (Standard/Pro), transport availability, and feature flags (`customPerspectives`, `forecastTag`, `rawScriptTools`). Use it to skip Pro-gated tools rather than discovering unavailability via error.
+
+### Rate limit state — self-throttle before hitting the wall
+
+Every response includes `meta.rateLimit?: { remaining: number; resetAt: string }`. Check this after each call. If `remaining < 10`, slow down. If `remaining === 0`, do not call before `meta.rateLimit.resetAt`. The default limit is 120 calls/min per tool.
+
+### Structured warnings — act on `meta.warnings[].code`
+
+Non-fatal issues appear in `meta.warnings` as `{ code, message, suggestion?, details? }`. Switch on `code`, not `message`:
+
+| `code` | Means | Action |
+|---|---|---|
+| `WARN_IDS_NOT_FOUND` | Some IDs in a bulk call were not found | Check `details.missing` |
+| `WARN_RESULT_TRUNCATED` | Response hit size limit; more items exist | Follow pagination cursor |
+| `WARN_SYNC_PENDING` | Write saved locally; iCloud sync not yet triggered | Call `sync_trigger` if needed |
+
+### Incremental sync — `updatedSince`
+
+`task_list` and `project_list` accept `updatedSince?: string` (ISO-8601 or relative shortcut). Use it to fetch only changed items after your initial load:
+
+```jsonc
+// First call: full load
+{ "available": true, "limit": 200 }
+
+// Subsequent calls: only changes
+{ "available": true, "updatedSince": "2026-04-21T10:00:00-07:00", "limit": 200 }
+```
+
+Note: deleted items cannot be surfaced via `updatedSince` — compare `meta.snapshot` counts if you need to detect deletions.
+
+### Navigation hints — follow `_links`
+
+Every `Task` and `Project` response includes `_links` with resource URIs for related objects:
+
+```jsonc
+{
+  "id": "hKx9vLmNp2",
+  "_links": {
+    "self": "omnifocus://task/hKx9vLmNp2",
+    "project": "omnifocus://project/pXY3",
+    "tags": ["omnifocus://tag/tABC"]
+  }
+}
+```
+
+Pass `_links.project` directly to `resources/read` or use the ID fragment for `project_get`. You never need to construct a URI manually.
+
+### Response envelope
+
+All responses have this shape:
+
+```jsonc
+// success
+{ "data": { … }, "meta": { "correlationId": "…", "durationMs": 12, "cacheHit": false, "transport": "jxa", "syncPending": false } }
+
+// error
+{ "error": { "code": "OF_NOT_FOUND", "remediationClass": "input", "message": "…", "suggestion": "…", "details": { … } }, "meta": { … } }
+```
+
+### Where to start
+
+- **Daily work**: `task_list` (inbox or today filter) → `task_create` / `task_update` / `task_complete`
+- **Projects**: `project_list` → `project_create` / `project_update`
+- **Finding things**: `task_search` with `search_query`; `tag_list` for available tags
+- **Sync**: `sync_trigger` after bulk mutations; `internal_status` to check server health
+
+---
 
 ## Architecture at a glance
 
@@ -70,7 +265,7 @@ Design is **complete** (SPEC + DESIGN + 13 ADRs + domain reference). Implementat
 
 Track live progress on the [**GitHub Project board**](https://github.com/users/torsday/projects/4). **25 issues are `Status = Ready` right now** — see [`docs/dependency-graph.md`](./docs/dependency-graph.md) for the full dependency graph, critical path, and recommended work order. See [`TASKS.md`](./TASKS.md) for the sequenced backlog narrative.
 
-## Install (once built)
+## Install
 
 ```bash
 # Claude Desktop — add to ~/Library/Application Support/Claude/claude_desktop_config.json
@@ -92,7 +287,7 @@ npm install -g @torsday/omnifocus-mcp
 omnifocus-mcp
 ```
 
-On first run, macOS asks permission for Claude to automate OmniFocus. Grant it via **System Settings → Privacy & Security → Automation**. See [`docs/troubleshooting.md`](./docs/) (M5) for the recovery path if you deny.
+On first run, macOS asks permission for Claude to automate OmniFocus. Click **OK**. If you denied it by mistake: **System Settings → Privacy & Security → Automation → [app] → OmniFocus** ✓. See the per-client guides in [`docs/clients/`](./docs/clients/) for full troubleshooting steps.
 
 ### Environment variables
 
@@ -111,6 +306,16 @@ On first run, macOS asks permission for Claude to automate OmniFocus. Grant it v
 | `OMNIFOCUS_INTEGRATION`         | Enable integration test suite                       | `unset` |
 
 Full table with descriptions and override semantics: [`DESIGN.md §22`](./DESIGN.md#22-configuration--environment).
+
+## Client setup guides
+
+Step-by-step setup, environment variable reference, macOS Automation permission walkthrough, and troubleshooting for each client target:
+
+| Client | Guide |
+|---|---|
+| Claude Desktop | [`docs/clients/claude-desktop.md`](./docs/clients/claude-desktop.md) |
+| Claude Code (CLI) | [`docs/clients/claude-code.md`](./docs/clients/claude-code.md) |
+| Generic stdio client | [`docs/clients/generic-stdio.md`](./docs/clients/generic-stdio.md) |
 
 ## Design documents
 
