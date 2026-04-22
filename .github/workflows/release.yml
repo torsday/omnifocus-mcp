@@ -1,0 +1,58 @@
+name: Release
+
+# Triggers on semver tag push (e.g. v0.1.0).
+# Requires the NPM_TOKEN repo secret to be set under:
+#   Settings → Secrets and variables → Actions → New repository secret
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release:
+    runs-on: macos-latest
+    permissions:
+      contents: write   # needed to create a GitHub Release
+      id-token: write   # needed for npm provenance
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history for release note generation
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      # Full pre-publish gate (mirrors CI matrix on Node 20)
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+
+      - name: Bundle-size budget (< 500 KB)
+        run: |
+          SIZE=$(wc -c < dist/index.js)
+          BUDGET=512000
+          echo "dist/index.js: ${SIZE} bytes (budget: ${BUDGET} bytes)"
+          if [ "$SIZE" -gt "$BUDGET" ]; then
+            echo "ERROR: bundle exceeds 500 KB budget (${SIZE} > ${BUDGET})"
+            exit 1
+          fi
+
+      - name: Publish to npm
+        run: pnpm publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          make_latest: true
