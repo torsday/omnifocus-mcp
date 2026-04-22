@@ -1,0 +1,319 @@
+/**
+ * Unit tests for `InMemoryAdapter`.
+ *
+ * Goldilocks coverage: round-trip behavior, filter semantics, derived-count
+ * maintenance, and the typed error contract. The full cross-implementation
+ * substitutability harness lands in #30; these tests cover the in-memory
+ * double in isolation so it is trustworthy as a stand-in for OmniFocus in
+ * service-layer unit tests.
+ */
+
+import { describe, expect, it } from "vitest";
+import { NotFound, ValidationError } from "../../errors/index.js";
+import { InMemoryAdapter } from "./InMemoryAdapter.js";
+
+const FIXED_NOW = new Date("2026-04-21T12:00:00.000Z");
+
+function makeAdapter(now: Date = FIXED_NOW): InMemoryAdapter {
+  return new InMemoryAdapter({ now: () => now });
+}
+
+describe("InMemoryAdapter — Tasks", () => {
+  it("creates an inbox task and returns it via getTask", async () => {
+    const a = makeAdapter();
+    const id = await a.createTask({ name: "buy milk" });
+    const task = await a.getTask(id);
+    expect(task.id).toBe(id);
+    expect(task.name).toBe("buy milk");
+    expect(task.projectId).toBeNull();
+    expect(task.parentId).toBeNull();
+    expect(task.completed).toBe(false);
+    expect(task.createdAt).toBe(FIXED_NOW.toISOString());
+  });
+
+  it("rejects an empty name with ValidationError", async () => {
+    const a = makeAdapter();
+    await expect(a.createTask({ name: "  " })).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("rejects projectId + parentId both set", async () => {
+    const a = makeAdapter();
+    const projectId = await a.createProject({ name: "p" });
+    const parentId = await a.createTask({ name: "parent" });
+    await expect(a.createTask({ name: "child", projectId, parentId })).rejects.toBeInstanceOf(
+      ValidationError,
+    );
+  });
+
+  it("rejects unknown projectId with NotFound", async () => {
+    const a = makeAdapter();
+    const projectId = await a.createProject({ name: "p" });
+    await a.deleteProject(projectId);
+    await expect(a.createTask({ name: "x", projectId })).rejects.toBeInstanceOf(NotFound);
+  });
+
+  it("getTask throws NotFound for unknown id", async () => {
+    const a = makeAdapter();
+    const id = await a.createTask({ name: "tmp" });
+    await a.deleteTask(id);
+    await expect(a.getTask(id)).rejects.toBeInstanceOf(NotFound);
+  });
+
+  it("getTasksMany preserves input order, returning null for missing ids", async () => {
+    const a = makeAdapter();
+    const a1 = await a.createTask({ name: "one" });
+    const a2 = await a.createTask({ name: "two" });
+    await a.deleteTask(a2);
+    const out = await a.getTasksMany([a2, a1]);
+    expect(out[0]).toBeNull();
+    expect(out[1]?.id).toBe(a1);
+  });
+
+  it("updateTask applies a partial patch and bumps modifiedAt via injected clock", async () => {
+    const t1 = new Date("2026-04-21T12:00:00.000Z");
+    const t2 = new Date("2026-04-22T08:00:00.000Z");
+    let now = t1;
+    const a = new InMemoryAdapter({ now: () => now });
+    const id = await a.createTask({ name: "draft" });
+    now = t2;
+    await a.updateTask(id, { name: "final", flagged: true });
+    const task = await a.getTask(id);
+    expect(task.name).toBe("final");
+    expect(task.flagged).toBe(true);
+    expect(task.modifiedAt).toBe(t2.toISOString());
+  });
+
+  it("completeTask flips completed=true and tracks completedTaskCount on the project", async () => {
+    const a = makeAdapter();
+    const projectId = await a.createProject({ name: "p" });
+    const id = await a.createTask({ name: "t", projectId });
+    await a.completeTask(id);
+    const task = await a.getTask(id);
+    const project = await a.getProject(projectId);
+    expect(task.completed).toBe(true);
+    expect(task.completedAt).toBe(FIXED_NOW.toISOString());
+    expect(project.taskCount).toBe(1);
+    expect(project.completedTaskCount).toBe(1);
+  });
+
+  it("uncompleteTask is idempotent on already-uncompleted tasks", async () => {
+    const a = makeAdapter();
+    const id = await a.createTask({ name: "t" });
+    await expect(a.uncompleteTask(id)).resolves.toBeUndefined();
+  });
+
+  it("dropTask + undropTask round-trip", async () => {
+    const a = makeAdapter();
+    const id = await a.createTask({ name: "t" });
+    await a.dropTask(id);
+    expect((await a.getTask(id)).dropped).toBe(true);
+    await a.undropTask(id);
+    expect((await a.getTask(id)).dropped).toBe(false);
+  });
+
+  it("moveTask updates projectId and rebalances counts", async () => {
+    const a = makeAdapter();
+    const p1 = await a.createProject({ name: "from" });
+    const p2 = await a.createProject({ name: "to" });
+    const id = await a.createTask({ name: "t", projectId: p1 });
+    await a.moveTask(id, { projectId: p2 });
+    expect((await a.getTask(id)).projectId).toBe(p2);
+    expect((await a.getProject(p1)).taskCount).toBe(0);
+    expect((await a.getProject(p2)).taskCount).toBe(1);
+  });
+
+  it("moveTask rejects projectId + parentId both set", async () => {
+    const a = makeAdapter();
+    const projectId = await a.createProject({ name: "p" });
+    const parentId = await a.createTask({ name: "parent" });
+    const id = await a.createTask({ name: "child" });
+    await expect(a.moveTask(id, { projectId, parentId })).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("deleteTask decrements counts including completedTaskCount", async () => {
+    const a = makeAdapter();
+    const projectId = await a.createProject({ name: "p" });
+    const id = await a.createTask({ name: "t", projectId });
+    await a.completeTask(id);
+    await a.deleteTask(id);
+    const project = await a.getProject(projectId);
+    expect(project.taskCount).toBe(0);
+    expect(project.completedTaskCount).toBe(0);
+  });
+});
+
+describe("InMemoryAdapter — listTasks filters", () => {
+  it("filters by projectId, flagged, and completed", async () => {
+    const a = makeAdapter();
+    const p = await a.createProject({ name: "p" });
+    const t1 = await a.createTask({ name: "flag", projectId: p, flagged: true });
+    const t2 = await a.createTask({ name: "plain", projectId: p });
+    await a.completeTask(t2);
+
+    const flagged = await a.listTasks({ flagged: true });
+    expect(flagged.map((t) => t.id)).toEqual([t1]);
+
+    const completed = await a.listTasks({ completed: true });
+    expect(completed.map((t) => t.id)).toEqual([t2]);
+
+    const inProject = await a.listTasks({ projectId: p });
+    expect(inProject).toHaveLength(2);
+  });
+
+  it("filters by tagId", async () => {
+    const a = makeAdapter();
+    const tag = await a.createTag({ name: "next" });
+    const tagged = await a.createTask({ name: "x", tagIds: [tag] });
+    await a.createTask({ name: "y" });
+    const out = await a.listTasks({ tagId: tag });
+    expect(out.map((t) => t.id)).toEqual([tagged]);
+  });
+
+  it("filters by dueBefore / dueAfter date bounds", async () => {
+    const a = makeAdapter();
+    const early = await a.createTask({ name: "e", dueDate: "2026-01-01T00:00:00Z" });
+    const late = await a.createTask({ name: "l", dueDate: "2026-12-01T00:00:00Z" });
+    await a.createTask({ name: "n" }); // no due date
+
+    const before = await a.listTasks({ dueBefore: "2026-06-01T00:00:00Z" });
+    expect(before.map((t) => t.id)).toEqual([early]);
+
+    const after = await a.listTasks({ dueAfter: "2026-06-01T00:00:00Z" });
+    expect(after.map((t) => t.id)).toEqual([late]);
+  });
+
+  it("filters by completedSince inclusively", async () => {
+    const t0 = new Date("2026-04-21T12:00:00.000Z");
+    const t1 = new Date("2026-04-21T13:00:00.000Z");
+    let now = t0;
+    const a = new InMemoryAdapter({ now: () => now });
+    const id = await a.createTask({ name: "x" });
+    now = t1;
+    await a.completeTask(id);
+    const out = await a.listTasks({ completedSince: t1.toISOString() });
+    expect(out.map((t) => t.id)).toEqual([id]);
+    const none = await a.listTasks({ completedSince: "2027-01-01T00:00:00Z" });
+    expect(none).toEqual([]);
+  });
+});
+
+describe("InMemoryAdapter — Projects", () => {
+  it("creates a project and lists by status", async () => {
+    const a = makeAdapter();
+    const p1 = await a.createProject({ name: "active1" });
+    const p2 = await a.createProject({ name: "hold", status: "on-hold" });
+    const active = await a.listProjects({ status: "active" });
+    const onHold = await a.listProjects({ status: "on-hold" });
+    expect(active.map((p) => p.id)).toEqual([p1]);
+    expect(onHold.map((p) => p.id)).toEqual([p2]);
+  });
+
+  it("rejects creation with unknown folderId", async () => {
+    const a = makeAdapter();
+    const folderId = await a.createFolder({ name: "f" });
+    await a.deleteFolder(folderId);
+    await expect(a.createProject({ name: "p", folderId })).rejects.toBeInstanceOf(NotFound);
+  });
+
+  it("moveProject rebalances folder.projectCount", async () => {
+    const a = makeAdapter();
+    const f1 = await a.createFolder({ name: "f1" });
+    const f2 = await a.createFolder({ name: "f2" });
+    const p = await a.createProject({ name: "p", folderId: f1 });
+    await a.moveProject(p, { folderId: f2 });
+    expect((await a.getFolder(f1)).projectCount).toBe(0);
+    expect((await a.getFolder(f2)).projectCount).toBe(1);
+  });
+
+  it("deleteProject orphans its tasks (projectId becomes null)", async () => {
+    const a = makeAdapter();
+    const p = await a.createProject({ name: "p" });
+    const t = await a.createTask({ name: "t", projectId: p });
+    await a.deleteProject(p);
+    expect((await a.getTask(t)).projectId).toBeNull();
+  });
+
+  it("markProjectReviewed advances nextReviewDate by reviewIntervalDays", async () => {
+    const a = makeAdapter();
+    const p = await a.createProject({ name: "p", reviewIntervalDays: 7 });
+    await a.markProjectReviewed(p);
+    const proj = await a.getProject(p);
+    expect(proj.lastReviewDate).toBe(FIXED_NOW.toISOString());
+    expect(proj.nextReviewDate).toBe("2026-04-28T12:00:00.000Z");
+  });
+
+  it("completeProject flips status to done", async () => {
+    const a = makeAdapter();
+    const p = await a.createProject({ name: "p" });
+    await a.completeProject(p);
+    const proj = await a.getProject(p);
+    expect(proj.status).toBe("done");
+    expect(proj.completed).toBe(true);
+  });
+});
+
+describe("InMemoryAdapter — Tags", () => {
+  it("creates, updates, and deletes a tag", async () => {
+    const a = makeAdapter();
+    const id = await a.createTag({ name: "errand" });
+    expect((await a.getTag(id)).name).toBe("errand");
+    await a.updateTag(id, { name: "errands", status: "on-hold" });
+    const t = await a.getTag(id);
+    expect(t.name).toBe("errands");
+    expect(t.status).toBe("on-hold");
+    await a.deleteTag(id);
+    await expect(a.getTag(id)).rejects.toBeInstanceOf(NotFound);
+  });
+
+  it("deleteTag strips the tag from any task carrying it", async () => {
+    const a = makeAdapter();
+    const tag = await a.createTag({ name: "x" });
+    const task = await a.createTask({ name: "t", tagIds: [tag] });
+    await a.deleteTag(tag);
+    expect((await a.getTask(task)).tagIds).toEqual([]);
+  });
+
+  it("createTask rejects unknown tagId with NotFound", async () => {
+    const a = makeAdapter();
+    const tag = await a.createTag({ name: "x" });
+    await a.deleteTag(tag);
+    await expect(a.createTask({ name: "t", tagIds: [tag] })).rejects.toBeInstanceOf(NotFound);
+  });
+});
+
+describe("InMemoryAdapter — Folders", () => {
+  it("createFolder maintains parent.subfolderCount", async () => {
+    const a = makeAdapter();
+    const parent = await a.createFolder({ name: "p" });
+    await a.createFolder({ name: "c", parentId: parent });
+    expect((await a.getFolder(parent)).subfolderCount).toBe(1);
+  });
+
+  it("deleteFolder refuses non-empty folder", async () => {
+    const a = makeAdapter();
+    const f = await a.createFolder({ name: "f" });
+    await a.createProject({ name: "p", folderId: f });
+    await expect(a.deleteFolder(f)).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("updateFolder reparenting rebalances subfolderCount on both sides", async () => {
+    const a = makeAdapter();
+    const p1 = await a.createFolder({ name: "p1" });
+    const p2 = await a.createFolder({ name: "p2" });
+    const child = await a.createFolder({ name: "c", parentId: p1 });
+    await a.updateFolder(child, { parentId: p2 });
+    expect((await a.getFolder(p1)).subfolderCount).toBe(0);
+    expect((await a.getFolder(p2)).subfolderCount).toBe(1);
+  });
+});
+
+describe("InMemoryAdapter — Sync", () => {
+  it("syncTrigger sets lastSyncAt to the current clock", async () => {
+    const a = makeAdapter();
+    expect((await a.getLastSync()).lastSyncAt).toBeNull();
+    const status = await a.syncTrigger();
+    expect(status.lastSyncAt).toBe(FIXED_NOW.toISOString());
+    expect(status.inFlight).toBe(false);
+    expect((await a.getLastSync()).lastSyncAt).toBe(FIXED_NOW.toISOString());
+  });
+});
