@@ -19,6 +19,104 @@
 import type { OmniFocusError, SerializedError } from "../errors/index.js";
 
 // ---------------------------------------------------------------------------
+// Public contract — Warning
+// ---------------------------------------------------------------------------
+
+/**
+ * Stable machine-readable warning codes. Agents switch on `code` to decide
+ * whether to act — the same pattern used for error `remediationClass`.
+ *
+ * **Additive only.** New codes are minor-version additions; removing a code
+ * is a breaking change per ADR-0011.
+ *
+ * | Code                   | Emitted when                                         | `details` shape                   |
+ * |------------------------|------------------------------------------------------|-----------------------------------|
+ * | `WARN_IDS_NOT_FOUND`   | Bulk request had unmatched IDs                       | `{ missing: string[] }`           |
+ * | `WARN_RESULT_TRUNCATED`| Response hit a hard size/count ceiling               | `{ limit: number }`               |
+ * | `WARN_SYNC_PENDING`    | Mutation saved locally; OF hasn't synced             | —                                 |
+ * | `WARN_DEPRECATED_FIELD`| Caller used a deprecated input field                 | `{ field: string, replacement: string }` |
+ * | `WARN_DRY_RUN`         | Response is hypothetical; no write occurred          | —                                 |
+ */
+export type WarningCode =
+  | "WARN_IDS_NOT_FOUND"
+  | "WARN_RESULT_TRUNCATED"
+  | "WARN_SYNC_PENDING"
+  | "WARN_DEPRECATED_FIELD"
+  | "WARN_DRY_RUN";
+
+/**
+ * Structured non-fatal issue that the agent should see inline.
+ *
+ * Replaces the previous `string[]` shape so agents can act programmatically
+ * on warnings rather than parsing English. Mirrors the error hierarchy
+ * convention: stable `code`, optional `suggestion`, optional `details`.
+ *
+ * @see DESIGN.md §34 — agent ergonomics
+ */
+export interface Warning {
+  /** Stable machine-readable code — agents switch on this. */
+  code: WarningCode;
+  /** English description of the condition. */
+  message: string;
+  /** Recommended agent action — same convention as `error.suggestion`. */
+  suggestion?: string;
+  /** Per-code structured payload (e.g. `{ missing: string[] }` for WARN_IDS_NOT_FOUND). */
+  details?: Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
+// Warning builder helpers
+// ---------------------------------------------------------------------------
+
+/** Build a `WARN_IDS_NOT_FOUND` warning for bulk-fetch tools. */
+export function warnIdsNotFound(missing: string[]): Warning {
+  return {
+    code: "WARN_IDS_NOT_FOUND",
+    message: `${missing.length} requested ID(s) were not found and have been omitted.`,
+    suggestion: "Verify the IDs are correct and that the items have not been deleted.",
+    details: { missing },
+  };
+}
+
+/** Build a `WARN_RESULT_TRUNCATED` warning when a hard ceiling is hit. */
+export function warnResultTruncated(limit: number): Warning {
+  return {
+    code: "WARN_RESULT_TRUNCATED",
+    message: `Results were truncated at the hard ceiling of ${limit} items.`,
+    suggestion: "Use cursor pagination or add filters to narrow the result set.",
+    details: { limit },
+  };
+}
+
+/** Build a `WARN_SYNC_PENDING` warning on mutation responses. */
+export function warnSyncPending(): Warning {
+  return {
+    code: "WARN_SYNC_PENDING",
+    message: "Changes have been saved locally but OmniFocus has not yet synced to Omni Sync.",
+    suggestion: "Call sync_trigger if you need to confirm propagation to other devices.",
+  };
+}
+
+/** Build a `WARN_DEPRECATED_FIELD` warning when a deprecated field is detected. */
+export function warnDeprecatedField(field: string, replacement: string): Warning {
+  return {
+    code: "WARN_DEPRECATED_FIELD",
+    message: `Input field "${field}" is deprecated and will be removed in a future version.`,
+    suggestion: `Use "${replacement}" instead.`,
+    details: { field, replacement },
+  };
+}
+
+/** Build a `WARN_DRY_RUN` warning on hypothetical responses. */
+export function warnDryRun(): Warning {
+  return {
+    code: "WARN_DRY_RUN",
+    message: "This response is hypothetical — no write was performed (dry_run: true).",
+    suggestion: "Remove dry_run or set it to false to commit the change.",
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Public contract — envelope types
 // ---------------------------------------------------------------------------
 
@@ -47,8 +145,11 @@ export interface ResponseMeta {
    * `sync_trigger` rather than relying on documentation alone.
    */
   syncPending?: boolean;
-  /** Non-fatal issues the agent should see inline (e.g. zod refinement warnings). */
-  warnings?: string[];
+  /**
+   * Structured non-fatal issues the agent should see inline.
+   * Each entry has a stable `code` agents can switch on — see `Warning`.
+   */
+  warnings?: Warning[];
 }
 
 /**
