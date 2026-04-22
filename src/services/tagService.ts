@@ -27,7 +27,7 @@ import type {
   UpdateTagInput,
 } from "../adapter/OmniFocusAdapter.js";
 import type { TagId } from "../domain/ids.js";
-import type { Tag } from "../domain/tag.js";
+import type { Tag, TagLocation } from "../domain/tag.js";
 
 // ---------------------------------------------------------------------------
 // Public shapes

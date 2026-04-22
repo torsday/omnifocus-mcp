@@ -50,7 +50,7 @@ describe("ok()", () => {
     const metaWithWarnings: ResponseMeta = { ...baseMeta, warnings: [warning] };
     const envelope = ok({ done: true }, metaWithWarnings);
     expect(envelope.meta.warnings).toHaveLength(1);
-    expect(envelope.meta.warnings?.[0].code).toBe("WARN_SYNC_PENDING");
+    expect(envelope.meta.warnings?.[0]?.code).toBe("WARN_SYNC_PENDING");
   });
 });
 

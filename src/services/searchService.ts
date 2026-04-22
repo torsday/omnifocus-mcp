@@ -98,7 +98,7 @@ export class SearchService {
     // Fetch all matching tasks from the adapter
     const searchFilter: SearchFilter = {
       q: input.q,
-      scope: input.scope,
+      ...(input.scope !== undefined ? { scope: input.scope } : {}),
       ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
       ...(input.tagIds !== undefined ? { tagIds: input.tagIds } : {}),
       ...(input.flagged !== undefined ? { flagged: input.flagged } : {}),
