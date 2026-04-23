@@ -1,0 +1,95 @@
+name: Integration Tests
+
+# Runs on:
+#   1. Manual dispatch — any branch, any contributor with write access
+#   2. Tag push matching v* — automatically runs before a release
+#
+# Requirements:
+#   A self-hosted runner labeled `macos-omnifocus` with OmniFocus installed
+#   and running. Contributors without access to this runner can execute the
+#   integration tests locally: OMNIFOCUS_INTEGRATION=1 pnpm test:integration
+#
+# Graceful degradation:
+#   GitHub skips jobs whose runner label has no registered runner in the
+#   Actions runner pool. When no self-hosted runner is available the workflow
+#   appears as "skipped" (yellow) rather than failing the required-check gate.
+#   This is the intended behavior for v1; see DESIGN.md §20.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or commit SHA to test (defaults to the current branch)"
+        required: false
+        default: ""
+
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  # Only one integration run at a time per ref — OmniFocus is single-threaded.
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    name: Integration tests (OmniFocus ${{ matrix.of-version }})
+    runs-on: [self-hosted, macos-omnifocus]
+
+    strategy:
+      # Run all matrix entries even if one fails (collect full picture).
+      fail-fast: false
+      matrix:
+        node-version: [20]
+        of-version: [current]   # Add "3.15", "4.x" when runners for those are available
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.ref || github.sha }}
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node ${{ matrix.node-version }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: Verify OmniFocus is running
+        # Exits non-zero if OmniFocus is not running; surfaces a clear message
+        # rather than a cryptic adapter error inside the test suite.
+        run: |
+          if ! osascript -e 'tell application "System Events" to (name of processes) contains "OmniFocus"' | grep -q true; then
+            echo "::error::OmniFocus is not running on this runner. Start OmniFocus before running integration tests."
+            exit 1
+          fi
+          echo "OmniFocus is running — proceeding with integration tests."
+
+      - name: Run integration tests
+        env:
+          OMNIFOCUS_INTEGRATION: "1"
+          OMNIFOCUS_LOG_LEVEL: warn     # Suppress noise; failures are still visible
+        run: pnpm test:integration
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results-${{ matrix.node-version }}-${{ github.run_id }}
+          path: |
+            test-results/
+            *.log
+          retention-days: 7
