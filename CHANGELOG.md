@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Added
+
+- `LifecycleManager` — lazy OmniFocus detection + version gate (DESIGN §17). Single-flight probe that caches `{ ofVersion, ofEdition }` on first success, emits one `of.detected` log event, and exposes `checkMinimumVersion(minimum, featureName)` that throws `FeatureRequiresOfVersion` (`OF_FEATURE_REQUIRES_VERSION`) when detected OmniFocus is older than required. Does not poison the cache on probe failure. ([#25](https://github.com/torsday/omnifocus-mcp/issues/25))
 
 See [GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues) and [Project #4](https://github.com/users/torsday/projects/4) for the live backlog and status.
 
