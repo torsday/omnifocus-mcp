@@ -150,6 +150,17 @@ export interface ResponseMeta {
    * Each entry has a stable `code` agents can switch on — see `Warning`.
    */
   warnings?: Warning[];
+  /**
+   * Current rate-limit window state for this tool. Absent on cached responses
+   * (no rate check was performed). Present on live calls and on RateLimited errors
+   * (remaining: 0). Agents: if remaining < 10, add a short delay between calls.
+   */
+  rateLimit?: {
+    /** Calls remaining in the current window for this tool. */
+    remaining: number;
+    /** ISO-8601 timestamp when the current window resets. */
+    resetAt: string;
+  };
 }
 
 /**
