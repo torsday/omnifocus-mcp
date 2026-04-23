@@ -17,6 +17,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
+import { type InvalidatingCache, invalidateProjectMutation } from "../../cache/invalidation.js";
 import { ProjectId } from "../../domain/ids.js";
 import { type ResponseMeta, ok } from "../../envelope/index.js";
 
@@ -55,6 +56,12 @@ export type ProjectDeleteToolInput = z.infer<typeof projectDeleteInputSchema>;
 export interface ProjectDeleteContext {
   adapter: OmniFocusAdapter;
   makeMeta: (partial?: Partial<ResponseMeta>) => ResponseMeta;
+  /**
+   * Optional cache; when supplied, `invalidateProjectMutation` flushes the
+   * scopes in the per-mutation matrix (docs/cache-invalidation.md) after
+   * the adapter call succeeds.
+   */
+  cache?: InvalidatingCache;
 }
 
 /**
@@ -71,6 +78,9 @@ export async function handleProjectDelete(
   ctx: ProjectDeleteContext,
 ) {
   await ctx.adapter.deleteProject(input.id);
+  if (ctx.cache !== undefined) {
+    invalidateProjectMutation(ctx.cache, { projectId: input.id });
+  }
   return ok({ deleted: true as const, id: input.id }, ctx.makeMeta({ syncPending: true }));
 }
 

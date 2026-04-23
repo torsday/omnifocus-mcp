@@ -12,9 +12,11 @@
  *   `move`, `setStatus`, and `setAllowsNextAction` are thin specialisations of
  *   `updateTag` exposed as separate tools to give agents atomic, composable
  *   operations (DESIGN agent_systems §atomic).
- * - Cache invalidation: TagService does not yet wire an LRU cache (that
- *   integration lands with the full service-layer cache pass in #36). Any
- *   future cache layer must be invalidated on every write method here.
+ * - Cache invalidation: when the optional `cache` dep is supplied, every
+ *   write method flushes the tag-mutation scope set (see
+ *   docs/cache-invalidation.md) via `invalidateTagMutation`. Reads still
+ *   go straight to the adapter until the service-layer read cache lands
+ *   with #36.
  *
  * @see DESIGN.md §26 — reference implementation
  * @see docs/domain-reference.md — Tag schema
@@ -26,8 +28,14 @@ import type {
   OmniFocusAdapter,
   UpdateTagInput,
 } from "../adapter/OmniFocusAdapter.js";
+import { type InvalidatingCache, invalidateTagMutation } from "../cache/invalidation.js";
 import type { TagId } from "../domain/ids.js";
 import type { Tag, TagLocation } from "../domain/tag.js";
+
+/** Helper — emit the tag-mutation scope set if a cache is wired. */
+function flushTag(cache: InvalidatingCache | undefined, tagId: TagId): void {
+  if (cache !== undefined) invalidateTagMutation(cache, { tagId });
+}
 
 // ---------------------------------------------------------------------------
 // Public shapes
@@ -65,19 +73,27 @@ export interface TagCreateResult {
 /** Dependencies injected at construction time. */
 export interface TagServiceDeps {
   adapter: OmniFocusAdapter;
+  /**
+   * Optional cache; when supplied, every write method flushes the
+   * tag-mutation scope set (docs/cache-invalidation.md).
+   */
+  cache?: InvalidatingCache;
 }
 
 /**
  * Service layer for tag read and write operations.
  *
- * Construct with `{ adapter }`. All methods are async and
- * free of hidden state — side effects are limited to the adapter.
+ * Construct with `{ adapter, cache? }`. All methods are async and free of
+ * hidden state — side effects are limited to the adapter and the optional
+ * cache.
  */
 export class TagService {
   private readonly adapter: OmniFocusAdapter;
+  private readonly cache: InvalidatingCache | undefined;
 
-  constructor({ adapter }: TagServiceDeps) {
+  constructor({ adapter, cache }: TagServiceDeps) {
     this.adapter = adapter;
+    this.cache = cache;
   }
 
   // --------------------------------------------------------------------------
@@ -124,6 +140,7 @@ export class TagService {
    */
   async create(input: CreateTagInput): Promise<TagCreateResult> {
     const id = await this.adapter.createTag(input);
+    flushTag(this.cache, id);
     return { id };
   }
 
@@ -137,6 +154,7 @@ export class TagService {
    */
   async update(id: TagId, patch: UpdateTagInput): Promise<void> {
     await this.adapter.updateTag(id, patch);
+    flushTag(this.cache, id);
   }
 
   /**
@@ -147,6 +165,7 @@ export class TagService {
    */
   async delete(id: TagId): Promise<void> {
     await this.adapter.deleteTag(id);
+    flushTag(this.cache, id);
   }
 
   /**
@@ -161,6 +180,7 @@ export class TagService {
    */
   async move(id: TagId, parentId: TagId | null): Promise<void> {
     await this.adapter.updateTag(id, { parentId });
+    flushTag(this.cache, id);
   }
 
   /**
@@ -172,6 +192,7 @@ export class TagService {
    */
   async setStatus(id: TagId, status: Tag["status"]): Promise<void> {
     await this.adapter.updateTag(id, { status });
+    flushTag(this.cache, id);
   }
 
   /**
@@ -183,6 +204,7 @@ export class TagService {
    */
   async setAllowsNextAction(id: TagId, value: boolean): Promise<void> {
     await this.adapter.updateTag(id, { allowsNextAction: value });
+    flushTag(this.cache, id);
   }
 
   /**
@@ -199,6 +221,7 @@ export class TagService {
    */
   async setLocation(id: TagId, location: TagLocation): Promise<void> {
     await this.adapter.updateTag(id, { location });
+    flushTag(this.cache, id);
   }
 
   /**
@@ -209,6 +232,7 @@ export class TagService {
    */
   async clearLocation(id: TagId): Promise<void> {
     await this.adapter.updateTag(id, { location: null });
+    flushTag(this.cache, id);
   }
 
   /**

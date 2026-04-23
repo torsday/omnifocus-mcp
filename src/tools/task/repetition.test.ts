@@ -7,9 +7,18 @@
 
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
+import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { handleTaskClearRepetition, taskClearRepetitionInputSchema } from "./clearRepetition.js";
 import { handleTaskSetRepetition, taskSetRepetitionInputSchema } from "./setRepetition.js";
+
+function recordScopes(cache: OmniFocusLruCache): InvalidationScope[] {
+  const scopes: InvalidationScope[] = [];
+  cache.on("cache.invalidated", (e: { scope: InvalidationScope }) => {
+    scopes.push(e.scope);
+  });
+  return scopes;
+}
 
 // ---------------------------------------------------------------------------
 // Harness
@@ -230,5 +239,43 @@ describe("task_clear_repetition — handler", () => {
     const id = await adapter.createTask({ name: "Task Y" });
     const envelope = await handleTaskClearRepetition({ id }, ctx);
     expect(envelope.data.task.id).toBe(id);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cache invalidation (docs/cache-invalidation.md)
+// ---------------------------------------------------------------------------
+
+describe("task_set_repetition / task_clear_repetition — cache invalidation", () => {
+  it("task_set_repetition emits the task-mutation scope set", async () => {
+    const { ctx: base, adapter } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    const scopes = recordScopes(cache);
+    const projectId = await adapter.createProject({ name: "P" });
+    const id = await adapter.createTask({ name: "T", projectId });
+
+    await handleTaskSetRepetition(
+      { id, rule: { method: "fixed", unit: "days", steps: 1 } },
+      { ...base, cache },
+    );
+
+    expect(scopes).toEqual([
+      `task:${id}`,
+      `project:${projectId}`,
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+    ]);
+  });
+
+  it("task_clear_repetition emits the task-mutation scope set", async () => {
+    const { ctx: base, adapter } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    const scopes = recordScopes(cache);
+    const id = await adapter.createTask({ name: "Inbox" });
+
+    await handleTaskClearRepetition({ id }, { ...base, cache });
+
+    expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*"]);
   });
 });

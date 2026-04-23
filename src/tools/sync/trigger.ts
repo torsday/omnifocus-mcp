@@ -17,6 +17,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
+import { type ClearableCache, invalidateOnSync } from "../../cache/invalidation.js";
 import { type ResponseMeta, ok } from "../../envelope/index.js";
 
 // ---------------------------------------------------------------------------
@@ -45,6 +46,12 @@ export type SyncTriggerInput = z.infer<typeof syncTriggerInputSchema>;
 export interface SyncTriggerContext {
   adapter: OmniFocusAdapter;
   makeMeta: (partial?: Partial<ResponseMeta>) => ResponseMeta;
+  /**
+   * Optional cache; when supplied, `invalidateOnSync` clears every cached
+   * read after the sync is kicked off (remote edits could be pulled in that
+   * invalidate any row). See docs/cache-invalidation.md.
+   */
+  cache?: ClearableCache;
 }
 
 /**
@@ -55,6 +62,7 @@ export interface SyncTriggerContext {
  */
 export async function handleSyncTrigger(_input: SyncTriggerInput, ctx: SyncTriggerContext) {
   const status = await ctx.adapter.syncTrigger();
+  if (ctx.cache !== undefined) invalidateOnSync(ctx.cache);
   // syncPending: false — sync was kicked off; pending writes are now in-flight.
   const meta = ctx.makeMeta({ syncPending: false });
   return ok({ lastSyncAt: status.lastSyncAt, inFlight: status.inFlight }, meta);

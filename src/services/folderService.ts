@@ -12,8 +12,11 @@
  *   the now-empty folder. This is intentionally explicit — agents must pass
  *   `cascade: true` to trigger destructive behaviour.
  * - `move` is a thin wrapper over `updateFolder(id, { parentId })`.
- * - Cache invalidation: FolderService does not yet wire an LRU cache (that
- *   integration lands with the full cache pass in #36).
+ * - Cache invalidation: when the optional `cache` dep is supplied, every
+ *   write method flushes the folder-mutation scope set (see
+ *   docs/cache-invalidation.md) via `invalidateFolderMutation`. Reads
+ *   still go straight to the adapter until the service-layer read cache
+ *   lands with #36.
  *
  * @see DESIGN.md §26 — reference implementation
  * @see docs/domain-reference.md — Folder schema
@@ -24,8 +27,14 @@ import type {
   OmniFocusAdapter,
   UpdateFolderInput,
 } from "../adapter/OmniFocusAdapter.js";
+import { type InvalidatingCache, invalidateFolderMutation } from "../cache/invalidation.js";
 import type { Folder } from "../domain/folder.js";
 import type { FolderId } from "../domain/ids.js";
+
+/** Helper — emit the folder-mutation scope set if a cache is wired. */
+function flushFolder(cache: InvalidatingCache | undefined, folderId: FolderId): void {
+  if (cache !== undefined) invalidateFolderMutation(cache, { folderId });
+}
 
 // ---------------------------------------------------------------------------
 // Public shapes
@@ -61,18 +70,26 @@ export interface FolderCreateResult {
 /** Dependencies injected at construction time. */
 export interface FolderServiceDeps {
   adapter: OmniFocusAdapter;
+  /**
+   * Optional cache; when supplied, every write method flushes the
+   * folder-mutation scope set (docs/cache-invalidation.md).
+   */
+  cache?: InvalidatingCache;
 }
 
 /**
  * Service layer for folder read and write operations.
  *
- * Construct with `{ adapter }`. All methods are async and free of hidden state.
+ * Construct with `{ adapter, cache? }`. All methods are async and free of
+ * hidden state.
  */
 export class FolderService {
   private readonly adapter: OmniFocusAdapter;
+  private readonly cache: InvalidatingCache | undefined;
 
-  constructor({ adapter }: FolderServiceDeps) {
+  constructor({ adapter, cache }: FolderServiceDeps) {
     this.adapter = adapter;
+    this.cache = cache;
   }
 
   // --------------------------------------------------------------------------
@@ -118,6 +135,7 @@ export class FolderService {
    */
   async create(input: CreateFolderInput): Promise<FolderCreateResult> {
     const id = await this.adapter.createFolder(input);
+    flushFolder(this.cache, id);
     return { id };
   }
 
@@ -131,6 +149,7 @@ export class FolderService {
    */
   async update(id: FolderId, patch: UpdateFolderInput): Promise<void> {
     await this.adapter.updateFolder(id, patch);
+    flushFolder(this.cache, id);
   }
 
   /**
@@ -151,6 +170,7 @@ export class FolderService {
       await this._cascadeEmpty(id);
     }
     await this.adapter.deleteFolder(id);
+    flushFolder(this.cache, id);
   }
 
   /**
@@ -162,6 +182,7 @@ export class FolderService {
    */
   async move(id: FolderId, parentId: FolderId | null): Promise<void> {
     await this.adapter.updateFolder(id, { parentId });
+    flushFolder(this.cache, id);
   }
 
   // --------------------------------------------------------------------------

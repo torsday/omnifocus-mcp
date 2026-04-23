@@ -14,6 +14,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
+import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { TaskId } from "../../domain/ids.js";
 import { type ResponseMeta, ok } from "../../envelope/index.js";
 
@@ -50,19 +51,34 @@ export type TaskDeleteToolInput = z.infer<typeof taskDeleteInputSchema>;
 export interface TaskDeleteContext {
   adapter: OmniFocusAdapter;
   makeMeta: (partial?: Partial<ResponseMeta>) => ResponseMeta;
+  /**
+   * Optional cache; when supplied, `invalidateTaskMutation` flushes the
+   * scopes in the per-mutation matrix (docs/cache-invalidation.md) after
+   * the adapter call succeeds.
+   */
+  cache?: InvalidatingCache;
 }
 
 /**
  * Pure handler for `task_delete`.
  *
- * Delegates to `adapter.deleteTask` which handles cache invalidation and
- * raises `NotFound` for an unknown ID.
+ * Pre-fetches the task so the task's `projectId` is known for cache
+ * invalidation, then delegates to `adapter.deleteTask`. Flushes the
+ * task-mutation scope set (`task:${id}`, `project:${projectId?}`,
+ * `forecast:*`, `perspective:*`, `search:*`) after success.
  *
  * @throws {NotFound} when the task ID does not exist in OmniFocus
  * @throws {OmniFocusNotRunning} when OmniFocus is not running
  */
 export async function handleTaskDelete(input: TaskDeleteToolInput, ctx: TaskDeleteContext) {
+  // Pre-fetch so we can emit `project:${id}` for the parent project after
+  // delete. NotFound raised here has the same semantics as the prior
+  // deleteTask-only path.
+  const task = await ctx.adapter.getTask(input.id);
   await ctx.adapter.deleteTask(input.id);
+  if (ctx.cache !== undefined) {
+    invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
+  }
   return ok({ deleted: true as const, id: input.id }, ctx.makeMeta({ syncPending: true }));
 }
 

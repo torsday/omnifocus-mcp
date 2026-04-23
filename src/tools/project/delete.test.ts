@@ -13,8 +13,17 @@
 
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
+import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { handleProjectDelete, projectDeleteInputSchema } from "./delete.js";
+
+function recordScopes(cache: OmniFocusLruCache): InvalidationScope[] {
+  const scopes: InvalidationScope[] = [];
+  cache.on("cache.invalidated", (e: { scope: InvalidationScope }) => {
+    scopes.push(e.scope);
+  });
+  return scopes;
+}
 
 // ---------------------------------------------------------------------------
 // Harness
@@ -121,5 +130,35 @@ describe("project_delete — handler", () => {
     const remaining = await adapter.listProjects({});
     expect(remaining.some((p) => p.id === idB)).toBe(true);
     expect(remaining.some((p) => p.id === idA)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cache invalidation (docs/cache-invalidation.md)
+// ---------------------------------------------------------------------------
+
+describe("project_delete — cache invalidation", () => {
+  it("emits project:${id}, forecast:*, perspective:*, search:*", async () => {
+    const { ctx: base, adapter } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    const scopes = recordScopes(cache);
+    const id = await adapter.createProject({ name: "P" });
+
+    await handleProjectDelete({ id }, { ...base, cache });
+
+    expect(scopes).toEqual([`project:${id}`, "forecast:*", "perspective:*", "search:*"]);
+  });
+
+  it("does not invalidate when the delete fails (NotFound)", async () => {
+    const { ctx: base } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    const scopes = recordScopes(cache);
+    await expect(
+      handleProjectDelete(
+        { id: "project_999999" as import("../../domain/ids.js").ProjectId },
+        { ...base, cache },
+      ),
+    ).rejects.toThrow();
+    expect(scopes).toEqual([]);
   });
 });
