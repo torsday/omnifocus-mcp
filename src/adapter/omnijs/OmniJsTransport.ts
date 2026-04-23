@@ -204,6 +204,13 @@ export class OmniJsTransport implements OmniFocusAdapter {
     return notYetWired("searchTasks");
   }
 
+  // -- Perspectives ---------------------------------------------------------
+
+  // Perspectives are read via JXA; OmniJsTransport satisfies the interface only.
+  async listPerspectives(): Promise<import("../../domain/perspective.js").Perspective[]> {
+    return notYetWired("listPerspectives");
+  }
+
   // -- Sync -----------------------------------------------------------------
 
   // Sync is a document-level operation exposed by JXA, not OmniJS. The

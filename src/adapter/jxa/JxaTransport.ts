@@ -33,6 +33,7 @@ import {
   type TaskId,
   TaskId as TaskIdCtor,
 } from "../../domain/ids.js";
+import type { Perspective } from "../../domain/perspective.js";
 import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
 import type { Task } from "../../domain/task.js";
@@ -42,6 +43,7 @@ import folderDeleteScript from "../../scripts/jxa/folder_delete.js";
 import folderGetScript from "../../scripts/jxa/folder_get.js";
 import folderListScript from "../../scripts/jxa/folder_list.js";
 import folderUpdateScript from "../../scripts/jxa/folder_update.js";
+import perspectiveListScript from "../../scripts/jxa/perspective_list.js";
 import projectCompleteScript from "../../scripts/jxa/project_complete.js";
 import projectCreateScript from "../../scripts/jxa/project_create.js";
 import projectDeleteScript from "../../scripts/jxa/project_delete.js";
@@ -462,6 +464,17 @@ export class JxaTransport implements OmniFocusAdapter {
       { id },
       { ...this.runOpts, scriptName: "folder_delete" },
     );
+  }
+
+  // -- Perspectives (wired) -------------------------------------------------
+
+  async listPerspectives(): Promise<Perspective[]> {
+    const result = await runJxaScript<{ perspectives: Perspective[] }>(
+      perspectiveListScript,
+      {},
+      { ...this.runOpts, scriptName: "perspective_list" },
+    );
+    return result.perspectives;
   }
 
   // -- Search ---------------------------------------------------------------
