@@ -2,6 +2,7 @@
 
 exports[`tool descriptions — snapshot > all descriptions match their committed snapshots 1`] = `
 {
+  "export_opml": "Export OmniFocus data as OPML XML — a structured outline format OmniFocus can import. Do NOT use to export a single task; OPML scope is project-level or broader. Three scopes: 'project' (one project + its tasks), 'folder' (all projects in a folder), or 'all' (all active projects). Returns { opml, projectCount, taskCount } where opml is a complete XML string. Safe to call repeatedly; no side effects.",
   "folder_create": "Create a new folder in OmniFocus. Optionally nest it inside an existing parent folder (get IDs from folder_list). Do not use to move an existing folder; prefer folder_move instead. Returns the new folder's persistent ID. Triggers a sync; call sync_trigger after to propagate to other devices.",
   "folder_delete": "Delete a folder from OmniFocus. By default returns ValidationError when the folder contains projects or subfolders. Pass cascade=true to orphan all direct projects (move to no folder) and recursively delete subfolders before deleting. IRREVERSIBLE — do not use to archive; prefer folder_update to rename instead. Get the folder ID from folder_list. Triggers a sync; call sync_trigger after to propagate to other devices.",
   "folder_get": "Fetch a single folder by its persistent ID, including project and subfolder counts. Do not use to list multiple folders; prefer folder_list instead. Returns folder details including name, parentId, projectCount, and subfolderCount. Safe to call repeatedly; no side effects.",
@@ -40,6 +41,8 @@ exports[`tool descriptions — snapshot > all descriptions match their committed
   "task_update": "Partially update mutable fields on an OmniFocus task. Only supplied fields are changed; omit a field to leave it unchanged. Do not use to complete or delete a task; prefer task_complete or task_delete instead. Two tag-update modes: (1) supply tagIds to replace the full tag set; (2) supply addTags and/or removeTags to apply a diff without reading first. Supplying tagIds together with addTags/removeTags is a ValidationError. setFlagged is a convenience alias for flagged. Returns the updated task. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.",
 }
 `;
+
+exports[`tool descriptions — snapshot > export_opml description matches snapshot 1`] = `"Export OmniFocus data as OPML XML — a structured outline format OmniFocus can import. Do NOT use to export a single task; OPML scope is project-level or broader. Three scopes: 'project' (one project + its tasks), 'folder' (all projects in a folder), or 'all' (all active projects). Returns { opml, projectCount, taskCount } where opml is a complete XML string. Safe to call repeatedly; no side effects."`;
 
 exports[`tool descriptions — snapshot > folder_create description matches snapshot 1`] = `"Create a new folder in OmniFocus. Optionally nest it inside an existing parent folder (get IDs from folder_list). Do not use to move an existing folder; prefer folder_move instead. Returns the new folder's persistent ID. Triggers a sync; call sync_trigger after to propagate to other devices."`;
 
