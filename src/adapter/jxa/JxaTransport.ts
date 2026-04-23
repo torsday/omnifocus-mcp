@@ -514,6 +514,12 @@ export class JxaTransport implements OmniFocusAdapter {
     return notYetWired("searchTasks");
   }
 
+  async getForecast(
+    _input: import("../OmniFocusAdapter.js").ForecastInput,
+  ): Promise<import("../OmniFocusAdapter.js").ForecastResult> {
+    return notYetWired("getForecast");
+  }
+
   // -- Sync (wired) ---------------------------------------------------------
 
   async syncTrigger(): Promise<SyncStatus> {

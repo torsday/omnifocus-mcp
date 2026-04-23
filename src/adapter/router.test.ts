@@ -72,6 +72,7 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     updateFolder: record("updateFolder"),
     deleteFolder: record("deleteFolder"),
     searchTasks: record("searchTasks"),
+    getForecast: record("getForecast"),
     listPerspectives: record("listPerspectives"),
     evaluatePerspective: record("evaluatePerspective"),
     syncTrigger: record("syncTrigger"),
@@ -125,6 +126,8 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
     updateFolder: () => r.updateFolder(F_ID, { name: "g" }),
     deleteFolder: () => r.deleteFolder(F_ID),
     searchTasks: () => r.searchTasks({ q: "x" }),
+    getForecast: () =>
+      r.getForecast({ from: "2026-04-23T00:00:00.000Z", to: "2026-04-23T23:59:59.999Z" }),
     listPerspectives: () => r.listPerspectives(),
     evaluatePerspective: () => r.evaluatePerspective("inbox"),
     syncTrigger: () => r.syncTrigger(),
