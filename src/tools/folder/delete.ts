@@ -41,7 +41,7 @@ export interface FolderDeleteContext {
 
 export async function handleFolderDelete(input: FolderDeleteToolInput, ctx: FolderDeleteContext) {
   await ctx.folderService.delete(input.id, input.cascade ?? false);
-  return ok({ deleted: true, id: input.id }, ctx.makeMeta());
+  return ok({ deleted: true, id: input.id }, ctx.makeMeta({ syncPending: true }));
 }
 
 export function registerFolderDeleteTool(server: McpServer, ctx: FolderDeleteContext) {

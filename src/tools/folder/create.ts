@@ -37,7 +37,7 @@ export async function handleFolderCreate(input: FolderCreateToolInput, ctx: Fold
     ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
   });
   const { folder } = await ctx.folderService.get(createResult.id);
-  return ok({ folder }, ctx.makeMeta());
+  return ok({ folder }, ctx.makeMeta({ syncPending: true }));
 }
 
 export function registerFolderCreateTool(server: McpServer, ctx: FolderCreateContext) {

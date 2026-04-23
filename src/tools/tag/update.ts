@@ -50,7 +50,7 @@ export async function handleTagUpdate(input: TagUpdateToolInput, ctx: TagUpdateC
     ...(patch.allowsNextAction !== undefined ? { allowsNextAction: patch.allowsNextAction } : {}),
   });
   const { tag } = await ctx.tagService.get(id);
-  return ok({ tag }, ctx.makeMeta());
+  return ok({ tag }, ctx.makeMeta({ syncPending: true }));
 }
 
 export function registerTagUpdateTool(server: McpServer, ctx: TagUpdateContext) {
