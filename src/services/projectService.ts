@@ -25,7 +25,11 @@
  * @see src/services/taskService.ts — sibling service for tasks
  */
 
-import type { OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
+import type {
+  CreateProjectInput,
+  OmniFocusAdapter,
+  UpdateProjectInput,
+} from "../adapter/OmniFocusAdapter.js";
 import type { FolderId, ProjectId } from "../domain/ids.js";
 import type { Project } from "../domain/project.js";
 import type { Task } from "../domain/task.js";
@@ -167,6 +171,16 @@ export class ProjectService {
   /** Move a project to a folder (or to the root if folderId is null). */
   async moveProject(id: ProjectId, destination: { folderId: FolderId | null }): Promise<void> {
     await this.adapter.moveProject(id, destination);
+  }
+
+  /** Create a new project with the given fields. Returns the new project's ID. */
+  async createProject(input: CreateProjectInput): Promise<ProjectId> {
+    return this.adapter.createProject(input);
+  }
+
+  /** Partially update mutable fields on an existing project. */
+  async updateProject(id: ProjectId, patch: UpdateProjectInput): Promise<void> {
+    return this.adapter.updateProject(id, patch);
   }
 
   /**
