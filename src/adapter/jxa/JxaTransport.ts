@@ -33,7 +33,7 @@ import {
   type TaskId,
   TaskId as TaskIdCtor,
 } from "../../domain/ids.js";
-import type { Perspective } from "../../domain/perspective.js";
+import type { BuiltinPerspectiveId, Perspective } from "../../domain/perspective.js";
 import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
 import type { Task } from "../../domain/task.js";
@@ -43,6 +43,7 @@ import folderDeleteScript from "../../scripts/jxa/folder_delete.js";
 import folderGetScript from "../../scripts/jxa/folder_get.js";
 import folderListScript from "../../scripts/jxa/folder_list.js";
 import folderUpdateScript from "../../scripts/jxa/folder_update.js";
+import perspectiveEvaluateScript from "../../scripts/jxa/perspective_evaluate.js";
 import perspectiveListScript from "../../scripts/jxa/perspective_list.js";
 import projectCompleteScript from "../../scripts/jxa/project_complete.js";
 import projectCreateScript from "../../scripts/jxa/project_create.js";
@@ -494,6 +495,15 @@ export class JxaTransport implements OmniFocusAdapter {
       { ...this.runOpts, scriptName: "perspective_list" },
     );
     return result.perspectives;
+  }
+
+  async evaluatePerspective(id: BuiltinPerspectiveId): Promise<Task[]> {
+    const result = await runJxaScript<{ tasks: Task[] }>(
+      perspectiveEvaluateScript,
+      { perspectiveId: id },
+      { ...this.runOpts, scriptName: "perspective_evaluate" },
+    );
+    return result.tasks.map((t) => ({ ...t, id: TaskIdCtor.of(t.id) }));
   }
 
   // -- Search ---------------------------------------------------------------

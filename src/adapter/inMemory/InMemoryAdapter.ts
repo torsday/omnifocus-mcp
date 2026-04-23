@@ -35,7 +35,11 @@ import {
   type TaskId,
   TaskId as TaskIdCtor,
 } from "../../domain/ids.js";
-import { BUILTIN_PERSPECTIVE_IDS, type Perspective } from "../../domain/perspective.js";
+import {
+  BUILTIN_PERSPECTIVE_IDS,
+  type BuiltinPerspectiveId,
+  type Perspective,
+} from "../../domain/perspective.js";
 import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
 import type { Task } from "../../domain/task.js";
@@ -716,6 +720,32 @@ export class InMemoryAdapter implements OmniFocusAdapter {
       requiresPro: false,
       icon: null,
     }));
+  }
+
+  async evaluatePerspective(id: BuiltinPerspectiveId): Promise<Task[]> {
+    const all = Array.from(this.tasks.values());
+    if (id === "review" || id === "nearby") return [];
+    if (id === "inbox") {
+      return all.filter((t) => t.projectId === null && !t.completed && !t.dropped);
+    }
+    if (id === "flagged") {
+      return all.filter((t) => t.flagged && !t.completed && !t.dropped);
+    }
+    if (id === "forecast") {
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+      return all.filter(
+        (t) =>
+          t.dueDate !== null && new Date(t.dueDate) <= endOfToday && !t.completed && !t.dropped,
+      );
+    }
+    if (id === "projects") {
+      return all.filter((t) => t.projectId !== null && !t.completed && !t.dropped);
+    }
+    if (id === "tags") {
+      return all.filter((t) => t.tagIds.length > 0 && !t.completed && !t.dropped);
+    }
+    return [];
   }
 
   // -- Internal helpers -----------------------------------------------------

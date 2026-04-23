@@ -32,7 +32,7 @@
 
 import type { Folder } from "../domain/folder.js";
 import type { FolderId, ProjectId, TagId, TaskId } from "../domain/ids.js";
-import type { Perspective } from "../domain/perspective.js";
+import type { BuiltinPerspectiveId, Perspective } from "../domain/perspective.js";
 import type { Project } from "../domain/project.js";
 import type { Tag, TagLocation } from "../domain/tag.js";
 import type { RepetitionRule, Task } from "../domain/task.js";
@@ -243,6 +243,13 @@ export interface OmniFocusAdapter {
   // -- Perspectives ----------------------------------------------------------
 
   listPerspectives(): Promise<Perspective[]>;
+
+  /**
+   * Evaluate a built-in OmniFocus perspective and return its task list.
+   * For "review", returns an empty array (projects shown via review_list_due).
+   * For "nearby", returns an empty array (location unavailable from script context).
+   */
+  evaluatePerspective(id: BuiltinPerspectiveId): Promise<Task[]>;
 
   // -- Search ----------------------------------------------------------------
 
