@@ -45,7 +45,7 @@ export const TASK_UPDATE_DESCRIPTION =
 // Input schema
 // ---------------------------------------------------------------------------
 
-const taskUpdateInputBaseSchema = z.object({
+export const taskUpdateInputBaseSchema = z.object({
   id: TaskId.schema.describe("Persistent task ID. Get from task_list or search_query."),
 
   // Scalar editable fields
