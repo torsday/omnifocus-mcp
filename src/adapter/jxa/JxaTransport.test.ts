@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { ProjectId, TaskId } from "../../domain/ids.js";
+import type { TaskId } from "../../domain/ids.js";
 import { ScriptError } from "../../errors/index.js";
 import { JxaTransport } from "./JxaTransport.js";
 import type { ScriptSpawner, SpawnResult } from "./scriptRunner.js";
@@ -79,12 +79,11 @@ describe("JxaTransport — not-yet-wired stubs", () => {
   // Note: listTags, getTag, createTag, updateTag, deleteTag, listFolders,
   // getFolder, createFolder, updateFolder, deleteFolder are now wired and
   // tested in JxaTransport.tags-folders.test.ts.
+  // listProjects, getProject etc are wired and tested in JxaTransport.projects.test.ts.
   const cases: Array<readonly [string, () => Promise<unknown>]> = [
     ["listTasks", () => t.listTasks({})],
     ["getTask", () => t.getTask("task_000001" as TaskId)],
     ["createTask", () => t.createTask({ name: "x" })],
-    ["listProjects", () => t.listProjects()],
-    ["getProject", () => t.getProject("proj_000001" as ProjectId)],
   ];
 
   for (const [method, call] of cases) {

@@ -82,7 +82,7 @@ describe("JxaTransport — listTags", () => {
     const spawner = spawnerReturning({ tags: [] });
     const t = new JxaTransport({ spawner });
     await t.listTags({ parentId: "tag_parent" as TagId, status: "on-hold" });
-    const call = (spawner as ReturnType<typeof vi.fn>).mock.calls[0];
+    const call = (spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string];
     const arg = JSON.parse(call[1] as string) as { parentId: string; status: string };
     expect(arg.parentId).toBe("tag_parent");
     expect(arg.status).toBe("on-hold");
@@ -117,7 +117,7 @@ describe("JxaTransport — getTag", () => {
     const t = new JxaTransport({ spawner });
     await t.getTag("tag_aaa" as TagId);
     const arg = JSON.parse(
-      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as string[])[1],
+      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string])[1],
     ) as { id: string };
     expect(arg.id).toBe("tag_aaa");
   });
@@ -144,7 +144,7 @@ describe("JxaTransport — createTag", () => {
     const t = new JxaTransport({ spawner });
     await t.createTag({ name: "Work", parentId: "tag_parent" as TagId });
     const arg = JSON.parse(
-      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as string[])[1],
+      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string])[1],
     ) as { name: string; parentId: string };
     expect(arg.name).toBe("Work");
     expect(arg.parentId).toBe("tag_parent");
@@ -155,7 +155,7 @@ describe("JxaTransport — createTag", () => {
     const t = new JxaTransport({ spawner });
     await t.createTag({ name: "Work" });
     const arg = JSON.parse(
-      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as string[])[1],
+      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string])[1],
     ) as { parentId: null };
     expect(arg.parentId).toBeNull();
   });
@@ -178,7 +178,7 @@ describe("JxaTransport — updateTag", () => {
     const t = new JxaTransport({ spawner });
     await t.updateTag("tag_aaa" as TagId, { status: "on-hold" });
     const arg = JSON.parse(
-      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as string[])[1],
+      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string])[1],
     ) as { id: string; status: string; name?: string };
     expect(arg.id).toBe("tag_aaa");
     expect(arg.status).toBe("on-hold");
@@ -201,7 +201,7 @@ describe("JxaTransport — deleteTag", () => {
     const t = new JxaTransport({ spawner });
     await t.deleteTag("tag_aaa" as TagId);
     const arg = JSON.parse(
-      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as string[])[1],
+      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string])[1],
     ) as { id: string };
     expect(arg.id).toBe("tag_aaa");
   });
@@ -231,7 +231,7 @@ describe("JxaTransport — listFolders", () => {
     const t = new JxaTransport({ spawner });
     await t.listFolders({ parentId: "folder_parent" as FolderId });
     const arg = JSON.parse(
-      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as string[])[1],
+      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string])[1],
     ) as { parentId: string };
     expect(arg.parentId).toBe("folder_parent");
   });
@@ -259,7 +259,7 @@ describe("JxaTransport — getFolder", () => {
     const t = new JxaTransport({ spawner });
     await t.getFolder("folder_bbb" as FolderId);
     const arg = JSON.parse(
-      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as string[])[1],
+      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string])[1],
     ) as { id: string };
     expect(arg.id).toBe("folder_bbb");
   });
@@ -281,7 +281,7 @@ describe("JxaTransport — createFolder", () => {
     const t = new JxaTransport({ spawner });
     await t.createFolder({ name: "Personal" });
     const arg = JSON.parse(
-      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as string[])[1],
+      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string])[1],
     ) as { name: string; parentId: null };
     expect(arg.name).toBe("Personal");
     expect(arg.parentId).toBeNull();
@@ -307,7 +307,7 @@ describe("JxaTransport — updateFolder", () => {
     const t = new JxaTransport({ spawner });
     await t.updateFolder("folder_bbb" as FolderId, { name: "Renamed" });
     const arg = JSON.parse(
-      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as string[])[1],
+      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string])[1],
     ) as { id: string; name: string };
     expect(arg.id).toBe("folder_bbb");
     expect(arg.name).toBe("Renamed");
@@ -341,12 +341,6 @@ describe("JxaTransport — not-yet-wired stubs still throw after tag/folder wiri
 
   it("listTasks throws not-yet-wired", async () => {
     const err = await t.listTasks({}).catch((e) => e);
-    expect(err).toBeInstanceOf(ScriptError);
-    expect((err as ScriptError).details).toMatchObject({ reason: "not-yet-wired" });
-  });
-
-  it("listProjects throws not-yet-wired", async () => {
-    const err = await t.listProjects().catch((e) => e);
     expect(err).toBeInstanceOf(ScriptError);
     expect((err as ScriptError).details).toMatchObject({ reason: "not-yet-wired" });
   });

@@ -27,6 +27,7 @@ import {
   type FolderId,
   FolderId as FolderIdCtor,
   type ProjectId,
+  ProjectId as ProjectIdCtor,
   type TagId,
   TagId as TagIdCtor,
   type TaskId,
@@ -40,6 +41,15 @@ import folderDeleteScript from "../../scripts/jxa/folder_delete.js";
 import folderGetScript from "../../scripts/jxa/folder_get.js";
 import folderListScript from "../../scripts/jxa/folder_list.js";
 import folderUpdateScript from "../../scripts/jxa/folder_update.js";
+import projectCompleteScript from "../../scripts/jxa/project_complete.js";
+import projectCreateScript from "../../scripts/jxa/project_create.js";
+import projectDeleteScript from "../../scripts/jxa/project_delete.js";
+import projectDropScript from "../../scripts/jxa/project_drop.js";
+import projectGetScript from "../../scripts/jxa/project_get.js";
+import projectListScript from "../../scripts/jxa/project_list.js";
+import projectMarkReviewedScript from "../../scripts/jxa/project_mark_reviewed.js";
+import projectMoveScript from "../../scripts/jxa/project_move.js";
+import projectUpdateScript from "../../scripts/jxa/project_update.js";
 import syncTriggerScript from "../../scripts/jxa/sync_trigger.js";
 import tagCreateScript from "../../scripts/jxa/tag_create.js";
 import tagDeleteScript from "../../scripts/jxa/tag_delete.js";
@@ -141,36 +151,103 @@ export class JxaTransport implements OmniFocusAdapter {
     return notYetWired("moveTask");
   }
 
-  // -- Projects -------------------------------------------------------------
+  // -- Projects (wired) -----------------------------------------------------
 
-  async listProjects(_filter?: { folderId?: FolderId; status?: Project["status"] }): Promise<
+  async listProjects(filter?: { folderId?: FolderId; status?: Project["status"] }): Promise<
     Project[]
   > {
-    return notYetWired("listProjects");
+    const result = await runJxaScript<{ projects: Project[] }>(
+      projectListScript,
+      { folderId: filter?.folderId ?? null, status: filter?.status ?? null },
+      { ...this.runOpts, scriptName: "project_list" },
+    );
+    return result.projects.map((p) => ({ ...p, id: ProjectIdCtor.of(p.id) }));
   }
-  async getProject(_id: ProjectId): Promise<Project> {
-    return notYetWired("getProject");
+
+  async getProject(id: ProjectId): Promise<Project> {
+    const result = await runJxaScript<{ project: Project }>(
+      projectGetScript,
+      { id },
+      { ...this.runOpts, scriptName: "project_get" },
+    );
+    return { ...result.project, id: ProjectIdCtor.of(result.project.id) };
   }
-  async createProject(_input: CreateProjectInput): Promise<ProjectId> {
-    return notYetWired("createProject");
+
+  async createProject(input: CreateProjectInput): Promise<ProjectId> {
+    const result = await runJxaScript<{ project: Project }>(
+      projectCreateScript,
+      {
+        name: input.name,
+        folderId: input.folderId ?? null,
+        note: input.note ?? null,
+        deferDate: input.deferDate ?? null,
+        dueDate: input.dueDate ?? null,
+        estimatedMinutes: input.estimatedMinutes ?? null,
+        flagged: input.flagged ?? false,
+        status: input.status ?? null,
+      },
+      { ...this.runOpts, scriptName: "project_create" },
+    );
+    return ProjectIdCtor.of(result.project.id);
   }
-  async updateProject(_id: ProjectId, _patch: UpdateProjectInput): Promise<void> {
-    return notYetWired("updateProject");
+
+  async updateProject(id: ProjectId, patch: UpdateProjectInput): Promise<void> {
+    await runJxaScript<{ project: Project }>(
+      projectUpdateScript,
+      {
+        id,
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.note !== undefined ? { note: patch.note } : {}),
+        ...(patch.flagged !== undefined ? { flagged: patch.flagged } : {}),
+        ...(patch.estimatedMinutes !== undefined
+          ? { estimatedMinutes: patch.estimatedMinutes }
+          : {}),
+        ...(patch.deferDate !== undefined ? { deferDate: patch.deferDate } : {}),
+        ...(patch.dueDate !== undefined ? { dueDate: patch.dueDate } : {}),
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+      },
+      { ...this.runOpts, scriptName: "project_update" },
+    );
   }
-  async completeProject(_id: ProjectId, _at?: Date): Promise<void> {
-    return notYetWired("completeProject");
+
+  async completeProject(id: ProjectId, at?: Date): Promise<void> {
+    await runJxaScript<{ id: string }>(
+      projectCompleteScript,
+      { id, completionDate: at?.toISOString() ?? null },
+      { ...this.runOpts, scriptName: "project_complete" },
+    );
   }
-  async dropProject(_id: ProjectId, _at?: Date): Promise<void> {
-    return notYetWired("dropProject");
+
+  async dropProject(id: ProjectId): Promise<void> {
+    await runJxaScript<{ id: string }>(
+      projectDropScript,
+      { id },
+      { ...this.runOpts, scriptName: "project_drop" },
+    );
   }
-  async moveProject(_id: ProjectId, _destination: { folderId: FolderId | null }): Promise<void> {
-    return notYetWired("moveProject");
+
+  async moveProject(id: ProjectId, destination: { folderId: FolderId | null }): Promise<void> {
+    await runJxaScript<{ id: string }>(
+      projectMoveScript,
+      { id, folderId: destination.folderId ?? null },
+      { ...this.runOpts, scriptName: "project_move" },
+    );
   }
-  async deleteProject(_id: ProjectId): Promise<void> {
-    return notYetWired("deleteProject");
+
+  async deleteProject(id: ProjectId): Promise<void> {
+    await runJxaScript<{ id: string }>(
+      projectDeleteScript,
+      { id },
+      { ...this.runOpts, scriptName: "project_delete" },
+    );
   }
-  async markProjectReviewed(_id: ProjectId): Promise<void> {
-    return notYetWired("markProjectReviewed");
+
+  async markProjectReviewed(id: ProjectId): Promise<void> {
+    await runJxaScript<{ id: string }>(
+      projectMarkReviewedScript,
+      { id },
+      { ...this.runOpts, scriptName: "project_mark_reviewed" },
+    );
   }
 
   // -- Tags (wired) ---------------------------------------------------------
