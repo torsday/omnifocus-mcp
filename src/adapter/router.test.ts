@@ -73,6 +73,7 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     deleteFolder: record("deleteFolder"),
     searchTasks: record("searchTasks"),
     getForecast: record("getForecast"),
+    pluginInvoke: record("pluginInvoke"),
     listPerspectives: record("listPerspectives"),
     evaluatePerspective: record("evaluatePerspective"),
     syncTrigger: record("syncTrigger"),
@@ -128,6 +129,7 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
     searchTasks: () => r.searchTasks({ q: "x" }),
     getForecast: () =>
       r.getForecast({ from: "2026-04-23T00:00:00.000Z", to: "2026-04-23T23:59:59.999Z" }),
+    pluginInvoke: () => r.pluginInvoke({ identifier: "com.example.test" }),
     listPerspectives: () => r.listPerspectives(),
     evaluatePerspective: () => r.evaluatePerspective("inbox"),
     syncTrigger: () => r.syncTrigger(),
@@ -209,11 +211,12 @@ describe("TransportRouter — table integrity", () => {
     expect(router.routingTable).toBe(ROUTING_TABLE);
   });
 
-  it("current policy: only runOmniJsScript routes to omnijs", () => {
+  it("current policy: pluginInvoke and runOmniJsScript route to omnijs", () => {
     const omniJsRoutes = (Object.entries(ROUTING_TABLE) as Array<[AdapterMethod, string]>)
       .filter(([, t]) => t === "omnijs")
-      .map(([m]) => m);
-    expect(omniJsRoutes).toEqual(["runOmniJsScript"]);
+      .map(([m]) => m)
+      .sort();
+    expect(omniJsRoutes).toEqual(["pluginInvoke", "runOmniJsScript"]);
   });
 });
 

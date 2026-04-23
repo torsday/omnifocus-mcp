@@ -52,6 +52,8 @@ import type {
   ForecastInput,
   ForecastResult,
   OmniFocusAdapter,
+  PluginInvokeInput,
+  PluginInvokeResult,
   SearchFilter,
   SyncStatus,
   TaskFilter,
@@ -768,6 +770,18 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     const flagged = includeFlagged ? all.filter((t) => t.flagged) : [];
 
     return { overdue, dueToday, deferredToday, flagged };
+  }
+
+  // -- Plug-in invocation ---------------------------------------------------
+  // The in-memory adapter is used exclusively for unit tests and does not
+  // have access to the OmniJS plug-in runtime. Throw `NotFound` with a
+  // distinguishable message so tests can assert the surface exists without
+  // needing a real OmniFocus plug-in.
+
+  async pluginInvoke(_input: PluginInvokeInput): Promise<PluginInvokeResult> {
+    throw new NotFound(
+      "pluginInvoke is not supported by InMemoryAdapter — use a real OmniJsTransport for integration tests",
+    );
   }
 
   // -- Internal helpers -----------------------------------------------------

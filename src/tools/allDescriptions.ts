@@ -12,6 +12,7 @@ import { NOTE_GET_HTML_DESCRIPTION } from "./note/get_html.js";
 import { NOTE_SET_DESCRIPTION } from "./note/set.js";
 import { NOTE_SET_HTML_DESCRIPTION } from "./note/set_html.js";
 import { INTERNAL_STATUS_DESCRIPTION } from "./observability/internalStatus.js";
+import { PLUGIN_INVOKE_DESCRIPTION } from "./plugin/invoke.js";
 import { PROJECT_DELETE_DESCRIPTION } from "./project/delete.js";
 import { SEARCH_QUERY_DESCRIPTION } from "./search/query.js";
 import { SYNC_STATUS_DESCRIPTION } from "./sync/status.js";
@@ -51,6 +52,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   note_get_html: NOTE_GET_HTML_DESCRIPTION,
   note_set: NOTE_SET_DESCRIPTION,
   note_set_html: NOTE_SET_HTML_DESCRIPTION,
+  plugin_invoke: PLUGIN_INVOKE_DESCRIPTION,
   project_delete: PROJECT_DELETE_DESCRIPTION,
   search_query: SEARCH_QUERY_DESCRIPTION,
   sync_status: SYNC_STATUS_DESCRIPTION,
