@@ -220,6 +220,12 @@ export class OmniJsTransport implements OmniFocusAdapter {
     return notYetWired("listPerspectives");
   }
 
+  async evaluatePerspective(
+    _id: import("../../domain/perspective.js").BuiltinPerspectiveId,
+  ): Promise<import("../../domain/task.js").Task[]> {
+    return notYetWired("evaluatePerspective");
+  }
+
   // -- Sync -----------------------------------------------------------------
 
   // Sync is a document-level operation exposed by JXA, not OmniJS. The

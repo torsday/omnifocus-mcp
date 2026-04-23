@@ -9,7 +9,8 @@
  */
 
 import type { OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
-import type { Perspective } from "../domain/perspective.js";
+import type { BuiltinPerspectiveId, Perspective } from "../domain/perspective.js";
+import type { Task } from "../domain/task.js";
 
 // ---------------------------------------------------------------------------
 // Public shapes
@@ -18,6 +19,12 @@ import type { Perspective } from "../domain/perspective.js";
 /** Result of {@link PerspectiveService.list}. */
 export interface PerspectiveListResult {
   perspectives: Perspective[];
+  cacheHit: boolean;
+}
+
+/** Result of {@link PerspectiveService.evaluate}. */
+export interface PerspectiveEvaluateResult {
+  tasks: Task[];
   cacheHit: boolean;
 }
 
@@ -41,5 +48,13 @@ export class PerspectiveService {
   async list(): Promise<PerspectiveListResult> {
     const perspectives = await this.adapter.listPerspectives();
     return { perspectives, cacheHit: false };
+  }
+
+  /**
+   * Evaluate a built-in perspective and return its task list.
+   */
+  async evaluate(perspectiveId: BuiltinPerspectiveId): Promise<PerspectiveEvaluateResult> {
+    const tasks = await this.adapter.evaluatePerspective(perspectiveId);
+    return { tasks, cacheHit: false };
   }
 }
