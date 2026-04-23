@@ -219,6 +219,10 @@ export interface OmniFocusAdapter {
   deleteProject(id: ProjectId): Promise<void>;
   /** Mark a project as reviewed (sets `lastReviewDate` to now and advances `nextReviewDate`). */
   markProjectReviewed(id: ProjectId): Promise<void>;
+  /** List projects due for review (nextReviewDate ≤ today or null), sorted by nextReviewDate ascending (nulls first). */
+  listProjectsDueForReview(): Promise<Project[]>;
+  /** Set a project's review interval. days=null removes the schedule. */
+  setProjectReviewInterval(id: ProjectId, days: number | null): Promise<void>;
 
   // -- Tags ------------------------------------------------------------------
 

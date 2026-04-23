@@ -465,6 +465,24 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     });
   }
 
+  async listProjectsDueForReview(): Promise<Project[]> {
+    const today = new Date();
+    today.setUTCHours(23, 59, 59, 999); // end of today
+    return [...this.projects.values()]
+      .filter((p) => p.nextReviewDate === null || new Date(p.nextReviewDate) <= today)
+      .sort((a, b) => {
+        if (a.nextReviewDate === null && b.nextReviewDate === null) return 0;
+        if (a.nextReviewDate === null) return -1;
+        if (b.nextReviewDate === null) return 1;
+        return a.nextReviewDate.localeCompare(b.nextReviewDate);
+      });
+  }
+
+  async setProjectReviewInterval(id: ProjectId, days: number | null): Promise<void> {
+    const project = await this.getProject(id);
+    this.projects.set(id, { ...project, reviewIntervalDays: days });
+  }
+
   // -- Tags -----------------------------------------------------------------
 
   async listTags(filter: { parentId?: TagId; status?: Tag["status"] } = {}): Promise<Tag[]> {
