@@ -104,3 +104,43 @@ const result = JSON.parse(stdout.trim());
 - `setTimeout`/`setInterval` not available
 
 **Rule for all future OmniJS scripts:** use `evaluateJavascript` exclusively. The URL-scheme path is permanently dropped. Any open issue referencing the URL-scheme OmniJS transport should be re-read against this amendment before implementation begins.
+
+---
+
+## Amendment — 2026-04-23: OmniJS is escape-hatch-only due to security-dialog constraint
+
+**Issue:** [#124](https://github.com/torsday/omnifocus-mcp/issues/124)
+**References:** `docs/spikes/2026-04-omnijs-spike.md`, ADR-0004, ADR-0012
+
+### Clarification
+
+The original decision framed the JXA/OmniJS split as a **capability** split: JXA for most operations, OmniJS for features JXA cannot reach (custom perspectives, plug-in invocation). This framing is incomplete.
+
+The stronger constraint is the **security dialog triggered by unsigned OmniJS callers via the URL scheme**. Even after adopting `evaluateJavascript` (which eliminates the URL-scheme dialog), OmniJS remains subject to a modal in contexts where the macOS Automation permission has not already been granted to the calling process. In practice this means:
+
+> **OmniJS is suitable only for explicit, human-initiated invocations — never for autonomously-called MCP tools.**
+
+The correct model is:
+
+| Context | Appropriate transport |
+|---------|----------------------|
+| Autonomous MCP tool call (any cadence) | JXA only |
+| Human-triggered escape hatch (`OMNIFOCUS_ALLOW_RAW_SCRIPT=1`) | OmniJS (`runOmniJsScript`) |
+| Future OmniJS-only features (custom perspectives, plug-ins) | OmniJS, but only when invoked by the user explicitly via the tool |
+
+### Why we don't work around this
+
+Two obvious workarounds were evaluated and rejected:
+
+1. **Signed Omni Automation plug-in** — would allow unsigned calls. Rejected: ADR-0012 distributes via `npx`/npm, which cannot bundle and sign OmniFocus plug-ins. Users would need a separate manual installation step, breaking the one-command quickstart.
+
+2. **Prompt the user once at startup** — open a sentinel OmniJS call to force the permission dialog before any tool is used. Rejected: the `osascript` Automation permission is granted per-app and is already granted for `JxaTransport`. The remaining dialogs are OmniJS-specific and cannot be pre-triggered without launching a visible OmniFocus interaction.
+
+### Routing table impact
+
+`TransportRouter`'s `ROUTING_TABLE` currently maps all domain methods to `"jxa"` and only `runOmniJsScript` to `"omnijs"`. This is the correct steady-state. Future methods that require OmniJS capabilities (e.g. custom perspective evaluation via `evaluateJavascript`) **must** be user-invoked tools and **must** document the requirement that the user hold a prior Automation permission grant.
+
+### See also
+
+- ADR-0004 — the `OMNIFOCUS_ALLOW_RAW_SCRIPT=1` opt-in gate; same rationale applied at the tool layer
+- ADR-0012 — npm distribution ruling out signed plug-in workaround
