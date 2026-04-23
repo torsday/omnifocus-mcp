@@ -154,6 +154,21 @@ export class ProjectService {
     };
   }
 
+  /** Complete a project (sets completionDate, removes from active view). */
+  async completeProject(id: ProjectId): Promise<void> {
+    await this.adapter.completeProject(id);
+  }
+
+  /** Drop a project (removes from active view without completing). */
+  async dropProject(id: ProjectId): Promise<void> {
+    await this.adapter.dropProject(id);
+  }
+
+  /** Move a project to a folder (or to the root if folderId is null). */
+  async moveProject(id: ProjectId, destination: { folderId: FolderId | null }): Promise<void> {
+    await this.adapter.moveProject(id, destination);
+  }
+
   /**
    * Fetch a single project by ID, optionally attaching its task tree.
    *
