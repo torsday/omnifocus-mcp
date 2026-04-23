@@ -304,7 +304,7 @@ Previously open; now committed with safe defaults that can be changed without br
 
 ## Open Questions — all resolved
 
-All spec-level questions are closed. Remaining uncertainty is empirical (measured during implementation) and is tracked in `TASKS.md` as spikes.
+All spec-level questions are closed. Remaining uncertainty is empirical (measured during implementation) and is tracked in [GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues?q=is%3Aissue+label%3Aspike) under the `spike` label.
 
 | Closed question                                  | Answer                                                                                                              | Design effect                                                                   |
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |

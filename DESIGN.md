@@ -28,7 +28,7 @@ A design document in the `systems_design.md` tradition: surfaces options, names 
 6. [Architecture](#6-architecture) — layering, adapter interface, error taxonomy, caching, concurrency, tool description standard, observability, circuit breaker, loop detection
 7. Reliability / Scalability / Maintainability evaluation (§7)
 8. What's being cut (§8)
-9. Build sequence (§9) — maps to `TASKS.md`
+9. Build sequence (§9) — maps to GitHub Issues + milestones
 10. Evaluation checklist (§10)
 11. Cross-references (§11)
 
@@ -179,7 +179,6 @@ omnifocus-mcp/
 ├── CLAUDE.md
 ├── SPEC.md
 ├── DESIGN.md
-├── TASKS.md
 ├── README.md
 ├── package.json
 ├── tsconfig.json
@@ -430,7 +429,7 @@ Per `agent_systems.md`. Server tracks recent tool invocations by (tool, serializ
 
 ---
 
-## 9. Build sequence (detailed in TASKS.md)
+## 9. Build sequence (detailed in GitHub Issues + milestones)
 
 Resequenced after user confirmed rich reliance on custom perspectives — OmniJS is no longer a late addition. Milestones are contiguous: M0, M1, M2, M3, M4, M5.
 
@@ -474,7 +473,7 @@ Each phase ends with a working, integration-tested system valuable on its own. T
 - `docs/adr/0011-versioning-and-stability.md` — semver + tool contract stability
 - `docs/adr/0012-distribution-npx.md` — `npx` + published npm package
 - `docs/adr/0013-tool-response-envelope.md` — uniform response envelope as public contract
-- `TASKS.md` — sequenced backlog derived from this design
+- [GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues) + [Project #4](https://github.com/users/torsday/projects/4) — live backlog derived from this design
 
 ---
 

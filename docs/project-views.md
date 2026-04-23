@@ -13,7 +13,7 @@ The repo's bootstrap already created:
 
 The project ships with a single default **View 1** (table layout). None of the views below are created yet — Projects v2's GraphQL API has no `createProjectV2View` mutation, so they must be added in the web UI. Follow the steps below once; they persist.
 
-Once the views below are laid out, the board becomes a live picture of what's ready now, what's moving, and what's stuck. See [`dependency-graph.md`](./dependency-graph.md) for the shape behind those 25 Ready items.
+Once the views below are laid out, the board becomes a live picture of what's ready now, what's moving, and what's stuck.
 
 All that remains is laying out the views below.
 

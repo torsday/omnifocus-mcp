@@ -1,7 +1,7 @@
 # omnifocus-mcp
 
 [![Status: design-complete](https://img.shields.io/badge/status-design%20complete-blue)](./SPEC.md)
-[![Phase: M0](https://img.shields.io/badge/phase-M0%20foundation-orange)](./TASKS.md)
+[![Phase: M0](https://img.shields.io/badge/phase-M0%20foundation-orange)](https://github.com/torsday/omnifocus-mcp/milestones)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node: 20 LTS / 22 LTS](https://img.shields.io/badge/node-20%20%7C%2022-brightgreen)](./package.json)
 [![Platform: macOS 13+](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)](https://www.apple.com/macos/)
@@ -263,7 +263,7 @@ Design is **complete** (SPEC + DESIGN + 13 ADRs + domain reference). Implementat
 | M4    | **Long tail**                                       | attachments, taskpaper/opml, sync, plug-in invocation, opt-in raw scripts |
 | M5    | **Polish & release**                                | loop detection, `internal_status`, E2E tests, CI, docs, `npx` distribution |
 
-Track live progress on the [**GitHub Project board**](https://github.com/users/torsday/projects/4). **25 issues are `Status = Ready` right now** — see [`docs/dependency-graph.md`](./docs/dependency-graph.md) for the full dependency graph, critical path, and recommended work order. See [`TASKS.md`](./TASKS.md) for the sequenced backlog narrative.
+Track live progress on the [**GitHub Project board**](https://github.com/users/torsday/projects/4). The backlog, dependencies, and work order live entirely in [GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues) — pick anything with `Status = Ready`.
 
 ## Install
 
@@ -339,7 +339,7 @@ Step-by-step setup, environment variable reference, macOS Automation permission 
 
 - **[`SPEC.md`](./SPEC.md)** — functional scope and non-functional requirements; resolved v1 decisions
 - **[`DESIGN.md`](./DESIGN.md)** — 28-section architecture; options evaluated; R/S/M assessment; example tool implementation
-- **[`TASKS.md`](./TASKS.md)** — sequenced backlog across M0–M5 milestones
+- **[GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues)** + **[Project #4](https://github.com/users/torsday/projects/4)** — live backlog, dependencies, and status across M0–M5 milestones
 - **[`docs/domain-reference.md`](./docs/domain-reference.md)** — OmniFocus glossary, canonical schemas, lossiness matrix for export/import
 - **[`docs/adr/`](./docs/adr/)** — 13 Architecture Decision Records covering every load-bearing choice:
 

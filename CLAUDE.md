@@ -99,7 +99,6 @@ Project-local (in `.claude/commands/`) override global skills when in this repo.
 - `DESIGN.md` — architecture and options evaluated (28 sections covering envelope, IDs, dates, pagination, concurrency, lifecycle, security, testing, CI, observability, config, distribution, versioning, deps, example tool, i18n, resources)
 - `docs/domain-reference.md` — canonical OmniFocus schemas and glossary
 - `docs/project-views.md` — recommended GitHub Project board views
-- `TASKS.md` — sequenced backlog (M0–M5)
 - `CONTRIBUTING.md` — patterns, conventions, PR template
 - GitHub Issues — live backlog at [github.com/torsday/omnifocus-mcp/issues](https://github.com/torsday/omnifocus-mcp/issues)
 - GitHub Project — live board at [github.com/users/torsday/projects/4](https://github.com/users/torsday/projects/4)

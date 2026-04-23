@@ -4,7 +4,82 @@ description: Pick the highest-priority ready issue, implement it end-to-end, kee
 
 Looking at this project — read the board, pick the next best issue, implement it end-to-end, and leave the tracker in a cleaner state than you found it. No direction needed; apply engineering judgment and the standards in `CLAUDE.md` and [`~/src/github.com/torsday/llm_prompts/`](https://github.com/torsday/llm_prompts).
 
-This prompt is the autonomous-session loop for `omnifocus-mcp`. The canonical `next.md` lives at `~/src/github.com/torsday/llm_prompts/next.md`; this is the project-specific specialization — the backlog is GitHub Issues, the plan is in `TASKS.md` and `docs/dependency-graph.md`, and the load-bearing decisions are in `docs/adr/`.
+This prompt is the autonomous-session loop for `omnifocus-mcp`. The canonical `ship-next.md` lives at `~/.claude/skills/ship-next/SKILL.md`; this is the project-specific specialization — the backlog, dependencies, and work order are **entirely in GitHub Issues + Project #4** (no local tracking), and the load-bearing decisions are in `docs/adr/`.
+
+`/next` and `/ship-next` are interchangeable in this repo — both resolve to this file. The sibling `.claude/commands/ship-next.md` points here.
+
+---
+
+## Board vocabulary (project `torsday/projects/4`)
+
+Status column (forward order):
+
+| Column        | Option ID   | Meaning                                                                      |
+|---------------|-------------|------------------------------------------------------------------------------|
+| **Backlog**   | `1e5b9208`  | Raw / untriaged. Default landing for new issues without a specific column.   |
+| **Up Next**   | `19ebdd2c`  | Triaged, well-specified, **ordered**. This loop picks from the top.          |
+| **In Progress** | `381a1e62` | Being worked right now.                                                      |
+| **In Review** | `04079029`  | PR open; waiting on merge.                                                   |
+| **On Hold**   | `8baabea1`  | Deferred by choice or external block. **Must have a reason comment.**        |
+| **Done**      | `c2f7c066`  | Merged or explicitly declined.                                               |
+
+Forward flow: `Backlog → Up Next → In Progress → In Review → Done`. `On Hold` is a side-track reachable from any non-terminal column.
+
+**Board IDs** (reused in every mutation below):
+- Project: `PVT_kwHOAARNgc4BVGvQ`
+- Status field: `PVTSSF_lAHOAARNgc4BVGvQzhQkx-E`
+
+### Status-transition helper (use every time)
+
+Every `updateProjectV2ItemFieldValue` call for Status goes through this shape — pre-check, flip, verify. Inline mutations are error-prone; this is the canonical form.
+
+```bash
+# flip_status $ITEM_ID $TARGET_OPTION_ID $TARGET_NAME $ISSUE_NUMBER
+flip_status() {
+  local item_id="$1" target_option="$2" target_name="$3" issue_n="$4"
+  local current verified
+  current=$(gh api graphql -f query="query { node(id: \"$item_id\") {
+    ... on ProjectV2Item { fieldValues(first: 20) { nodes {
+      ... on ProjectV2ItemFieldSingleSelectValue {
+        field { ... on ProjectV2SingleSelectField { id } } optionId
+      } } } } } }" \
+    --jq ".data.node.fieldValues.nodes[] | select(.field.id==\"PVTSSF_lAHOAARNgc4BVGvQzhQkx-E\") | .optionId")
+
+  if [ "$current" = "$target_option" ]; then
+    echo "#$issue_n already $target_name — skipping"
+    return 0
+  fi
+
+  gh api graphql -f query="mutation {
+    updateProjectV2ItemFieldValue(input: {
+      projectId: \"PVT_kwHOAARNgc4BVGvQ\"
+      itemId: \"$item_id\"
+      fieldId: \"PVTSSF_lAHOAARNgc4BVGvQzhQkx-E\"
+      value: { singleSelectOptionId: \"$target_option\" }
+    }) { projectV2Item { id } }
+  }" > /dev/null
+
+  verified=$(gh api graphql -f query="query { node(id: \"$item_id\") {
+    ... on ProjectV2Item { fieldValues(first: 20) { nodes {
+      ... on ProjectV2ItemFieldSingleSelectValue {
+        field { ... on ProjectV2SingleSelectField { id } } optionId
+      } } } } } }" \
+    --jq ".data.node.fieldValues.nodes[] | select(.field.id==\"PVTSSF_lAHOAARNgc4BVGvQzhQkx-E\") | .optionId")
+
+  if [ "$verified" != "$target_option" ]; then
+    echo "FATAL: #$issue_n flip to $target_name did not persist (got: $verified)" >&2
+    return 1
+  fi
+  echo "status: #$issue_n → $target_name"
+}
+```
+
+**Label ↔ Status invariant.** The `status: in-progress` label and the `In Progress` column move together:
+- Flipping **→ In Progress**: add the label (and post a start comment).
+- Flipping **out of In Progress** (to In Review / Done / On Hold): remove the label.
+- Flipping **→ Done**: first verify the issue is `CLOSED`; if not, don't flip — the label/status lie is worse than the stuck card.
+
+Subsequent sections reference this helper rather than inlining the mutation.
 
 ---
 
@@ -13,11 +88,6 @@ This prompt is the autonomous-session loop for `omnifocus-mcp`. The canonical `n
 ### 0. Drift self-heal (run every cycle, before Discovery)
 
 Interrupted previous cycles can leave the tracker inconsistent. Repair drift first so Discovery sees clean state. Both checks are idempotent.
-
-**Board constants** (project `torsday/projects/4`):
-- Project ID: `PVT_kwHOAARNgc4BVGvQ`
-- Status field ID: `PVTSSF_lAHOAARNgc4BVGvQzhQkx-E`
-- `Done` option ID: `c2f7c066`
 
 **a. Stale `status: in-progress` labels on CLOSED issues:**
 ```bash
@@ -31,12 +101,13 @@ done
 gh api graphql -f query='query { user(login: "torsday") { projectV2(number: 4) { items(first: 100) { nodes { id content { ... on Issue { number state } } fieldValues(first: 20) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { field { ... on ProjectV2SingleSelectField { name } } name } } } } } } } }' \
   --jq '[.data.user.projectV2.items.nodes[] | {itemId: .id, n: .content.number, state: .content.state, status: ([.fieldValues.nodes[]? | select(.field.name=="Status") | .name][0])} | select(.state=="CLOSED" and .status!="Done")]'
 ```
-For each item returned, run:
-```bash
-gh api graphql -f query="mutation { updateProjectV2ItemFieldValue(input: {projectId: \"PVT_kwHOAARNgc4BVGvQ\", itemId: \"$ITEM_ID\", fieldId: \"PVTSSF_lAHOAARNgc4BVGvQzhQkx-E\", value: {singleSelectOptionId: \"c2f7c066\"}}) { projectV2Item { id } } }"
-```
+For each item returned, call `flip_status "$ITEM_ID" "c2f7c066" "Done" "$N"`.
 
-Report drift repaired in one line (e.g. `Drift self-heal: flipped #9 #10 #21 to Done, cleared 3 stale labels`). If none, stay silent.
+**c. `In Review` items whose linked PR has merged or closed** — forgotten close-out. Flip each to `Done` via the helper and strip `status: in-progress` if present.
+
+**d. Items in `In Progress` with no commit activity in 3+ days and no open PR** — stale WIP. Surface in the drift report; don't auto-revert (may be legitimately paused). Suggest moving to `On Hold` with a reason comment.
+
+Report drift repaired in one line (e.g. `Drift self-heal: flipped #9 #10 to Done, cleared 3 stale labels, 1 stale WIP noted`). If none, stay silent.
 
 ---
 
@@ -44,8 +115,8 @@ Report drift repaired in one line (e.g. `Drift self-heal: flipped #9 #10 #21 to 
 
 Start from the tracker. Everything else is context for the chosen work.
 
-1. **Ready issues:** `gh issue list --state open --label "P0 · critical" --limit 30` — then P1, then P2. Sorted by priority, pagination-aware.
-2. **Project board state:** `gh project item-list 4 --owner torsday --format json` — look at the `Status = Ready` column, Phase field, Risk field.
+1. **Up Next issues:** `gh issue list --state open --label "P0 · critical" --limit 30` — then P1, then P2. Sorted by priority, pagination-aware.
+2. **Project board state:** `gh project item-list 4 --owner torsday --format json` — look at the `Status = Up Next` column (this is the ordered queue; pick from the top), Phase field, Risk field.
 3. **Recent activity:** `git log --oneline -10` + `gh issue list --state closed --limit 10` — what's already done and what patterns did it set.
 4. **Stale `In Progress`:** `gh issue list --state open --label "status: in-progress" --limit 10` — anything I should resume instead of starting new.
 5. **Open PRs:** `gh pr list --state open` — any of mine need continuing, reviewing, or rebasing.
@@ -65,9 +136,9 @@ Cross-reference as you read. An `In Progress` item with no commits in 3 days is 
 
 Drop every candidate whose model label doesn't match. If every candidate is filtered out, stop and report:
 
-> No model-compatible work in the Ready set. Ready issues: `#N (model: X), …`. Switch models or re-label. See CLAUDE.md "Model split" for the rationale.
+> No model-compatible work in `Up Next`. Items: `#N (model: X), …`. Switch models or re-label. See CLAUDE.md "Model split" for the rationale.
 
-**Then pick** the highest tier with a clear, actionable issue. Within a tier prefer: **higher Priority** → **lower Phase number** → **smaller Size** → **reversible over irreversible** → **unblocking over isolated**.
+**Then pick** from the **top of the `Up Next` column** (kanban-style — the column is ordered by `/groom`). Within the column, prefer the top item unless it's model-mismatched or genuinely unclear in scope; then skip to the next. If the column is empty, fall back to the highest-priority item with `status: ready` label that isn't yet on the board.
 
 (For explicitly-invoked commands where interactive confirmation is better — `/adr`, `/spec`, `/tasking`, `/debug`, `/security-review` — see their own front-matter for the pause-with-AskUserQuestion pattern.)
 
@@ -93,7 +164,7 @@ Drop every candidate whose model label doesn't match. If every candidate is filt
 
 #### Tier 4 — Planned work (the default path through the backlog)
 
-- The highest-priority `Status: Ready` issue on the board
+- The top item in the `Up Next` column (`/groom` keeps it ordered by priority → phase → unblocks-count → size)
 - Work through M0 → M1 → M2 → M3 → M4 → M5 in order; within a milestone, follow the dependency graph
 
 If nothing rises above Tier 4: **that is the normal state of this project.** Do Tier 4 work confidently. The board exists so you don't have to manufacture urgency.
@@ -114,28 +185,21 @@ Before any code, state:
 > **Passed over:** the next 1–2 candidates and a one-line reason they ranked lower
 > **Scope edges:** what's explicitly out of scope for this session
 
-**Immediately flip the issue's project Status to `In Progress`, add the label, and post a start comment — do this before writing a single line of code:**
+**Immediately mark the issue in-progress — label, start comment, and board flip, in that order, before a single line of code:**
 
 ```bash
-# 1. Add label
+# 1. Add the label (tracks the column — see "Label ↔ Status invariant")
 gh issue edit <N> --add-label "status: in-progress"
 
-# 2. Get the project item ID for this issue
+# 2. Resolve the project item ID (reuse $ITEM_ID throughout the cycle)
 ITEM_ID=$(gh api graphql -f query='query { user(login: "torsday") { projectV2(number: 4) { items(first: 100) { nodes { id content { ... on Issue { number } } } } } } }' \
   --jq ".data.user.projectV2.items.nodes[] | select(.content.number == <N>) | .id")
 
 # 3. Post a start comment so the issue timeline shows activity
 gh issue comment <N> --body "🚧 Work started — branch \`<branch>\`."
 
-# 4. Flip Status → In Progress (option ID: 381a1e62)
-gh api graphql -f query="mutation {
-  updateProjectV2ItemFieldValue(input: {
-    projectId: \"PVT_kwHOAARNgc4BVGvQ\"
-    itemId: \"$ITEM_ID\"
-    fieldId: \"PVTSSF_lAHOAARNgc4BVGvQzhQkx-E\"
-    value: { singleSelectOptionId: \"381a1e62\" }
-  }) { projectV2Item { id } }
-}"
+# 4. Flip Status → In Progress via the helper (pre-check + mutate + verify)
+flip_status "$ITEM_ID" "381a1e62" "In Progress" "<N>"
 ```
 
 ---
@@ -172,40 +236,32 @@ Apply the standards in the matrix below. Do not re-specify them — just follow 
 3. **Test:** `pnpm typecheck && pnpm lint && pnpm test`. If adapter-touching, also `OMNIFOCUS_INTEGRATION=1 pnpm test:integration`.
 4. **Self-review via `review_pr.md`:** run the review on your own diff before asking humans. Catches more issues cheaply.
 5. **Commit:** `commit.md` — atomic, Conventional Commits, `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`. One concern per commit; split if the diff has multiple.
-6. **Push + open PR:** `gh pr create` with the template from `.github/PULL_REQUEST_TEMPLATE.md`. Reference `Closes #N`. Then immediately flip Status → **In Review** (option ID `04079029`):
+6. **Push + open PR:** `gh pr create` with the template from `.github/PULL_REQUEST_TEMPLATE.md`. Reference `Closes #N`. Then immediately, in this order:
    ```bash
-   gh api graphql -f query="mutation {
-     updateProjectV2ItemFieldValue(input: {
-       projectId: \"PVT_kwHOAARNgc4BVGvQ\"
-       itemId: \"$ITEM_ID\"
-       fieldId: \"PVTSSF_lAHOAARNgc4BVGvQzhQkx-E\"
-       value: { singleSelectOptionId: \"04079029\" }
-     }) { projectV2Item { id } }
-   }"
+   # a. Flip Status: In Progress → In Review
+   flip_status "$ITEM_ID" "04079029" "In Review" "<N>"
+   # b. Strip the in-progress label (the column has moved; the label follows)
+   gh issue edit <N> --remove-label "status: in-progress"
    ```
 7. **Merge when green.** `gh pr merge --squash`. Don't skip hooks (`--no-verify` is never the answer).
 8. **Close-out checklist — run every step, in order. Do not skip even if you think the previous cycle covered it.**
 
    ```bash
-   # a. Verify the issue auto-closed from the PR's "Closes #N" keyword
+   # a. Refresh PR state, then verify the issue auto-closed from "Closes #N"
+   gh pr view <PR> --json state,merged,mergedAt --jq '{state, merged, mergedAt}'
    gh issue view <N> --json state --jq '.state'   # must print "CLOSED"
 
-   # b. Flip project Status: In Review → Done (option ID: c2f7c066)
-   gh api graphql -f query="mutation {
-     updateProjectV2ItemFieldValue(input: {
-       projectId: \"PVT_kwHOAARNgc4BVGvQ\"
-       itemId: \"$ITEM_ID\"
-       fieldId: \"PVTSSF_lAHOAARNgc4BVGvQzhQkx-E\"
-       value: { singleSelectOptionId: \"c2f7c066\" }
-     }) { projectV2Item { id } }
-   }"
+   # b. Flip project Status: In Review → Done (helper verifies persistence)
+   flip_status "$ITEM_ID" "c2f7c066" "Done" "<N>"
 
-   # c. Remove the in-progress label so the issue card stops showing the chip
-   gh issue edit <N> --remove-label "status: in-progress"
+   # c. Remove the in-progress label if it's still attached, then re-verify
+   gh issue edit <N> --remove-label "status: in-progress" 2>/dev/null || true
+   gh issue view <N> --json labels --jq '.labels[].name' | grep -q "^status: in-progress$" \
+     && { echo "FATAL: status: in-progress label still attached on #<N>" >&2; exit 1; } \
+     || echo "label: #<N> cleared"
 
-   # d. Find dependents and flip eligible ones to Ready
+   # d. Find dependents — handled in Tracker maintenance (§5) below
    gh issue list --state open --search "\"Blocked by: #<N>\"" --json number
-   # For each dependent with no remaining open blockers, flip Status Todo → Ready
    ```
 
    If any step a–c fails, stop and surface — do not continue to tracker maintenance with a half-closed issue. Drift on the board is worse than a skipped cycle.
@@ -226,14 +282,12 @@ After the issue closes, before ending the session:
 
 2. **For each dependent:**
    - Check if it now has zero remaining open blockers
-   - If yes: flip its project Status from `Todo` to `Ready` (see `scripts/set-ready-status.sh` mutation pattern)
+   - Resolve its `ITEM_ID` (see §3 step 2 pattern), then: `flip_status "$ITEM_ID" "19ebdd2c" "Up Next" "<M>"`
    - Add a comment if you moved it: `unblocked by closing #<N>`
 
-3. **Refresh dependency graph if M-boundary crossed** — if you just finished the last issue of a milestone, regenerate `docs/dependency-graph.md`'s Ready set.
+3. **Update CHANGELOG.md** under `[Unreleased]` for anything user-visible (new tool, new env var, new error code, behavior change).
 
-4. **Update CHANGELOG.md** under `[Unreleased]` for anything user-visible (new tool, new env var, new error code, behavior change).
-
-5. **Project board hygiene** — if any issue has drifted (In Progress for days with no commits; Blocked on something now closed): fix it.
+4. **Project board hygiene** — if any issue has drifted (In Progress for days with no commits → suggest `On Hold`; `On Hold` with a blocker that's now closed → back to `Up Next`): fix it.
 
 ---
 
@@ -279,7 +333,7 @@ Then `gh issue create` with:
 - Milestone — matches phase
 - Add to project #4 via `gh project item-add`
 - Populate Phase / Priority / Size / Risk field values via GraphQL mutation (see `scripts/populate-project.sh` for the pattern)
-- Set Status = Ready if no blockers; else Todo
+- Set Status = `Up Next` if no blockers and the issue is triaged/well-specified; else `Backlog`
 
 ---
 
@@ -294,17 +348,19 @@ End the session with a short, structured report. No trailing summary paragraphs.
 
 **Board changes**
 
+- Flipped: #N In Progress → In Review → Done
 - Closed: #N, #M
-- Unblocked (Todo → Ready): #X, #Y
+- Unblocked (`Backlog` → `Up Next`): #X, #Y
+- On Hold (if any): #Q — <one-line reason>
 - Created: #Z (reason: …)
 
 **Queue**
 
-Next 3 candidates for the next invocation of `/next`:
+Top 3 items in `Up Next` after this cycle (what the next `/next` invocation will see at the top of the column):
 
 | #   | Tier | Issue                                         | Rationale                                            |
 | --- | ---- | --------------------------------------------- | ---------------------------------------------------- |
-| 1   | T4   | #N <title>                                    | Highest-priority Ready after today's close           |
+| 1   | T4   | #N <title>                                    | Top of `Up Next` post-close                          |
 | 2   | T4   | #N <title>                                    | Parallelizable with #1                               |
 | 3   | T2   | #N <title>                                    | Silent-failure risk if left until later in the phase |
 

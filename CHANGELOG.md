@@ -15,7 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **M4 Long tail** — attachments, TaskPaper/OPML export+import, sync, plug-in invocation, opt-in raw-script escape hatch.
 - **M5 Polish** — loop detection, `internal_status`, E2E tests, integration CI, `npx` distribution, full README, CHANGELOG, release notes.
 
-See [TASKS.md](./TASKS.md) for the sequenced backlog and [GitHub Project #4](https://github.com/users/torsday/projects/4) for live status.
+See [GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues) and [Project #4](https://github.com/users/torsday/projects/4) for the live backlog and status.
 
 ---
 
@@ -23,6 +23,6 @@ See [TASKS.md](./TASKS.md) for the sequenced backlog and [GitHub Project #4](htt
 
 ### Added
 
-- Design artefacts locked: `SPEC.md`, `DESIGN.md` (28 sections), `TASKS.md`, `docs/domain-reference.md`, 13 ADRs.
+- Design artefacts locked: `SPEC.md`, `DESIGN.md` (28 sections), `docs/domain-reference.md`, 13 ADRs.
 - GitHub labels, milestones, issues, and Project board scaffolded.
 - No code yet — this is the placeholder release claiming the npm name.
