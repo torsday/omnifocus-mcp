@@ -287,7 +287,7 @@ npm install -g @torsday/omnifocus-mcp
 omnifocus-mcp
 ```
 
-On first run, macOS asks permission for Claude to automate OmniFocus. Click **OK**. If you denied it by mistake: **System Settings → Privacy & Security → Automation → [app] → OmniFocus** ✓. See the per-client guides in [`docs/clients/`](./docs/clients/) for full troubleshooting steps.
+On first run, macOS asks permission for Claude to automate OmniFocus. Click **OK**. If you denied it by mistake: **System Settings → Privacy & Security → Automation → [app] → OmniFocus** ✓. See the [troubleshooting guide](./docs/troubleshooting.md) and the per-client guides in [`docs/clients/`](./docs/clients/) for step-by-step recovery.
 
 ### Environment variables
 

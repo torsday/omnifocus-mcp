@@ -150,7 +150,7 @@ export class PermissionDenied extends OmniFocusError {
     super("OF_PERMISSION_DENIED", "Automation permission for OmniFocus is denied.", {
       remediationClass: "environment",
       suggestion:
-        "Open System Settings → Privacy & Security → Automation; grant this terminal or client access to OmniFocus.",
+        "Open System Settings → Privacy & Security → Automation; grant this terminal or client access to OmniFocus. See docs/troubleshooting.md for step-by-step recovery.",
       ...options,
     });
   }
