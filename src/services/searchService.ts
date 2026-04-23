@@ -16,6 +16,7 @@
  */
 
 import type { OmniFocusAdapter, SearchFilter } from "../adapter/OmniFocusAdapter.js";
+import { buildTaskLinks } from "../domain/links.js";
 import type { Task } from "../domain/task.js";
 import {
   type CursorPayload,
@@ -126,7 +127,7 @@ export class SearchService {
     // Take one extra to detect hasMore
     const page = afterCursor.slice(0, limit + 1);
     const hasMore = page.length > limit;
-    const tasks = page.slice(0, limit);
+    const tasks = page.slice(0, limit).map((t) => ({ ...t, _links: buildTaskLinks(t) }));
 
     // Encode next cursor
     const last = tasks.at(-1);
