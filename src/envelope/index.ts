@@ -36,13 +36,15 @@ import type { OmniFocusError, SerializedError } from "../errors/index.js";
  * | `WARN_SYNC_PENDING`    | Mutation saved locally; OF hasn't synced             | —                                 |
  * | `WARN_DEPRECATED_FIELD`| Caller used a deprecated input field                 | `{ field: string, replacement: string }` |
  * | `WARN_DRY_RUN`         | Response is hypothetical; no write occurred          | —                                 |
+ * | `WARN_LOOP_DETECTED`   | Same tool+args called ≥5× within 60s                | `{ tool: string, count: number, windowSeconds: number }` |
  */
 export type WarningCode =
   | "WARN_IDS_NOT_FOUND"
   | "WARN_RESULT_TRUNCATED"
   | "WARN_SYNC_PENDING"
   | "WARN_DEPRECATED_FIELD"
-  | "WARN_DRY_RUN";
+  | "WARN_DRY_RUN"
+  | "WARN_LOOP_DETECTED";
 
 /**
  * Structured non-fatal issue that the agent should see inline.
