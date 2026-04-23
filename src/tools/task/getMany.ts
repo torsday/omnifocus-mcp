@@ -89,7 +89,7 @@ export async function handleTaskGetMany(input: TaskGetManyInput, ctx: TaskGetMan
   if (input.ids.length > MAX_IDS) {
     throw new ValidationError(
       `ids array exceeds the maximum batch size of ${MAX_IDS} (got ${input.ids.length})`,
-      { field: "ids" },
+      { details: { field: "ids" } },
     );
   }
 

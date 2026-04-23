@@ -2,14 +2,16 @@
  * Cursor codec for cursor-based pagination (DESIGN §15).
  *
  * Cursors are opaque to clients and base64url-encoded internally.
- * Each cursor encodes `{ lastId, lastCreatedAt, filterHash }`:
+ * Each cursor encodes `{ lastId, lastSortValue, filterHash }`:
  *
  * - `lastId` — the OF persistent ID of the last item returned
- * - `lastCreatedAt` — ISO-8601 timestamp of that item (with offset)
+ * - `lastSortValue` — the sort-field value of that item (null when the field
+ *   is absent on the item, e.g. a task with no dueDate); null values sort last
+ *   regardless of direction
  * - `filterHash` — SHA-256 (hex) of the serialized filter object; a mismatch
  *   means the client changed filters mid-page and gets a ValidationError
  *
- * Sort order: `createdAt ASC, id ASC` — stable under concurrent inserts.
+ * Sort order is determined by the caller (default `createdAt ASC, id ASC`).
  *
  * @see DESIGN.md §15 — pagination strategy
  */
@@ -23,7 +25,8 @@ import { ValidationError } from "../errors/index.js";
 
 export interface CursorPayload {
   lastId: string;
-  lastCreatedAt: string;
+  /** Sort-field value of the last emitted item; null when the field is absent on the item. */
+  lastSortValue: string | null;
   filterHash: string;
 }
 
@@ -74,12 +77,13 @@ export function decodeCursor(cursor: string, currentFilterHash: string): CursorP
     });
   }
 
+  const p2 = payload as Record<string, unknown>;
   if (
     typeof payload !== "object" ||
     payload === null ||
-    typeof (payload as Record<string, unknown>).lastId !== "string" ||
-    typeof (payload as Record<string, unknown>).lastCreatedAt !== "string" ||
-    typeof (payload as Record<string, unknown>).filterHash !== "string"
+    typeof p2.lastId !== "string" ||
+    (p2.lastSortValue !== null && typeof p2.lastSortValue !== "string") ||
+    typeof p2.filterHash !== "string"
   ) {
     throw new ValidationError("Cursor payload is missing required fields.", {
       suggestion: "Pass the cursor value exactly as returned by the previous response.",
@@ -107,14 +111,36 @@ export function decodeCursor(cursor: string, currentFilterHash: string): CursorP
 // ---------------------------------------------------------------------------
 
 /**
- * Returns true if `item` should appear after the cursor in a
- * `(createdAt ASC, id ASC)` sort — i.e., the item is on the next page.
+ * Returns true if `item` should appear after the cursor in a stable
+ * `(sortValue, id)` sort — i.e., the item is on the next page.
+ *
+ * Null sort values sort **last** regardless of direction (nulls-last
+ * semantics). When both are null the tie is broken by ID.
+ *
+ * @param item          The candidate item to test.
+ * @param cursor        The decoded cursor from the previous page.
+ * @param sortDirection "asc" (default) or "desc".
  */
 export function isAfterCursor(
-  item: { id: string; createdAt: string },
+  item: { id: string; sortValue: string | null },
   cursor: CursorPayload,
+  sortDirection: "asc" | "desc" = "asc",
 ): boolean {
-  if (item.createdAt > cursor.lastCreatedAt) return true;
-  if (item.createdAt === cursor.lastCreatedAt) return item.id > cursor.lastId;
-  return false;
+  const iv = item.sortValue;
+  const cv = cursor.lastSortValue;
+
+  // Both null → tie-break on id (always ascending for stability)
+  if (iv === null && cv === null) return item.id > cursor.lastId;
+
+  // Null sorts last: a null item is only "after" a non-null cursor in ASC,
+  // and always "after" nothing (non-null > null) in DESC.
+  if (iv === null) return sortDirection === "asc"; // null comes after non-null in ASC
+  if (cv === null) return sortDirection === "desc"; // non-null comes after null in DESC
+
+  // Both non-null: compare normally
+  if (iv !== cv) {
+    return sortDirection === "asc" ? iv > cv : iv < cv;
+  }
+  // Equal values: tie-break on id
+  return item.id > cursor.lastId;
 }

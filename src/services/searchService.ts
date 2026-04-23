@@ -112,9 +112,15 @@ export class SearchService {
       return dateCompare !== 0 ? dateCompare : a.id.localeCompare(b.id);
     });
 
-    // Apply cursor offset
+    // Apply cursor offset (search always sorts createdAt ASC)
     const afterCursor = cursorPayload
-      ? sorted.filter((t) => isAfterCursor(t, cursorPayload as CursorPayload))
+      ? sorted.filter((t) =>
+          isAfterCursor(
+            { id: t.id, sortValue: t.createdAt },
+            cursorPayload as CursorPayload,
+            "asc",
+          ),
+        )
       : sorted;
 
     // Take one extra to detect hasMore
@@ -126,7 +132,7 @@ export class SearchService {
     const last = tasks.at(-1);
     const nextCursor =
       hasMore && last
-        ? encodeCursor({ lastId: last.id, lastCreatedAt: last.createdAt, filterHash })
+        ? encodeCursor({ lastId: last.id, lastSortValue: last.createdAt, filterHash })
         : null;
 
     return { tasks, nextCursor, hasMore, cacheHit: false };
