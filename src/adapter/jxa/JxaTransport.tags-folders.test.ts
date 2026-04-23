@@ -336,12 +336,4 @@ describe("JxaTransport — deleteFolder", () => {
 // not-yet-wired stubs still throw (regression guard)
 // ---------------------------------------------------------------------------
 
-describe("JxaTransport — not-yet-wired stubs still throw after tag/folder wiring", () => {
-  const t = new JxaTransport({ spawner: spawnerReturning({}) });
-
-  it("listTasks throws not-yet-wired", async () => {
-    const err = await t.listTasks({}).catch((e) => e);
-    expect(err).toBeInstanceOf(ScriptError);
-    expect((err as ScriptError).details).toMatchObject({ reason: "not-yet-wired" });
-  });
-});
+// All task, project, tag, and folder methods are now wired — no not-yet-wired stubs remain.

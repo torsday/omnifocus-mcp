@@ -9,7 +9,6 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { TaskId } from "../../domain/ids.js";
 import { ScriptError } from "../../errors/index.js";
 import { JxaTransport } from "./JxaTransport.js";
 import type { ScriptSpawner, SpawnResult } from "./scriptRunner.js";
@@ -72,29 +71,6 @@ describe("JxaTransport — getLastSync (interim)", () => {
   });
 });
 
-describe("JxaTransport — not-yet-wired stubs", () => {
-  const t = new JxaTransport({ spawner: spawnerReturning("{}") });
-
-  // Sample one method per domain group; the per-method shape is uniform.
-  // Note: listTags, getTag, createTag, updateTag, deleteTag, listFolders,
-  // getFolder, createFolder, updateFolder, deleteFolder are now wired and
-  // tested in JxaTransport.tags-folders.test.ts.
-  // listProjects, getProject etc are wired and tested in JxaTransport.projects.test.ts.
-  const cases: Array<readonly [string, () => Promise<unknown>]> = [
-    ["listTasks", () => t.listTasks({})],
-    ["getTask", () => t.getTask("task_000001" as TaskId)],
-    ["createTask", () => t.createTask({ name: "x" })],
-  ];
-
-  for (const [method, call] of cases) {
-    it(`${method} throws ScriptError with reason="not-yet-wired"`, async () => {
-      const err = await call().catch((e) => e);
-      expect(err).toBeInstanceOf(ScriptError);
-      expect((err as ScriptError).details).toMatchObject({
-        transport: "jxa",
-        reason: "not-yet-wired",
-        method,
-      });
-    });
-  }
-});
+// All task, project, tag, and folder methods are now wired.
+// Per-domain unit tests live in JxaTransport.{tasks,projects,tags-folders}.test.ts.
+// No not-yet-wired stubs remain for domain methods.

@@ -31,6 +31,7 @@ import {
   type TagId,
   TagId as TagIdCtor,
   type TaskId,
+  TaskId as TaskIdCtor,
 } from "../../domain/ids.js";
 import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
@@ -56,6 +57,17 @@ import tagDeleteScript from "../../scripts/jxa/tag_delete.js";
 import tagGetScript from "../../scripts/jxa/tag_get.js";
 import tagListScript from "../../scripts/jxa/tag_list.js";
 import tagUpdateScript from "../../scripts/jxa/tag_update.js";
+import taskCompleteScript from "../../scripts/jxa/task_complete.js";
+import taskCreateScript from "../../scripts/jxa/task_create.js";
+import taskDeleteScript from "../../scripts/jxa/task_delete.js";
+import taskDropScript from "../../scripts/jxa/task_drop.js";
+import taskGetScript from "../../scripts/jxa/task_get.js";
+import taskGetManyScript from "../../scripts/jxa/task_get_many.js";
+import taskListScript from "../../scripts/jxa/task_list.js";
+import taskMoveScript from "../../scripts/jxa/task_move.js";
+import taskUncompleteScript from "../../scripts/jxa/task_uncomplete.js";
+import taskUndropScript from "../../scripts/jxa/task_undrop.js";
+import taskUpdateScript from "../../scripts/jxa/task_update.js";
 import type {
   CreateFolderInput,
   CreateProjectInput,
@@ -112,43 +124,145 @@ export class JxaTransport implements OmniFocusAdapter {
     };
   }
 
-  // -- Tasks ----------------------------------------------------------------
+  // -- Tasks (wired) --------------------------------------------------------
 
-  async listTasks(_filter: TaskFilter): Promise<Task[]> {
-    return notYetWired("listTasks");
+  async listTasks(filter: TaskFilter): Promise<Task[]> {
+    const result = await runJxaScript<{ tasks: Task[] }>(
+      taskListScript,
+      {
+        projectId: filter.projectId ?? null,
+        tagId: filter.tagId ?? null,
+        parentId: filter.parentId ?? null,
+        flagged: filter.flagged ?? null,
+        available: filter.available ?? null,
+        blocked: filter.blocked ?? null,
+        completed: filter.completed ?? null,
+        completedSince: filter.completedSince ?? null,
+        dueBefore: filter.dueBefore ?? null,
+        dueAfter: filter.dueAfter ?? null,
+        deferredBefore: filter.deferredBefore ?? null,
+        deferredAfter: filter.deferredAfter ?? null,
+      },
+      { ...this.runOpts, scriptName: "task_list" },
+    );
+    return result.tasks.map((t) => ({ ...t, id: TaskIdCtor.of(t.id) }));
   }
-  async getTask(_id: TaskId): Promise<Task> {
-    return notYetWired("getTask");
+
+  async getTask(id: TaskId): Promise<Task> {
+    const result = await runJxaScript<{ task: Task }>(
+      taskGetScript,
+      { id },
+      { ...this.runOpts, scriptName: "task_get" },
+    );
+    return { ...result.task, id: TaskIdCtor.of(result.task.id) };
   }
-  async getTasksMany(_ids: TaskId[]): Promise<(Task | null)[]> {
-    return notYetWired("getTasksMany");
+
+  async getTasksMany(ids: TaskId[]): Promise<(Task | null)[]> {
+    const result = await runJxaScript<{ tasks: (Task | null)[] }>(
+      taskGetManyScript,
+      { ids },
+      { ...this.runOpts, scriptName: "task_get_many" },
+    );
+    return result.tasks.map((t) => (t ? { ...t, id: TaskIdCtor.of(t.id) } : null));
   }
-  async createTask(_input: CreateTaskInput): Promise<TaskId> {
-    return notYetWired("createTask");
+
+  async createTask(input: CreateTaskInput): Promise<TaskId> {
+    const result = await runJxaScript<{ task: Task }>(
+      taskCreateScript,
+      {
+        name: input.name,
+        projectId: input.projectId ?? null,
+        parentId: input.parentId ?? null,
+        note: input.note ?? null,
+        flagged: input.flagged ?? false,
+        deferDate: input.deferDate ?? null,
+        dueDate: input.dueDate ?? null,
+        estimatedMinutes: input.estimatedMinutes ?? null,
+        tagIds: input.tagIds ?? [],
+        sequential: input.sequential ?? false,
+        completedByChildren: input.completedByChildren ?? false,
+      },
+      { ...this.runOpts, scriptName: "task_create" },
+    );
+    return TaskIdCtor.of(result.task.id);
   }
-  async updateTask(_id: TaskId, _patch: UpdateTaskInput): Promise<void> {
-    return notYetWired("updateTask");
+
+  async updateTask(id: TaskId, patch: UpdateTaskInput): Promise<void> {
+    await runJxaScript<{ task: Task }>(
+      taskUpdateScript,
+      {
+        id,
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.note !== undefined ? { note: patch.note } : {}),
+        ...(patch.flagged !== undefined ? { flagged: patch.flagged } : {}),
+        ...(patch.deferDate !== undefined ? { deferDate: patch.deferDate } : {}),
+        ...(patch.dueDate !== undefined ? { dueDate: patch.dueDate } : {}),
+        ...(patch.estimatedMinutes !== undefined
+          ? { estimatedMinutes: patch.estimatedMinutes }
+          : {}),
+        ...(patch.tagIds !== undefined ? { tagIds: patch.tagIds } : {}),
+        ...(patch.sequential !== undefined ? { sequential: patch.sequential } : {}),
+        ...(patch.completedByChildren !== undefined
+          ? { completedByChildren: patch.completedByChildren }
+          : {}),
+      },
+      { ...this.runOpts, scriptName: "task_update" },
+    );
   }
-  async completeTask(_id: TaskId, _at?: Date): Promise<void> {
-    return notYetWired("completeTask");
+
+  async completeTask(id: TaskId, at?: Date): Promise<void> {
+    await runJxaScript<{ id: string }>(
+      taskCompleteScript,
+      { id, completionDate: at?.toISOString() ?? null },
+      { ...this.runOpts, scriptName: "task_complete" },
+    );
   }
-  async uncompleteTask(_id: TaskId): Promise<void> {
-    return notYetWired("uncompleteTask");
+
+  async uncompleteTask(id: TaskId): Promise<void> {
+    await runJxaScript<{ id: string }>(
+      taskUncompleteScript,
+      { id },
+      { ...this.runOpts, scriptName: "task_uncomplete" },
+    );
   }
-  async dropTask(_id: TaskId, _at?: Date): Promise<void> {
-    return notYetWired("dropTask");
+
+  async dropTask(id: TaskId, at?: Date): Promise<void> {
+    await runJxaScript<{ id: string }>(
+      taskDropScript,
+      { id, droppedAt: at?.toISOString() ?? null },
+      { ...this.runOpts, scriptName: "task_drop" },
+    );
   }
-  async undropTask(_id: TaskId): Promise<void> {
-    return notYetWired("undropTask");
+
+  async undropTask(id: TaskId): Promise<void> {
+    await runJxaScript<{ id: string }>(
+      taskUndropScript,
+      { id },
+      { ...this.runOpts, scriptName: "task_undrop" },
+    );
   }
-  async deleteTask(_id: TaskId): Promise<void> {
-    return notYetWired("deleteTask");
+
+  async deleteTask(id: TaskId): Promise<void> {
+    await runJxaScript<{ id: string }>(
+      taskDeleteScript,
+      { id },
+      { ...this.runOpts, scriptName: "task_delete" },
+    );
   }
+
   async moveTask(
-    _id: TaskId,
-    _destination: { projectId?: ProjectId; parentId?: TaskId },
+    id: TaskId,
+    destination: { projectId?: ProjectId; parentId?: TaskId },
   ): Promise<void> {
-    return notYetWired("moveTask");
+    await runJxaScript<{ id: string }>(
+      taskMoveScript,
+      {
+        id,
+        projectId: destination.projectId ?? null,
+        parentId: destination.parentId ?? null,
+      },
+      { ...this.runOpts, scriptName: "task_move" },
+    );
   }
 
   // -- Projects (wired) -----------------------------------------------------
