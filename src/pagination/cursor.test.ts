@@ -43,7 +43,7 @@ describe("hashFilter", () => {
 describe("encodeCursor / decodeCursor round-trip", () => {
   const payload: CursorPayload = {
     lastId: "gHqVKr3xAWo",
-    lastCreatedAt: "2026-04-19T15:23:04-05:00",
+    lastSortValue: "2026-04-19T15:23:04-05:00",
     filterHash: hashFilter({ available: true }),
   };
 
@@ -51,6 +51,17 @@ describe("encodeCursor / decodeCursor round-trip", () => {
     const cursor = encodeCursor(payload);
     const decoded = decodeCursor(cursor, payload.filterHash);
     expect(decoded).toEqual(payload);
+  });
+
+  it("round-trips a cursor payload with null sortValue", () => {
+    const nullPayload: CursorPayload = {
+      lastId: "gHqVKr3xAWo",
+      lastSortValue: null,
+      filterHash: hashFilter({ available: true }),
+    };
+    const cursor = encodeCursor(nullPayload);
+    const decoded = decodeCursor(cursor, nullPayload.filterHash);
+    expect(decoded).toEqual(nullPayload);
   });
 
   it("produces a base64url string (no +, /, or =)", () => {
@@ -96,38 +107,95 @@ describe("encodeCursor / decodeCursor round-trip", () => {
   });
 });
 
-describe("isAfterCursor", () => {
+describe("isAfterCursor — ASC (default)", () => {
   const cursor: CursorPayload = {
     lastId: "gHqVKr3xAWo",
-    lastCreatedAt: "2026-04-19T15:23:04-05:00",
+    lastSortValue: "2026-04-19T15:23:04-05:00",
     filterHash: "irrelevant",
   };
 
-  it("returns true when createdAt is strictly after cursor", () => {
-    expect(isAfterCursor({ id: "anyId", createdAt: "2026-04-20T00:00:00Z" }, cursor)).toBe(true);
+  it("returns true when sortValue is strictly after cursor", () => {
+    expect(isAfterCursor({ id: "anyId", sortValue: "2026-04-20T00:00:00Z" }, cursor)).toBe(true);
   });
 
-  it("returns true when createdAt is equal and id is lexicographically greater", () => {
+  it("returns true when sortValue is equal and id is lexicographically greater", () => {
     expect(
-      isAfterCursor({ id: "zZZZZZZZZZZ", createdAt: "2026-04-19T15:23:04-05:00" }, cursor),
+      isAfterCursor({ id: "zZZZZZZZZZZ", sortValue: "2026-04-19T15:23:04-05:00" }, cursor),
     ).toBe(true);
   });
 
-  it("returns false when createdAt is equal and id is equal", () => {
+  it("returns false when sortValue is equal and id is equal", () => {
     expect(
-      isAfterCursor({ id: "gHqVKr3xAWo", createdAt: "2026-04-19T15:23:04-05:00" }, cursor),
+      isAfterCursor({ id: "gHqVKr3xAWo", sortValue: "2026-04-19T15:23:04-05:00" }, cursor),
     ).toBe(false);
   });
 
-  it("returns false when createdAt is before cursor", () => {
-    expect(isAfterCursor({ id: "zZZZZZZZZZZ", createdAt: "2026-04-18T00:00:00Z" }, cursor)).toBe(
+  it("returns false when sortValue is before cursor", () => {
+    expect(isAfterCursor({ id: "zZZZZZZZZZZ", sortValue: "2026-04-18T00:00:00Z" }, cursor)).toBe(
       false,
     );
   });
 
-  it("returns false when createdAt is equal and id is lexicographically less", () => {
-    expect(isAfterCursor({ id: "aaaaaaaaa", createdAt: "2026-04-19T15:23:04-05:00" }, cursor)).toBe(
+  it("returns false when sortValue is equal and id is lexicographically less", () => {
+    expect(isAfterCursor({ id: "aaaaaaaaa", sortValue: "2026-04-19T15:23:04-05:00" }, cursor)).toBe(
       false,
     );
+  });
+});
+
+describe("isAfterCursor — DESC", () => {
+  const cursor: CursorPayload = {
+    lastId: "gHqVKr3xAWo",
+    lastSortValue: "2026-04-19T15:23:04-05:00",
+    filterHash: "irrelevant",
+  };
+
+  it("returns true when sortValue is strictly before cursor (desc)", () => {
+    expect(isAfterCursor({ id: "anyId", sortValue: "2026-04-18T00:00:00Z" }, cursor, "desc")).toBe(
+      true,
+    );
+  });
+
+  it("returns false when sortValue is after cursor (desc)", () => {
+    expect(isAfterCursor({ id: "anyId", sortValue: "2026-04-20T00:00:00Z" }, cursor, "desc")).toBe(
+      false,
+    );
+  });
+});
+
+describe("isAfterCursor — null sortValue (nulls-last)", () => {
+  const cursorWithNull: CursorPayload = {
+    lastId: "id_aaa",
+    lastSortValue: null,
+    filterHash: "irrelevant",
+  };
+  const cursorWithValue: CursorPayload = {
+    lastId: "id_aaa",
+    lastSortValue: "2026-04-19T00:00:00Z",
+    filterHash: "irrelevant",
+  };
+
+  it("null item is after non-null cursor in ASC (nulls last)", () => {
+    expect(isAfterCursor({ id: "id_bbb", sortValue: null }, cursorWithValue, "asc")).toBe(true);
+  });
+
+  it("null item is NOT after null cursor with smaller id (both null)", () => {
+    expect(isAfterCursor({ id: "id_aaa", sortValue: null }, cursorWithNull, "asc")).toBe(false);
+  });
+
+  it("null item with greater id is after null cursor (both null, tie-break)", () => {
+    expect(isAfterCursor({ id: "id_zzz", sortValue: null }, cursorWithNull, "asc")).toBe(true);
+  });
+
+  it("non-null item is NOT after null cursor in ASC (item is before null)", () => {
+    expect(
+      isAfterCursor({ id: "id_bbb", sortValue: "2026-04-19T00:00:00Z" }, cursorWithNull, "asc"),
+    ).toBe(false);
+  });
+
+  it("non-null item is after null cursor in DESC", () => {
+    expect(
+      isAfterCursor({ id: "id_bbb", sortValue: "2026-04-19T00:00:00Z" }, cursorWithNull, "desc"),
+    ).toBe(true);
   });
 });
