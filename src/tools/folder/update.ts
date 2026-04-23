@@ -15,6 +15,7 @@ export const FOLDER_UPDATE_DESCRIPTION =
   "Rename a folder (partial patch — only supplied fields are changed). " +
   "To move a folder use folder_move instead. " +
   "Get the folder ID from folder_list. " +
+  "Returns the updated folder on success. " +
   "Triggers a sync; call sync_trigger after to propagate to other devices.";
 
 export const folderUpdateInputSchema = z.object({

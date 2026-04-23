@@ -23,6 +23,7 @@ export const TASK_CLEAR_REPETITION_DESCRIPTION =
   "Remove the repetition rule from an OmniFocus task. " +
   "After clearing, the task becomes a one-time item. " +
   "Use task_set_repetition to set or change a rule. " +
+  "Returns the updated task with repetitionRule confirmed as null. " +
   "Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.";
 
 // ---------------------------------------------------------------------------

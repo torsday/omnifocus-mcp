@@ -32,6 +32,7 @@ import { type ResponseMeta, ok } from "../../envelope/index.js";
 export const TASK_UPDATE_DESCRIPTION =
   "Partially update mutable fields on an OmniFocus task. " +
   "Only supplied fields are changed; omit a field to leave it unchanged. " +
+  "Do not use to complete or delete a task; prefer task_complete or task_delete instead. " +
   "Two tag-update modes: (1) supply tagIds to replace the full tag set; " +
   "(2) supply addTags and/or removeTags to apply a diff without reading first. " +
   "Supplying tagIds together with addTags/removeTags is a ValidationError. " +

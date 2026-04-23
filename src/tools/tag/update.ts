@@ -14,7 +14,9 @@ import type { TagService } from "../../services/tagService.js";
 export const TAG_UPDATE_DESCRIPTION =
   "Update mutable fields on an existing tag (partial patch). " +
   "Only supplied fields are changed; omit a field to leave it unchanged. " +
+  "Do not use to move a tag to a different parent; prefer tag_move instead. " +
   "Get the tag ID from tag_list. " +
+  "Returns the updated tag on success. " +
   "Triggers a sync; call sync_trigger after to propagate to other devices.";
 
 export const tagUpdateInputSchema = z.object({

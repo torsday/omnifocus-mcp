@@ -21,9 +21,10 @@ import { type ResponseMeta, ok } from "../../envelope/index.js";
 
 export const NOTE_GET_DESCRIPTION =
   "Read the plain-text note from a task or project. " +
+  "Do not use when formatting fidelity matters; prefer note_get_html instead. " +
   "Returns { note } — a string (may be empty) or null when no note exists. " +
   "Set targetKind to 'task' and provide a task ID, or 'project' and a project ID. " +
-  "For the full HTML representation with formatting, use note_get_html.";
+  "Safe to call repeatedly; no side effects.";
 
 // ---------------------------------------------------------------------------
 // Input schema

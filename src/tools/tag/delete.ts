@@ -15,7 +15,9 @@ export const TAG_DELETE_DESCRIPTION =
   "Hard-delete a tag from OmniFocus. IRREVERSIBLE — the tag and all its children are removed. " +
   "Tasks that carried this tag lose it. " +
   "Get the tag ID from tag_list. " +
-  "Prefer tag_set_status with status='dropped' to preserve history.";
+  "Prefer tag_set_status with status='dropped' to preserve history. " +
+  "Returns the deleted tag's ID on success. " +
+  "Side effects: writes to OmniFocus, sets meta.syncPending = true.";
 
 export const tagDeleteInputSchema = z.object({
   id: TagId.schema.describe("Persistent tag ID to delete. Get from tag_list."),

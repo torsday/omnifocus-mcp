@@ -13,7 +13,9 @@ import type { FolderService } from "../../services/folderService.js";
 
 export const FOLDER_MOVE_DESCRIPTION =
   "Move a folder to a new parent, or promote it to a root folder by passing parentId=null. " +
+  "Do not use to rename a folder; prefer folder_update instead. " +
   "Get folder IDs from folder_list. " +
+  "Returns the updated folder's ID and new parentId on success. " +
   "Triggers a sync; call sync_trigger after to propagate to other devices.";
 
 export const folderMoveInputSchema = z.object({

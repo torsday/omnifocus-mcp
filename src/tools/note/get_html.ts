@@ -24,7 +24,8 @@ export const NOTE_GET_HTML_DESCRIPTION =
   "Read the HTML fragment from a task or project note. " +
   "Returns { noteHtml } — an HTML string (may be empty) or null when no note exists. " +
   "Set targetKind to 'task' and provide a task ID, or 'project' and a project ID. " +
-  "For plain-text access without formatting, use note_get instead.";
+  "For plain-text access without formatting, use note_get instead. " +
+  "Safe to call repeatedly; no side effects.";
 
 // ---------------------------------------------------------------------------
 // Input schema

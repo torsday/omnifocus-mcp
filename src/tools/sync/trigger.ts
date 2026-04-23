@@ -26,11 +26,12 @@ import { type ResponseMeta, ok } from "../../envelope/index.js";
 
 export const SYNC_TRIGGER_DESCRIPTION =
   "Kick off an OmniFocus sync with Omni Sync Server. " +
+  "Do not call when no mutations have been made; prefer checking meta.syncPending first. " +
   "Call this after any sequence of mutations (task_create, task_update, folder_create, etc.) " +
   "when you need changes to appear on other devices. " +
   "The sync starts immediately but completes asynchronously — this tool does not block until done. " +
   "Returns meta.syncPending = false to confirm the sync was initiated. " +
-  "Returns lastSyncAt (ISO-8601) and inFlight: false (sync kicked off, not yet confirmed complete).";
+  "Side effects: triggers a sync request to Omni Sync Server.";
 
 // ---------------------------------------------------------------------------
 // Input schema

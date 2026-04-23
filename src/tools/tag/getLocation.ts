@@ -13,8 +13,10 @@ import type { TagService } from "../../services/tagService.js";
 
 export const TAG_GET_LOCATION_DESCRIPTION =
   "Get the geographic location trigger currently set on a tag, or null if none. " +
+  "Do not use to set or clear a location; prefer tag_set_location instead. " +
   "Location-based tags are an OmniFocus Pro feature. " +
   "Get the tag ID from tag_list. " +
+  "Returns { location } with name, radius, and trigger direction, or null if unset. " +
   "Safe to call repeatedly; no side effects.";
 
 export const tagGetLocationInputSchema = z.object({

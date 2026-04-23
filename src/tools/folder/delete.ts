@@ -19,7 +19,8 @@ export const FOLDER_DELETE_DESCRIPTION =
   "Delete a folder from OmniFocus. " +
   "By default returns ValidationError when the folder contains projects or subfolders. " +
   "Pass cascade=true to orphan all direct projects (move to no folder) and recursively delete subfolders before deleting. " +
-  "IRREVERSIBLE. Get the folder ID from folder_list. " +
+  "IRREVERSIBLE — do not use to archive; prefer folder_update to rename instead. " +
+  "Get the folder ID from folder_list. " +
   "Triggers a sync; call sync_trigger after to propagate to other devices.";
 
 export const folderDeleteInputSchema = z.object({

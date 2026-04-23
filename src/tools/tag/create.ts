@@ -14,6 +14,7 @@ import type { TagService } from "../../services/tagService.js";
 export const TAG_CREATE_DESCRIPTION =
   "Create a new tag in OmniFocus. " +
   "Optionally nest it under an existing parent tag (get IDs from tag_list). " +
+  "Do not use to move an existing tag; prefer tag_move instead. " +
   "Returns the new tag's persistent ID. " +
   "Triggers a sync; call sync_trigger after to propagate to other devices.";
 
