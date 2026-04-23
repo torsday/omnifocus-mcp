@@ -13,6 +13,7 @@ import type { FolderListInput, FolderService } from "../../services/folderServic
 
 export const FOLDER_LIST_DESCRIPTION =
   "List folders in OmniFocus, optionally filtered by parent folder. " +
+  "Do not use to fetch a single folder by ID; prefer folder_get instead. " +
   "Returns a flat array with projectCount and subfolderCount per folder. " +
   "Use parentId to walk the hierarchy one level at a time. " +
   "Safe to call repeatedly; no side effects.";

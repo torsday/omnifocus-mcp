@@ -13,7 +13,9 @@ import type { TagService } from "../../services/tagService.js";
 
 export const TAG_MOVE_DESCRIPTION =
   "Move a tag to a new parent, or promote it to a root tag by passing parentId=null. " +
+  "Do not use to rename a tag; prefer tag_update instead. " +
   "Get tag IDs from tag_list. " +
+  "Returns the updated tag's ID and new parentId on success. " +
   "Triggers a sync; call sync_trigger after to propagate to other devices.";
 
 export const tagMoveInputSchema = z.object({

@@ -14,6 +14,7 @@ import type { FolderService } from "../../services/folderService.js";
 export const FOLDER_CREATE_DESCRIPTION =
   "Create a new folder in OmniFocus. " +
   "Optionally nest it inside an existing parent folder (get IDs from folder_list). " +
+  "Do not use to move an existing folder; prefer folder_move instead. " +
   "Returns the new folder's persistent ID. " +
   "Triggers a sync; call sync_trigger after to propagate to other devices.";
 

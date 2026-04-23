@@ -14,7 +14,9 @@ import type { TagService } from "../../services/tagService.js";
 export const TAG_SET_STATUS_DESCRIPTION =
   "Set the lifecycle status of a tag to active, on-hold, or dropped. " +
   "Dropped tags are hidden in OmniFocus but not deleted. " +
+  "Do not use to permanently remove a tag; prefer tag_delete instead. " +
   "Get the tag ID from tag_list. " +
+  "Returns the updated tag with the confirmed status. " +
   "Triggers a sync; call sync_trigger after to propagate to other devices.";
 
 export const tagSetStatusInputSchema = z.object({

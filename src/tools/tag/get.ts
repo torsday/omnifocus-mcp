@@ -22,7 +22,7 @@ import type { TagService } from "../../services/tagService.js";
 
 export const TAG_GET_DESCRIPTION =
   "Fetch a single tag by its persistent ID, including task count. " +
-  "Use `tag_list` first to discover tag IDs. " +
+  "Do not use to list multiple tags; prefer tag_list instead. " +
   "Returns tag details; no side effects.";
 
 // ---------------------------------------------------------------------------

@@ -14,7 +14,9 @@ import type { TagService } from "../../services/tagService.js";
 export const TAG_SET_ALLOWS_NEXT_ACTION_DESCRIPTION =
   "Enable or disable next-action selection for a tag in OmniFocus. " +
   "When true, tasks with this tag are eligible for next-action promotion. " +
+  "Do not use to change other tag properties; prefer tag_update instead. " +
   "Get the tag ID from tag_list. " +
+  "Returns the updated tag with allowsNextAction confirmed. " +
   "Triggers a sync; call sync_trigger after to propagate to other devices.";
 
 export const tagSetAllowsNextActionInputSchema = z.object({

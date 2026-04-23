@@ -13,7 +13,8 @@ import type { FolderService } from "../../services/folderService.js";
 
 export const FOLDER_GET_DESCRIPTION =
   "Fetch a single folder by its persistent ID, including project and subfolder counts. " +
-  "Use folder_list first to discover folder IDs. " +
+  "Do not use to list multiple folders; prefer folder_list instead. " +
+  "Returns folder details including name, parentId, projectCount, and subfolderCount. " +
   "Safe to call repeatedly; no side effects.";
 
 export const folderGetInputSchema = z.object({

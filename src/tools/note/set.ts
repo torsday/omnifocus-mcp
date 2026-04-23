@@ -23,6 +23,7 @@ export const NOTE_SET_DESCRIPTION =
   "Replace the plain-text note on a task or project. " +
   "Overwrites the existing note entirely. Pass note: null to clear the note. " +
   "To add text without overwriting use note_append instead. " +
+  "Returns { note } with the final note content after writing. " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
   "Call sync_trigger when you need the change to appear on other devices.";
 

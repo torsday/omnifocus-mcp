@@ -29,6 +29,7 @@ export const NOTE_SET_HTML_DESCRIPTION =
   "OmniFocus preserves its supported HTML subset (bold, italic, links, lists, inline images); " +
   "unsupported elements may be stripped. Pass noteHtml: null to clear the note. " +
   "For plain-text writes use note_set instead. " +
+  "Returns { noteHtml } with the final HTML content after writing. " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
   "Call sync_trigger when you need the change to appear on other devices.";
 

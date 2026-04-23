@@ -24,7 +24,8 @@ import { type ResponseMeta, ok } from "../../envelope/index.js";
 export const NOTE_APPEND_DESCRIPTION =
   "Append text to the plain-text note on a task or project. " +
   "Adds a newline between existing content and the new text unless the note is empty. " +
-  "Does not overwrite — use note_set to replace the full note. " +
+  "Do not use to replace the note entirely; prefer note_set instead. " +
+  "Returns { note } with the full note content after appending. " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
   "Call sync_trigger when you need the change to appear on other devices.";
 
