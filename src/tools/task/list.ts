@@ -20,6 +20,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { flexDateString } from "../../domain/dates.js";
 import { ProjectId, TagId, TaskId } from "../../domain/ids.js";
 import { type Pagination, type ResponseMeta, ok } from "../../envelope/index.js";
 import { TaskSortBySchema } from "../../services/taskService.js";
@@ -110,6 +111,15 @@ export const taskListInputSchema = z.object({
     .optional()
     .describe(
       "Sort direction: 'asc' (default, oldest/lowest first) or 'desc' (newest/highest first).",
+    ),
+  updatedSince: flexDateString()
+    .optional()
+    .describe(
+      "Return only tasks modified strictly after this timestamp. " +
+        "Accepts ISO-8601 with offset (e.g. '2026-04-21T10:00:00-07:00') or a relative shortcut: " +
+        "today, yesterday, this-week, next-week, end-of-week, end-of-month. " +
+        "Use this for incremental sync: call without updatedSince on session start, then pass the previous response timestamp on subsequent calls. " +
+        "Note: deleted tasks cannot be detected — use a snapshot resource for deletion detection.",
     ),
   cursor: z
     .string()
