@@ -17,6 +17,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
+import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { TaskId } from "../../domain/ids.js";
 import { RepetitionRuleSchema } from "../../domain/task.js";
 import { type ResponseMeta, ok } from "../../envelope/index.js";
@@ -56,6 +57,12 @@ export type TaskSetRepetitionInput = z.infer<typeof taskSetRepetitionInputSchema
 export interface TaskSetRepetitionContext {
   adapter: OmniFocusAdapter;
   makeMeta: (partial?: Partial<ResponseMeta>) => ResponseMeta;
+  /**
+   * Optional cache; when supplied, `invalidateTaskMutation` flushes the
+   * scopes in the per-mutation matrix (docs/cache-invalidation.md) after
+   * the adapter call succeeds.
+   */
+  cache?: InvalidatingCache;
 }
 
 /**
@@ -67,6 +74,9 @@ export async function handleTaskSetRepetition(
 ) {
   await ctx.adapter.updateTask(input.id, { repetition: input.rule });
   const task = await ctx.adapter.getTask(input.id);
+  if (ctx.cache !== undefined) {
+    invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
+  }
   const meta = ctx.makeMeta({ syncPending: true });
   return ok({ task }, meta);
 }

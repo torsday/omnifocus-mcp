@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
+import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { TagService } from "../../services/tagService.js";
 import { handleTagCreate, tagCreateInputSchema } from "./create.js";
@@ -266,5 +267,51 @@ describe("tag_set_allows_next_action — handler", () => {
     await expect(
       handleTagSetAllowsNextAction({ id: "tag_999999" as never, allowsNextAction: true }, ctx),
     ).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cache invalidation (docs/cache-invalidation.md)
+// ---------------------------------------------------------------------------
+
+describe("TagService — cache invalidation", () => {
+  it("create emits tag:${id}, forecast:*, perspective:*, search:*", async () => {
+    const adapter = new InMemoryAdapter({ now: () => new Date(0) });
+    const cache = new OmniFocusLruCache();
+    const scopes: InvalidationScope[] = [];
+    cache.on("cache.invalidated", (e: { scope: InvalidationScope }) => scopes.push(e.scope));
+    const tagService = new TagService({ adapter, cache });
+
+    const { id } = await tagService.create({ name: "Work" });
+
+    expect(scopes).toEqual([`tag:${id}`, "forecast:*", "perspective:*", "search:*"]);
+  });
+
+  it("update / delete / move / setStatus / setAllowsNextAction all flush the tag scope set", async () => {
+    const adapter = new InMemoryAdapter({ now: () => new Date(0) });
+    const cache = new OmniFocusLruCache();
+    const scopes: InvalidationScope[] = [];
+    cache.on("cache.invalidated", (e: { scope: InvalidationScope }) => scopes.push(e.scope));
+    const tagService = new TagService({ adapter, cache });
+
+    const { id } = await tagService.create({ name: "Work" });
+    scopes.length = 0;
+
+    await tagService.update(id, { name: "Work!" });
+    await tagService.move(id, null);
+    await tagService.setStatus(id, "on-hold");
+    await tagService.setAllowsNextAction(id, false);
+    await tagService.delete(id);
+
+    // Five mutations × four scopes each = 20 emissions, all with the same shape.
+    expect(scopes).toHaveLength(20);
+    for (let i = 0; i < 5; i++) {
+      expect(scopes.slice(i * 4, i * 4 + 4)).toEqual([
+        `tag:${id}`,
+        "forecast:*",
+        "perspective:*",
+        "search:*",
+      ]);
+    }
   });
 });

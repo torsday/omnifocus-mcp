@@ -8,8 +8,17 @@
 
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
+import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { handleTaskUpdate, taskUpdateInputSchema } from "./update.js";
+
+function recordScopes(cache: OmniFocusLruCache): InvalidationScope[] {
+  const scopes: InvalidationScope[] = [];
+  cache.on("cache.invalidated", (e: { scope: InvalidationScope }) => {
+    scopes.push(e.scope);
+  });
+  return scopes;
+}
 
 // ---------------------------------------------------------------------------
 // Harness
@@ -261,5 +270,40 @@ describe("task_update — handler: error cases", () => {
         ctx,
       ),
     ).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cache invalidation (docs/cache-invalidation.md)
+// ---------------------------------------------------------------------------
+
+describe("task_update — cache invalidation", () => {
+  it("emits the task-mutation scope set after a successful update", async () => {
+    const { ctx: base, adapter } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    const scopes = recordScopes(cache);
+    const projectId = await adapter.createProject({ name: "P" });
+    const id = await adapter.createTask({ name: "T", projectId });
+
+    await handleTaskUpdate({ id, name: "renamed" }, { ...base, cache });
+
+    expect(scopes).toEqual([
+      `task:${id}`,
+      `project:${projectId}`,
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+    ]);
+  });
+
+  it("skips project:${id} when the task is in the inbox", async () => {
+    const { ctx: base, adapter } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    const scopes = recordScopes(cache);
+    const id = await adapter.createTask({ name: "Inbox" });
+
+    await handleTaskUpdate({ id, flagged: true }, { ...base, cache });
+
+    expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*"]);
   });
 });

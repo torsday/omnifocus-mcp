@@ -7,8 +7,21 @@
 
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
+import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { handleTaskDelete, taskDeleteInputSchema } from "./delete.js";
+
+/**
+ * Record every `cache.invalidated` event on the given cache. Returns the
+ * mutable scope array; tests assert against it after the mutation.
+ */
+function recordScopes(cache: OmniFocusLruCache): InvalidationScope[] {
+  const scopes: InvalidationScope[] = [];
+  cache.on("cache.invalidated", (e: { scope: InvalidationScope }) => {
+    scopes.push(e.scope);
+  });
+  return scopes;
+}
 
 // ---------------------------------------------------------------------------
 // Harness
@@ -98,5 +111,53 @@ describe("task_delete — handler", () => {
     const remaining = await adapter.listTasks({});
     expect(remaining.some((t) => t.id === idB)).toBe(true);
     expect(remaining.some((t) => t.id === idA)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cache invalidation (docs/cache-invalidation.md)
+// ---------------------------------------------------------------------------
+
+describe("task_delete — cache invalidation", () => {
+  it("emits task:${id}, project:${projectId}, forecast:*, perspective:*, search:* for a project task", async () => {
+    const { ctx: base, adapter } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    const scopes = recordScopes(cache);
+    const projectId = await adapter.createProject({ name: "P" });
+    const id = await adapter.createTask({ name: "T", projectId });
+
+    await handleTaskDelete({ id }, { ...base, cache });
+
+    expect(scopes).toEqual([
+      `task:${id}`,
+      `project:${projectId}`,
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+    ]);
+  });
+
+  it("skips project:${id} for an inbox task (projectId === null)", async () => {
+    const { ctx: base, adapter } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    const scopes = recordScopes(cache);
+    const id = await adapter.createTask({ name: "Inbox" });
+
+    await handleTaskDelete({ id }, { ...base, cache });
+
+    expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*"]);
+  });
+
+  it("does not invalidate when the delete fails (NotFound raised before write)", async () => {
+    const { ctx: base } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    const scopes = recordScopes(cache);
+    await expect(
+      handleTaskDelete(
+        { id: "task_999999" as import("../../domain/ids.js").TaskId },
+        { ...base, cache },
+      ),
+    ).rejects.toThrow();
+    expect(scopes).toEqual([]);
   });
 });

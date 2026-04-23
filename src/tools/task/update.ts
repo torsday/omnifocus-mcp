@@ -21,6 +21,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
+import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { TagId, TaskId } from "../../domain/ids.js";
 import { type ResponseMeta, ok } from "../../envelope/index.js";
 
@@ -132,6 +133,12 @@ export type TaskUpdateToolInput = z.infer<typeof taskUpdateInputSchema>;
 export interface TaskUpdateContext {
   adapter: OmniFocusAdapter;
   makeMeta: (partial?: Partial<ResponseMeta>) => ResponseMeta;
+  /**
+   * Optional cache; when supplied, `invalidateTaskMutation` flushes the
+   * scopes in the per-mutation matrix (docs/cache-invalidation.md) after
+   * the adapter call succeeds.
+   */
+  cache?: InvalidatingCache;
 }
 
 /**
@@ -178,6 +185,9 @@ export async function handleTaskUpdate(input: TaskUpdateToolInput, ctx: TaskUpda
   });
 
   const task = await ctx.adapter.getTask(id);
+  if (ctx.cache !== undefined) {
+    invalidateTaskMutation(ctx.cache, { taskId: id, projectId: task.projectId });
+  }
   return ok({ task }, ctx.makeMeta({ syncPending: true }));
 }
 

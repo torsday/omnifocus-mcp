@@ -8,6 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
+import { OmniFocusLruCache } from "../../cache/lruCache.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { TagService } from "../../services/tagService.js";
 import { handleTagCreate } from "../tag/create.js";
@@ -91,5 +92,25 @@ describe("meta.syncPending lifecycle", () => {
     // 2. Trigger sync — should report syncPending=false
     const syncEnvelope = await handleSyncTrigger({}, { adapter, makeMeta });
     expect(syncEnvelope.meta.syncPending).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cache invalidation (docs/cache-invalidation.md) — sync_trigger clears all
+// ---------------------------------------------------------------------------
+
+describe("sync_trigger — cache invalidation", () => {
+  it("clears every cached read after the sync kicks off", async () => {
+    const { adapter, makeMeta } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    // Seed a few entries across multiple scopes.
+    cache.set("task:t1:detail", { ok: 1 });
+    cache.set("project:p1:list", { ok: 2 });
+    cache.set("forecast:today", { ok: 3 });
+    expect(cache.stats().size).toBe(3);
+
+    await handleSyncTrigger({}, { adapter, makeMeta, cache });
+
+    expect(cache.stats().size).toBe(0);
   });
 });

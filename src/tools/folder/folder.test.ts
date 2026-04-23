@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
+import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { FolderService } from "../../services/folderService.js";
 import { folderCreateInputSchema, handleFolderCreate } from "./create.js";
@@ -276,5 +277,37 @@ describe("folder_delete — handler", () => {
   it("throws NotFound for unknown id", async () => {
     const { ctx } = makeCtx();
     await expect(handleFolderDelete({ id: "folder_999999" as never }, ctx)).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cache invalidation (docs/cache-invalidation.md)
+// ---------------------------------------------------------------------------
+
+describe("FolderService — cache invalidation", () => {
+  it("create / update / move / delete each emit folder:${id}, perspective:*, search:* (no forecast:*)", async () => {
+    const adapter = new InMemoryAdapter({ now: () => new Date(0) });
+    const cache = new OmniFocusLruCache();
+    const scopes: InvalidationScope[] = [];
+    cache.on("cache.invalidated", (e: { scope: InvalidationScope }) => scopes.push(e.scope));
+    const folderService = new FolderService({ adapter, cache });
+
+    const { id } = await folderService.create({ name: "Area" });
+    expect(scopes.slice(-3)).toEqual([`folder:${id}`, "perspective:*", "search:*"]);
+
+    const before = scopes.length;
+    await folderService.update(id, { name: "Area!" });
+    await folderService.move(id, null);
+    await folderService.delete(id);
+
+    // Three mutations × three scopes each = nine new emissions.
+    expect(scopes.length - before).toBe(9);
+    for (let i = 0; i < 3; i++) {
+      expect(scopes.slice(before + i * 3, before + i * 3 + 3)).toEqual([
+        `folder:${id}`,
+        "perspective:*",
+        "search:*",
+      ]);
+    }
   });
 });
