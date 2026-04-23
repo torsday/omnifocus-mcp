@@ -34,6 +34,7 @@ import { TASK_FIND_BY_NAME_DESCRIPTION } from "./task/findByName.js";
 import { TASK_GET_DESCRIPTION } from "./task/get.js";
 import { TASK_GET_MANY_DESCRIPTION } from "./task/getMany.js";
 import { TASK_LIST_DESCRIPTION } from "./task/list.js";
+import { TASK_MOVE_DESCRIPTION } from "./task/move.js";
 import { TASK_PARSE_TRANSPORT_TEXT_DESCRIPTION } from "./task/parseTransportText.js";
 import { TASK_SET_REPETITION_DESCRIPTION } from "./task/setRepetition.js";
 import { TASK_UPDATE_DESCRIPTION } from "./task/update.js";
@@ -75,6 +76,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   task_get: TASK_GET_DESCRIPTION,
   task_get_many: TASK_GET_MANY_DESCRIPTION,
   task_list: TASK_LIST_DESCRIPTION,
+  task_move: TASK_MOVE_DESCRIPTION,
   task_parse_transport_text: TASK_PARSE_TRANSPORT_TEXT_DESCRIPTION,
   task_set_repetition: TASK_SET_REPETITION_DESCRIPTION,
   task_update: TASK_UPDATE_DESCRIPTION,
