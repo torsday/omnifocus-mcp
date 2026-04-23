@@ -58,7 +58,8 @@ export async function handleTagSetLocation(
     radiusMeters: input.radiusMeters,
     trigger: input.trigger,
   });
-  return ok({}, ctx.makeMeta());
+  const { tag } = await ctx.tagService.get(input.id);
+  return ok({ tag }, ctx.makeMeta());
 }
 
 export function registerTagSetLocationTool(server: McpServer, ctx: TagSetLocationContext) {

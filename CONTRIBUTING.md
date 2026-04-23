@@ -10,6 +10,7 @@ This is a single-developer project and external contributions are not currently 
 - **IDs only, never names.** All API references use OF's persistent IDs. Lookup-by-name is an explicit, disambiguated tool. ([ADR-0008](./docs/adr/0008-ids-branded-opaque-strings.md))
 - **Dates are ISO-8601 with offset** at the adapter boundary. ([ADR-0007](./docs/adr/0007-dates-iso8601-with-offset.md))
 - **Response envelope.** Every tool returns `{ data, meta, pagination? }` or `{ error, meta }`. Never a raw payload. ([ADR-0013](./docs/adr/0013-tool-response-envelope.md))
+- **Mutation response contract.** Write tool handlers must return the full updated domain entity in `data` (e.g. `ok({ task }, meta)`, `ok({ tag }, meta)`, `ok({ folder }, meta)`). Delete handlers return `ok({ deleted: true, id }, meta)`. Never return a bare ID or a partial patch object — agents need the full entity to update their local view without a follow-up read.
 - **No stdout writes.** stdout is the MCP transport; any stray byte corrupts the protocol. Enforced by a hook and an integration test.
 - **No network imports.** The server has no network surface. Lint forbids `http`, `https`, `fetch`, `node-fetch`, `axios`, `undici`.
 - **Typed errors only.** No generic `Error`. Every throw is from the taxonomy in [`DESIGN.md §6.7`](./DESIGN.md#67-error-taxonomy).

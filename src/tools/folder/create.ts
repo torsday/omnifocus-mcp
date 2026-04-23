@@ -32,11 +32,12 @@ export interface FolderCreateContext {
 }
 
 export async function handleFolderCreate(input: FolderCreateToolInput, ctx: FolderCreateContext) {
-  const result = await ctx.folderService.create({
+  const createResult = await ctx.folderService.create({
     name: input.name,
     ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
   });
-  return ok({ id: result.id }, ctx.makeMeta());
+  const { folder } = await ctx.folderService.get(createResult.id);
+  return ok({ folder }, ctx.makeMeta());
 }
 
 export function registerFolderCreateTool(server: McpServer, ctx: FolderCreateContext) {

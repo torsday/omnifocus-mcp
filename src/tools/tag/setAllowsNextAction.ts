@@ -37,7 +37,8 @@ export async function handleTagSetAllowsNextAction(
   ctx: TagSetAllowsNextActionContext,
 ) {
   await ctx.tagService.setAllowsNextAction(input.id, input.allowsNextAction);
-  return ok({}, ctx.makeMeta());
+  const { tag } = await ctx.tagService.get(input.id);
+  return ok({ tag }, ctx.makeMeta());
 }
 
 export function registerTagSetAllowsNextActionTool(

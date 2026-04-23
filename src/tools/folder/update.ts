@@ -34,7 +34,8 @@ export async function handleFolderUpdate(input: FolderUpdateToolInput, ctx: Fold
   await ctx.folderService.update(id, {
     ...(patch.name !== undefined ? { name: patch.name } : {}),
   });
-  return ok({}, ctx.makeMeta());
+  const { folder } = await ctx.folderService.get(id);
+  return ok({ folder }, ctx.makeMeta());
 }
 
 export function registerFolderUpdateTool(server: McpServer, ctx: FolderUpdateContext) {

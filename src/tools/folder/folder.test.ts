@@ -129,10 +129,14 @@ describe("folder_create — schema", () => {
 });
 
 describe("folder_create — handler", () => {
-  it("creates a folder and returns its ID", async () => {
+  it("creates a folder and returns the full folder entity", async () => {
     const { ctx, adapter } = makeCtx();
     const envelope = await handleFolderCreate({ name: "Work" }, ctx);
-    expect(envelope.data.id).toBeTruthy();
+    expect(envelope.data.folder.id).toBeTruthy();
+    expect(envelope.data.folder.name).toBe("Work");
+    // Returned entity matches a subsequent getFolder
+    const fetched = await adapter.getFolder(envelope.data.folder.id);
+    expect(fetched.id).toBe(envelope.data.folder.id);
     const folders = await adapter.listFolders();
     expect(folders).toHaveLength(1);
   });
@@ -141,7 +145,7 @@ describe("folder_create — handler", () => {
     const { ctx, adapter } = makeCtx();
     const parentId = await adapter.createFolder({ name: "Work" });
     const envelope = await handleFolderCreate({ name: "Projects", parentId }, ctx);
-    const child = await adapter.getFolder(envelope.data.id);
+    const child = await adapter.getFolder(envelope.data.folder.id);
     expect(child.parentId).toBe(parentId);
   });
 

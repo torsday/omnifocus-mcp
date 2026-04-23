@@ -72,20 +72,23 @@ describe("tag_create — input schema", () => {
 });
 
 describe("tag_create — handler", () => {
-  it("creates a tag and returns its ID", async () => {
+  it("creates a tag and returns the full tag entity", async () => {
     const { ctx, adapter } = makeCtx();
     const envelope = await handleTagCreate({ name: "Work" }, ctx);
-    expect(envelope.data.id).toBeTruthy();
+    expect(envelope.data.tag.id).toBeTruthy();
+    expect(envelope.data.tag.name).toBe("Work");
+    // Returned entity matches a subsequent getTag
+    const fetched = await adapter.getTag(envelope.data.tag.id);
+    expect(fetched.id).toBe(envelope.data.tag.id);
     const tags = await adapter.listTags();
     expect(tags).toHaveLength(1);
-    expect(tags[0]?.name).toBe("Work");
   });
 
   it("creates a nested tag when parentId is supplied", async () => {
     const { ctx, adapter } = makeCtx();
     const parentId = await adapter.createTag({ name: "Work" });
     const envelope = await handleTagCreate({ name: "Meetings", parentId }, ctx);
-    const child = await adapter.getTag(envelope.data.id);
+    const child = await adapter.getTag(envelope.data.tag.id);
     expect(child.parentId).toBe(parentId);
   });
 
