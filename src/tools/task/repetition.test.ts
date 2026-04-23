@@ -114,10 +114,16 @@ describe("task_set_repetition — handler", () => {
       ctx,
     );
 
-    expect(envelope.data.id).toBe(id);
+    expect(envelope.data.task.id).toBe(id);
+    expect(envelope.data.task.repetition).toMatchObject({
+      method: "fixed",
+      unit: "days",
+      steps: 1,
+    });
 
-    const task = await adapter.getTask(id);
-    expect(task.repetition).toMatchObject({ method: "fixed", unit: "days", steps: 1 });
+    // Returned entity matches a subsequent getTask
+    const fetched = await adapter.getTask(id);
+    expect(fetched.repetition).toMatchObject(envelope.data.task.repetition ?? {});
   });
 
   it("sets a weekly due-again rule with weekdays", async () => {
@@ -165,14 +171,14 @@ describe("task_set_repetition — handler", () => {
     ).rejects.toThrow();
   });
 
-  it("returns envelope with data.id matching the task", async () => {
+  it("returns envelope with full task entity", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "Task X" });
     const envelope = await handleTaskSetRepetition(
       { id, rule: { method: "fixed", unit: "months", steps: 1, monthlyAnchor: { day: 1 } } },
       ctx,
     );
-    expect(envelope.data).toHaveProperty("id", id);
+    expect(envelope.data.task.id).toBe(id);
     expect(envelope.meta.correlationId).toBe("test-cid");
   });
 });
@@ -219,10 +225,10 @@ describe("task_clear_repetition — handler", () => {
     ).rejects.toThrow();
   });
 
-  it("returns envelope with data.id matching the task", async () => {
+  it("returns envelope with full task entity", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "Task Y" });
     const envelope = await handleTaskClearRepetition({ id }, ctx);
-    expect(envelope.data).toHaveProperty("id", id);
+    expect(envelope.data.task.id).toBe(id);
   });
 });

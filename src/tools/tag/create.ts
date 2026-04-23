@@ -43,14 +43,15 @@ export interface TagCreateContext {
  * Pure handler for `tag_create`.
  */
 export async function handleTagCreate(input: TagCreateToolInput, ctx: TagCreateContext) {
-  const result = await ctx.tagService.create({
+  const createResult = await ctx.tagService.create({
     name: input.name,
     ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
     ...(input.status !== undefined ? { status: input.status } : {}),
     ...(input.allowsNextAction !== undefined ? { allowsNextAction: input.allowsNextAction } : {}),
   });
+  const { tag } = await ctx.tagService.get(createResult.id);
   const meta = ctx.makeMeta();
-  return ok({ id: result.id }, meta);
+  return ok({ tag }, meta);
 }
 
 export function registerTagCreateTool(server: McpServer, ctx: TagCreateContext) {

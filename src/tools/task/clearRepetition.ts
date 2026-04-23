@@ -51,8 +51,9 @@ export async function handleTaskClearRepetition(
   ctx: TaskClearRepetitionContext,
 ) {
   await ctx.adapter.updateTask(input.id, { repetition: null });
+  const task = await ctx.adapter.getTask(input.id);
   const meta = ctx.makeMeta();
-  return ok({ id: input.id }, meta);
+  return ok({ task }, meta);
 }
 
 // ---------------------------------------------------------------------------

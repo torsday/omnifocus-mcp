@@ -34,7 +34,8 @@ export interface TagSetStatusContext {
  */
 export async function handleTagSetStatus(input: TagSetStatusToolInput, ctx: TagSetStatusContext) {
   await ctx.tagService.setStatus(input.id, input.status);
-  return ok({}, ctx.makeMeta());
+  const { tag } = await ctx.tagService.get(input.id);
+  return ok({ tag }, ctx.makeMeta());
 }
 
 export function registerTagSetStatusTool(server: McpServer, ctx: TagSetStatusContext) {

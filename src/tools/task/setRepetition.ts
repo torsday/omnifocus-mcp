@@ -66,8 +66,9 @@ export async function handleTaskSetRepetition(
   ctx: TaskSetRepetitionContext,
 ) {
   await ctx.adapter.updateTask(input.id, { repetition: input.rule });
+  const task = await ctx.adapter.getTask(input.id);
   const meta = ctx.makeMeta();
-  return ok({ id: input.id }, meta);
+  return ok({ task }, meta);
 }
 
 // ---------------------------------------------------------------------------

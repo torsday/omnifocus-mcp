@@ -49,7 +49,8 @@ export async function handleTagUpdate(input: TagUpdateToolInput, ctx: TagUpdateC
     ...(patch.status !== undefined ? { status: patch.status } : {}),
     ...(patch.allowsNextAction !== undefined ? { allowsNextAction: patch.allowsNextAction } : {}),
   });
-  return ok({}, ctx.makeMeta());
+  const { tag } = await ctx.tagService.get(id);
+  return ok({ tag }, ctx.makeMeta());
 }
 
 export function registerTagUpdateTool(server: McpServer, ctx: TagUpdateContext) {

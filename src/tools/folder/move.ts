@@ -32,7 +32,8 @@ export interface FolderMoveContext {
 
 export async function handleFolderMove(input: FolderMoveToolInput, ctx: FolderMoveContext) {
   await ctx.folderService.move(input.id, input.parentId);
-  return ok({}, ctx.makeMeta());
+  const { folder } = await ctx.folderService.get(input.id);
+  return ok({ folder }, ctx.makeMeta());
 }
 
 export function registerFolderMoveTool(server: McpServer, ctx: FolderMoveContext) {
