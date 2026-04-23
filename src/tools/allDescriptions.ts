@@ -18,6 +18,7 @@ import { NOTE_SET_DESCRIPTION } from "./note/set.js";
 import { NOTE_SET_HTML_DESCRIPTION } from "./note/set_html.js";
 import { PROJECT_DELETE_DESCRIPTION } from "./project/delete.js";
 import { SEARCH_QUERY_DESCRIPTION } from "./search/query.js";
+import { SYNC_STATUS_DESCRIPTION } from "./sync/status.js";
 import { SYNC_TRIGGER_DESCRIPTION } from "./sync/trigger.js";
 import { TAG_CREATE_DESCRIPTION } from "./tag/create.js";
 import { TAG_DELETE_DESCRIPTION } from "./tag/delete.js";
@@ -52,6 +53,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   note_set_html: NOTE_SET_HTML_DESCRIPTION,
   project_delete: PROJECT_DELETE_DESCRIPTION,
   search_query: SEARCH_QUERY_DESCRIPTION,
+  sync_status: SYNC_STATUS_DESCRIPTION,
   sync_trigger: SYNC_TRIGGER_DESCRIPTION,
   tag_create: TAG_CREATE_DESCRIPTION,
   tag_delete: TAG_DELETE_DESCRIPTION,
