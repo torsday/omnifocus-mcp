@@ -32,6 +32,7 @@
 
 import type { Folder } from "../domain/folder.js";
 import type { FolderId, ProjectId, TagId, TaskId } from "../domain/ids.js";
+import type { Perspective } from "../domain/perspective.js";
 import type { Project } from "../domain/project.js";
 import type { Tag, TagLocation } from "../domain/tag.js";
 import type { RepetitionRule, Task } from "../domain/task.js";
@@ -234,6 +235,10 @@ export interface OmniFocusAdapter {
   createFolder(input: CreateFolderInput): Promise<FolderId>;
   updateFolder(id: FolderId, patch: UpdateFolderInput): Promise<void>;
   deleteFolder(id: FolderId): Promise<void>;
+
+  // -- Perspectives ----------------------------------------------------------
+
+  listPerspectives(): Promise<Perspective[]>;
 
   // -- Search ----------------------------------------------------------------
 

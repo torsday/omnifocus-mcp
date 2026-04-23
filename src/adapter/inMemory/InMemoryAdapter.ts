@@ -35,6 +35,7 @@ import {
   type TaskId,
   TaskId as TaskIdCtor,
 } from "../../domain/ids.js";
+import { BUILTIN_PERSPECTIVE_IDS, type Perspective } from "../../domain/perspective.js";
 import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
 import type { Task } from "../../domain/task.js";
@@ -676,6 +677,27 @@ export class InMemoryAdapter implements OmniFocusAdapter {
 
   async getLastSync(): Promise<SyncStatus> {
     return { lastSyncAt: this.lastSyncAt, inFlight: false };
+  }
+
+  // -- Perspectives (in-memory returns the built-in set) --------------------
+
+  async listPerspectives(): Promise<Perspective[]> {
+    const builtinNames: Record<string, string> = {
+      inbox: "Inbox",
+      projects: "Projects",
+      tags: "Tags",
+      forecast: "Forecast",
+      flagged: "Flagged",
+      nearby: "Nearby",
+      review: "Review",
+    };
+    return BUILTIN_PERSPECTIVE_IDS.map((id) => ({
+      id,
+      name: builtinNames[id] ?? id,
+      kind: "builtin" as const,
+      requiresPro: false,
+      icon: null,
+    }));
   }
 
   // -- Internal helpers -----------------------------------------------------
