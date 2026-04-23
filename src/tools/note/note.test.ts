@@ -1,9 +1,9 @@
 /**
- * Tests for note_get, note_set, note_append tools.
+ * Tests for note_get, note_set, note_append, note_get_html, note_set_html tools.
  *
  * Covers: schema validation, read/write on tasks and projects,
  * null/empty note semantics, append separator logic, NotFound propagation,
- * and syncPending flag.
+ * syncPending flag, and HTML round-trip fidelity.
  */
 
 import { describe, expect, it } from "vitest";
@@ -11,7 +11,9 @@ import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { handleNoteAppend, noteAppendInputSchema } from "./append.js";
 import { handleNoteGet, noteGetInputSchema } from "./get.js";
+import { handleNoteGetHtml, noteGetHtmlInputSchema } from "./get_html.js";
 import { handleNoteSet, noteSetInputSchema } from "./set.js";
+import { handleNoteSetHtml, noteSetHtmlInputSchema } from "./set_html.js";
 
 // ---------------------------------------------------------------------------
 // Harness
@@ -250,5 +252,187 @@ describe("note_append — handler", () => {
     await expect(
       handleNoteAppend({ targetKind: "task", id: "task_999999", text: "x" }, ctx),
     ).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// note_get_html — schema
+// ---------------------------------------------------------------------------
+
+describe("note_get_html — input schema", () => {
+  it("requires targetKind and id", () => {
+    expect(() => noteGetHtmlInputSchema.parse({})).toThrow();
+    expect(() => noteGetHtmlInputSchema.parse({ targetKind: "task" })).toThrow();
+  });
+
+  it("accepts task targetKind", () => {
+    const parsed = noteGetHtmlInputSchema.parse({ targetKind: "task", id: "task_000001" });
+    expect(parsed.targetKind).toBe("task");
+  });
+
+  it("accepts project targetKind", () => {
+    const parsed = noteGetHtmlInputSchema.parse({ targetKind: "project", id: "project_000001" });
+    expect(parsed.targetKind).toBe("project");
+  });
+
+  it("rejects unknown targetKind", () => {
+    expect(() => noteGetHtmlInputSchema.parse({ targetKind: "folder", id: "x" })).toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// note_get_html — handler
+// ---------------------------------------------------------------------------
+
+describe("note_get_html — handler", () => {
+  it("returns null when task has no noteHtml", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "T" });
+    const envelope = await handleNoteGetHtml({ targetKind: "task", id }, ctx);
+    expect(envelope.data.noteHtml).toBeNull();
+  });
+
+  it("returns the task noteHtml", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "T", noteHtml: "<b>hello</b>" });
+    const envelope = await handleNoteGetHtml({ targetKind: "task", id }, ctx);
+    expect(envelope.data.noteHtml).toBe("<b>hello</b>");
+  });
+
+  it("returns null when project has no noteHtml", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createProject({ name: "P" });
+    const envelope = await handleNoteGetHtml({ targetKind: "project", id }, ctx);
+    expect(envelope.data.noteHtml).toBeNull();
+  });
+
+  it("returns the project noteHtml", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createProject({ name: "P", noteHtml: "<ul><li>item</li></ul>" });
+    const envelope = await handleNoteGetHtml({ targetKind: "project", id }, ctx);
+    expect(envelope.data.noteHtml).toBe("<ul><li>item</li></ul>");
+  });
+
+  it("does not set syncPending on read", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "T" });
+    const envelope = await handleNoteGetHtml({ targetKind: "task", id }, ctx);
+    expect(envelope.meta.syncPending).toBeUndefined();
+  });
+
+  it("throws NotFound for unknown task ID", async () => {
+    const { ctx } = makeCtx();
+    await expect(
+      handleNoteGetHtml({ targetKind: "task", id: "task_999999" }, ctx),
+    ).rejects.toThrow();
+  });
+
+  it("throws NotFound for unknown project ID", async () => {
+    const { ctx } = makeCtx();
+    await expect(
+      handleNoteGetHtml({ targetKind: "project", id: "project_999999" }, ctx),
+    ).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// note_set_html — schema
+// ---------------------------------------------------------------------------
+
+describe("note_set_html — input schema", () => {
+  it("requires targetKind, id, and noteHtml", () => {
+    expect(() => noteSetHtmlInputSchema.parse({ targetKind: "task", id: "task_000001" })).toThrow();
+  });
+
+  it("accepts null noteHtml (clear)", () => {
+    const parsed = noteSetHtmlInputSchema.parse({
+      targetKind: "task",
+      id: "task_000001",
+      noteHtml: null,
+    });
+    expect(parsed.noteHtml).toBeNull();
+  });
+
+  it("accepts empty string noteHtml", () => {
+    const parsed = noteSetHtmlInputSchema.parse({
+      targetKind: "task",
+      id: "task_000001",
+      noteHtml: "",
+    });
+    expect(parsed.noteHtml).toBe("");
+  });
+
+  it("accepts HTML fragment", () => {
+    const parsed = noteSetHtmlInputSchema.parse({
+      targetKind: "task",
+      id: "task_000001",
+      noteHtml: "<b>bold</b>",
+    });
+    expect(parsed.noteHtml).toBe("<b>bold</b>");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// note_set_html — handler
+// ---------------------------------------------------------------------------
+
+describe("note_set_html — handler", () => {
+  it("sets noteHtml on a task", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "T" });
+    await handleNoteSetHtml({ targetKind: "task", id, noteHtml: "<b>bold</b>" }, ctx);
+    expect((await adapter.getTask(id)).noteHtml).toBe("<b>bold</b>");
+  });
+
+  it("sets noteHtml on a project", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createProject({ name: "P" });
+    await handleNoteSetHtml({ targetKind: "project", id, noteHtml: "<ul><li>item</li></ul>" }, ctx);
+    expect((await adapter.getProject(id)).noteHtml).toBe("<ul><li>item</li></ul>");
+  });
+
+  it("clears noteHtml when passed null", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "T", noteHtml: "<b>old</b>" });
+    await handleNoteSetHtml({ targetKind: "task", id, noteHtml: null }, ctx);
+    expect((await adapter.getTask(id)).noteHtml).toBeNull();
+  });
+
+  it("overwrites existing noteHtml", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "T", noteHtml: "<b>old</b>" });
+    await handleNoteSetHtml({ targetKind: "task", id, noteHtml: "<i>new</i>" }, ctx);
+    expect((await adapter.getTask(id)).noteHtml).toBe("<i>new</i>");
+  });
+
+  it("sets meta.syncPending = true", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "T" });
+    const envelope = await handleNoteSetHtml({ targetKind: "task", id, noteHtml: "<b>x</b>" }, ctx);
+    expect(envelope.meta.syncPending).toBe(true);
+  });
+
+  it("returns { updated: true, id }", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "T" });
+    const envelope = await handleNoteSetHtml({ targetKind: "task", id, noteHtml: "<b>x</b>" }, ctx);
+    expect(envelope.data.updated).toBe(true);
+    expect(envelope.data.id).toBe(id);
+  });
+
+  it("throws NotFound for unknown task ID", async () => {
+    const { ctx } = makeCtx();
+    await expect(
+      handleNoteSetHtml({ targetKind: "task", id: "task_999999", noteHtml: "<b>x</b>" }, ctx),
+    ).rejects.toThrow();
+  });
+
+  it("HTML round-trip: bold, link, list", async () => {
+    const { ctx, adapter } = makeCtx();
+    const html = '<b>bold</b> <a href="https://example.com">link</a> <ul><li>item</li></ul>';
+    const id = await adapter.createTask({ name: "T" });
+    await handleNoteSetHtml({ targetKind: "task", id, noteHtml: html }, ctx);
+    const envelope = await handleNoteGetHtml({ targetKind: "task", id }, ctx);
+    expect(envelope.data.noteHtml).toBe(html);
   });
 });
