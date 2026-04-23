@@ -38,6 +38,7 @@ import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
 import type { Task } from "../../domain/task.js";
 import { ScriptError } from "../../errors/index.js";
+import appLaunchScript from "../../scripts/jxa/app_launch.js";
 import folderCreateScript from "../../scripts/jxa/folder_create.js";
 import folderDeleteScript from "../../scripts/jxa/folder_delete.js";
 import folderGetScript from "../../scripts/jxa/folder_get.js";
@@ -74,6 +75,7 @@ import taskUncompleteScript from "../../scripts/jxa/task_uncomplete.js";
 import taskUndropScript from "../../scripts/jxa/task_undrop.js";
 import taskUpdateScript from "../../scripts/jxa/task_update.js";
 import type {
+  AppLaunchResult,
   CreateFolderInput,
   CreateProjectInput,
   CreateTagInput,
@@ -518,6 +520,19 @@ export class JxaTransport implements OmniFocusAdapter {
     _input: import("../OmniFocusAdapter.js").ForecastInput,
   ): Promise<import("../OmniFocusAdapter.js").ForecastResult> {
     return notYetWired("getForecast");
+  }
+
+  // -- App lifecycle (wired) ------------------------------------------------
+
+  async appLaunch(): Promise<AppLaunchResult> {
+    return runJxaScript<AppLaunchResult>(
+      appLaunchScript,
+      {},
+      {
+        ...this.runOpts,
+        scriptName: "app_launch",
+      },
+    );
   }
 
   // -- Plug-in invocation ---------------------------------------------------
