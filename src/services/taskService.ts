@@ -88,6 +88,19 @@ export interface TaskListInput {
   cursor?: string;
 }
 
+export interface TaskGetInput {
+  id: TaskId;
+  /** Default true. When false, subtasks is omitted. */
+  includeSubtasks?: boolean;
+}
+
+export interface TaskGetResult {
+  task: Task;
+  /** Flat list of direct subtasks (parentId === id). Omitted when includeSubtasks=false. */
+  subtasks?: Task[];
+  cacheHit: boolean;
+}
+
 /** Result of {@link TaskService.list} — the service returns the domain payload plus pagination. */
 export interface TaskListResult {
   tasks: Task[];
@@ -166,6 +179,31 @@ export class TaskService {
       hasMore: nextCursor !== null,
       cacheHit,
     };
+  }
+
+  /**
+   * Fetch a single task by ID.
+   *
+   * Optionally attaches the task's flat subtask list (all tasks with `parentId === id`).
+   * The caller rebuilds the tree via `parentId` linkage — the service returns a flat array.
+   * Results are cached under a key that invalidates on any task mutation.
+   *
+   * @throws {NotFound} when the task ID does not exist in OmniFocus
+   * @throws {OmniFocusNotRunning} when OmniFocus is not running
+   */
+  async get(input: TaskGetInput): Promise<TaskGetResult> {
+    const includeSubtasks = input.includeSubtasks ?? true;
+    const cacheKey = `task:${input.id}:${includeSubtasks ? "with-subtasks" : "solo"}`;
+    const cacheHit = this.cache.has(cacheKey);
+
+    const payload = await this.cache.wrap(cacheKey, async () => {
+      const task = await this.adapter.getTask(input.id);
+      if (!includeSubtasks) return { task };
+      const subtasks = await this.adapter.listTasks({ parentId: input.id });
+      return { task, subtasks };
+    });
+
+    return { ...payload, cacheHit };
   }
 
   // -- Internal: page assembly -------------------------------------------

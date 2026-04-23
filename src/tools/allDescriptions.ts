@@ -32,6 +32,7 @@ import { TAG_UPDATE_DESCRIPTION } from "./tag/update.js";
 import { TASK_CLEAR_REPETITION_DESCRIPTION } from "./task/clearRepetition.js";
 import { TASK_DELETE_DESCRIPTION } from "./task/delete.js";
 import { TASK_FIND_BY_NAME_DESCRIPTION } from "./task/findByName.js";
+import { TASK_GET_DESCRIPTION } from "./task/get.js";
 import { TASK_GET_MANY_DESCRIPTION } from "./task/getMany.js";
 import { TASK_LIST_DESCRIPTION } from "./task/list.js";
 import { TASK_SET_REPETITION_DESCRIPTION } from "./task/setRepetition.js";
@@ -65,6 +66,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   task_clear_repetition: TASK_CLEAR_REPETITION_DESCRIPTION,
   task_delete: TASK_DELETE_DESCRIPTION,
   task_find_by_name: TASK_FIND_BY_NAME_DESCRIPTION,
+  task_get: TASK_GET_DESCRIPTION,
   task_get_many: TASK_GET_MANY_DESCRIPTION,
   task_list: TASK_LIST_DESCRIPTION,
   task_set_repetition: TASK_SET_REPETITION_DESCRIPTION,
