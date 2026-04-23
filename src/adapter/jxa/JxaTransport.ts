@@ -520,6 +520,17 @@ export class JxaTransport implements OmniFocusAdapter {
     return notYetWired("getForecast");
   }
 
+  // -- Plug-in invocation ---------------------------------------------------
+  // Plug-in invocation requires the OmniJS runtime; JXA has no access to the
+  // PlugIn API. This stub satisfies the interface — TransportRouter always
+  // routes pluginInvoke to OmniJsTransport.
+
+  async pluginInvoke(
+    _input: import("../OmniFocusAdapter.js").PluginInvokeInput,
+  ): Promise<import("../OmniFocusAdapter.js").PluginInvokeResult> {
+    return notYetWired("pluginInvoke");
+  }
+
   // -- Sync (wired) ---------------------------------------------------------
 
   async syncTrigger(): Promise<SyncStatus> {

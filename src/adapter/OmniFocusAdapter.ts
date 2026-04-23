@@ -190,6 +190,21 @@ export interface ForecastInput {
   includeOverdue?: boolean;
 }
 
+export interface PluginInvokeInput {
+  /** Bundle identifier of the Omni Automation plug-in to invoke. */
+  identifier: string;
+  /**
+   * Optional argument forwarded to the plug-in action's `perform()` handler
+   * as `Action.args[0]`. Must be JSON-serialisable; defaults to `null`.
+   */
+  arg?: unknown;
+}
+
+export interface PluginInvokeResult {
+  /** The value returned by the plug-in action (deserialised from JSON). */
+  result: unknown;
+}
+
 export interface ForecastResult {
   /** Tasks whose dueDate is before `from` and are not completed/dropped. Only populated when includeOverdue=true (default true). */
   overdue: Task[];
@@ -289,6 +304,24 @@ export interface OmniFocusAdapter {
 
   // -- Forecast --------------------------------------------------------------
   getForecast(input: ForecastInput): Promise<ForecastResult>;
+
+  // -- Plug-in invocation ----------------------------------------------------
+
+  /**
+   * Invoke a named Omni Automation plug-in action via OmniJS.
+   *
+   * `identifier` is the plug-in's bundle identifier (e.g.
+   * `"com.example.my-plugin"`). `arg` is an optional JSON-serialisable
+   * value passed to the action's `perform()` handler as `Action.args[0]`.
+   *
+   * Returns whatever the plug-in action returns (deserialised from JSON).
+   * Throws `FeatureRequiresPro` when the plug-in runtime is unavailable (e.g.
+   * OmniFocus Standard without the Automation add-on).
+   *
+   * **Only available via OmniJS transport** — JXA has no access to the
+   * plug-in runtime. Routed to `OmniJsTransport` by the routing table.
+   */
+  pluginInvoke(input: PluginInvokeInput): Promise<PluginInvokeResult>;
 
   // -- Raw escape hatches (only wired when OMNIFOCUS_ALLOW_RAW_SCRIPT=1) -----
 

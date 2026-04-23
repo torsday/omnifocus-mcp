@@ -39,6 +39,8 @@ import type {
   CreateTagInput,
   CreateTaskInput,
   OmniFocusAdapter,
+  PluginInvokeInput,
+  PluginInvokeResult,
   SyncStatus,
   TaskFilter,
   UpdateFolderInput,
@@ -217,6 +219,19 @@ export class OmniJsTransport implements OmniFocusAdapter {
     _input: import("../OmniFocusAdapter.js").ForecastInput,
   ): Promise<import("../OmniFocusAdapter.js").ForecastResult> {
     return notYetWired("getForecast");
+  }
+
+  // -- Plug-in invocation (wired) -------------------------------------------
+
+  async pluginInvoke(input: PluginInvokeInput): Promise<PluginInvokeResult> {
+    const script = await import("node:fs/promises").then((fs) =>
+      fs.readFile(new URL("../../scripts/omnijs/plugin_invoke.js", import.meta.url), "utf8"),
+    );
+    return runOmniJsScript<PluginInvokeResult>(
+      script,
+      { identifier: input.identifier, arg: input.arg ?? null },
+      { ...this.runOpts, scriptName: "plugin_invoke" },
+    );
   }
 
   // -- Perspectives ---------------------------------------------------------
