@@ -16,13 +16,20 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { InMemoryAdapter } from "../adapter/inMemory/InMemoryAdapter.js";
 import { parseConfig, redactConfig } from "../config/env.js";
+import type { ResponseMeta } from "../envelope/index.js";
 import { logger } from "../logging/logger.js";
+import { registerInternalStatusTool } from "../tools/observability/internalStatus.js";
+import { circuitBreakerRegistry } from "./circuitBreaker.js";
 import { shutdownController } from "./shutdown.js";
 import { installStdoutGuard } from "./stdoutGuard.js";
 
 const PACKAGE_VERSION = "0.0.1";
 const SERVER_NAME = "omnifocus-mcp";
+
+/** Timestamp (ms) captured at module load — used for uptime reporting. */
+const startedAt = Date.now();
 
 /**
  * Create and return an unconnected McpServer instance.
@@ -57,6 +64,23 @@ export async function startServer(): Promise<void> {
   const server = createMcpServer();
   const transport = new StdioServerTransport();
 
+  // Register internal_status tool.
+  // Uses InMemoryAdapter for getLastSync until the real adapter is wired (M1+).
+  const internalStatusAdapter = new InMemoryAdapter();
+  registerInternalStatusTool(server, {
+    startedAt,
+    adapter: internalStatusAdapter,
+    circuitRegistry: circuitBreakerRegistry,
+    makeMeta: (partial: Partial<ResponseMeta> = {}): ResponseMeta => ({
+      correlationId: `internal-${Date.now()}`,
+      durationMs: 0,
+      cacheHit: false,
+      transport: "memory",
+      ofVersion: "unknown",
+      ...partial,
+    }),
+  });
+
   // Graceful shutdown — delegate to shutdownController so tool handlers can
   // call assertNotShuttingDown() and in-flight queues drain cleanly.
   process.on("SIGINT", () => {
@@ -85,7 +109,7 @@ export async function startServer(): Promise<void> {
       event: "server.started",
       version: PACKAGE_VERSION,
       config: redactConfig(config),
-      tools: [],
+      tools: ["internal_status"],
     },
     "server started",
   );

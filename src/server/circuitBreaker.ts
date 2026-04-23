@@ -252,6 +252,17 @@ export class CircuitBreakerRegistry {
   get size(): number {
     return this._breakers.size;
   }
+
+  /**
+   * Return a snapshot of all registered breakers' current states.
+   * Safe to call at any time; does not mutate breaker state.
+   */
+  snapshot(): Array<{ name: string; state: CircuitState }> {
+    return Array.from(this._breakers.entries()).map(([name, breaker]) => ({
+      name,
+      state: breaker.state,
+    }));
+  }
 }
 
 // ---------------------------------------------------------------------------
