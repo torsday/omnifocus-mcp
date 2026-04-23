@@ -159,6 +159,15 @@ export class OmniJsTransport implements OmniFocusAdapter {
   async markProjectReviewed(_id: ProjectId): Promise<void> {
     return notYetWired("markProjectReviewed");
   }
+  async listProjectsDueForReview(): Promise<import("../../domain/project.js").Project[]> {
+    return notYetWired("listProjectsDueForReview");
+  }
+  async setProjectReviewInterval(
+    _id: import("../../domain/ids.js").ProjectId,
+    _days: number | null,
+  ): Promise<void> {
+    return notYetWired("setProjectReviewInterval");
+  }
 
   // -- Tags -----------------------------------------------------------------
 
