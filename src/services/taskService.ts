@@ -32,6 +32,7 @@
 
 import { z } from "zod";
 import type { OmniFocusAdapter, TaskFilter } from "../adapter/OmniFocusAdapter.js";
+import { isIsoDateString, isRelativeDateShortcut, resolveRelativeDate } from "../domain/dates.js";
 import type { ProjectId, TagId, TaskId } from "../domain/ids.js";
 import type { Task } from "../domain/task.js";
 import { ValidationError } from "../errors/index.js";
@@ -76,6 +77,12 @@ export interface TaskListInput {
   sortBy?: TaskSortBy;
   /** Sort direction. Default "asc". */
   sortDirection?: "asc" | "desc";
+  /**
+   * Return only tasks modified strictly after this timestamp.
+   * ISO-8601 with offset, or a relative shortcut (today, yesterday, this-week…).
+   * Relative shortcuts are resolved server-side to local midnight.
+   */
+  updatedSince?: string;
   /** 1..1000; service default is 200 when caller omits and any filter is set. */
   limit?: number;
   cursor?: string;
@@ -179,6 +186,13 @@ export class TaskService {
         ? raw.filter((t) => normalized.tagIds.every((id) => t.tagIds.includes(id)))
         : raw;
 
+    // Post-filter: updatedSince — keep only tasks modified strictly after the threshold.
+    const { updatedSince } = normalized;
+    const afterUpdatedSince =
+      updatedSince !== undefined
+        ? postFiltered.filter((t) => t.modifiedAt > updatedSince)
+        : postFiltered;
+
     // Stable sort: (sortValue, id ASC). Null values sort last regardless of direction.
     const { sortBy, sortDirection } = normalized;
     const getSortValue = (t: Task): string | null => {
@@ -194,7 +208,7 @@ export class TaskService {
       }
     };
 
-    const sorted = [...postFiltered].sort((a, b) => {
+    const sorted = [...afterUpdatedSince].sort((a, b) => {
       const av = getSortValue(a);
       const bv = getSortValue(b);
       // Nulls last regardless of direction
@@ -265,7 +279,8 @@ export class TaskService {
       input.dueBefore !== undefined ||
       input.dueAfter !== undefined ||
       input.deferredBefore !== undefined ||
-      input.parentId !== undefined
+      input.parentId !== undefined ||
+      input.updatedSince !== undefined
     );
   }
 
@@ -279,6 +294,25 @@ export class TaskService {
       input.tagIds !== undefined
         ? [...new Set(input.tagIds)].sort((a, b) => a.localeCompare(b))
         : [];
+    // Resolve updatedSince: accept ISO-8601 or a relative shortcut.
+    let updatedSince: string | undefined;
+    if (input.updatedSince !== undefined) {
+      if (isIsoDateString(input.updatedSince)) {
+        updatedSince = input.updatedSince;
+      } else if (isRelativeDateShortcut(input.updatedSince)) {
+        updatedSince = resolveRelativeDate(input.updatedSince);
+      } else {
+        throw new ValidationError(
+          `updatedSince must be an ISO-8601 timestamp with offset or a relative shortcut (today, yesterday, this-week, next-week, end-of-week, end-of-month). Got: "${input.updatedSince}".`,
+          {
+            details: { field: "updatedSince", value: input.updatedSince },
+            suggestion:
+              "Pass an ISO-8601 string with offset (e.g. '2026-04-21T10:00:00-07:00') or a shortcut like 'today'.",
+          },
+        );
+      }
+    }
+
     return {
       projectId: input.projectId,
       tagIds,
@@ -291,6 +325,7 @@ export class TaskService {
       parentId: input.parentId,
       sortBy: input.sortBy ?? "createdAt",
       sortDirection: input.sortDirection ?? "asc",
+      updatedSince,
     };
   }
 
@@ -364,4 +399,6 @@ interface NormalizedFilter {
   parentId: TaskId | undefined;
   sortBy: TaskSortBy;
   sortDirection: "asc" | "desc";
+  /** Resolved ISO-8601 timestamp (relative shortcuts already expanded). */
+  updatedSince: string | undefined;
 }
