@@ -43,7 +43,9 @@ export const ID_CAST_ALLOWED_RE = /src[/\\]domain[/\\]ids\.(ts|js)$/;
 export const THROW_NEW_ERROR_RE = /\bthrow\s+new\s+Error\s*\(/;
 
 /** Files allowed to contain `throw new Error(` */
-export const THROW_ALLOWED_RE = /src[/\\]errors[/\\]/;
+// JXA scripts (src/scripts/jxa/) run inside osascript and cannot import typed
+// errors — plain `throw new Error(...)` is the only option there.
+export const THROW_ALLOWED_RE = /src[/\\]errors[/\\]|src[/\\]scripts[/\\]jxa[/\\]/;
 
 /**
  * Match user-content property accesses that must not appear in metadata

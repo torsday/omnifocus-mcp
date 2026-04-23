@@ -8,11 +8,10 @@
  * loads the right script and shapes the response into the domain types
  * defined by `OmniFocusAdapter`.
  *
- * **Status (M0 keystone):** This file ships the transport scaffolding plus
- * one wired method (`syncTrigger`) as proof. Per-domain scripts (tasks,
- * projects, tags, folders, forecast, search, notes, repetition,
- * attachments, review) land via follow-up issues so each can carry its
- * own JXA script + tests + smoke without piling into a single mega-PR.
+ * **Wired domains:** sync, tags, folders.
+ * **Stubbed domains:** tasks, projects, search, forecast, notes, repetition,
+ * attachments, review — these arrive via follow-up issues so each can carry
+ * its own JXA script + tests without piling into a single mega-PR.
  * Stubbed methods throw `ScriptError` with `details.reason: "not-yet-wired"`
  * so `TransportRouter` (#19) can route around them and tests can detect
  * the partial-implementation state precisely.
@@ -24,12 +23,29 @@
  */
 
 import type { Folder } from "../../domain/folder.js";
-import type { FolderId, ProjectId, TagId, TaskId } from "../../domain/ids.js";
+import {
+  type FolderId,
+  FolderId as FolderIdCtor,
+  type ProjectId,
+  type TagId,
+  TagId as TagIdCtor,
+  type TaskId,
+} from "../../domain/ids.js";
 import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
 import type { Task } from "../../domain/task.js";
 import { ScriptError } from "../../errors/index.js";
+import folderCreateScript from "../../scripts/jxa/folder_create.js";
+import folderDeleteScript from "../../scripts/jxa/folder_delete.js";
+import folderGetScript from "../../scripts/jxa/folder_get.js";
+import folderListScript from "../../scripts/jxa/folder_list.js";
+import folderUpdateScript from "../../scripts/jxa/folder_update.js";
 import syncTriggerScript from "../../scripts/jxa/sync_trigger.js";
+import tagCreateScript from "../../scripts/jxa/tag_create.js";
+import tagDeleteScript from "../../scripts/jxa/tag_delete.js";
+import tagGetScript from "../../scripts/jxa/tag_get.js";
+import tagListScript from "../../scripts/jxa/tag_list.js";
+import tagUpdateScript from "../../scripts/jxa/tag_update.js";
 import type {
   CreateFolderInput,
   CreateProjectInput,
@@ -157,40 +173,104 @@ export class JxaTransport implements OmniFocusAdapter {
     return notYetWired("markProjectReviewed");
   }
 
-  // -- Tags -----------------------------------------------------------------
+  // -- Tags (wired) ---------------------------------------------------------
 
-  async listTags(_filter?: { parentId?: TagId; status?: Tag["status"] }): Promise<Tag[]> {
-    return notYetWired("listTags");
-  }
-  async getTag(_id: TagId): Promise<Tag> {
-    return notYetWired("getTag");
-  }
-  async createTag(_input: CreateTagInput): Promise<TagId> {
-    return notYetWired("createTag");
-  }
-  async updateTag(_id: TagId, _patch: UpdateTagInput): Promise<void> {
-    return notYetWired("updateTag");
-  }
-  async deleteTag(_id: TagId): Promise<void> {
-    return notYetWired("deleteTag");
+  async listTags(filter?: { parentId?: TagId; status?: Tag["status"] }): Promise<Tag[]> {
+    const result = await runJxaScript<{ tags: Tag[] }>(
+      tagListScript,
+      {
+        parentId: filter?.parentId ?? null,
+        status: filter?.status ?? null,
+      },
+      { ...this.runOpts, scriptName: "tag_list" },
+    );
+    return result.tags.map((t) => ({ ...t, id: TagIdCtor.of(t.id) }));
   }
 
-  // -- Folders --------------------------------------------------------------
+  async getTag(id: TagId): Promise<Tag> {
+    const result = await runJxaScript<{ tag: Tag }>(
+      tagGetScript,
+      { id },
+      { ...this.runOpts, scriptName: "tag_get" },
+    );
+    return { ...result.tag, id: TagIdCtor.of(result.tag.id) };
+  }
 
-  async listFolders(_filter?: { parentId?: FolderId }): Promise<Folder[]> {
-    return notYetWired("listFolders");
+  async createTag(input: CreateTagInput): Promise<TagId> {
+    const result = await runJxaScript<{ tag: Tag }>(
+      tagCreateScript,
+      { name: input.name, parentId: input.parentId ?? null },
+      { ...this.runOpts, scriptName: "tag_create" },
+    );
+    return TagIdCtor.of(result.tag.id);
   }
-  async getFolder(_id: FolderId): Promise<Folder> {
-    return notYetWired("getFolder");
+
+  async updateTag(id: TagId, patch: UpdateTagInput): Promise<void> {
+    await runJxaScript<{ tag: Tag }>(
+      tagUpdateScript,
+      {
+        id,
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+        ...(patch.allowsNextAction !== undefined
+          ? { allowsNextAction: patch.allowsNextAction }
+          : {}),
+      },
+      { ...this.runOpts, scriptName: "tag_update" },
+    );
   }
-  async createFolder(_input: CreateFolderInput): Promise<FolderId> {
-    return notYetWired("createFolder");
+
+  async deleteTag(id: TagId): Promise<void> {
+    await runJxaScript<{ id: string }>(
+      tagDeleteScript,
+      { id },
+      { ...this.runOpts, scriptName: "tag_delete" },
+    );
   }
-  async updateFolder(_id: FolderId, _patch: UpdateFolderInput): Promise<void> {
-    return notYetWired("updateFolder");
+
+  // -- Folders (wired) ------------------------------------------------------
+
+  async listFolders(filter?: { parentId?: FolderId }): Promise<Folder[]> {
+    const result = await runJxaScript<{ folders: Folder[] }>(
+      folderListScript,
+      { parentId: filter?.parentId ?? null },
+      { ...this.runOpts, scriptName: "folder_list" },
+    );
+    return result.folders.map((f) => ({ ...f, id: FolderIdCtor.of(f.id) }));
   }
-  async deleteFolder(_id: FolderId): Promise<void> {
-    return notYetWired("deleteFolder");
+
+  async getFolder(id: FolderId): Promise<Folder> {
+    const result = await runJxaScript<{ folder: Folder }>(
+      folderGetScript,
+      { id },
+      { ...this.runOpts, scriptName: "folder_get" },
+    );
+    return { ...result.folder, id: FolderIdCtor.of(result.folder.id) };
+  }
+
+  async createFolder(input: CreateFolderInput): Promise<FolderId> {
+    const result = await runJxaScript<{ folder: Folder }>(
+      folderCreateScript,
+      { name: input.name, parentId: input.parentId ?? null },
+      { ...this.runOpts, scriptName: "folder_create" },
+    );
+    return FolderIdCtor.of(result.folder.id);
+  }
+
+  async updateFolder(id: FolderId, patch: UpdateFolderInput): Promise<void> {
+    await runJxaScript<{ folder: Folder }>(
+      folderUpdateScript,
+      { id, ...(patch.name !== undefined ? { name: patch.name } : {}) },
+      { ...this.runOpts, scriptName: "folder_update" },
+    );
+  }
+
+  async deleteFolder(id: FolderId): Promise<void> {
+    await runJxaScript<{ id: string }>(
+      folderDeleteScript,
+      { id },
+      { ...this.runOpts, scriptName: "folder_delete" },
+    );
   }
 
   // -- Search ---------------------------------------------------------------

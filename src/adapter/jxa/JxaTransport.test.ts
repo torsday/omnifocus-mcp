@@ -76,14 +76,15 @@ describe("JxaTransport — not-yet-wired stubs", () => {
   const t = new JxaTransport({ spawner: spawnerReturning("{}") });
 
   // Sample one method per domain group; the per-method shape is uniform.
+  // Note: listTags, getTag, createTag, updateTag, deleteTag, listFolders,
+  // getFolder, createFolder, updateFolder, deleteFolder are now wired and
+  // tested in JxaTransport.tags-folders.test.ts.
   const cases: Array<readonly [string, () => Promise<unknown>]> = [
     ["listTasks", () => t.listTasks({})],
     ["getTask", () => t.getTask("task_000001" as TaskId)],
     ["createTask", () => t.createTask({ name: "x" })],
     ["listProjects", () => t.listProjects()],
     ["getProject", () => t.getProject("proj_000001" as ProjectId)],
-    ["listTags", () => t.listTags()],
-    ["listFolders", () => t.listFolders()],
   ];
 
   for (const [method, call] of cases) {
