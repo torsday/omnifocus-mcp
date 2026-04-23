@@ -34,6 +34,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter, TaskFilter } from "../adapter/OmniFocusAdapter.js";
 import { isIsoDateString, isRelativeDateShortcut, resolveRelativeDate } from "../domain/dates.js";
 import type { ProjectId, TagId, TaskId } from "../domain/ids.js";
+import { buildTaskLinks } from "../domain/links.js";
 import type { Task } from "../domain/task.js";
 import { ValidationError } from "../errors/index.js";
 import {
@@ -198,9 +199,11 @@ export class TaskService {
 
     const payload = await this.cache.wrap(cacheKey, async () => {
       const task = await this.adapter.getTask(input.id);
-      if (!includeSubtasks) return { task };
+      const enrichedTask = { ...task, _links: buildTaskLinks(task) };
+      if (!includeSubtasks) return { task: enrichedTask };
       const subtasks = await this.adapter.listTasks({ parentId: input.id });
-      return { task, subtasks };
+      const enrichedSubtasks = subtasks.map((t) => ({ ...t, _links: buildTaskLinks(t) }));
+      return { task: enrichedTask, subtasks: enrichedSubtasks };
     });
 
     return { ...payload, cacheHit };
@@ -272,7 +275,8 @@ export class TaskService {
     const hasMore = afterCursor.length > limit;
     const nextCursor = hasMore ? this.encodeNextCursor(page, filterHash, getSortValue) : null;
 
-    return { tasks: page, nextCursor };
+    const tasks = page.map((t) => ({ ...t, _links: buildTaskLinks(t) }));
+    return { tasks, nextCursor };
   }
 
   // -- Internal: validation ----------------------------------------------

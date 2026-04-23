@@ -24,6 +24,8 @@ import {
   type TagId,
   TagId as TagIdCtor,
 } from "./ids.js";
+// biome-ignore lint/correctness/noUnusedImports: used in interface and schema
+import { type ProjectLinks, projectLinksSchema } from "./links.js";
 
 // ---------------------------------------------------------------------------
 // Project
@@ -60,6 +62,8 @@ export interface Project {
 
   createdAt: IsoDateString;
   modifiedAt: IsoDateString;
+
+  _links?: ProjectLinks;
 }
 
 // ---------------------------------------------------------------------------
@@ -97,4 +101,6 @@ export const ProjectSchema: z.ZodType<Project, z.ZodTypeDef, unknown> = z.object
 
   createdAt: isoDateString(),
   modifiedAt: isoDateString(),
+
+  _links: projectLinksSchema.optional(),
 }) as z.ZodType<Project, z.ZodTypeDef, unknown>;

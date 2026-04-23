@@ -31,6 +31,7 @@ import type {
   UpdateProjectInput,
 } from "../adapter/OmniFocusAdapter.js";
 import type { FolderId, ProjectId } from "../domain/ids.js";
+import { buildProjectLinks, buildTaskLinks } from "../domain/links.js";
 import type { Project } from "../domain/project.js";
 import type { Task } from "../domain/task.js";
 import { ValidationError } from "../errors/index.js";
@@ -195,9 +196,11 @@ export class ProjectService {
 
     const payload = await this.cache.wrap(cacheKey, async () => {
       const project = await this.adapter.getProject(input.id);
-      if (!includeTaskTree) return { project };
+      const enrichedProject = { ...project, _links: buildProjectLinks(project) };
+      if (!includeTaskTree) return { project: enrichedProject };
       const tasks = await this.adapter.listTasks({ projectId: input.id });
-      return { project, tasks };
+      const enrichedTasks = tasks.map((t) => ({ ...t, _links: buildTaskLinks(t) }));
+      return { project: enrichedProject, tasks: enrichedTasks };
     });
 
     return { ...payload, cacheHit };
@@ -244,7 +247,8 @@ export class ProjectService {
     const hasMore = afterCursor.length > limit;
     const nextCursor = hasMore ? this.encodeNextCursor(page, filterHash) : null;
 
-    return { projects: page, nextCursor };
+    const projects = page.map((p) => ({ ...p, _links: buildProjectLinks(p) }));
+    return { projects, nextCursor };
   }
 
   // -- Internal: validation ----------------------------------------------

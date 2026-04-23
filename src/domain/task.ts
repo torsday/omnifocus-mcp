@@ -24,6 +24,8 @@ import {
   type TaskId,
   TaskId as TaskIdCtor,
 } from "./ids.js";
+// biome-ignore lint/correctness/noUnusedImports: used in interface and schema
+import { type TaskLinks, taskLinksSchema } from "./links.js";
 
 // ---------------------------------------------------------------------------
 // RepetitionRule
@@ -84,6 +86,8 @@ export interface Task {
 
   createdAt: IsoDateString;
   modifiedAt: IsoDateString;
+
+  _links?: TaskLinks;
 }
 
 // ---------------------------------------------------------------------------
@@ -158,4 +162,6 @@ export const TaskSchema: z.ZodType<Task, z.ZodTypeDef, unknown> = z.object({
 
   createdAt: isoDateString(),
   modifiedAt: isoDateString(),
+
+  _links: taskLinksSchema.optional(),
 }) as z.ZodType<Task, z.ZodTypeDef, unknown>;
