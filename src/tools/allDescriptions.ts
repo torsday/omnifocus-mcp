@@ -6,6 +6,7 @@
  */
 
 import { FOLDER_CREATE_DESCRIPTION } from "./folder/create.js";
+import { INTERNAL_STATUS_DESCRIPTION } from "./observability/internalStatus.js";
 import { FOLDER_DELETE_DESCRIPTION } from "./folder/delete.js";
 import { FOLDER_GET_DESCRIPTION } from "./folder/get.js";
 import { FOLDER_LIST_DESCRIPTION } from "./folder/list.js";
@@ -41,6 +42,7 @@ import { TASK_UPDATE_DESCRIPTION } from "./task/update.js";
 
 export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   folder_create: FOLDER_CREATE_DESCRIPTION,
+  internal_status: INTERNAL_STATUS_DESCRIPTION,
   folder_delete: FOLDER_DELETE_DESCRIPTION,
   folder_get: FOLDER_GET_DESCRIPTION,
   folder_list: FOLDER_LIST_DESCRIPTION,
