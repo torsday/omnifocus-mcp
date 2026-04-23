@@ -138,6 +138,9 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   syncTrigger: "jxa",
   getLastSync: "jxa",
 
+  // -- App lifecycle --------------------------------------------------------
+  appLaunch: "jxa",
+
   // -- Plug-in invocation ---------------------------------------------------
   pluginInvoke: "omnijs",
 
@@ -339,6 +342,12 @@ export class TransportRouter implements OmniFocusAdapter {
   }
   getLastSync(): Promise<SyncStatus> {
     return this.pick("getLastSync").getLastSync();
+  }
+
+  // -- App lifecycle --------------------------------------------------------
+
+  appLaunch(): Promise<import("./OmniFocusAdapter.js").AppLaunchResult> {
+    return this.pick("appLaunch").appLaunch();
   }
 
   // -- Plug-in invocation ---------------------------------------------------

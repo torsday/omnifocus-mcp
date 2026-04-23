@@ -73,6 +73,7 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     deleteFolder: record("deleteFolder"),
     searchTasks: record("searchTasks"),
     getForecast: record("getForecast"),
+    appLaunch: record("appLaunch"),
     pluginInvoke: record("pluginInvoke"),
     listPerspectives: record("listPerspectives"),
     evaluatePerspective: record("evaluatePerspective"),
@@ -129,6 +130,7 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
     searchTasks: () => r.searchTasks({ q: "x" }),
     getForecast: () =>
       r.getForecast({ from: "2026-04-23T00:00:00.000Z", to: "2026-04-23T23:59:59.999Z" }),
+    appLaunch: () => r.appLaunch(),
     pluginInvoke: () => r.pluginInvoke({ identifier: "com.example.test" }),
     listPerspectives: () => r.listPerspectives(),
     evaluatePerspective: () => r.evaluatePerspective("inbox"),

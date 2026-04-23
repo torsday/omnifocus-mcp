@@ -772,6 +772,15 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     return { overdue, dueToday, deferredToday, flagged };
   }
 
+  // -- App lifecycle --------------------------------------------------------
+  // The in-memory adapter has no OS-level launch capability. Return a
+  // synthetic "already running" response so tests that exercise the tool
+  // surface don't need a live OmniFocus process.
+
+  async appLaunch(): Promise<import("../OmniFocusAdapter.js").AppLaunchResult> {
+    return { launched: false, alreadyRunning: true };
+  }
+
   // -- Plug-in invocation ---------------------------------------------------
   // The in-memory adapter is used exclusively for unit tests and does not
   // have access to the OmniJS plug-in runtime. Throw `NotFound` with a

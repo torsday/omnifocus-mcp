@@ -1,3 +1,4 @@
+import { APP_LAUNCH_DESCRIPTION } from "./app/launch.js";
 import { EXPORT_OPML_DESCRIPTION } from "./export/opml.js";
 import { FOLDER_CREATE_DESCRIPTION } from "./folder/create.js";
 import { FOLDER_DELETE_DESCRIPTION } from "./folder/delete.js";
@@ -38,6 +39,7 @@ import { TASK_SET_REPETITION_DESCRIPTION } from "./task/setRepetition.js";
 import { TASK_UPDATE_DESCRIPTION } from "./task/update.js";
 
 export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
+  app_launch: APP_LAUNCH_DESCRIPTION,
   export_opml: EXPORT_OPML_DESCRIPTION,
   forecast_get: FORECAST_GET_DESCRIPTION,
   folder_create: FOLDER_CREATE_DESCRIPTION,

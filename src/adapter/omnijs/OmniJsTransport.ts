@@ -221,6 +221,14 @@ export class OmniJsTransport implements OmniFocusAdapter {
     return notYetWired("getForecast");
   }
 
+  // -- App lifecycle --------------------------------------------------------
+  // App launch is a JXA operation (activate via osascript); OmniJsTransport
+  // satisfies the interface only — TransportRouter never routes here.
+
+  async appLaunch(): Promise<import("../OmniFocusAdapter.js").AppLaunchResult> {
+    return notYetWired("appLaunch");
+  }
+
   // -- Plug-in invocation (wired) -------------------------------------------
 
   async pluginInvoke(input: PluginInvokeInput): Promise<PluginInvokeResult> {

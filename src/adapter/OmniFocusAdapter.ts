@@ -190,6 +190,13 @@ export interface ForecastInput {
   includeOverdue?: boolean;
 }
 
+export interface AppLaunchResult {
+  /** True when OmniFocus was not running and was launched by this call. */
+  launched: boolean;
+  /** True when OmniFocus was already running before this call. */
+  alreadyRunning: boolean;
+}
+
 export interface PluginInvokeInput {
   /** Bundle identifier of the Omni Automation plug-in to invoke. */
   identifier: string;
@@ -304,6 +311,15 @@ export interface OmniFocusAdapter {
 
   // -- Forecast --------------------------------------------------------------
   getForecast(input: ForecastInput): Promise<ForecastResult>;
+
+  // -- App lifecycle ---------------------------------------------------------
+
+  /**
+   * Explicitly launch OmniFocus. Never called automatically — the agent must
+   * call this tool only when the user asks. Idempotent: resolves with
+   * `alreadyRunning=true` if OF is already open.
+   */
+  appLaunch(): Promise<AppLaunchResult>;
 
   // -- Plug-in invocation ----------------------------------------------------
 
