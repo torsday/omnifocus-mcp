@@ -33,7 +33,7 @@ export interface TagDeleteContext {
  */
 export async function handleTagDelete(input: TagDeleteToolInput, ctx: TagDeleteContext) {
   await ctx.tagService.delete(input.id);
-  return ok({ deleted: true, id: input.id }, ctx.makeMeta());
+  return ok({ deleted: true, id: input.id }, ctx.makeMeta({ syncPending: true }));
 }
 
 export function registerTagDeleteTool(server: McpServer, ctx: TagDeleteContext) {

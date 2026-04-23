@@ -36,7 +36,7 @@ export interface TagMoveContext {
 export async function handleTagMove(input: TagMoveToolInput, ctx: TagMoveContext) {
   await ctx.tagService.move(input.id, input.parentId);
   const { tag } = await ctx.tagService.get(input.id);
-  return ok({ tag }, ctx.makeMeta());
+  return ok({ tag }, ctx.makeMeta({ syncPending: true }));
 }
 
 export function registerTagMoveTool(server: McpServer, ctx: TagMoveContext) {

@@ -59,7 +59,7 @@ export async function handleTagSetLocation(
     trigger: input.trigger,
   });
   const { tag } = await ctx.tagService.get(input.id);
-  return ok({ tag }, ctx.makeMeta());
+  return ok({ tag }, ctx.makeMeta({ syncPending: true }));
 }
 
 export function registerTagSetLocationTool(server: McpServer, ctx: TagSetLocationContext) {

@@ -50,7 +50,7 @@ export async function handleTagCreate(input: TagCreateToolInput, ctx: TagCreateC
     ...(input.allowsNextAction !== undefined ? { allowsNextAction: input.allowsNextAction } : {}),
   });
   const { tag } = await ctx.tagService.get(createResult.id);
-  const meta = ctx.makeMeta();
+  const meta = ctx.makeMeta({ syncPending: true });
   return ok({ tag }, meta);
 }
 
