@@ -1,10 +1,3 @@
-/**
- * Central registry of every exported tool description constant.
- *
- * Used by the description-shape lint test (descriptions.lint.test.ts).
- * Add a new entry here whenever a new tool is introduced.
- */
-
 import { FOLDER_CREATE_DESCRIPTION } from "./folder/create.js";
 import { INTERNAL_STATUS_DESCRIPTION } from "./observability/internalStatus.js";
 import { FOLDER_DELETE_DESCRIPTION } from "./folder/delete.js";
@@ -12,6 +5,7 @@ import { FOLDER_GET_DESCRIPTION } from "./folder/get.js";
 import { FOLDER_LIST_DESCRIPTION } from "./folder/list.js";
 import { FOLDER_MOVE_DESCRIPTION } from "./folder/move.js";
 import { FOLDER_UPDATE_DESCRIPTION } from "./folder/update.js";
+import { FORECAST_GET_DESCRIPTION } from "./forecast/get.js";
 import { NOTE_APPEND_DESCRIPTION } from "./note/append.js";
 import { NOTE_GET_DESCRIPTION } from "./note/get.js";
 import { NOTE_GET_HTML_DESCRIPTION } from "./note/get_html.js";
@@ -42,6 +36,7 @@ import { TASK_SET_REPETITION_DESCRIPTION } from "./task/setRepetition.js";
 import { TASK_UPDATE_DESCRIPTION } from "./task/update.js";
 
 export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
+  forecast_get: FORECAST_GET_DESCRIPTION,
   folder_create: FOLDER_CREATE_DESCRIPTION,
   internal_status: INTERNAL_STATUS_DESCRIPTION,
   folder_delete: FOLDER_DELETE_DESCRIPTION,

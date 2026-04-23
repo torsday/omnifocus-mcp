@@ -128,6 +128,7 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
 
   // -- Search ---------------------------------------------------------------
   searchTasks: "jxa",
+  getForecast: "jxa",
 
   // -- Perspectives ---------------------------------------------------------
   listPerspectives: "jxa",
@@ -312,6 +313,12 @@ export class TransportRouter implements OmniFocusAdapter {
     filter: import("./OmniFocusAdapter.js").SearchFilter,
   ): Promise<import("../domain/task.js").Task[]> {
     return this.pick("searchTasks").searchTasks(filter);
+  }
+
+  getForecast(
+    input: import("./OmniFocusAdapter.js").ForecastInput,
+  ): Promise<import("./OmniFocusAdapter.js").ForecastResult> {
+    return this.pick("getForecast").getForecast(input);
   }
 
   listPerspectives(): Promise<import("../domain/perspective.js").Perspective[]> {

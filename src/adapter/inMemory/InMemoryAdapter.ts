@@ -49,6 +49,8 @@ import type {
   CreateProjectInput,
   CreateTagInput,
   CreateTaskInput,
+  ForecastInput,
+  ForecastResult,
   OmniFocusAdapter,
   SearchFilter,
   SyncStatus,
@@ -746,6 +748,26 @@ export class InMemoryAdapter implements OmniFocusAdapter {
       return all.filter((t) => t.tagIds.length > 0 && !t.completed && !t.dropped);
     }
     return [];
+  }
+
+  async getForecast(input: ForecastInput): Promise<ForecastResult> {
+    const all = Array.from(this.tasks.values()).filter((t) => !t.completed && !t.dropped);
+    const {
+      from,
+      to,
+      includeOverdue = true,
+      includeDeferred = true,
+      includeFlagged = true,
+    } = input;
+
+    const overdue = includeOverdue ? all.filter((t) => t.dueDate !== null && t.dueDate < from) : [];
+    const dueToday = all.filter((t) => t.dueDate !== null && t.dueDate >= from && t.dueDate <= to);
+    const deferredToday = includeDeferred
+      ? all.filter((t) => t.deferDate !== null && t.deferDate >= from && t.deferDate <= to)
+      : [];
+    const flagged = includeFlagged ? all.filter((t) => t.flagged) : [];
+
+    return { overdue, dueToday, deferredToday, flagged };
   }
 
   // -- Internal helpers -----------------------------------------------------

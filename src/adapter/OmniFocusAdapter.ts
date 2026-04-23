@@ -180,6 +180,27 @@ export interface SyncStatus {
   inFlight: boolean;
 }
 
+export interface ForecastInput {
+  /** ISO-8601 date string — start of range (inclusive). Default: start of today. */
+  from: string;
+  /** ISO-8601 date string — end of range (inclusive). Default: end of today. */
+  to: string;
+  includeDeferred?: boolean;
+  includeFlagged?: boolean;
+  includeOverdue?: boolean;
+}
+
+export interface ForecastResult {
+  /** Tasks whose dueDate is before `from` and are not completed/dropped. Only populated when includeOverdue=true (default true). */
+  overdue: Task[];
+  /** Tasks whose dueDate falls within [from, to] and are not completed/dropped. */
+  dueToday: Task[];
+  /** Tasks whose deferDate falls within [from, to] and are not completed/dropped. Only populated when includeDeferred=true (default true). */
+  deferredToday: Task[];
+  /** All flagged tasks that are not completed/dropped. Only populated when includeFlagged=true (default true). */
+  flagged: Task[];
+}
+
 // ---------------------------------------------------------------------------
 // Adapter interface
 // ---------------------------------------------------------------------------
@@ -265,6 +286,9 @@ export interface OmniFocusAdapter {
   /** Trigger a sync with Omni Sync; resolves once initiated (does not wait for completion). */
   syncTrigger(): Promise<SyncStatus>;
   getLastSync(): Promise<SyncStatus>;
+
+  // -- Forecast --------------------------------------------------------------
+  getForecast(input: ForecastInput): Promise<ForecastResult>;
 
   // -- Raw escape hatches (only wired when OMNIFOCUS_ALLOW_RAW_SCRIPT=1) -----
 

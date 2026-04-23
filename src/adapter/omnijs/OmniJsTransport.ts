@@ -213,6 +213,12 @@ export class OmniJsTransport implements OmniFocusAdapter {
     return notYetWired("searchTasks");
   }
 
+  async getForecast(
+    _input: import("../OmniFocusAdapter.js").ForecastInput,
+  ): Promise<import("../OmniFocusAdapter.js").ForecastResult> {
+    return notYetWired("getForecast");
+  }
+
   // -- Perspectives ---------------------------------------------------------
 
   // Perspectives are read via JXA; OmniJsTransport satisfies the interface only.
