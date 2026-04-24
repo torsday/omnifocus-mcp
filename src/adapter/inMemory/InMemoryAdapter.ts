@@ -267,15 +267,59 @@ export class InMemoryAdapter implements OmniFocusAdapter {
   }
 
   async completeTask(id: TaskId, at?: Date): Promise<void> {
+    return this.applyTaskCompletion(id, true, at);
+  }
+
+  async uncompleteTask(id: TaskId): Promise<void> {
+    return this.applyTaskCompletion(id, false);
+  }
+
+  async dropTask(id: TaskId, at?: Date): Promise<void> {
+    return this.applyTaskDropState(id, true, at);
+  }
+
+  async undropTask(id: TaskId): Promise<void> {
+    return this.applyTaskDropState(id, false);
+  }
+
+  /**
+   * Toggle a task's completion state. Drives both `completeTask` and
+   * `uncompleteTask` from the single boolean pivot.
+   *
+   * Asymmetric idempotency — load-bearing: **uncomplete** short-circuits
+   * if already uncompleted; **complete** does NOT short-circuit. The batch
+   * tool's contract (`task_batch_complete` description) explicitly states
+   * "Already-completed tasks are not treated specially". Changing this is
+   * a behaviour change and belongs in its own issue, not a refactor.
+   */
+  private async applyTaskCompletion(id: TaskId, completed: boolean, at?: Date): Promise<void> {
     const task = await this.getTask(id);
-    const completedAt = isoOf(at ?? this.now()) as Task["completedAt"];
+    if (!completed && !task.completed) return;
+    const stamp = completed ? (isoOf(at ?? this.now()) as Task["completedAt"]) : null;
     this.tasks.set(id, {
       ...task,
-      completed: true,
-      completedAt,
-      modifiedAt: completedAt as unknown as Task["modifiedAt"],
+      completed,
+      completedAt: stamp,
+      modifiedAt: (stamp ?? isoOf(this.now())) as unknown as Task["modifiedAt"],
     });
-    this.bumpProjectCompletedCount(task.projectId, +1);
+    this.bumpProjectCompletedCount(task.projectId, completed ? +1 : -1);
+  }
+
+  /**
+   * Toggle a task's dropped state. Drives both `dropTask` and `undropTask`
+   * from the single boolean pivot. Same idempotency asymmetry as
+   * {@link applyTaskCompletion} — drop re-stamps, undrop short-circuits.
+   */
+  private async applyTaskDropState(id: TaskId, dropped: boolean, at?: Date): Promise<void> {
+    const task = await this.getTask(id);
+    if (!dropped && !task.dropped) return;
+    const stamp = dropped ? (isoOf(at ?? this.now()) as Task["droppedAt"]) : null;
+    this.tasks.set(id, {
+      ...task,
+      dropped,
+      droppedAt: stamp,
+      modifiedAt: (stamp ?? isoOf(this.now())) as unknown as Task["modifiedAt"],
+    });
   }
 
   async batchCreateTasks(
@@ -299,40 +343,6 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     return processBatch(items, async ({ id, at }) => {
       await this.completeTask(id, at);
       return id;
-    });
-  }
-
-  async uncompleteTask(id: TaskId): Promise<void> {
-    const task = await this.getTask(id);
-    if (!task.completed) return;
-    this.tasks.set(id, {
-      ...task,
-      completed: false,
-      completedAt: null,
-      modifiedAt: isoOf(this.now()) as Task["modifiedAt"],
-    });
-    this.bumpProjectCompletedCount(task.projectId, -1);
-  }
-
-  async dropTask(id: TaskId, at?: Date): Promise<void> {
-    const task = await this.getTask(id);
-    const droppedAt = isoOf(at ?? this.now()) as Task["droppedAt"];
-    this.tasks.set(id, {
-      ...task,
-      dropped: true,
-      droppedAt,
-      modifiedAt: droppedAt as unknown as Task["modifiedAt"],
-    });
-  }
-
-  async undropTask(id: TaskId): Promise<void> {
-    const task = await this.getTask(id);
-    if (!task.dropped) return;
-    this.tasks.set(id, {
-      ...task,
-      dropped: false,
-      droppedAt: null,
-      modifiedAt: isoOf(this.now()) as Task["modifiedAt"],
     });
   }
 
