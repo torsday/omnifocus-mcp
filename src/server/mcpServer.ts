@@ -3,10 +3,10 @@
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
  * API from @modelcontextprotocol/sdk. Currently registers `internal_status`,
- * the four OmniFocus workflow prompts, the ten MCP resources, and 44 domain
+ * the four OmniFocus workflow prompts, the ten MCP resources, and 65 domain
  * tools across folder, tag, note, search, forecast, perspective, plugin,
- * sync, review, export, app, and project surfaces. Task tools and per-tool
- * middleware (#291) arrive in follow-ups under #289.
+ * sync, review, export, app, project, and task surfaces. Attachment tools
+ * and per-tool middleware (#291) arrive in follow-ups under #289.
  *
  * Signal handlers for SIGINT/SIGTERM delegate to `shutdownController` (#26),
  * which drains in-flight calls, flushes logs, and exits 0.
@@ -90,6 +90,26 @@ import { registerTagSetAllowsNextActionTool } from "../tools/tag/setAllowsNextAc
 import { registerTagSetLocationTool } from "../tools/tag/setLocation.js";
 import { registerTagSetStatusTool } from "../tools/tag/setStatus.js";
 import { registerTagUpdateTool } from "../tools/tag/update.js";
+import { registerTaskBatchCompleteTool } from "../tools/task/batchComplete.js";
+import { registerTaskBatchCreateTool } from "../tools/task/batchCreate.js";
+import { registerTaskBatchUpdateTool } from "../tools/task/batchUpdate.js";
+import { registerTaskClearRepetitionTool } from "../tools/task/clearRepetition.js";
+import { registerTaskCompleteTool } from "../tools/task/complete.js";
+import { registerTaskCreateTool } from "../tools/task/create.js";
+import { registerTaskDeleteTool } from "../tools/task/delete.js";
+import { registerTaskDropTool } from "../tools/task/drop.js";
+import { registerTaskDuplicateTool } from "../tools/task/duplicate.js";
+import { registerTaskFindByNameTool } from "../tools/task/findByName.js";
+import { registerTaskGetTool } from "../tools/task/get.js";
+import { registerTaskGetManyTool } from "../tools/task/getMany.js";
+import { registerTaskListTool } from "../tools/task/list.js";
+import { registerTaskMoveTool } from "../tools/task/move.js";
+import { registerTaskParseTransportTextTool } from "../tools/task/parseTransportText.js";
+import { registerTaskReorderTool } from "../tools/task/reorder.js";
+import { registerTaskSetRepetitionTool } from "../tools/task/setRepetition.js";
+import { registerTaskUncompleteTool } from "../tools/task/uncomplete.js";
+import { registerTaskUndropTool } from "../tools/task/undrop.js";
+import { registerTaskUpdateTool } from "../tools/task/update.js";
 import { circuitBreakerRegistry } from "./circuitBreaker.js";
 import { composeAdapter, composeServices, makeMeta } from "./composition.js";
 import { shutdownController } from "./shutdown.js";
@@ -248,6 +268,37 @@ export async function startServer(): Promise<void> {
   registerProjectMoveTool(server, projectServiceCtx);
   registerProjectUpdateTool(server, projectAdapterCtx);
 
+  // Task tools — twenty registrations across four context shapes.
+  // Service-backed reads use `{taskService, makeMeta}`; raw adapter reads
+  // (find_by_name, get_many, parse_transport_text) use `{adapter, makeMeta}`;
+  // mutations use `{adapter, makeMeta, cache?}` so invalidate-on-write
+  // (ADR-0006 / docs/cache-invalidation.md) sees the shared cache; and the
+  // three idempotent mutations (create, delete, update) additionally fall
+  // back to the module-singleton idempotency store.
+  const taskServiceCtx = { taskService: services.taskService, makeMeta };
+  const taskAdapterCtx = { adapter, makeMeta };
+  const taskMutationCtx = { adapter, makeMeta, cache: services.cache };
+  registerTaskGetTool(server, taskServiceCtx);
+  registerTaskListTool(server, taskServiceCtx);
+  registerTaskFindByNameTool(server, taskAdapterCtx);
+  registerTaskGetManyTool(server, taskAdapterCtx);
+  registerTaskParseTransportTextTool(server, { makeMeta });
+  registerTaskBatchCompleteTool(server, taskMutationCtx);
+  registerTaskBatchCreateTool(server, taskMutationCtx);
+  registerTaskBatchUpdateTool(server, taskMutationCtx);
+  registerTaskClearRepetitionTool(server, taskMutationCtx);
+  registerTaskCompleteTool(server, taskMutationCtx);
+  registerTaskDropTool(server, taskMutationCtx);
+  registerTaskDuplicateTool(server, taskMutationCtx);
+  registerTaskMoveTool(server, taskMutationCtx);
+  registerTaskReorderTool(server, taskMutationCtx);
+  registerTaskSetRepetitionTool(server, taskMutationCtx);
+  registerTaskUncompleteTool(server, taskMutationCtx);
+  registerTaskUndropTool(server, taskMutationCtx);
+  registerTaskCreateTool(server, taskMutationCtx);
+  registerTaskDeleteTool(server, taskMutationCtx);
+  registerTaskUpdateTool(server, taskMutationCtx);
+
   // Graceful shutdown — delegate to shutdownController so tool handlers can
   // call assertNotShuttingDown() and in-flight queues drain cleanly.
   process.on("SIGINT", () => {
@@ -322,6 +373,26 @@ export async function startServer(): Promise<void> {
         "project_list",
         "project_move",
         "project_update",
+        "task_get",
+        "task_list",
+        "task_find_by_name",
+        "task_get_many",
+        "task_parse_transport_text",
+        "task_batch_complete",
+        "task_batch_create",
+        "task_batch_update",
+        "task_clear_repetition",
+        "task_complete",
+        "task_drop",
+        "task_duplicate",
+        "task_move",
+        "task_reorder",
+        "task_set_repetition",
+        "task_uncomplete",
+        "task_undrop",
+        "task_create",
+        "task_delete",
+        "task_update",
       ],
       prompts: [
         DAILY_REVIEW_PROMPT,
