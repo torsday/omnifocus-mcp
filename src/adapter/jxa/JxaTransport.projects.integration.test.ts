@@ -62,6 +62,30 @@ describe.skipIf(!INTEGRATION)("JxaTransport — project integration", () => {
     await expect(t.markProjectReviewed(createdProjectId)).resolves.toBeUndefined();
   });
 
+  it("moveProject to null folderId (root) does not throw", async () => {
+    // Pass folderId: null to place the project at the root (no containing folder).
+    // Idempotent when the project is already at root — safe for any OF state.
+    await expect(t.moveProject(createdProjectId, { folderId: null })).resolves.toBeUndefined();
+  });
+
+  it("completeProject marks the project as completed", async () => {
+    // Use a separate short-lived fixture so this does not interfere with the
+    // drop/delete tests that follow (completed and dropped are exclusive states).
+    let tmpId: ProjectId | undefined;
+    try {
+      tmpId = await t.createProject({ name: "__mcp_test_complete_project__" });
+      await t.completeProject(tmpId);
+      const project = await t.getProject(tmpId);
+      expect(project.status).toBe("completed");
+    } finally {
+      if (tmpId !== undefined) {
+        await t.deleteProject(tmpId).catch(() => {
+          /* best-effort cleanup */
+        });
+      }
+    }
+  });
+
   it("dropProject drops the project", async () => {
     await t.dropProject(createdProjectId);
     const project = await t.getProject(createdProjectId);
