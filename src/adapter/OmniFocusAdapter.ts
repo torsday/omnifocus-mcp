@@ -147,6 +147,28 @@ export interface SearchFilter {
   completed?: "any" | "only" | "exclude";
 }
 
+/**
+ * Describes where a task should sit among its siblings. OmniFocus has no
+ * numeric sibling index; position is always expressed relative to another
+ * task (`before` / `after`) or as an absolute end-of-container position
+ * (`at: "start" | "end"` within an explicit `in:` container).
+ *
+ * The `{ before }` / `{ after }` forms assume the reference task and the task
+ * being moved share a parent; implementations throw `ValidationError` if
+ * they diverge.
+ *
+ * The `{ at, in }` form reparents the task into `in` if it isn't already
+ * there — use this to move a task to the first/last position of a specific
+ * project, parent, or the inbox (`{ inbox: true }`).
+ */
+export type TaskPosition =
+  | { before: TaskId }
+  | { after: TaskId }
+  | {
+      at: "start" | "end";
+      in: { projectId: ProjectId } | { parentId: TaskId } | { inbox: true };
+    };
+
 export interface CreateTagInput {
   name: string;
   parentId?: TagId;
@@ -248,6 +270,16 @@ export interface OmniFocusAdapter {
   /** Hard delete — irreversible; distinct from drop. */
   deleteTask(id: TaskId): Promise<void>;
   moveTask(id: TaskId, destination: { projectId?: ProjectId; parentId?: TaskId }): Promise<void>;
+  /**
+   * Reorder a task relative to its siblings. See {@link TaskPosition}.
+   *
+   * - `{ before: TaskId }` / `{ after: TaskId }`: the reference must share a
+   *   parent with the task being moved. Throws `ValidationError` if they
+   *   don't; `NotFound` if the reference doesn't exist.
+   * - `{ at, in }`: absolute start-or-end of a container; reparents into
+   *   the container if needed. `NotFound` if the container doesn't exist.
+   */
+  reorderTask(id: TaskId, position: TaskPosition): Promise<void>;
 
   // -- Projects --------------------------------------------------------------
 

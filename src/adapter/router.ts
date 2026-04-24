@@ -52,6 +52,7 @@ import type {
   OmniFocusAdapter,
   SyncStatus,
   TaskFilter,
+  TaskPosition,
   UpdateFolderInput,
   UpdateProjectInput,
   UpdateTagInput,
@@ -98,6 +99,7 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   undropTask: "jxa",
   deleteTask: "jxa",
   moveTask: "jxa",
+  reorderTask: "jxa",
 
   // -- Projects -------------------------------------------------------------
   listProjects: "jxa",
@@ -236,6 +238,9 @@ export class TransportRouter implements OmniFocusAdapter {
   }
   moveTask(id: TaskId, destination: { projectId?: ProjectId; parentId?: TaskId }): Promise<void> {
     return this.pick("moveTask").moveTask(id, destination);
+  }
+  reorderTask(id: TaskId, position: TaskPosition): Promise<void> {
+    return this.pick("reorderTask").reorderTask(id, position);
   }
 
   // -- Projects -------------------------------------------------------------
