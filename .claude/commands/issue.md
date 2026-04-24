@@ -1,115 +1,91 @@
 ---
-description: Create a new GitHub issue with this project's labels, milestone, project board, and field values populated.
+description: Project-local override for the global `/issue` skill — supplies omnifocus-mcp's project board, label vocabulary, and field IDs.
 ---
 
-Create a GitHub issue for the work described in the user's request, wired into this project's tracker conventions end-to-end.
+This is a **thin override** for the global `/issue` skill (`~/.claude/skills/issue/SKILL.md`). Follow that skill's protocol; the values below replace its defaults where this project differs.
 
-**Follow the canonical tracker issue-quality standard** from `~/src/github.com/torsday/llm_prompts/tracker.md` for title, body, and AC quality. Then apply the project-specific wiring below.
+> [!IMPORTANT]
+> **Use `scripts/file-issue.sh` — never `gh issue create` directly.** Raw `gh issue create` skips project-board membership, the Status field, and the `model:` label, producing issues that silently fall outside the Up Next queue. The script is the atomic filer the global skill expects; it validates flags, runs every wiring step, and verifies by re-reading the project item before exiting 0.
 
-## Project-specific wiring
+---
 
-### Title
-
-- Verb-first imperative, specific enough to scan
-- Format matches the existing 94 issues: `<tool_name>` for new tools, `<verb> <subject>` for chores/docs
-
-### Body — use this template verbatim
-
-```markdown
-## Context
-
-<Why this work exists + one-sentence link to DESIGN.md §N / ADR-NNNN / SPEC section>
-
-## Acceptance Criteria
-
-- [ ] <Observable, testable outcome — not an implementation step>
-- [ ] <One more>
-- [ ] All code follows `coding.md` standards (typed errors, docblocks, Goldilocks tests)
-
-## Technical Notes
-
-<Files, patterns, constraints — 1–3 bullets; omit if genuinely empty>
-
-## Dependencies
-
-- Blocked by: #N (if any)
-- Blocks: <describe; may omit>
-```
-
-### Labels — pick the full set
-
-Every issue gets:
-
-- **Type:** one of `type: feature`, `type: chore`, `type: spike`, `type: infra`, `type: docs`, `type: bug`, `type: test`
-- **Priority:** one of `P0 · critical`, `P1 · high`, `P2 · medium`, `P3 · low`
-- **Size:** one of `size: XS` (≤2h), `size: S` (½ day), `size: M` (1 day), `size: L` (2–3 days), `size: XL` (≥1 week — split instead)
-- **Phase:** one of `phase: M0 foundation`, `phase: M1 core`, `phase: M2 metadata`, `phase: M3 advanced`, `phase: M4 long-tail`, `phase: M5 polish`
-- **Domain:** one or more of `domain: task|project|tag|folder|perspective|forecast|review|search|note|attachment|repetition|batch|export|sync|transport|observability|security|lifecycle|config|resources`
-- **Model:** exactly one of `model: opus` or `model: sonnet` — see "Model — pick which" below
-- **Risk** (only if medium or high): `risk: high`, `risk: medium`
-
-### Model — pick which
-
-Every issue must carry exactly one of `model: opus` or `model: sonnet`. This lets `/next` and `/ship-next` filter the Ready queue by the active model so parallel loop threads (one Opus, one Sonnet) never collide on the same issue. See `CLAUDE.md` § "Model split" for the project-specific application of this heuristic.
-
-| Label           | When                                                                                                                                                                                                |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `model: opus`   | Sustained reasoning, judgment calls, ambiguous requirements, central design, ADRs, security-adjacent changes, error taxonomy, complex algorithms, large refactors, spikes, tool descriptions, SPI work |
-| `model: sonnet` | Well-spec'd execution, CRUD, mapping layers, handler patterns following an established template, validation gates, mechanical tests, infra/CI scripts, docs, small bug fixes                        |
-
-When in doubt, label `opus` — over-using opus is cheap; under-using it produces lower-quality work on hard problems. Re-label freely as you learn what's actually hard.
-
-### Milestone
-
-Match the phase:
-
-- `phase: M0 foundation` → milestone `M0 Foundation`
-- `phase: M1 core` → `M1 Core surface`
-- `phase: M2 metadata` → `M2 Metadata`
-- `phase: M3 advanced` → `M3 Advanced`
-- `phase: M4 long-tail` → `M4 Long tail`
-- `phase: M5 polish` → `M5 Polish`
-
-### Commands — create + wire
+## The one command
 
 ```bash
-# Create the issue. The label set MUST include exactly one model: label.
-gh issue create \
-  --title "<title>" \
-  --label "<type,priority,size,phase,domain[,risk],model: opus|sonnet>" \
-  --milestone "<milestone>" \
-  --body "$(cat <<'EOF'
-<body>
-EOF
-)"
-
-# Add to project #4 and capture the item ID
-ITEM_ID=$(gh project item-add 4 --owner torsday --url <issue-url> --format json | jq -r '.id')
-
-# Populate Phase / Priority / Size / Risk via GraphQL (field + option IDs live in scripts/populate-project.sh)
-# See that script for the exact mutation pattern.
+./scripts/file-issue.sh \
+  --title "<verb-first imperative>" \
+  --body-file /tmp/issue-body.md \
+  --type feature \                  # feature|bug|chore|refactor|perf|docs|test|infra|spike|epic
+  --priority P1 \
+  --size M \
+  --phase M1 \
+  --domain "tag,task" \
+  --model opus \
+  [--risk medium] \
+  [--milestone "M1 Core surface"]  # derived from --phase if omitted \
+  [--blocked]                       # only if Dependencies lists a blocker \
+  [--modifier "tech-debt,security"] # orthogonal; any of: security, breaking-change,
+                                    # regression, tech-debt, flaky, needs-repro
 ```
 
-Use `scripts/populate-project.sh` as reference for field/option IDs. Alternatively, re-run that script after creation — it's idempotent for already-populated items.
+Capture the URL from stdout. Then run the global skill's post-return checklist (substituting the project values below).
 
-### Status at creation time
+---
 
-- If the new issue has **no blockers** (Dependencies section is empty or only lists "Blocks: ..."), set `Status = Ready` in the project
-- Otherwise `Status = Todo`
+## Project-local values
 
-Update via the GraphQL mutation pattern in `scripts/set-ready-status.sh`.
+| What                | Value                                                     |
+| ------------------- | --------------------------------------------------------- |
+| Owner               | `torsday`                                                 |
+| Project number      | `4` (`torsday/omnifocus-mcp v1`)                          |
+| Project node ID     | `PVT_kwHOAARNgc4BVGvQ`                                    |
+| Status field naming | Status options were renamed: Ready→**Up Next**, Todo→**Backlog**. Six options total: `Backlog` · `Up Next` · `In Progress` · `In Review` · `On Hold` · `Done`. New issues land in `Up Next` unblocked, `Backlog` blocked. |
 
-### After creating
+### Phase → Milestone mapping
 
-- Report the issue number + URL back to the user
-- If the issue unblocks existing work, note it
-- If this reveals a gap in the design or SPEC, file an ADR note or a follow-up `needs-design` issue
+`M0` foundation · `M1` core · `M2` metadata · `M3` advanced · `M4` long-tail · `M5` polish
 
-## When NOT to create
+`scripts/file-issue.sh` derives the milestone from `--phase` automatically; pass `--milestone` only to override.
 
-Refuse politely (and explain) if the work is:
+### Domain vocabulary (project-specific — `--domain` accepts comma-separated)
 
-- Already tracked in an existing open issue (search with `gh issue list --search "<keyword>"`)
-- Explicitly in `SPEC.md`'s "Out of Scope" section — those need an ADR conversation first
-- Vague "improve X" without concrete acceptance criteria
-- Trivially a PR-scope cleanup better done in the next touch of the file
+`task` · `project` · `tag` · `folder` · `perspective` · `forecast` · `review` · `search` · `note` · `attachment` · `repetition` · `batch` · `export` · `sync` · `transport` · `observability` · `security` · `lifecycle` · `config` · `resources`
+
+### Model labels — pick exactly one
+
+| Value    | When                                                                                                                                                                                        |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `opus`   | Sustained reasoning, judgment calls, ambiguous requirements, central design, ADRs, security-adjacent changes, error taxonomy, complex algorithms, large refactors, spikes, SPI work, tool descriptions |
+| `sonnet` | Well-spec'd execution, CRUD, mapping layers, handler patterns following a template, validation gates, mechanical tests, infra/CI scripts, docs, small bug fixes                             |
+
+`/next` and `/ship-next` filter the Up Next queue by active model so parallel Opus + Sonnet loop threads don't collide.
+
+---
+
+## Pre-return checklist (project-specific queries)
+
+Re-run these even if `file-issue.sh` exited 0:
+
+```bash
+# Exactly one model label
+gh issue view <N> --repo torsday/omnifocus-mcp --json labels \
+  | jq '[.labels[] | select(.name|startswith("model: "))] | length'
+# → 1
+
+# On project #4
+gh api graphql -f query='query{user(login:"torsday"){projectV2(number:4){items(first:100){nodes{content{...on Issue{number}}}}}}}' \
+  | jq '.data.user.projectV2.items.nodes[] | .content.number' | grep -w <N>
+# → <N>
+```
+
+If any check fails, stop and fix before reporting.
+
+---
+
+## Bulk / migration work
+
+`scripts/populate-project.sh` re-runs label-driven field population across every issue in the repo (idempotent). Use it after adding a new Status/Phase/Priority/Size option, or to repair drift — **not** for single-issue filing. Single-issue filing always goes through `scripts/file-issue.sh`.
+
+---
+
+For the body template, classifier definitions (Type / Priority / Size), title style, "When NOT to file", and the general protocol — see the global skill: `~/.claude/skills/issue/SKILL.md`.

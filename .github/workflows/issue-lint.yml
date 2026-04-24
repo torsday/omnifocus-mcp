@@ -1,0 +1,70 @@
+# Label-hygiene gate for issues filed or edited through the GitHub UI.
+#
+# scripts/file-issue.sh enforces label invariants at creation, but a user
+# editing labels in the web UI can break them later. This workflow is the
+# automation backstop: it fails loudly (and posts a one-line comment) when an
+# open issue violates the rules.
+#
+# Rules enforced:
+#   - Exactly one `type: *` label (feature|bug|chore|refactor|perf|docs|test|
+#     infra|spike|epic)
+#   - Exactly one `model: *` label (opus|sonnet)
+#
+# Project-membership is not checked here — use the scheduled sweep
+# (`scripts/populate-project.sh`) for drift repair. Epics are exempt from the
+# model rule (they're parent trackers, not implementable work).
+
+name: Issue lint
+
+on:
+  issues:
+    types: [opened, reopened, labeled, unlabeled, edited]
+
+permissions:
+  issues: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    # Skip if the edit was made by the filer script — it verifies its own output.
+    if: github.event.issue.state == 'open'
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ISSUE: ${{ github.event.issue.number }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Check label invariants
+        run: |
+          set -euo pipefail
+
+          labels_json=$(gh issue view "$ISSUE" --repo "$REPO" --json labels)
+          type_count=$(echo "$labels_json" | jq '[.labels[] | select(.name | startswith("type: "))] | length')
+          model_count=$(echo "$labels_json" | jq '[.labels[] | select(.name | startswith("model: "))] | length')
+          is_epic=$(echo "$labels_json" | jq '[.labels[] | select(.name == "type: epic")] | length')
+
+          problems=()
+          if [ "$type_count" != "1" ]; then
+            problems+=("expected 1 \`type: *\` label, found $type_count")
+          fi
+          # Epics are parent trackers; model label is not required on them.
+          if [ "$is_epic" = "0" ] && [ "$model_count" != "1" ]; then
+            problems+=("expected 1 \`model: *\` label, found $model_count")
+          fi
+
+          if [ ${#problems[@]} -eq 0 ]; then
+            echo "✓ issue #$ISSUE label hygiene OK"
+            exit 0
+          fi
+
+          # Assemble a single comment listing every violation, then fail.
+          body="⚠️ **Label hygiene check failed** on this issue:"$'\n\n'
+          for p in "${problems[@]}"; do
+            body+="- $p"$'\n'
+          done
+          body+=$'\n'"Fix the labels and re-save. See \`.github/workflows/issue-lint.yml\` for the rules."
+
+          # Post the comment only if we haven't already flagged these same problems
+          # on this run — avoids duplicate comments on fast label-edit churn.
+          gh issue comment "$ISSUE" --repo "$REPO" --body "$body"
+          echo "::error title=Label hygiene::$(IFS=\; ; echo "${problems[*]}")"
+          exit 1

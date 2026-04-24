@@ -1,0 +1,49 @@
+name: Performance
+description: Measurable speedup, memory reduction, or throughput improvement
+title: "<verb-first imperative summary>"
+labels: ["type: perf"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Performance work must be measurement-driven. File this only if you have (or can produce) a baseline number and a target number. "Feels slow" belongs in an investigation spike first.
+  - type: textarea
+    id: symptom
+    attributes:
+      label: Symptom
+      description: What's slow/bloated, how did it surface, and in what scenario?
+      placeholder: |
+        `list_reminders --limit 1000` takes ~4.2s cold, ~1.8s warm on a 50k-item DB (MacBook Air M2, macOS 15.4). EventKit predicate evaluation dominates; no obvious N+1 in our code.
+    validations:
+      required: true
+  - type: textarea
+    id: baseline
+    attributes:
+      label: Baseline & Target
+      description: Current measurement and the goal. Include how you measured.
+      placeholder: |
+        Baseline: 4.2s cold / 1.8s warm (p50 over 10 runs, `time ./bin/scripts/bench-list.sh`)
+        Target:   <1s cold / <300ms warm
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Observable, measurable outcomes. No regressions elsewhere.
+      placeholder: |
+        - [ ] `bench-list.sh` hits the target under the same conditions (documented in the script)
+        - [ ] No regression in existing integration-test runtime (±10%)
+        - [ ] Bench script added to `scripts/` so future runs are reproducible
+    validations:
+      required: true
+  - type: textarea
+    id: technical
+    attributes:
+      label: Technical Notes
+      description: Hypotheses, prior profiling data, suspected culprits, approaches considered.
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Blocked-by / blocks relationships, with issue numbers.
