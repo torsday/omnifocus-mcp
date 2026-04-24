@@ -169,6 +169,15 @@ export interface ResponseMeta {
    * responses. Agents use this to distinguish a cached replay from new work.
    */
   idempotentReplay?: boolean;
+  /**
+   * True when this response is a dry-run preview — input validation ran but
+   * no OmniFocus mutation was performed (see `dryRunGuard`). Absent on live
+   * mutations and on reads. Server-populated fields like `id`, `createdAt`,
+   * and `modifiedAt` will be `null` in preview payloads.
+   *
+   * @see DESIGN.md §31 — dry-run mode
+   */
+  dryRun?: boolean;
 }
 
 /**
