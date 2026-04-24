@@ -235,6 +235,32 @@ export class OmniJsTransport implements OmniFocusAdapter {
   }
 
   // -- App lifecycle --------------------------------------------------------
+  // -- Attachments (JXA-only; OmniJsTransport satisfies the interface only) --
+
+  async listAttachments(
+    _input: import("../OmniFocusAdapter.js").ListAttachmentsInput,
+  ): Promise<import("../../domain/attachment.js").Attachment[]> {
+    return notYetWired("listAttachments");
+  }
+
+  async addAttachment(
+    _input: import("../OmniFocusAdapter.js").AddAttachmentInput,
+  ): Promise<import("../../domain/ids.js").AttachmentId> {
+    return notYetWired("addAttachment");
+  }
+
+  async removeAttachment(
+    _input: import("../OmniFocusAdapter.js").RemoveAttachmentInput,
+  ): Promise<void> {
+    return notYetWired("removeAttachment");
+  }
+
+  async saveAttachmentToPath(
+    _input: import("../OmniFocusAdapter.js").SaveAttachmentInput,
+  ): Promise<import("../OmniFocusAdapter.js").SaveAttachmentResult> {
+    return notYetWired("saveAttachmentToPath");
+  }
+
   // App launch is a JXA operation (activate via osascript); OmniJsTransport
   // satisfies the interface only — TransportRouter never routes here.
 

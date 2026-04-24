@@ -141,6 +141,12 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   syncTrigger: "jxa",
   getLastSync: "jxa",
 
+  // -- Attachments ----------------------------------------------------------
+  listAttachments: "jxa",
+  addAttachment: "jxa",
+  removeAttachment: "jxa",
+  saveAttachmentToPath: "jxa",
+
   // -- App lifecycle --------------------------------------------------------
   appLaunch: "jxa",
 
@@ -357,6 +363,30 @@ export class TransportRouter implements OmniFocusAdapter {
   }
   getLastSync(): Promise<SyncStatus> {
     return this.pick("getLastSync").getLastSync();
+  }
+
+  // -- Attachments ----------------------------------------------------------
+
+  listAttachments(
+    input: import("./OmniFocusAdapter.js").ListAttachmentsInput,
+  ): Promise<import("../domain/attachment.js").Attachment[]> {
+    return this.pick("listAttachments").listAttachments(input);
+  }
+
+  addAttachment(
+    input: import("./OmniFocusAdapter.js").AddAttachmentInput,
+  ): Promise<import("../domain/ids.js").AttachmentId> {
+    return this.pick("addAttachment").addAttachment(input);
+  }
+
+  removeAttachment(input: import("./OmniFocusAdapter.js").RemoveAttachmentInput): Promise<void> {
+    return this.pick("removeAttachment").removeAttachment(input);
+  }
+
+  saveAttachmentToPath(
+    input: import("./OmniFocusAdapter.js").SaveAttachmentInput,
+  ): Promise<import("./OmniFocusAdapter.js").SaveAttachmentResult> {
+    return this.pick("saveAttachmentToPath").saveAttachmentToPath(input);
   }
 
   // -- App lifecycle --------------------------------------------------------

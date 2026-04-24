@@ -10,6 +10,12 @@
  */
 
 import type { z } from "zod";
+import {
+  attachmentAddInputSchema,
+  attachmentListInputSchema,
+  attachmentRemoveInputSchema,
+  attachmentSaveToPathInputSchema,
+} from "./attachment/index.js";
 import { folderCreateInputSchema } from "./folder/create.js";
 import { folderDeleteInputSchema } from "./folder/delete.js";
 import { folderGetInputSchema } from "./folder/get.js";
@@ -46,6 +52,10 @@ import { taskSetRepetitionInputSchema } from "./task/setRepetition.js";
 import { taskUpdateInputBaseSchema } from "./task/update.js";
 
 export const ALL_INPUT_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
+  attachment_list: attachmentListInputSchema,
+  attachment_add: attachmentAddInputSchema,
+  attachment_remove: attachmentRemoveInputSchema,
+  attachment_save_to_path: attachmentSaveToPathInputSchema,
   folder_create: folderCreateInputSchema,
   folder_delete: folderDeleteInputSchema,
   folder_get: folderGetInputSchema,

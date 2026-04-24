@@ -22,6 +22,7 @@
  * @see src/adapter/jxa/scriptRunner.ts
  */
 
+import type { Attachment } from "../../domain/attachment.js";
 import type { Folder } from "../../domain/folder.js";
 import {
   type FolderId,
@@ -33,12 +34,17 @@ import {
   type TaskId,
   TaskId as TaskIdCtor,
 } from "../../domain/ids.js";
+import type { AttachmentId } from "../../domain/ids.js";
 import type { BuiltinPerspectiveId, Perspective } from "../../domain/perspective.js";
 import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
 import type { Task } from "../../domain/task.js";
 import { ScriptError } from "../../errors/index.js";
 import appLaunchScript from "../../scripts/jxa/app_launch.js";
+import attachmentAddScript from "../../scripts/jxa/attachment_add.js";
+import attachmentListScript from "../../scripts/jxa/attachment_list.js";
+import attachmentRemoveScript from "../../scripts/jxa/attachment_remove.js";
+import attachmentSaveToPathScript from "../../scripts/jxa/attachment_save_to_path.js";
 import folderCreateScript from "../../scripts/jxa/folder_create.js";
 import folderDeleteScript from "../../scripts/jxa/folder_delete.js";
 import folderGetScript from "../../scripts/jxa/folder_get.js";
@@ -77,12 +83,17 @@ import taskUncompleteScript from "../../scripts/jxa/task_uncomplete.js";
 import taskUndropScript from "../../scripts/jxa/task_undrop.js";
 import taskUpdateScript from "../../scripts/jxa/task_update.js";
 import type {
+  AddAttachmentInput,
   AppLaunchResult,
   CreateFolderInput,
   CreateProjectInput,
   CreateTagInput,
   CreateTaskInput,
+  ListAttachmentsInput,
   OmniFocusAdapter,
+  RemoveAttachmentInput,
+  SaveAttachmentInput,
+  SaveAttachmentResult,
   SyncStatus,
   TaskFilter,
   TaskPosition,
@@ -576,6 +587,38 @@ export class JxaTransport implements OmniFocusAdapter {
     _input: import("../OmniFocusAdapter.js").ForecastInput,
   ): Promise<import("../OmniFocusAdapter.js").ForecastResult> {
     return notYetWired("getForecast");
+  }
+
+  // -- Attachments (wired) --------------------------------------------------
+
+  async listAttachments(input: ListAttachmentsInput): Promise<Attachment[]> {
+    const result = await runJxaScript<{ attachments: Attachment[] }>(attachmentListScript, input, {
+      ...this.runOpts,
+      scriptName: "attachment_list",
+    });
+    return result.attachments;
+  }
+
+  async addAttachment(input: AddAttachmentInput): Promise<AttachmentId> {
+    const result = await runJxaScript<{ id: string }>(attachmentAddScript, input, {
+      ...this.runOpts,
+      scriptName: "attachment_add",
+    });
+    return result.id as AttachmentId;
+  }
+
+  async removeAttachment(input: RemoveAttachmentInput): Promise<void> {
+    await runJxaScript<Record<string, never>>(attachmentRemoveScript, input, {
+      ...this.runOpts,
+      scriptName: "attachment_remove",
+    });
+  }
+
+  async saveAttachmentToPath(input: SaveAttachmentInput): Promise<SaveAttachmentResult> {
+    return runJxaScript<SaveAttachmentResult>(attachmentSaveToPathScript, input, {
+      ...this.runOpts,
+      scriptName: "attachment_save_to_path",
+    });
   }
 
   // -- App lifecycle (wired) ------------------------------------------------

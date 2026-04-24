@@ -1,37 +1,6 @@
-/**
- * `OmniFocusAdapter` is the **sacred seam** between the service layer and
- * OmniFocus itself (DESIGN §6.1, §6.3). Services never see `osascript`, never
- * see URL schemes — they consume only this interface.
- *
- * Three concrete implementations satisfy this contract:
- * - `JxaTransport` (#17) — primary, calls `osascript -l JavaScript`
- * - `OmniJsTransport` (#18) — fallback for surfaces JXA can't reach (custom
- *   perspectives, plug-ins) — invoked via `Application("OmniFocus").evaluateJavascript(...)` (ADR-0002 amendment)
- * - `InMemoryAdapter` — unit-test double; behavior asserted by the contract
- *   harness (#30) so substitutability is enforced
- *
- * `TransportRouter` (#19) is itself an `OmniFocusAdapter` that delegates
- * per-method to the right underlying transport.
- *
- * ## Contract
- *
- * - Inputs are validated at the boundary; bad input throws `ValidationError`
- * - Unknown IDs throw `NotFound`
- * - Reads do not mutate; writes are serialized by the calling layer
- *   (concurrency policy lives in DESIGN §6.6, not in implementations)
- * - Dates are `IsoDateString` (ISO-8601 with offset, ADR-0007)
- * - IDs are branded opaque types (ADR-0008)
- * - Errors thrown are members of the typed taxonomy (DESIGN §6.7) — generic
- *   `Error` is forbidden and lint-checked
- *
- * @see DESIGN.md §6.1 — layering
- * @see DESIGN.md §6.3 — adapter sketch (this file is the canonical version)
- * @see DESIGN.md §19 — InMemoryAdapter scope (what's NOT modeled in-memory)
- * @see ADR-0002 — JXA + OmniJS dual transport
- */
-
+import type { Attachment } from "../domain/attachment.js";
 import type { Folder } from "../domain/folder.js";
-import type { FolderId, ProjectId, TagId, TaskId } from "../domain/ids.js";
+import type { AttachmentId, FolderId, ProjectId, TagId, TaskId } from "../domain/ids.js";
 import type { BuiltinPerspectiveId, Perspective } from "../domain/perspective.js";
 import type { Project } from "../domain/project.js";
 import type { Tag, TagLocation } from "../domain/tag.js";
@@ -246,6 +215,39 @@ export interface ForecastResult {
 }
 
 // ---------------------------------------------------------------------------
+// Attachment input / result types
+// ---------------------------------------------------------------------------
+
+/** Owner of an attachment — exactly one field must be set. */
+export type AttachmentOwner =
+  | { taskId: TaskId; projectId?: never }
+  | { projectId: ProjectId; taskId?: never };
+
+export type ListAttachmentsInput = AttachmentOwner;
+
+export type AddAttachmentInput = AttachmentOwner & {
+  /** Absolute resolved path to the source file. Caller must have run assertAttachmentPath. */
+  filePath: string;
+};
+
+export type RemoveAttachmentInput = AttachmentOwner & {
+  attachmentId: AttachmentId;
+};
+
+export type SaveAttachmentInput = AttachmentOwner & {
+  attachmentId: AttachmentId;
+  /** Absolute destination path. Caller must have run assertAttachmentPath on the directory. */
+  destPath: string;
+};
+
+export interface SaveAttachmentResult {
+  /** true when the file was written successfully */
+  saved: boolean;
+  path: string;
+  sizeBytes: number;
+}
+
+// ---------------------------------------------------------------------------
 // Adapter interface
 // ---------------------------------------------------------------------------
 
@@ -369,6 +371,37 @@ export interface OmniFocusAdapter {
 
   // -- Forecast --------------------------------------------------------------
   getForecast(input: ForecastInput): Promise<ForecastResult>;
+
+  // -- Attachments -----------------------------------------------------------
+
+  /**
+   * List all attachments on a task or project.
+   * @throws NotFound — when the owner ID does not exist
+   */
+  listAttachments(input: ListAttachmentsInput): Promise<Attachment[]>;
+
+  /**
+   * Add an attachment to a task or project from a local file path.
+   * The file is embedded into the OmniFocus database.
+   * @throws NotFound — when the owner ID does not exist
+   * @throws ValidationError — when the path fails scope/size checks (caller's responsibility)
+   */
+  addAttachment(input: AddAttachmentInput): Promise<AttachmentId>;
+
+  /**
+   * Remove an attachment by ID from its owner.
+   * @throws NotFound — when the owner or attachment ID does not exist
+   */
+  removeAttachment(input: RemoveAttachmentInput): Promise<void>;
+
+  /**
+   * Copy an attachment's bytes to a local file path.
+   * The destination file is created or overwritten.
+   * @throws NotFound — when the owner or attachment ID does not exist
+   * @throws ValidationError — when the destination path fails scope checks (caller's responsibility)
+   * @throws ScriptError — when the write fails (disk full, permission denied)
+   */
+  saveAttachmentToPath(input: SaveAttachmentInput): Promise<SaveAttachmentResult>;
 
   // -- App lifecycle ---------------------------------------------------------
 

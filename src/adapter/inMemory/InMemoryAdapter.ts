@@ -24,6 +24,7 @@
  * @see src/adapter/OmniFocusAdapter.ts — interface this satisfies
  */
 
+import type { Attachment } from "../../domain/attachment.js";
 import type { Folder } from "../../domain/folder.js";
 import {
   type FolderId,
@@ -35,6 +36,7 @@ import {
   type TaskId,
   TaskId as TaskIdCtor,
 } from "../../domain/ids.js";
+import { type AttachmentId, AttachmentId as AttachmentIdCtor } from "../../domain/ids.js";
 import {
   BUILTIN_PERSPECTIVE_IDS,
   type BuiltinPerspectiveId,
@@ -45,15 +47,20 @@ import type { Tag } from "../../domain/tag.js";
 import type { Task } from "../../domain/task.js";
 import { NotFound, ValidationError } from "../../errors/index.js";
 import type {
+  AddAttachmentInput,
   CreateFolderInput,
   CreateProjectInput,
   CreateTagInput,
   CreateTaskInput,
   ForecastInput,
   ForecastResult,
+  ListAttachmentsInput,
   OmniFocusAdapter,
   PluginInvokeInput,
   PluginInvokeResult,
+  RemoveAttachmentInput,
+  SaveAttachmentInput,
+  SaveAttachmentResult,
   SearchFilter,
   SyncStatus,
   TaskFilter,
@@ -93,6 +100,8 @@ export class InMemoryAdapter implements OmniFocusAdapter {
   private readonly projects = new Map<ProjectId, Project>();
   private readonly tags = new Map<TagId, Tag>();
   private readonly folders = new Map<FolderId, Folder>();
+  /** ownerKey → attachments. ownerKey is `task:<id>` or `project:<id>`. */
+  private readonly attachments = new Map<string, Map<AttachmentId, Attachment>>();
 
   private lastSyncAt: string | null = null;
 
@@ -995,6 +1004,81 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     const flagged = includeFlagged ? all.filter((t) => t.flagged) : [];
 
     return { overdue, dueToday, deferredToday, flagged };
+  }
+
+  // -- Attachments (minimal in-memory store; real semantics in integration tier)
+  // Attachment content (bytes) is never stored here — we track metadata only.
+  // `saveAttachmentToPath` is a no-op that returns a synthetic result because
+  // there are no real bytes to write. Integration tests exercise the real JXA path.
+
+  private ownerKey(input: ListAttachmentsInput): string {
+    return input.taskId ? `task:${input.taskId}` : `project:${input.projectId}`;
+  }
+
+  async listAttachments(input: ListAttachmentsInput): Promise<Attachment[]> {
+    if (input.taskId && !this.tasks.has(input.taskId)) {
+      throw new NotFound(`Task not found: ${input.taskId}`);
+    }
+    if (input.projectId && !this.projects.has(input.projectId)) {
+      throw new NotFound(`Project not found: ${input.projectId}`);
+    }
+    const key = this.ownerKey(input);
+    return Array.from(this.attachments.get(key)?.values() ?? []);
+  }
+
+  async addAttachment(input: AddAttachmentInput): Promise<AttachmentId> {
+    if (input.taskId && !this.tasks.has(input.taskId)) {
+      throw new NotFound(`Task not found: ${input.taskId}`);
+    }
+    if (input.projectId && !this.projects.has(input.projectId)) {
+      throw new NotFound(`Project not found: ${input.projectId}`);
+    }
+    const key = this.ownerKey(input);
+    if (!this.attachments.has(key)) this.attachments.set(key, new Map());
+    const id = this.nextId("att", AttachmentIdCtor);
+    const fileName = input.filePath.split("/").pop() ?? "attachment";
+    const att: Attachment = {
+      id,
+      name: fileName,
+      mimeType: null,
+      sizeBytes: null,
+      addedAt: isoOf(this.now()),
+      kind: "embedded",
+    };
+    // biome-ignore lint/style/noNonNullAssertion: just set above
+    this.attachments.get(key)!.set(id, att);
+    return id;
+  }
+
+  async removeAttachment(input: RemoveAttachmentInput): Promise<void> {
+    if (input.taskId && !this.tasks.has(input.taskId)) {
+      throw new NotFound(`Task not found: ${input.taskId}`);
+    }
+    if (input.projectId && !this.projects.has(input.projectId)) {
+      throw new NotFound(`Project not found: ${input.projectId}`);
+    }
+    const key = this.ownerKey(input);
+    const store = this.attachments.get(key);
+    if (!store?.has(input.attachmentId)) {
+      throw new NotFound(`Attachment not found: ${input.attachmentId}`);
+    }
+    store.delete(input.attachmentId);
+  }
+
+  async saveAttachmentToPath(input: SaveAttachmentInput): Promise<SaveAttachmentResult> {
+    if (input.taskId && !this.tasks.has(input.taskId)) {
+      throw new NotFound(`Task not found: ${input.taskId}`);
+    }
+    if (input.projectId && !this.projects.has(input.projectId)) {
+      throw new NotFound(`Project not found: ${input.projectId}`);
+    }
+    const key = this.ownerKey(input);
+    const store = this.attachments.get(key);
+    if (!store?.has(input.attachmentId)) {
+      throw new NotFound(`Attachment not found: ${input.attachmentId}`);
+    }
+    // In-memory: no real bytes; return synthetic result satisfying the contract.
+    return { saved: true, path: input.destPath, sizeBytes: 0 };
   }
 
   // -- App lifecycle --------------------------------------------------------
