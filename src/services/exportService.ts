@@ -11,10 +11,10 @@
 import type { CreateTaskInput, OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
 import type { FolderId, ProjectId, TagId, TaskId } from "../domain/ids.js";
 import type { Project } from "../domain/project.js";
-import type { Task } from "../domain/task.js";
 import { NotFound, ValidationError } from "../errors/index.js";
 import { renderProjectOutline } from "./export/opml.js";
 import { countLeadingTabs, parseTaskPaperLine, renderTaskPaper } from "./export/taskpaper.js";
+import { fetchProjectTaskTree, partitionTasksByParent } from "./export/tree.js";
 
 // ---------------------------------------------------------------------------
 // Public shapes
@@ -57,43 +57,6 @@ export interface ImportTaskPaperResult {
    * could not be resolved.
    */
   warnings: string[];
-}
-
-// ---------------------------------------------------------------------------
-// Shared tree-fetch helper
-// ---------------------------------------------------------------------------
-
-/**
- * Fetch ALL tasks belonging to a project, including subtasks at every depth.
- *
- * `adapter.listTasks({ projectId })` only returns tasks whose `projectId`
- * field equals the given ID — subtasks (which carry `parentId` but have
- * `projectId: null`) are excluded. This helper does a BFS expansion to
- * collect every descendant.
- */
-async function fetchProjectTaskTree(
-  adapter: OmniFocusAdapter,
-  projectId: ProjectId,
-): Promise<Task[]> {
-  // Fetch root-level tasks (directly in the project)
-  const direct = await adapter.listTasks({ projectId });
-  const all: Task[] = [...direct];
-
-  // BFS: for each task, fetch its children. `for (;;)` with break-on-empty
-  // keeps `current` narrowed to Task without needing a non-null assertion
-  // on `queue.shift()`.
-  const queue: Task[] = [...direct];
-  for (;;) {
-    const current = queue.shift();
-    if (current === undefined) break;
-    const children = await adapter.listTasks({ parentId: current.id });
-    for (const child of children) {
-      all.push(child);
-      queue.push(child);
-    }
-  }
-
-  return all;
 }
 
 // ---------------------------------------------------------------------------
@@ -215,19 +178,7 @@ export class ExportService {
         fetchProjectTaskTree(this.adapter, p.id).then((tasks) => ({ project: p, tasks })),
       ),
     )) {
-      // Build parent → children map
-      const byParent = new Map<string, Task[]>();
-      const rootTasks: Task[] = [];
-      for (const task of tasks) {
-        if (task.parentId === null) {
-          rootTasks.push(task);
-        } else {
-          const key = String(task.parentId);
-          const arr = byParent.get(key) ?? [];
-          arr.push(task);
-          byParent.set(key, arr);
-        }
-      }
+      const { rootTasks, byParent } = partitionTasksByParent(tasks);
 
       // Project heading
       lines.push(`${project.name}:`);

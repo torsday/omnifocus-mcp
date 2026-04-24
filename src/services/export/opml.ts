@@ -15,6 +15,7 @@
 
 import type { Project } from "../../domain/project.js";
 import type { Task } from "../../domain/task.js";
+import { partitionTasksByParent } from "./tree.js";
 
 /** Escape XML special characters in attribute values. */
 export function xmlAttr(value: string): string {
@@ -72,23 +73,7 @@ export function renderTaskOutline(
  * Build an `<outline>` element for a project with its task tree.
  */
 export function renderProjectOutline(project: Project, tasks: Task[], indent: string): string {
-  // Build parent → children map for tasks in this project
-  const byParent = new Map<string, Task[]>();
-  const rootTasks: Task[] = [];
-
-  for (const task of tasks) {
-    if (task.parentId === null) {
-      rootTasks.push(task);
-    } else {
-      const key = String(task.parentId);
-      const existing = byParent.get(key);
-      if (existing) {
-        existing.push(task);
-      } else {
-        byParent.set(key, [task]);
-      }
-    }
-  }
+  const { rootTasks, byParent } = partitionTasksByParent(tasks);
 
   const attrs: string[] = [
     `text="${xmlAttr(project.name)}"`,
