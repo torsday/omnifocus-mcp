@@ -112,7 +112,7 @@ const monthlyAnchorSchema = z.union([
   }),
 ]);
 
-export const RepetitionRuleSchema: z.ZodType<RepetitionRule, z.ZodTypeDef, unknown> = z
+export const RepetitionRuleSchema: z.ZodType<RepetitionRule> = z
   .object({
     method: z.enum(["fixed", "start-again", "due-again"]),
     unit: z.enum(["minutes", "hours", "days", "weeks", "months", "years"]),
@@ -130,9 +130,9 @@ export const RepetitionRuleSchema: z.ZodType<RepetitionRule, z.ZodTypeDef, unkno
   })
   .refine((r) => !(r.weekdays !== undefined && r.monthlyAnchor !== undefined), {
     message: "Only one of weekdays or monthlyAnchor may be set",
-  }) as z.ZodType<RepetitionRule, z.ZodTypeDef, unknown>;
+  }) as z.ZodType<RepetitionRule>;
 
-export const TaskSchema: z.ZodType<Task, z.ZodTypeDef, unknown> = z.object({
+export const TaskSchema: z.ZodType<Task> = z.object({
   id: TaskIdCtor.schema,
   name: z.string(),
 
@@ -164,4 +164,4 @@ export const TaskSchema: z.ZodType<Task, z.ZodTypeDef, unknown> = z.object({
   modifiedAt: isoDateString(),
 
   _links: taskLinksSchema.optional(),
-}) as z.ZodType<Task, z.ZodTypeDef, unknown>;
+}) as z.ZodType<Task>;

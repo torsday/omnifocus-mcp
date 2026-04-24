@@ -47,15 +47,15 @@ export interface Tag {
 // Schema
 // ---------------------------------------------------------------------------
 
-export const TagLocationSchema: z.ZodType<TagLocation, z.ZodTypeDef, unknown> = z.object({
+export const TagLocationSchema: z.ZodType<TagLocation> = z.object({
   name: z.string().nullable(),
   latitude: z.number(),
   longitude: z.number(),
   radiusMeters: z.number().min(0),
   trigger: z.enum(["entering", "leaving", "both"]),
-}) as z.ZodType<TagLocation, z.ZodTypeDef, unknown>;
+}) as z.ZodType<TagLocation>;
 
-export const TagSchema: z.ZodType<Tag, z.ZodTypeDef, unknown> = z.object({
+export const TagSchema: z.ZodType<Tag> = z.object({
   id: TagIdCtor.schema,
   name: z.string(),
   parentId: TagIdCtor.schema.nullable(),
@@ -69,4 +69,4 @@ export const TagSchema: z.ZodType<Tag, z.ZodTypeDef, unknown> = z.object({
 
   createdAt: isoDateString(),
   modifiedAt: isoDateString(),
-}) as z.ZodType<Tag, z.ZodTypeDef, unknown>;
+}) as z.ZodType<Tag>;

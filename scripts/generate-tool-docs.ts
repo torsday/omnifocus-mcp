@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { z } from "zod";
+import type { z } from "zod";
 import { ALL_TOOL_DESCRIPTIONS } from "../src/tools/allDescriptions.js";
 import { ALL_INPUT_SCHEMAS } from "../src/tools/allInputSchemas.js";
 
@@ -9,30 +9,59 @@ import { ALL_INPUT_SCHEMAS } from "../src/tools/allInputSchemas.js";
 // Zod introspection helpers
 // ---------------------------------------------------------------------------
 
-function zodTypeLabel(schema: z.ZodTypeAny): string {
-  if (schema instanceof z.ZodOptional) return zodTypeLabel(schema.unwrap());
-  if (schema instanceof z.ZodNullable) return `${zodTypeLabel(schema.unwrap())} | null`;
-  if (schema instanceof z.ZodString) return "string";
-  if (schema instanceof z.ZodNumber) return "number";
-  if (schema instanceof z.ZodBoolean) return "boolean";
-  if (schema instanceof z.ZodArray) return `${zodTypeLabel(schema.element)}[]`;
-  if (schema instanceof z.ZodEnum) {
-    const values = (schema as z.ZodEnum<[string, ...string[]]>).options;
-    return `one of: ${values.join(" | ")}`;
-  }
-  if (schema instanceof z.ZodLiteral) return `literal: ${JSON.stringify(schema.value)}`;
-  if (schema instanceof z.ZodObject) return "object";
-  // ZodBranded wraps another type
-  if (schema instanceof z.ZodBranded) return "string (ID)";
-  // ZodEffects (e.g. .refine(), .transform())
-  if (schema instanceof z.ZodEffects) return zodTypeLabel(schema.innerType());
-  // ZodDefault
-  if (schema instanceof z.ZodDefault) return zodTypeLabel(schema._def.innerType);
-  return "unknown";
+// Zod 4 replaces the class hierarchy with a tagged-union: every schema has a
+// `def.type` discriminator string. We use that instead of `instanceof`, which
+// breaks across the v3→v4 class renames (ZodEffects → ZodPipe, ZodBranded
+// removed, etc.).
+// biome-ignore lint/suspicious/noExplicitAny: runtime introspection of unknown zod schemas
+type AnyZodSchema = z.ZodType<any, any>;
+
+function schemaDef(schema: AnyZodSchema): { type: string; [k: string]: unknown } {
+  // biome-ignore lint/suspicious/noExplicitAny: zod internals
+  return (schema as any).def as { type: string; [k: string]: unknown };
 }
 
-function isOptionalField(schema: z.ZodTypeAny): boolean {
-  return schema instanceof z.ZodOptional || schema instanceof z.ZodDefault;
+function zodTypeLabel(schema: AnyZodSchema): string {
+  const def = schemaDef(schema);
+  switch (def.type) {
+    case "optional":
+    case "default":
+    case "prefault":
+    case "nullable":
+    case "readonly":
+    case "pipe": {
+      const inner = (def.innerType ?? def.in) as AnyZodSchema | undefined;
+      const label = inner !== undefined ? zodTypeLabel(inner) : "unknown";
+      return def.type === "nullable" ? `${label} | null` : label;
+    }
+    case "string":
+      return "string";
+    case "number":
+      return "number";
+    case "boolean":
+      return "boolean";
+    case "array": {
+      const element = def.element as AnyZodSchema;
+      return `${zodTypeLabel(element)}[]`;
+    }
+    case "enum": {
+      const entries = def.entries as Record<string, string>;
+      return `one of: ${Object.values(entries).join(" | ")}`;
+    }
+    case "literal": {
+      const values = def.values as readonly unknown[];
+      return `literal: ${JSON.stringify(values.length === 1 ? values[0] : values)}`;
+    }
+    case "object":
+      return "object";
+    default:
+      return "unknown";
+  }
+}
+
+function isOptionalField(schema: AnyZodSchema): boolean {
+  const t = schemaDef(schema).type;
+  return t === "optional" || t === "default" || t === "prefault";
 }
 
 interface FieldRow {

@@ -49,10 +49,10 @@ export interface Perspective {
 // Schema
 // ---------------------------------------------------------------------------
 
-export const PerspectiveSchema: z.ZodType<Perspective, z.ZodTypeDef, unknown> = z.object({
+export const PerspectiveSchema: z.ZodType<Perspective> = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   kind: z.enum(["builtin", "custom"]),
   requiresPro: z.boolean(),
   icon: z.string().nullable(),
-}) as z.ZodType<Perspective, z.ZodTypeDef, unknown>;
+}) as z.ZodType<Perspective>;

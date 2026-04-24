@@ -35,16 +35,16 @@ const envSchema = z.object({
   OMNIFOCUS_LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error"]).default("info"),
   OMNIFOCUS_INTEGRATION: z
     .string()
-    .transform((v) => v === "1")
-    .default(""),
+    .prefault("")
+    .transform((v) => v === "1"),
   OMNIFOCUS_E2E: z
     .string()
-    .transform((v) => v === "1")
-    .default(""),
+    .prefault("")
+    .transform((v) => v === "1"),
   OMNIFOCUS_ALLOW_RAW_SCRIPT: z
     .string()
-    .transform((v) => v === "1")
-    .default(""),
+    .prefault("")
+    .transform((v) => v === "1"),
   OMNIFOCUS_CACHE_TTL_MS: z.coerce.number().int().positive().default(30000),
   OMNIFOCUS_CACHE_CAPACITY: z.coerce.number().int().positive().default(256),
   OMNIFOCUS_READ_POOL_SIZE: z.coerce.number().int().min(1).max(8).default(2),
@@ -53,10 +53,10 @@ const envSchema = z.object({
   OMNIFOCUS_OMNIJS_TIMEOUT_MS: z.coerce.number().int().positive().default(45000),
   OMNIFOCUS_ATTACHMENT_PATHS: z
     .string()
-    .default(homedir())
+    .prefault(homedir())
     .transform((v) => v.split(":").filter(Boolean)),
   OMNIFOCUS_MAX_ATTACHMENT_MB: z.coerce.number().int().positive().default(100),
-  OMNIFOCUS_TOOL_RATE_LIMIT: rateLimitSchema.default("120/60"),
+  OMNIFOCUS_TOOL_RATE_LIMIT: rateLimitSchema.prefault("120/60"),
 });
 
 // ---------------------------------------------------------------------------
@@ -99,7 +99,7 @@ export function parseConfig(
   });
 
   if (!result.success) {
-    const lines = result.error.errors.map((e) => `  ${e.path.join(".")}: ${e.message}`);
+    const lines = result.error.issues.map((e) => `  ${e.path.join(".")}: ${e.message}`);
     return onError(
       `Invalid environment configuration:\n${lines.join("\n")}\nSee DESIGN §22 for allowed values.`,
     );

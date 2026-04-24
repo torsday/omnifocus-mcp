@@ -70,7 +70,7 @@ export interface Project {
 // Schema
 // ---------------------------------------------------------------------------
 
-export const ProjectSchema: z.ZodType<Project, z.ZodTypeDef, unknown> = z.object({
+export const ProjectSchema: z.ZodType<Project> = z.object({
   id: ProjectIdCtor.schema,
   name: z.string(),
   note: z.string().nullable(),
@@ -103,4 +103,4 @@ export const ProjectSchema: z.ZodType<Project, z.ZodTypeDef, unknown> = z.object
   modifiedAt: isoDateString(),
 
   _links: projectLinksSchema.optional(),
-}) as z.ZodType<Project, z.ZodTypeDef, unknown>;
+}) as z.ZodType<Project>;
