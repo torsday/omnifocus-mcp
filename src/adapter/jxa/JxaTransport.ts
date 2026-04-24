@@ -71,6 +71,7 @@ import taskGetScript from "../../scripts/jxa/task_get.js";
 import taskGetManyScript from "../../scripts/jxa/task_get_many.js";
 import taskListScript from "../../scripts/jxa/task_list.js";
 import taskMoveScript from "../../scripts/jxa/task_move.js";
+import taskReorderScript from "../../scripts/jxa/task_reorder.js";
 import taskUncompleteScript from "../../scripts/jxa/task_uncomplete.js";
 import taskUndropScript from "../../scripts/jxa/task_undrop.js";
 import taskUpdateScript from "../../scripts/jxa/task_update.js";
@@ -83,6 +84,7 @@ import type {
   OmniFocusAdapter,
   SyncStatus,
   TaskFilter,
+  TaskPosition,
   UpdateFolderInput,
   UpdateProjectInput,
   UpdateTagInput,
@@ -270,6 +272,36 @@ export class JxaTransport implements OmniFocusAdapter {
       },
       { ...this.runOpts, scriptName: "task_move" },
     );
+  }
+
+  async reorderTask(id: TaskId, position: TaskPosition): Promise<void> {
+    let payload: {
+      id: TaskId;
+      mode: "before" | "after" | "start" | "end";
+      refId?: TaskId;
+      container?: {
+        projectId?: ProjectId | null;
+        parentId?: TaskId | null;
+        inbox?: true;
+      };
+    };
+    if ("before" in position) {
+      payload = { id, mode: "before", refId: position.before };
+    } else if ("after" in position) {
+      payload = { id, mode: "after", refId: position.after };
+    } else {
+      const container =
+        "projectId" in position.in
+          ? { projectId: position.in.projectId }
+          : "parentId" in position.in
+            ? { parentId: position.in.parentId }
+            : { inbox: true as const };
+      payload = { id, mode: position.at, container };
+    }
+    await runJxaScript<{ id: string }>(taskReorderScript, payload, {
+      ...this.runOpts,
+      scriptName: "task_reorder",
+    });
   }
 
   // -- Projects (wired) -----------------------------------------------------

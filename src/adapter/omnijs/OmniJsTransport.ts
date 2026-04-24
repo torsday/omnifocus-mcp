@@ -43,6 +43,7 @@ import type {
   PluginInvokeResult,
   SyncStatus,
   TaskFilter,
+  TaskPosition,
   UpdateFolderInput,
   UpdateProjectInput,
   UpdateTagInput,
@@ -128,6 +129,9 @@ export class OmniJsTransport implements OmniFocusAdapter {
     _destination: { projectId?: ProjectId; parentId?: TaskId },
   ): Promise<void> {
     return notYetWired("moveTask");
+  }
+  async reorderTask(_id: TaskId, _position: TaskPosition): Promise<void> {
+    return notYetWired("reorderTask");
   }
 
   // -- Projects -------------------------------------------------------------

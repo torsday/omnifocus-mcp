@@ -57,6 +57,7 @@ import type {
   SearchFilter,
   SyncStatus,
   TaskFilter,
+  TaskPosition,
   UpdateFolderInput,
   UpdateProjectInput,
   UpdateTagInput,
@@ -307,6 +308,122 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     });
     this.bumpProjectTaskCount(newProjectId, +1);
     if (task.completed) this.bumpProjectCompletedCount(newProjectId, +1);
+  }
+
+  async reorderTask(id: TaskId, position: TaskPosition): Promise<void> {
+    const task = await this.getTask(id);
+
+    // Resolve the container and whether this is a reparent.
+    let newProjectId: ProjectId | null;
+    let newParentId: TaskId | null;
+    let anchorMode: "before" | "after" | "start" | "end";
+    let anchorId: TaskId | null = null;
+
+    if ("before" in position || "after" in position) {
+      const refId = "before" in position ? position.before : position.after;
+      const ref = this.tasks.get(refId);
+      if (ref === undefined) {
+        throw new NotFound(`Reference task not found: ${refId}`, {
+          details: { resource: "task", id: refId },
+        });
+      }
+      if (refId === id) {
+        throw new ValidationError("reorderTask: reference must differ from the task id", {
+          details: { field: "position" },
+        });
+      }
+      if (ref.projectId !== task.projectId || ref.parentId !== task.parentId) {
+        throw new ValidationError(
+          "reorderTask: reference task must share parent with the task being moved",
+          { details: { field: "position" } },
+        );
+      }
+      newProjectId = task.projectId;
+      newParentId = task.parentId;
+      anchorMode = "before" in position ? "before" : "after";
+      anchorId = refId;
+    } else {
+      const { at, in: container } = position;
+      if ("projectId" in container) {
+        if (!this.projects.has(container.projectId)) {
+          throw new NotFound(`Project not found: ${container.projectId}`, {
+            details: { resource: "project", id: container.projectId },
+          });
+        }
+        newProjectId = container.projectId;
+        newParentId = null;
+      } else if ("parentId" in container) {
+        if (!this.tasks.has(container.parentId)) {
+          throw new NotFound(`Parent task not found: ${container.parentId}`, {
+            details: { resource: "task", id: container.parentId },
+          });
+        }
+        if (container.parentId === id) {
+          throw new ValidationError("reorderTask: cannot reparent a task under itself", {
+            details: { field: "position.in.parentId" },
+          });
+        }
+        // When reparenting under a task, project scope follows the new parent.
+        const parent = this.tasks.get(container.parentId);
+        newProjectId = parent?.projectId ?? null;
+        newParentId = container.parentId;
+      } else {
+        newProjectId = null;
+        newParentId = null;
+      }
+      anchorMode = at;
+    }
+
+    const reparented = newProjectId !== task.projectId || newParentId !== task.parentId;
+    if (reparented) {
+      this.bumpProjectTaskCount(task.projectId, -1);
+      if (task.completed) this.bumpProjectCompletedCount(task.projectId, -1);
+      this.bumpProjectTaskCount(newProjectId, +1);
+      if (task.completed) this.bumpProjectCompletedCount(newProjectId, +1);
+    }
+
+    const updated: Task = {
+      ...task,
+      projectId: newProjectId,
+      parentId: newParentId,
+      modifiedAt: isoOf(this.now()) as Task["modifiedAt"],
+    };
+
+    // Rebuild the task map so insertion order reflects the new sibling
+    // position. listTasks() returns Array.from(this.tasks.values()), so
+    // insertion order *is* the observable sibling order.
+    const remaining: [TaskId, Task][] = [];
+    for (const [tid, t] of this.tasks) {
+      if (tid === id) continue;
+      remaining.push([tid, t]);
+    }
+
+    const inContainer = (t: Task): boolean =>
+      t.projectId === newProjectId && t.parentId === newParentId;
+
+    let insertAt: number;
+    if (anchorMode === "start") {
+      insertAt = remaining.findIndex(([, t]) => inContainer(t));
+      if (insertAt === -1) insertAt = remaining.length;
+    } else if (anchorMode === "end") {
+      let last = -1;
+      for (let i = 0; i < remaining.length; i++) {
+        if (inContainer(remaining[i]![1])) last = i;
+      }
+      insertAt = last === -1 ? remaining.length : last + 1;
+    } else {
+      const refIdx = remaining.findIndex(([tid]) => tid === anchorId);
+      // Guaranteed: anchorId existed in the map and wasn't the task being moved.
+      insertAt = anchorMode === "before" ? refIdx : refIdx + 1;
+    }
+
+    this.tasks.clear();
+    for (let i = 0; i < remaining.length; i++) {
+      if (i === insertAt) this.tasks.set(id, updated);
+      const entry = remaining[i]!;
+      this.tasks.set(entry[0], entry[1]);
+    }
+    if (insertAt >= remaining.length) this.tasks.set(id, updated);
   }
 
   // -- Projects -------------------------------------------------------------

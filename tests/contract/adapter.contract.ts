@@ -133,6 +133,62 @@ export function runAdapterContract(label: string, options: AdapterContractOption
         expect((await adapter.getTask(id)).projectId).toBe(projectId);
       });
 
+      test("reorderTask — before moves task in front of reference", async () => {
+        const projectId = await adapter.createProject({ name: "ordering" });
+        const a = await adapter.createTask({ name: "a", projectId });
+        const b = await adapter.createTask({ name: "b", projectId });
+        const c = await adapter.createTask({ name: "c", projectId });
+        await adapter.reorderTask(c, { before: a });
+        const ids = (await adapter.listTasks({ projectId })).map((t) => t.id);
+        expect(ids).toEqual([c, a, b]);
+      });
+
+      test("reorderTask — after moves task behind reference", async () => {
+        const projectId = await adapter.createProject({ name: "ordering2" });
+        const a = await adapter.createTask({ name: "a", projectId });
+        const b = await adapter.createTask({ name: "b", projectId });
+        const c = await adapter.createTask({ name: "c", projectId });
+        await adapter.reorderTask(a, { after: b });
+        const ids = (await adapter.listTasks({ projectId })).map((t) => t.id);
+        expect(ids).toEqual([b, a, c]);
+      });
+
+      test("reorderTask — at:start moves task to start of container", async () => {
+        const projectId = await adapter.createProject({ name: "ordering3" });
+        const a = await adapter.createTask({ name: "a", projectId });
+        const b = await adapter.createTask({ name: "b", projectId });
+        const c = await adapter.createTask({ name: "c", projectId });
+        await adapter.reorderTask(c, { at: "start", in: { projectId } });
+        const ids = (await adapter.listTasks({ projectId })).map((t) => t.id);
+        expect(ids).toEqual([c, a, b]);
+      });
+
+      test("reorderTask — at:end moves task to end of container", async () => {
+        const projectId = await adapter.createProject({ name: "ordering4" });
+        const a = await adapter.createTask({ name: "a", projectId });
+        const b = await adapter.createTask({ name: "b", projectId });
+        const c = await adapter.createTask({ name: "c", projectId });
+        await adapter.reorderTask(a, { at: "end", in: { projectId } });
+        const ids = (await adapter.listTasks({ projectId })).map((t) => t.id);
+        expect(ids).toEqual([b, c, a]);
+      });
+
+      test("reorderTask — { at, in } to a different project reparents", async () => {
+        const p1 = await adapter.createProject({ name: "src" });
+        const p2 = await adapter.createProject({ name: "dest" });
+        const a = await adapter.createTask({ name: "a", projectId: p1 });
+        await adapter.reorderTask(a, { at: "start", in: { projectId: p2 } });
+        expect((await adapter.getTask(a)).projectId).toBe(p2);
+      });
+
+      test("reorderTask — ValidationError when reference has different parent", async () => {
+        const p1 = await adapter.createProject({ name: "p1" });
+        const p2 = await adapter.createProject({ name: "p2" });
+        const a = await adapter.createTask({ name: "a", projectId: p1 });
+        const b = await adapter.createTask({ name: "b", projectId: p2 });
+        await expect(adapter.reorderTask(a, { before: b })).rejects.toBeInstanceOf(ValidationError);
+      });
+
       test("getTasksMany preserves input order and returns null for missing IDs", async () => {
         const a = await adapter.createTask({ name: "a" });
         const b = await adapter.createTask({ name: "b" });
