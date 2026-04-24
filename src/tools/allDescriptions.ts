@@ -30,6 +30,7 @@ import { TAG_SET_STATUS_DESCRIPTION } from "./tag/setStatus.js";
 import { TAG_UPDATE_DESCRIPTION } from "./tag/update.js";
 import { TASK_CLEAR_REPETITION_DESCRIPTION } from "./task/clearRepetition.js";
 import { TASK_DELETE_DESCRIPTION } from "./task/delete.js";
+import { TASK_DUPLICATE_DESCRIPTION } from "./task/duplicate.js";
 import { TASK_FIND_BY_NAME_DESCRIPTION } from "./task/findByName.js";
 import { TASK_GET_DESCRIPTION } from "./task/get.js";
 import { TASK_GET_MANY_DESCRIPTION } from "./task/getMany.js";
@@ -73,6 +74,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   tag_update: TAG_UPDATE_DESCRIPTION,
   task_clear_repetition: TASK_CLEAR_REPETITION_DESCRIPTION,
   task_delete: TASK_DELETE_DESCRIPTION,
+  task_duplicate: TASK_DUPLICATE_DESCRIPTION,
   task_find_by_name: TASK_FIND_BY_NAME_DESCRIPTION,
   task_get: TASK_GET_DESCRIPTION,
   task_get_many: TASK_GET_MANY_DESCRIPTION,

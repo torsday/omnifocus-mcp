@@ -189,6 +189,55 @@ export function runAdapterContract(label: string, options: AdapterContractOption
         await expect(adapter.reorderTask(a, { before: b })).rejects.toBeInstanceOf(ValidationError);
       });
 
+      test("duplicateTask — clones a task alongside the source by default", async () => {
+        const projectId = await adapter.createProject({ name: "p" });
+        const src = await adapter.createTask({
+          name: "Original",
+          projectId,
+          note: "n",
+          flagged: true,
+        });
+        const { newId, descendantCount } = await adapter.duplicateTask(src, { recursive: false });
+        expect(newId).not.toBe(src);
+        expect(descendantCount).toBe(0);
+        const clone = await adapter.getTask(newId);
+        expect(clone.name).toBe("Original");
+        expect(clone.note).toBe("n");
+        expect(clone.flagged).toBe(true);
+        expect(clone.projectId).toBe(projectId);
+      });
+
+      test("duplicateTask — recursive clones full subtree depth-first", async () => {
+        const root = await adapter.createTask({ name: "root" });
+        const c1 = await adapter.createTask({ name: "c1", parentId: root });
+        await adapter.createTask({ name: "c2", parentId: root });
+        await adapter.createTask({ name: "g1", parentId: c1 });
+        const { newId, descendantCount } = await adapter.duplicateTask(root, { recursive: true });
+        expect(descendantCount).toBe(3);
+        const cloneChildren = await adapter.listTasks({ parentId: newId });
+        expect(cloneChildren.map((t) => t.name).sort()).toEqual(["c1", "c2"]);
+      });
+
+      test("duplicateTask — destination.projectId reparents the clone", async () => {
+        const p1 = await adapter.createProject({ name: "p1" });
+        const p2 = await adapter.createProject({ name: "p2" });
+        const src = await adapter.createTask({ name: "x", projectId: p1 });
+        const { newId } = await adapter.duplicateTask(src, {
+          recursive: false,
+          destination: { projectId: p2 },
+        });
+        expect((await adapter.getTask(newId)).projectId).toBe(p2);
+      });
+
+      test("duplicateTask — resets completed state on the clone", async () => {
+        const src = await adapter.createTask({ name: "done" });
+        await adapter.completeTask(src);
+        const { newId } = await adapter.duplicateTask(src, { recursive: false });
+        const clone = await adapter.getTask(newId);
+        expect(clone.completed).toBe(false);
+        expect(clone.completedAt).toBeNull();
+      });
+
       test("getTasksMany preserves input order and returns null for missing IDs", async () => {
         const a = await adapter.createTask({ name: "a" });
         const b = await adapter.createTask({ name: "b" });
