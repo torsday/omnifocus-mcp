@@ -3,9 +3,10 @@
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
  * API from @modelcontextprotocol/sdk. Currently registers the
- * `internal_status` tool and the four OmniFocus workflow prompts; the full
- * tool surface, MCP resources, and per-tool middleware composition arrive in
- * follow-ups under #278.
+ * `internal_status` tool, the four OmniFocus workflow prompts, and the ten
+ * MCP resources (`omnifocus://capabilities` + nine data URIs). The full
+ * tool surface and per-tool middleware composition arrive in follow-ups
+ * under #278.
  *
  * Signal handlers for SIGINT/SIGTERM delegate to `shutdownController` (#26),
  * which drains in-flight calls, flushes logs, and exits 0.
@@ -13,6 +14,7 @@
  * Cold-start target: < 500ms on a warm macOS (DESIGN §17).
  *
  * @see DESIGN.md §17 — lifecycle
+ * @see DESIGN.md §28 — MCP resources
  * @see docs/adr/0010-stdio-as-sole-transport.md
  */
 
@@ -27,9 +29,26 @@ import {
   WEEKLY_REVIEW_PROMPT,
   registerOmniFocusPrompts,
 } from "../prompts/omnifocus.js";
+import {
+  CAPABILITIES_URI,
+  buildCapabilities,
+  registerCapabilitiesResource,
+} from "../resources/capabilities.js";
+import {
+  FLAGGED_URI,
+  FORECAST_TODAY_URI,
+  INBOX_URI,
+  OVERDUE_URI,
+  PERSPECTIVE_URI_TEMPLATE,
+  PROJECT_URI_TEMPLATE,
+  REVIEW_DUE_URI,
+  SNAPSHOT_URI,
+  TAG_URI_TEMPLATE,
+  registerOmniFocusResources,
+} from "../resources/omnifocus.js";
 import { registerInternalStatusTool } from "../tools/observability/internalStatus.js";
 import { circuitBreakerRegistry } from "./circuitBreaker.js";
-import { composeAdapter, makeMeta } from "./composition.js";
+import { composeAdapter, composeResourceServices, makeMeta } from "./composition.js";
 import { shutdownController } from "./shutdown.js";
 import { installStdoutGuard } from "./stdoutGuard.js";
 
@@ -73,10 +92,11 @@ export async function startServer(): Promise<void> {
   const transport = new StdioServerTransport();
 
   // Compose the live adapter chain (JxaTransport + OmniJsTransport →
-  // TransportRouter). Cache wrapping (#22) and service composition (#289)
-  // arrive in follow-ups; the raw chain is enough for `internal_status` and
-  // for downstream registration helpers to start consuming via shared deps.
+  // TransportRouter). Cache wrapping (#22) and the rest of the service
+  // chain (#289) arrive in follow-ups; the resource-side services land
+  // here so #290's resources can resolve.
   const adapter = composeAdapter(config);
+  const services = composeResourceServices(adapter, config);
 
   // Register internal_status tool.
   registerInternalStatusTool(server, {
@@ -91,6 +111,22 @@ export async function startServer(): Promise<void> {
   // templates with no runtime dependencies, so they wire in without an
   // adapter or service chain.
   registerOmniFocusPrompts(server);
+
+  // Register the ten MCP resources (DESIGN §28) — capabilities plus nine
+  // data URIs (snapshot, inbox, forecast/today, overdue, flagged,
+  // review-due, project/{id}, tag/{id}, perspective/{id}).
+  //
+  // `buildCapabilities` reads from config on every resource fetch so a
+  // future lazy OF probe (#36) can update edition / version without a
+  // restart by mutating a shared cell read inside the closure.
+  registerCapabilitiesResource(server, () => buildCapabilities(config));
+  registerOmniFocusResources(server, {
+    adapter,
+    projectService: services.projectService,
+    reviewService: services.reviewService,
+    forecastService: services.forecastService,
+    perspectiveService: services.perspectiveService,
+  });
 
   // Graceful shutdown — delegate to shutdownController so tool handlers can
   // call assertNotShuttingDown() and in-flight queues drain cleanly.
@@ -126,6 +162,18 @@ export async function startServer(): Promise<void> {
         WEEKLY_REVIEW_PROMPT,
         CAPTURE_MEETING_PROMPT,
         PROJECT_PLANNING_PROMPT,
+      ],
+      resources: [
+        CAPABILITIES_URI,
+        SNAPSHOT_URI,
+        INBOX_URI,
+        FORECAST_TODAY_URI,
+        OVERDUE_URI,
+        FLAGGED_URI,
+        REVIEW_DUE_URI,
+        PROJECT_URI_TEMPLATE,
+        TAG_URI_TEMPLATE,
+        PERSPECTIVE_URI_TEMPLATE,
       ],
     },
     "server started",
