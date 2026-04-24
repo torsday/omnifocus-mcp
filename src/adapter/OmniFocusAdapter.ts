@@ -1,4 +1,5 @@
 import type { Attachment } from "../domain/attachment.js";
+import type { BatchOutcome } from "../domain/batch.js";
 import type { Folder } from "../domain/folder.js";
 import type { AttachmentId, FolderId, ProjectId, TagId, TaskId } from "../domain/ids.js";
 import type { BuiltinPerspectiveId, Perspective } from "../domain/perspective.js";
@@ -272,6 +273,30 @@ export interface OmniFocusAdapter {
   /** Hard delete — irreversible; distinct from drop. */
   deleteTask(id: TaskId): Promise<void>;
   moveTask(id: TaskId, destination: { projectId?: ProjectId; parentId?: TaskId }): Promise<void>;
+  /**
+   * Best-effort batch create. One transport round-trip per batch. Per-item
+   * failures are reported in `failed[]`; successes in `succeeded[]` with the
+   * new `TaskId`. Validation of the inputs is the caller's responsibility
+   * (tool layer rejects the whole batch on any schema error before calling).
+   *
+   * @see src/domain/batch.ts — `BatchOutcome` shape
+   */
+  batchCreateTasks(inputs: CreateTaskInput[]): Promise<BatchOutcome<TaskId>>;
+  /**
+   * Best-effort batch update. One transport round-trip per batch. Per-item
+   * failures are reported in `failed[]`; `succeeded[]` entries carry the
+   * updated `TaskId` as the value (echoed, for callers that only inspect
+   * indices).
+   */
+  batchUpdateTasks(
+    updates: Array<{ id: TaskId; patch: UpdateTaskInput }>,
+  ): Promise<BatchOutcome<TaskId>>;
+  /**
+   * Best-effort batch complete. One transport round-trip per batch. Per-item
+   * failures are reported in `failed[]`; `succeeded[]` entries carry the
+   * completed `TaskId` as the value.
+   */
+  batchCompleteTasks(items: Array<{ id: TaskId; at?: Date }>): Promise<BatchOutcome<TaskId>>;
   /**
    * Duplicate a task. Editable fields (name, note, noteHtml, dates, flagged,
    * tags, estimatedMinutes, repetition, sequential, completedByChildren) copy

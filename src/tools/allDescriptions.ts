@@ -34,6 +34,9 @@ import { TAG_SET_ALLOWS_NEXT_ACTION_DESCRIPTION } from "./tag/setAllowsNextActio
 import { TAG_SET_LOCATION_DESCRIPTION } from "./tag/setLocation.js";
 import { TAG_SET_STATUS_DESCRIPTION } from "./tag/setStatus.js";
 import { TAG_UPDATE_DESCRIPTION } from "./tag/update.js";
+import { TASK_BATCH_COMPLETE_DESCRIPTION } from "./task/batchComplete.js";
+import { TASK_BATCH_CREATE_DESCRIPTION } from "./task/batchCreate.js";
+import { TASK_BATCH_UPDATE_DESCRIPTION } from "./task/batchUpdate.js";
 import { TASK_CLEAR_REPETITION_DESCRIPTION } from "./task/clearRepetition.js";
 import { TASK_DELETE_DESCRIPTION } from "./task/delete.js";
 import { TASK_DUPLICATE_DESCRIPTION } from "./task/duplicate.js";
@@ -82,6 +85,9 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   tag_set_location: TAG_SET_LOCATION_DESCRIPTION,
   tag_set_status: TAG_SET_STATUS_DESCRIPTION,
   tag_update: TAG_UPDATE_DESCRIPTION,
+  task_batch_complete: TASK_BATCH_COMPLETE_DESCRIPTION,
+  task_batch_create: TASK_BATCH_CREATE_DESCRIPTION,
+  task_batch_update: TASK_BATCH_UPDATE_DESCRIPTION,
   task_clear_repetition: TASK_CLEAR_REPETITION_DESCRIPTION,
   task_delete: TASK_DELETE_DESCRIPTION,
   task_duplicate: TASK_DUPLICATE_DESCRIPTION,
