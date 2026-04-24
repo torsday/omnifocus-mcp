@@ -339,8 +339,7 @@ export class InMemoryAdapter implements OmniFocusAdapter {
   async deleteTask(id: TaskId): Promise<void> {
     const task = await this.getTask(id);
     this.tasks.delete(id);
-    this.bumpProjectTaskCount(task.projectId, -1);
-    if (task.completed) this.bumpProjectCompletedCount(task.projectId, -1);
+    this.adjustProjectCountsForTask(task.projectId, task, -1);
   }
 
   async moveTask(
@@ -363,8 +362,7 @@ export class InMemoryAdapter implements OmniFocusAdapter {
         details: { resource: "task", id: destination.parentId },
       });
     }
-    this.bumpProjectTaskCount(task.projectId, -1);
-    if (task.completed) this.bumpProjectCompletedCount(task.projectId, -1);
+    this.adjustProjectCountsForTask(task.projectId, task, -1);
 
     const newProjectId = destination.projectId ?? null;
     this.tasks.set(id, {
@@ -373,8 +371,7 @@ export class InMemoryAdapter implements OmniFocusAdapter {
       parentId: destination.parentId ?? null,
       modifiedAt: isoOf(this.now()) as Task["modifiedAt"],
     });
-    this.bumpProjectTaskCount(newProjectId, +1);
-    if (task.completed) this.bumpProjectCompletedCount(newProjectId, +1);
+    this.adjustProjectCountsForTask(newProjectId, task, +1);
   }
 
   async duplicateTask(
@@ -551,10 +548,8 @@ export class InMemoryAdapter implements OmniFocusAdapter {
 
     const reparented = newProjectId !== task.projectId || newParentId !== task.parentId;
     if (reparented) {
-      this.bumpProjectTaskCount(task.projectId, -1);
-      if (task.completed) this.bumpProjectCompletedCount(task.projectId, -1);
-      this.bumpProjectTaskCount(newProjectId, +1);
-      if (task.completed) this.bumpProjectCompletedCount(newProjectId, +1);
+      this.adjustProjectCountsForTask(task.projectId, task, -1);
+      this.adjustProjectCountsForTask(newProjectId, task, +1);
     }
 
     const updated: Task = {
@@ -1223,6 +1218,17 @@ export class InMemoryAdapter implements OmniFocusAdapter {
       ...project,
       taskCount: Math.max(0, project.taskCount + delta),
     });
+  }
+
+  /**
+   * Adjust both project-scoped counters in lockstep when a task enters or
+   * leaves a project. `delta = +1` on insertion, `-1` on removal. The
+   * completed-count only tracks if the task itself is completed — callers
+   * must pass the task post-read so the invariant holds.
+   */
+  private adjustProjectCountsForTask(projectId: ProjectId | null, task: Task, delta: number): void {
+    this.bumpProjectTaskCount(projectId, delta);
+    if (task.completed) this.bumpProjectCompletedCount(projectId, delta);
   }
 
   private bumpProjectCompletedCount(projectId: ProjectId | null, delta: number): void {
