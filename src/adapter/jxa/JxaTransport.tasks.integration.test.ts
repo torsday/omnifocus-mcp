@@ -12,7 +12,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { TaskId } from "../../domain/ids.js";
+import type { ProjectId, TaskId } from "../../domain/ids.js";
 import { JxaTransport } from "./JxaTransport.js";
 
 const INTEGRATION = process.env.OMNIFOCUS_INTEGRATION === "1";
@@ -92,6 +92,23 @@ describe.skipIf(!INTEGRATION)("JxaTransport — task integration", () => {
     await t.uncompleteTask(createdTaskId);
     const task = await t.getTask(createdTaskId);
     expect(task.completed).toBe(false);
+  });
+
+  it("moveTask moves the task into a target project", async () => {
+    // Create a short-lived target project, move the task into it, then clean up.
+    let targetProjectId: ProjectId | undefined;
+    try {
+      targetProjectId = await t.createProject({ name: "__mcp_test_move_target__" });
+      await t.moveTask(createdTaskId, { projectId: targetProjectId });
+      const task = await t.getTask(createdTaskId);
+      expect(task.projectId).toBe(targetProjectId);
+    } finally {
+      if (targetProjectId !== undefined) {
+        await t.deleteProject(targetProjectId).catch(() => {
+          /* best-effort cleanup */
+        });
+      }
+    }
   });
 
   it("deleteTask removes the task", async () => {
