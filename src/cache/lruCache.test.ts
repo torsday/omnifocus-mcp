@@ -142,4 +142,89 @@ describe("OmniFocusLruCache", () => {
       expect(cache.stats().size).toBe(0);
     });
   });
+
+  describe("coalescing (#22 — thundering-herd)", () => {
+    it("fans 10 concurrent identical wraps into 1 factory call", async () => {
+      const cache = new OmniFocusLruCache();
+      let invocations = 0;
+      let resolveFactory: (value: number) => void = () => undefined;
+      const factory = (): Promise<number> => {
+        invocations++;
+        return new Promise<number>((resolve) => {
+          resolveFactory = resolve;
+        });
+      };
+
+      const results = Promise.all(
+        Array.from({ length: 10 }, () => cache.wrap("task:123", factory)),
+      );
+      // Yield so all 10 wraps register before we resolve.
+      await Promise.resolve();
+      resolveFactory(42);
+      expect(await results).toEqual(Array(10).fill(42));
+      expect(invocations).toBe(1);
+
+      const stats = cache.stats();
+      expect(stats.misses).toBe(1);
+      expect(stats.coalesced).toBe(9);
+    });
+
+    it("caches the coalesced result so follow-up wraps hit", async () => {
+      const cache = new OmniFocusLruCache();
+      const factory = vi.fn(async () => "v");
+      await Promise.all([cache.wrap("k", factory), cache.wrap("k", factory)]);
+      await cache.wrap("k", factory); // fresh call after resolution
+      expect(factory).toHaveBeenCalledTimes(1);
+      expect(cache.stats().hits).toBe(1);
+    });
+
+    it("does not cache factory rejections; next call retries", async () => {
+      const cache = new OmniFocusLruCache();
+      let attempts = 0;
+      const factory = async () => {
+        attempts++;
+        if (attempts === 1) throw new Error("boom");
+        return "ok";
+      };
+
+      await expect(
+        Promise.all([
+          cache.wrap("k", factory).catch((e) => e.message),
+          cache.wrap("k", factory).catch((e) => e.message),
+        ]),
+      ).resolves.toEqual(["boom", "boom"]);
+      // First factory rejected — the next wrap should kick off a fresh factory.
+      expect(await cache.wrap("k", factory)).toBe("ok");
+      expect(attempts).toBe(2);
+    });
+
+    it("discards a factory result if invalidate() fires during flight", async () => {
+      const cache = new OmniFocusLruCache();
+      let resolveFactory: (value: number) => void = () => undefined;
+      const factory = (): Promise<number> => {
+        return new Promise<number>((resolve) => {
+          resolveFactory = resolve;
+        });
+      };
+      const result = cache.wrap("task:abc", factory);
+      await Promise.resolve();
+      cache.invalidate("task:abc");
+      resolveFactory(7);
+      expect(await result).toBe(7);
+      // Cache must NOT carry the stale-after-invalidate value.
+      expect(cache.has("task:abc")).toBe(false);
+    });
+
+    it("separates inflight maps across keys", async () => {
+      const cache = new OmniFocusLruCache();
+      const factoryA = vi.fn(async () => "a");
+      const factoryB = vi.fn(async () => "b");
+      const [a, b] = await Promise.all([cache.wrap("A", factoryA), cache.wrap("B", factoryB)]);
+      expect(a).toBe("a");
+      expect(b).toBe("b");
+      expect(factoryA).toHaveBeenCalledTimes(1);
+      expect(factoryB).toHaveBeenCalledTimes(1);
+      expect(cache.stats().coalesced).toBe(0);
+    });
+  });
 });
