@@ -8,8 +8,10 @@
  * sync, review, export, app, project, task, and attachment surfaces. Two
  * additional raw-script escape-hatch tools (`run_jxa_script`,
  * `run_omnijs_script`) register only when `OMNIFOCUS_ALLOW_RAW_SCRIPT=1`
- * (ADR-0004), bringing the wired surface to 71. Per-tool middleware (#291)
- * arrives in a follow-up under #289.
+ * (ADR-0004), bringing the wired surface to 71. Every registered tool is
+ * wrapped in `assertNotShuttingDown → withCircuitBreaker → withRateLimitMeta
+ * → withLoopDetection` via `installToolMiddleware` (#291), which runs once
+ * before any `register*Tool` helper.
  *
  * Signal handlers for SIGINT/SIGTERM delegate to `shutdownController` (#26),
  * which drains in-flight calls, flushes logs, and exits 0.
@@ -25,6 +27,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { parseConfig, redactConfig } from "../config/env.js";
 import { logger } from "../logging/logger.js";
+import { LoopDetector } from "../loopDetector/LoopDetector.js";
 import {
   CAPTURE_MEETING_PROMPT,
   DAILY_REVIEW_PROMPT,
@@ -32,6 +35,7 @@ import {
   WEEKLY_REVIEW_PROMPT,
   registerOmniFocusPrompts,
 } from "../prompts/omnifocus.js";
+import { ToolRateLimiter } from "../rateLimit/ToolRateLimiter.js";
 import {
   CAPABILITIES_URI,
   buildCapabilities,
@@ -118,6 +122,7 @@ import { registerTaskUndropTool } from "../tools/task/undrop.js";
 import { registerTaskUpdateTool } from "../tools/task/update.js";
 import { circuitBreakerRegistry } from "./circuitBreaker.js";
 import { composeAdapter, composeServices, makeMeta } from "./composition.js";
+import { installToolMiddleware } from "./middleware.js";
 import { shutdownController } from "./shutdown.js";
 import { installStdoutGuard } from "./stdoutGuard.js";
 
@@ -158,12 +163,27 @@ export async function startServer(): Promise<void> {
   logger.level = config.OMNIFOCUS_LOG_LEVEL;
 
   const server = createMcpServer();
+
+  // Install per-tool middleware (#291) BEFORE any register* helper runs so
+  // every tool gets wrapped through:
+  //   assertNotShuttingDown → withCircuitBreaker → withRateLimitMeta → withLoopDetection
+  // Singletons live for the lifetime of the server: the rate limiter shares
+  // its sliding window across calls, the loop detector its dedup keys, and
+  // the circuit-breaker registry already holds per-tool state.
+  const rateLimiter = new ToolRateLimiter(config.OMNIFOCUS_TOOL_RATE_LIMIT);
+  const loopDetector = new LoopDetector();
+  installToolMiddleware(server, {
+    rateLimiter,
+    loopDetector,
+    circuitRegistry: circuitBreakerRegistry,
+    shutdown: shutdownController,
+  });
+
   const transport = new StdioServerTransport();
 
   // Compose the live adapter chain (JxaTransport + OmniJsTransport →
   // TransportRouter) and the full service bundle. Cache wrapping at the
-  // adapter layer (#22) arrives in a follow-up; per-tool middleware
-  // composition (#291) wraps individual handlers.
+  // adapter layer (#22) arrives in a follow-up.
   const adapter = composeAdapter(config);
   const services = composeServices(adapter, config);
 
