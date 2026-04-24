@@ -32,6 +32,7 @@ import {
   Timeout,
   TransportUnavailable,
 } from "../../errors/index.js";
+import { emitTransportCall } from "../../logging/transportCall.js";
 
 // ---------------------------------------------------------------------------
 // Spawner seam (injectable for tests)
@@ -128,7 +129,17 @@ export async function runJxaScript<T = unknown>(
   const jsonArg = JSON.stringify(args ?? {});
   const scriptName = options.scriptName;
 
+  const startedAt = performance.now();
   const result = await spawner(scriptBody, jsonArg, timeoutMs);
+  const durationMs = Math.round(performance.now() - startedAt);
+  const outcome: "ok" | "error" =
+    result.spawnError !== undefined ||
+    result.timedOut ||
+    result.exitCode !== 0 ||
+    result.stdout.trim() === ""
+      ? "error"
+      : "ok";
+  emitTransportCall("jxa", scriptName, args, durationMs, outcome);
 
   // 1. Spawn failure (binary missing) — the transport itself is unavailable.
   if (result.spawnError !== undefined) {
