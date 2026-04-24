@@ -18,9 +18,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { InMemoryAdapter } from "../adapter/inMemory/InMemoryAdapter.js";
 import { parseConfig, redactConfig } from "../config/env.js";
-import type { ResponseMeta } from "../envelope/index.js";
 import { logger } from "../logging/logger.js";
 import {
   CAPTURE_MEETING_PROMPT,
@@ -31,6 +29,7 @@ import {
 } from "../prompts/omnifocus.js";
 import { registerInternalStatusTool } from "../tools/observability/internalStatus.js";
 import { circuitBreakerRegistry } from "./circuitBreaker.js";
+import { composeAdapter, makeMeta } from "./composition.js";
 import { shutdownController } from "./shutdown.js";
 import { installStdoutGuard } from "./stdoutGuard.js";
 
@@ -73,21 +72,18 @@ export async function startServer(): Promise<void> {
   const server = createMcpServer();
   const transport = new StdioServerTransport();
 
+  // Compose the live adapter chain (JxaTransport + OmniJsTransport →
+  // TransportRouter). Cache wrapping (#22) and service composition (#289)
+  // arrive in follow-ups; the raw chain is enough for `internal_status` and
+  // for downstream registration helpers to start consuming via shared deps.
+  const adapter = composeAdapter(config);
+
   // Register internal_status tool.
-  // Uses InMemoryAdapter for getLastSync until the real adapter is wired (M1+).
-  const internalStatusAdapter = new InMemoryAdapter();
   registerInternalStatusTool(server, {
     startedAt,
-    adapter: internalStatusAdapter,
+    adapter,
     circuitRegistry: circuitBreakerRegistry,
-    makeMeta: (partial: Partial<ResponseMeta> = {}): ResponseMeta => ({
-      correlationId: `internal-${Date.now()}`,
-      durationMs: 0,
-      cacheHit: false,
-      transport: "memory",
-      ofVersion: "unknown",
-      ...partial,
-    }),
+    makeMeta,
   });
 
   // Register MCP prompts (DESIGN §29) — four workflow templates: daily-review,
