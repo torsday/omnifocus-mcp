@@ -24,11 +24,13 @@ function makeMeta(partial: Partial<ResponseMeta> = {}): ResponseMeta {
   };
 }
 
-function makeCtx(overrides: {
-  getLastSync?: () => Promise<{ lastSyncAt: string | null; inFlight: boolean }>;
-  snapshot?: () => Array<{ name: string; state: string }>;
-  startedAt?: number;
-} = {}) {
+function makeCtx(
+  overrides: {
+    getLastSync?: () => Promise<{ lastSyncAt: string | null; inFlight: boolean }>;
+    snapshot?: () => Array<{ name: string; state: string }>;
+    startedAt?: number;
+  } = {},
+) {
   const adapter = {
     getLastSync:
       overrides.getLastSync ??
@@ -36,7 +38,8 @@ function makeCtx(overrides: {
   } as unknown as import("../../adapter/OmniFocusAdapter.js").OmniFocusAdapter;
 
   const circuitRegistry = {
-    snapshot: overrides.snapshot ?? vi.fn().mockReturnValue([{ name: "task_list", state: "closed" }]),
+    snapshot:
+      overrides.snapshot ?? vi.fn().mockReturnValue([{ name: "task_list", state: "closed" }]),
   };
 
   return {

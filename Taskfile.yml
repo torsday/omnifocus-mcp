@@ -1,0 +1,113 @@
+# https://taskfile.dev
+version: "3"
+
+silent: false
+
+vars:
+  # Passes any extra CLI arguments through to the underlying tool.
+  # Usage: task test -- src/adapter/jxa/JxaTransport.m2.test.ts
+  ARGS: '{{.CLI_ARGS}}'
+
+tasks:
+  # ---------------------------------------------------------------------------
+  # Default — list available tasks
+  # ---------------------------------------------------------------------------
+  default:
+    desc: List all available tasks
+    silent: true
+    cmds:
+      - task --list
+
+  # ---------------------------------------------------------------------------
+  # Formatting
+  # ---------------------------------------------------------------------------
+  fmt:
+    desc: >
+      Format all source files with Biome (respects .gitignore and
+      biome.json ignores).
+    summary: |
+      Runs `biome format --write` across the entire project.
+
+      Biome formats TypeScript, JavaScript, JSON, and JSONC files. The
+      project's biome.json controls line width, quote style, indent, etc.
+      Files listed under `files.ignore` (dist/, node_modules/, coverage/)
+      are automatically excluded.
+
+      To format only files that changed since your last commit, use:
+        task fmt:changed
+    cmds:
+      - pnpm exec biome format --write .
+
+  fmt:changed:
+    desc: >
+      Format only files that differ from the current VCS state (staged +
+      unstaged changes against HEAD).
+    summary: |
+      Collects changed files via git and passes them explicitly to
+      `biome format --write`.
+
+      "Changed" means either:
+        1. Committed on this branch (merge-base diff vs main), or
+        2. Modified in the working tree (staged or unstaged).
+
+      Only files with Biome-formattable extensions (ts, tsx, js, jsx,
+      cjs, mjs, cts, mts, json, jsonc) are included. This makes it fast
+      and safe for pre-commit hooks or mid-session cleanups.
+
+      Untracked (new, unstaged) files are NOT included.
+
+      To format the entire project instead, use:
+        task fmt
+    preconditions:
+      - sh: git rev-parse --is-inside-work-tree
+        msg: "fmt:changed requires a git repository."
+    cmds:
+      - |
+        # Gather all files that differ from main (committed branch diff) OR that
+        # have uncommitted working-tree changes (staged + unstaged). This covers
+        # both feature-branch workflows and solo edits on main.
+        #
+        # biome --changed only looks at committed diffs vs the default branch;
+        # it ignores working-tree modifications. We pass files explicitly instead
+        # so both use-cases are handled correctly.
+        merge_base=$(git merge-base HEAD main 2>/dev/null || echo "HEAD")
+        files=$(
+          { git diff --name-only "$merge_base" HEAD 2>/dev/null
+            git diff --name-only HEAD 2>/dev/null
+          } | sort -u \
+            | grep -E '\.(ts|tsx|js|jsx|cjs|mjs|cts|mts|json|jsonc)$' \
+            || true
+        )
+        if [ -z "$files" ]; then
+          echo "Nothing to format — no changed formattable files."
+          exit 0
+        fi
+        echo "Formatting changed files:"
+        echo "$files" | sed 's/^/  /'
+        echo "$files" | xargs pnpm exec biome format --write
+
+  # ---------------------------------------------------------------------------
+  # Tests
+  # ---------------------------------------------------------------------------
+  test:
+    desc: >
+      Run the unit test suite with Vitest. Pass a file/pattern as an extra
+      argument to scope the run (e.g. task test -- src/adapter/jxa).
+    summary: |
+      Runs `vitest run` (single-pass, no watch mode).
+
+      Extra arguments after `--` are forwarded verbatim to vitest, so you can
+      scope to a file or glob:
+
+        task test                                  # all unit tests
+        task test -- src/adapter/jxa               # one directory
+        task test -- src/prompts/omnifocus.test.ts # one file
+
+      Integration tests (requiring a live OmniFocus instance) are not included
+      here. To run them:
+        OMNIFOCUS_INTEGRATION=1 pnpm run test:integration
+
+      End-to-end tests:
+        OMNIFOCUS_E2E=1 pnpm run test:e2e
+    cmds:
+      - pnpm exec vitest run {{.ARGS}}
