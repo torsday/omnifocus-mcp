@@ -3,10 +3,13 @@
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
  * API from @modelcontextprotocol/sdk. Currently registers `internal_status`,
- * the four OmniFocus workflow prompts, the ten MCP resources, and 65 domain
+ * the four OmniFocus workflow prompts, the ten MCP resources, and 69 domain
  * tools across folder, tag, note, search, forecast, perspective, plugin,
- * sync, review, export, app, project, and task surfaces. Attachment tools
- * and per-tool middleware (#291) arrive in follow-ups under #289.
+ * sync, review, export, app, project, task, and attachment surfaces. Two
+ * additional raw-script escape-hatch tools (`run_jxa_script`,
+ * `run_omnijs_script`) register only when `OMNIFOCUS_ALLOW_RAW_SCRIPT=1`
+ * (ADR-0004), bringing the wired surface to 71. Per-tool middleware (#291)
+ * arrives in a follow-up under #289.
  *
  * Signal handlers for SIGINT/SIGTERM delegate to `shutdownController` (#26),
  * which drains in-flight calls, flushes logs, and exits 0.
@@ -47,6 +50,7 @@ import {
   registerOmniFocusResources,
 } from "../resources/omnifocus.js";
 import { registerAppLaunchTool } from "../tools/app/launch.js";
+import { registerAttachmentTools } from "../tools/attachment/index.js";
 import { registerExportOpmlTool } from "../tools/export/opml.js";
 import { registerTaskPaperTools } from "../tools/export/taskpaper.js";
 import { registerFolderCreateTool } from "../tools/folder/create.js";
@@ -73,6 +77,8 @@ import { registerProjectGetTool } from "../tools/project/get.js";
 import { registerProjectListTool } from "../tools/project/list.js";
 import { registerProjectMoveTool } from "../tools/project/move.js";
 import { registerProjectUpdateTool } from "../tools/project/update.js";
+import { registerRunJxaScriptTool } from "../tools/rawScript/jxa.js";
+import { registerRunOmniJsScriptTool } from "../tools/rawScript/omnijs.js";
 import { registerReviewListDueTool } from "../tools/review/listDue.js";
 import { registerReviewMarkReviewedTool } from "../tools/review/markReviewed.js";
 import { registerProjectMarkReviewedTool } from "../tools/review/projectMarkReviewed.js";
@@ -299,6 +305,23 @@ export async function startServer(): Promise<void> {
   registerTaskDeleteTool(server, taskMutationCtx);
   registerTaskUpdateTool(server, taskMutationCtx);
 
+  // Attachment tools — four uniform `{attachmentService, makeMeta}`
+  // registrations exposed via the `registerAttachmentTools` helper:
+  // attachment_list / attachment_add / attachment_remove /
+  // attachment_save_to_path.
+  registerAttachmentTools(server, {
+    attachmentService: services.attachmentService,
+    makeMeta,
+  });
+
+  // Raw-script escape hatches (run_jxa_script, run_omnijs_script) —
+  // gated by OMNIFOCUS_ALLOW_RAW_SCRIPT (ADR-0004). When the flag is unset
+  // the helpers no-op, so this is safe to call unconditionally.
+  const rawScriptCtx = { adapter, makeMeta };
+  const rawScriptOpts = { allowRawScript: config.OMNIFOCUS_ALLOW_RAW_SCRIPT };
+  registerRunJxaScriptTool(server, rawScriptCtx, rawScriptOpts);
+  registerRunOmniJsScriptTool(server, rawScriptCtx, rawScriptOpts);
+
   // Graceful shutdown — delegate to shutdownController so tool handlers can
   // call assertNotShuttingDown() and in-flight queues drain cleanly.
   process.on("SIGINT", () => {
@@ -322,78 +345,89 @@ export async function startServer(): Promise<void> {
 
   await server.connect(transport);
 
+  // Build the tools manifest emitted in `server.started`. Raw-script tools
+  // are listed only when actually registered.
+  const tools = [
+    "internal_status",
+    "folder_create",
+    "folder_delete",
+    "folder_get",
+    "folder_list",
+    "folder_move",
+    "folder_update",
+    "tag_create",
+    "tag_delete",
+    "tag_get",
+    "tag_get_location",
+    "tag_list",
+    "tag_move",
+    "tag_set_allows_next_action",
+    "tag_set_location",
+    "tag_set_status",
+    "tag_update",
+    "note_append",
+    "note_get",
+    "note_get_html",
+    "note_set",
+    "note_set_html",
+    "search_query",
+    "forecast_get",
+    "perspective_list",
+    "perspective_evaluate",
+    "plugin_invoke",
+    "sync_status",
+    "sync_trigger",
+    "review_list_due",
+    "review_mark_reviewed",
+    "project_mark_reviewed",
+    "review_set_interval",
+    "export_opml",
+    "export_taskpaper",
+    "import_taskpaper",
+    "app_launch",
+    "project_complete",
+    "project_create",
+    "project_delete",
+    "project_drop",
+    "project_get",
+    "project_list",
+    "project_move",
+    "project_update",
+    "task_get",
+    "task_list",
+    "task_find_by_name",
+    "task_get_many",
+    "task_parse_transport_text",
+    "task_batch_complete",
+    "task_batch_create",
+    "task_batch_update",
+    "task_clear_repetition",
+    "task_complete",
+    "task_drop",
+    "task_duplicate",
+    "task_move",
+    "task_reorder",
+    "task_set_repetition",
+    "task_uncomplete",
+    "task_undrop",
+    "task_create",
+    "task_delete",
+    "task_update",
+    "attachment_list",
+    "attachment_add",
+    "attachment_remove",
+    "attachment_save_to_path",
+  ];
+  if (config.OMNIFOCUS_ALLOW_RAW_SCRIPT) {
+    tools.push("run_jxa_script", "run_omnijs_script");
+  }
+
   logger.info(
     {
       event: "server.started",
       version: PACKAGE_VERSION,
       config: redactConfig(config),
-      tools: [
-        "internal_status",
-        "folder_create",
-        "folder_delete",
-        "folder_get",
-        "folder_list",
-        "folder_move",
-        "folder_update",
-        "tag_create",
-        "tag_delete",
-        "tag_get",
-        "tag_get_location",
-        "tag_list",
-        "tag_move",
-        "tag_set_allows_next_action",
-        "tag_set_location",
-        "tag_set_status",
-        "tag_update",
-        "note_append",
-        "note_get",
-        "note_get_html",
-        "note_set",
-        "note_set_html",
-        "search_query",
-        "forecast_get",
-        "perspective_list",
-        "perspective_evaluate",
-        "plugin_invoke",
-        "sync_status",
-        "sync_trigger",
-        "review_list_due",
-        "review_mark_reviewed",
-        "project_mark_reviewed",
-        "review_set_interval",
-        "export_opml",
-        "export_taskpaper",
-        "import_taskpaper",
-        "app_launch",
-        "project_complete",
-        "project_create",
-        "project_delete",
-        "project_drop",
-        "project_get",
-        "project_list",
-        "project_move",
-        "project_update",
-        "task_get",
-        "task_list",
-        "task_find_by_name",
-        "task_get_many",
-        "task_parse_transport_text",
-        "task_batch_complete",
-        "task_batch_create",
-        "task_batch_update",
-        "task_clear_repetition",
-        "task_complete",
-        "task_drop",
-        "task_duplicate",
-        "task_move",
-        "task_reorder",
-        "task_set_repetition",
-        "task_uncomplete",
-        "task_undrop",
-        "task_create",
-        "task_delete",
-        "task_update",
-      ],
+      tools,
       prompts: [
         DAILY_REVIEW_PROMPT,
         WEEKLY_REVIEW_PROMPT,
