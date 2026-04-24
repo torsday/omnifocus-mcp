@@ -624,7 +624,7 @@ export class JxaTransport implements OmniFocusAdapter {
 
   // -- Raw escape hatch (off by default; gated by env at the tool layer) ----
 
-  async runJxaScript(script: string): Promise<unknown> {
-    return runJxaScript(script, {}, { ...this.runOpts, scriptName: "raw" });
+  async runJxaScript(script: string, arg?: unknown): Promise<unknown> {
+    return runJxaScript(script, arg ?? {}, { ...this.runOpts, scriptName: "raw" });
   }
 }
