@@ -1,8 +1,15 @@
 /**
  * `project_create` MCP tool — create a new OmniFocus project.
  *
+ * Adopts the idempotency-key safety primitive (#138) so transport retries
+ * cannot produce duplicate projects. `expectedModifiedAt` is N/A (no prior
+ * version) and `dry_run` is deferred — the `{ created, id }` return shape
+ * has no preview equivalent since OmniFocus generates the id server-side.
+ * See #252.
+ *
  * @see DESIGN.md §26 — reference tool pattern
  * @see src/tools/project/update.ts — project_update (patch editable fields)
+ * @see src/tools/task/create.ts — task_create (sibling idempotency slice)
  * @see docs/domain-reference.md — project schema
  */
 
@@ -12,6 +19,11 @@ import type { CreateProjectInput, OmniFocusAdapter } from "../../adapter/OmniFoc
 import { type InvalidatingCache, invalidateProjectMutation } from "../../cache/invalidation.js";
 import { FolderId, TagId } from "../../domain/ids.js";
 import { type ResponseMeta, ok } from "../../envelope/index.js";
+import {
+  type IdempotencyStore,
+  idempotencyStore as defaultIdempotencyStore,
+  withIdempotencyKey,
+} from "../../server/idempotencyStore.js";
 
 // ---------------------------------------------------------------------------
 // Tool description
@@ -21,6 +33,9 @@ export const PROJECT_CREATE_DESCRIPTION =
   "Create a new OmniFocus project. " +
   "Optionally place it in a folder, assign tags, set completion criterion, status, defer/due dates, " +
   "estimated minutes, flagged state, and review interval. " +
+  "Safety control: pass idempotency_key to make transport retries safe — identical subsequent " +
+  "calls within the TTL window replay the original envelope with meta.idempotentReplay = true " +
+  "instead of creating a duplicate project. " +
   "Returns { created: true, id }. " +
   "Side effects: creates a project in OmniFocus, sets meta.syncPending = true. " +
   "Call sync_trigger when you need the project to appear on other devices.";
@@ -69,6 +84,18 @@ export const projectCreateInputSchema = z.object({
     .min(1)
     .optional()
     .describe("Review interval in days. Omit to use OmniFocus default."),
+
+  // Safety-primitive control (#252 / #138)
+  idempotency_key: z
+    .string()
+    .min(1)
+    .max(128)
+    .optional()
+    .describe(
+      "Idempotency key for retry-safe creates. Identical subsequent calls within " +
+        "the TTL window replay the original envelope with meta.idempotentReplay = true " +
+        "instead of creating a duplicate project.",
+    ),
 });
 
 export type ProjectCreateToolInput = z.infer<typeof projectCreateInputSchema>;
@@ -81,13 +108,18 @@ export interface ProjectCreateContext {
   adapter: OmniFocusAdapter;
   makeMeta: (partial?: Partial<ResponseMeta>) => ResponseMeta;
   cache?: InvalidatingCache;
+  /**
+   * Optional idempotency store override. Defaults to the module singleton.
+   * Tests inject a scoped store so parallel specs do not share keys.
+   */
+  idempotencyStore?: IdempotencyStore;
 }
 
 /**
  * Pure handler for `project_create`.
  *
- * Delegates to `adapter.createProject`, then flushes the project-mutation
- * cache scopes. Returns the new project's ID.
+ * Wraps the create in `withIdempotencyKey` so retries under the same key
+ * replay the original envelope instead of producing a duplicate project.
  *
  * @throws {NotFound} when folderId or any tagId does not exist
  * @throws {OmniFocusNotRunning} when OmniFocus is not running
@@ -96,29 +128,35 @@ export async function handleProjectCreate(
   input: ProjectCreateToolInput,
   ctx: ProjectCreateContext,
 ) {
-  const projectInput: CreateProjectInput = {
-    name: input.name,
-    ...(input.folderId !== undefined && { folderId: input.folderId }),
-    ...(input.note !== undefined && { note: input.note }),
-    ...(input.status !== undefined && { status: input.status }),
-    ...(input.completionCriterion !== undefined && {
-      completionCriterion: input.completionCriterion,
-    }),
-    ...(input.deferDate !== undefined && { deferDate: input.deferDate }),
-    ...(input.dueDate !== undefined && { dueDate: input.dueDate }),
-    ...(input.estimatedMinutes !== undefined && { estimatedMinutes: input.estimatedMinutes }),
-    ...(input.flagged !== undefined && { flagged: input.flagged }),
-    ...(input.tagIds !== undefined && { tagIds: input.tagIds }),
-    ...(input.reviewIntervalDays !== undefined && { reviewIntervalDays: input.reviewIntervalDays }),
-  };
+  const store = ctx.idempotencyStore ?? defaultIdempotencyStore;
 
-  const id = await ctx.adapter.createProject(projectInput);
+  return withIdempotencyKey(store, input.idempotency_key, async () => {
+    const projectInput: CreateProjectInput = {
+      name: input.name,
+      ...(input.folderId !== undefined && { folderId: input.folderId }),
+      ...(input.note !== undefined && { note: input.note }),
+      ...(input.status !== undefined && { status: input.status }),
+      ...(input.completionCriterion !== undefined && {
+        completionCriterion: input.completionCriterion,
+      }),
+      ...(input.deferDate !== undefined && { deferDate: input.deferDate }),
+      ...(input.dueDate !== undefined && { dueDate: input.dueDate }),
+      ...(input.estimatedMinutes !== undefined && { estimatedMinutes: input.estimatedMinutes }),
+      ...(input.flagged !== undefined && { flagged: input.flagged }),
+      ...(input.tagIds !== undefined && { tagIds: input.tagIds }),
+      ...(input.reviewIntervalDays !== undefined && {
+        reviewIntervalDays: input.reviewIntervalDays,
+      }),
+    };
 
-  if (ctx.cache !== undefined) {
-    invalidateProjectMutation(ctx.cache, { projectId: id });
-  }
+    const id = await ctx.adapter.createProject(projectInput);
 
-  return ok({ created: true as const, id }, ctx.makeMeta({ syncPending: true }));
+    if (ctx.cache !== undefined) {
+      invalidateProjectMutation(ctx.cache, { projectId: id });
+    }
+
+    return ok({ created: true as const, id }, ctx.makeMeta({ syncPending: true }));
+  });
 }
 
 // ---------------------------------------------------------------------------
