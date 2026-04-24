@@ -22,7 +22,7 @@ import type { OmniFocusAdapter, UpdateProjectInput } from "../../adapter/OmniFoc
 import { type InvalidatingCache, invalidateProjectMutation } from "../../cache/invalidation.js";
 import type { ProjectId as ProjectIdType } from "../../domain/ids.js";
 import { ProjectId, TagId } from "../../domain/ids.js";
-import { type ResponseMeta, type ToolEnvelope, ok } from "../../envelope/index.js";
+import { type ResponseMeta, type ToolEnvelope, ok, toolResponse } from "../../envelope/index.js";
 import { assertNotModifiedSince } from "../../server/assertNotModifiedSince.js";
 import { dryRunGuard } from "../../server/dryRunGuard.js";
 import {
@@ -218,10 +218,7 @@ export function registerProjectUpdateTool(server: McpServer, ctx: ProjectUpdateC
     { description: PROJECT_UPDATE_DESCRIPTION, inputSchema: projectUpdateInputSchema.shape },
     async (args: ProjectUpdateToolInput) => {
       const envelope = await handleProjectUpdate(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

@@ -8,7 +8,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { FolderId } from "../../domain/ids.js";
-import { type ResponseMeta, ok } from "../../envelope/index.js";
+import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 import type { FolderService } from "../../services/folderService.js";
 
 export const FOLDER_MOVE_DESCRIPTION =
@@ -44,10 +44,7 @@ export function registerFolderMoveTool(server: McpServer, ctx: FolderMoveContext
     { description: FOLDER_MOVE_DESCRIPTION, inputSchema: folderMoveInputSchema.shape },
     async (args: FolderMoveToolInput) => {
       const envelope = await handleFolderMove(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

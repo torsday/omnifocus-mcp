@@ -18,7 +18,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { AttachmentOwner } from "../../adapter/OmniFocusAdapter.js";
 import { AttachmentId, ProjectId, TaskId } from "../../domain/ids.js";
-import { type ResponseMeta, ok } from "../../envelope/index.js";
+import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 import { ValidationError } from "../../errors/index.js";
 import type { AttachmentService } from "../../services/attachmentService.js";
 
@@ -199,10 +199,7 @@ export function registerAttachmentTools(server: McpServer, ctx: AttachmentToolCo
         args as z.infer<typeof attachmentListInputSchema>,
         ctx,
       );
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 
@@ -214,10 +211,7 @@ export function registerAttachmentTools(server: McpServer, ctx: AttachmentToolCo
         args as z.infer<typeof attachmentAddInputSchema>,
         ctx,
       );
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 
@@ -229,10 +223,7 @@ export function registerAttachmentTools(server: McpServer, ctx: AttachmentToolCo
         args as z.infer<typeof attachmentRemoveInputSchema>,
         ctx,
       );
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 
@@ -247,10 +238,7 @@ export function registerAttachmentTools(server: McpServer, ctx: AttachmentToolCo
         args as z.infer<typeof attachmentSaveToPathInputSchema>,
         ctx,
       );
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

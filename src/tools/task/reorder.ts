@@ -14,7 +14,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter, TaskPosition } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
-import { type ResponseMeta, ok } from "../../envelope/index.js";
+import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 import { ValidationError } from "../../errors/index.js";
 
 // ---------------------------------------------------------------------------
@@ -161,10 +161,7 @@ export function registerTaskReorderTool(server: McpServer, ctx: TaskReorderConte
     { description: TASK_REORDER_DESCRIPTION, inputSchema: taskReorderInputSchema.shape },
     async (args: TaskReorderToolInput) => {
       const envelope = await handleTaskReorder(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

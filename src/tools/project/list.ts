@@ -12,7 +12,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { FolderId } from "../../domain/ids.js";
-import { type Pagination, type ResponseMeta, ok } from "../../envelope/index.js";
+import { type Pagination, type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 import type { ProjectListInput, ProjectService } from "../../services/projectService.js";
 
 // ---------------------------------------------------------------------------
@@ -112,10 +112,7 @@ export function registerProjectListTool(server: McpServer, ctx: ProjectListConte
     },
     async (args: ProjectListToolInput) => {
       const envelope = await handleProjectList(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

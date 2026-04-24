@@ -250,3 +250,24 @@ export function isSuccess<T>(envelope: ToolEnvelope<T>): envelope is ToolSuccess
 export function isError<T>(envelope: ToolEnvelope<T>): envelope is ToolError {
   return "error" in envelope;
 }
+
+/**
+ * Wrap a `ToolEnvelope` in the `{ content, structuredContent }` shape the MCP
+ * SDK expects from a `registerTool` callback. Every tool returns the same pair:
+ * a JSON-serialised `text` block for agents that only parse `content`, and the
+ * raw envelope under `structuredContent` for clients that use the typed shape.
+ *
+ * The `as unknown as Record<string, unknown>` cast bridges the SDK's loose
+ * structured-content type with our discriminated `ToolSuccess<T> | ToolError`.
+ * Keeping it here means the cast exists once, not at every callsite.
+ *
+ * `ToolEnvelope<unknown>` — not a generic — so a union like
+ * `ToolSuccess<{noChange}> | ToolSuccess<{done}>` (task_complete) passes as a
+ * single argument without having to unify the payload types.
+ */
+export function toolResponse(envelope: ToolEnvelope<unknown>) {
+  return {
+    content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
+    structuredContent: envelope as unknown as Record<string, unknown>,
+  };
+}

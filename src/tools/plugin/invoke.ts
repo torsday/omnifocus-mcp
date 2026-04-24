@@ -13,7 +13,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
-import { type ResponseMeta, ok } from "../../envelope/index.js";
+import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 import { PluginService } from "../../services/pluginService.js";
 
 // ---------------------------------------------------------------------------
@@ -79,10 +79,7 @@ export function registerPluginInvokeTool(server: McpServer, ctx: PluginInvokeCon
     { description: PLUGIN_INVOKE_DESCRIPTION, inputSchema: pluginInvokeInputSchema.shape },
     async (args: PluginInvokeInput) => {
       const envelope = await handlePluginInvoke(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

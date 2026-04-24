@@ -18,7 +18,7 @@ import { z } from "zod";
 import type { CreateProjectInput, OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateProjectMutation } from "../../cache/invalidation.js";
 import { FolderId, TagId } from "../../domain/ids.js";
-import { type ResponseMeta, ok } from "../../envelope/index.js";
+import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 import {
   type IdempotencyStore,
   idempotencyStore as defaultIdempotencyStore,
@@ -169,10 +169,7 @@ export function registerProjectCreateTool(server: McpServer, ctx: ProjectCreateC
     { description: PROJECT_CREATE_DESCRIPTION, inputSchema: projectCreateInputSchema.shape },
     async (args: ProjectCreateToolInput) => {
       const envelope = await handleProjectCreate(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

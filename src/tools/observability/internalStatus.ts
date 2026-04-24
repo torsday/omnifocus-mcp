@@ -14,8 +14,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
+import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 import type { CircuitState } from "../../server/circuitBreaker.js";
-import { type ResponseMeta, ok } from "../../envelope/index.js";
 
 // ---------------------------------------------------------------------------
 // Tool description
@@ -110,10 +110,7 @@ export function registerInternalStatusTool(server: McpServer, ctx: InternalStatu
     { description: INTERNAL_STATUS_DESCRIPTION, inputSchema: internalStatusInputSchema.shape },
     async (args: InternalStatusInput) => {
       const envelope = await handleInternalStatus(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

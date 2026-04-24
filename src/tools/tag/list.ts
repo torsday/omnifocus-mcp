@@ -13,7 +13,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { TagId } from "../../domain/ids.js";
-import { type ResponseMeta, ok } from "../../envelope/index.js";
+import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 import type { TagListInput, TagService } from "../../services/tagService.js";
 
 // ---------------------------------------------------------------------------
@@ -83,10 +83,7 @@ export function registerTagListTool(server: McpServer, ctx: TagListContext) {
     },
     async (args: TagListToolInput) => {
       const envelope = await handleTagList(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

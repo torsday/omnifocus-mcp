@@ -13,7 +13,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ProjectId } from "../../domain/ids.js";
-import { type ResponseMeta, ok } from "../../envelope/index.js";
+import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 import type { ProjectService } from "../../services/projectService.js";
 
 // ---------------------------------------------------------------------------
@@ -83,10 +83,7 @@ export function registerProjectGetTool(server: McpServer, ctx: ProjectGetContext
     },
     async (args: ProjectGetToolInput) => {
       const envelope = await handleProjectGet(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

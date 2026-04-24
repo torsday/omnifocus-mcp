@@ -9,7 +9,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { type InvalidatingCache, invalidateProjectMutation } from "../../cache/invalidation.js";
 import { FolderId, ProjectId } from "../../domain/ids.js";
-import { type ResponseMeta, ok } from "../../envelope/index.js";
+import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 import type { ProjectService } from "../../services/projectService.js";
 
 // ---------------------------------------------------------------------------
@@ -63,10 +63,7 @@ export function registerProjectMoveTool(server: McpServer, ctx: ProjectMoveConte
     { description: PROJECT_MOVE_DESCRIPTION, inputSchema: projectMoveInputSchema.shape },
     async (args: ProjectMoveToolInput) => {
       const envelope = await handleProjectMove(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

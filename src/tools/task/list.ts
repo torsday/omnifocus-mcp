@@ -22,7 +22,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { flexDateString } from "../../domain/dates.js";
 import { ProjectId, TagId, TaskId } from "../../domain/ids.js";
-import { type Pagination, type ResponseMeta, ok } from "../../envelope/index.js";
+import { type Pagination, type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 import { TaskSortBySchema } from "../../services/taskService.js";
 import type { TaskListInput, TaskService } from "../../services/taskService.js";
 
@@ -175,10 +175,7 @@ export function registerTaskListTool(server: McpServer, ctx: ToolContext) {
     },
     async (args: TaskListToolInput) => {
       const envelope = await handleTaskList(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

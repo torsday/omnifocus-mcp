@@ -17,7 +17,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { FolderId, ProjectId } from "../../domain/ids.js";
-import { type ResponseMeta, ok } from "../../envelope/index.js";
+import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 import type { ExportScope, ExportService } from "../../services/exportService.js";
 
 // ---------------------------------------------------------------------------
@@ -107,17 +107,6 @@ function resolveScope(input: ExportTaskPaperToolInput): ExportScope {
 // ---------------------------------------------------------------------------
 
 /**
- * Serialise an `ok()` envelope into the MCP tool response shape.
- * Mirrors the pattern in `export_opml`.
- */
-function toMcpResponse(envelope: ReturnType<typeof ok>) {
-  return {
-    content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-    structuredContent: envelope as unknown as Record<string, unknown>,
-  };
-}
-
-/**
  * Register `export_taskpaper` and `import_taskpaper` tools with the server.
  */
 export function registerTaskPaperTools(server: McpServer, ctx: TaskPaperToolContext): void {
@@ -131,7 +120,7 @@ export function registerTaskPaperTools(server: McpServer, ctx: TaskPaperToolCont
     async (input: ExportTaskPaperToolInput) => {
       const scope = resolveScope(input);
       const result = await ctx.exportService.exportTaskPaper(scope);
-      return toMcpResponse(
+      return toolResponse(
         ok(
           {
             taskpaper: result.taskpaper,
@@ -157,7 +146,7 @@ export function registerTaskPaperTools(server: McpServer, ctx: TaskPaperToolCont
         input.text,
         input.targetProjectId as ProjectId | undefined,
       );
-      return toMcpResponse(
+      return toolResponse(
         ok({ created: result.created, warnings: result.warnings }, ctx.makeMeta()),
       );
     },

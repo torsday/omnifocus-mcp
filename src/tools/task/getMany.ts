@@ -25,7 +25,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { TaskId } from "../../domain/ids.js";
-import { type ResponseMeta, ok, warnIdsNotFound } from "../../envelope/index.js";
+import { type ResponseMeta, ok, toolResponse, warnIdsNotFound } from "../../envelope/index.js";
 import { ValidationError } from "../../errors/index.js";
 
 // ---------------------------------------------------------------------------
@@ -117,10 +117,7 @@ export function registerTaskGetManyTool(server: McpServer, ctx: TaskGetManyConte
     },
     async (args: TaskGetManyInput) => {
       const envelope = await handleTaskGetMany(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

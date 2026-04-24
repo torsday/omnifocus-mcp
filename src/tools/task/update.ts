@@ -28,7 +28,7 @@ import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { TagId, TaskId } from "../../domain/ids.js";
 import type { Task } from "../../domain/task.js";
-import { type ResponseMeta, type ToolEnvelope, ok } from "../../envelope/index.js";
+import { type ResponseMeta, type ToolEnvelope, ok, toolResponse } from "../../envelope/index.js";
 import { assertNotModifiedSince } from "../../server/assertNotModifiedSince.js";
 import { dryRunGuard } from "../../server/dryRunGuard.js";
 import {
@@ -283,10 +283,7 @@ export function registerTaskUpdateTool(server: McpServer, ctx: TaskUpdateContext
     { description: TASK_UPDATE_DESCRIPTION, inputSchema: taskUpdateInputBaseSchema.shape },
     async (args: TaskUpdateToolInput) => {
       const envelope = await handleTaskUpdate(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

@@ -13,7 +13,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
-import { type ResponseMeta, ok } from "../../envelope/index.js";
+import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 
 // ---------------------------------------------------------------------------
 // Tool description
@@ -81,10 +81,7 @@ export function registerNoteGetTool(server: McpServer, ctx: NoteGetContext) {
     { description: NOTE_GET_DESCRIPTION, inputSchema: noteGetInputSchema.shape },
     async (args: NoteGetToolInput) => {
       const envelope = await handleNoteGet(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

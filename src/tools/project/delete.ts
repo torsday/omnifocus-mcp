@@ -22,7 +22,7 @@ import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateProjectMutation } from "../../cache/invalidation.js";
 import type { ProjectId as ProjectIdType } from "../../domain/ids.js";
 import { ProjectId } from "../../domain/ids.js";
-import { type ResponseMeta, type ToolEnvelope, ok } from "../../envelope/index.js";
+import { type ResponseMeta, type ToolEnvelope, ok, toolResponse } from "../../envelope/index.js";
 import { assertNotModifiedSince } from "../../server/assertNotModifiedSince.js";
 import { dryRunGuard } from "../../server/dryRunGuard.js";
 import {
@@ -159,10 +159,7 @@ export function registerProjectDeleteTool(server: McpServer, ctx: ProjectDeleteC
     { description: PROJECT_DELETE_DESCRIPTION, inputSchema: projectDeleteInputSchema.shape },
     async (args: ProjectDeleteToolInput) => {
       const envelope = await handleProjectDelete(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

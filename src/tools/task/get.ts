@@ -12,7 +12,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { TaskId } from "../../domain/ids.js";
-import { type ResponseMeta, ok } from "../../envelope/index.js";
+import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 import type { TaskGetInput, TaskService } from "../../services/taskService.js";
 
 export const TASK_GET_DESCRIPTION =
@@ -58,10 +58,7 @@ export function registerTaskGetTool(server: McpServer, ctx: TaskGetContext) {
     { description: TASK_GET_DESCRIPTION, inputSchema: taskGetInputSchema.shape },
     async (args: TaskGetToolInput) => {
       const envelope = await handleTaskGet(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

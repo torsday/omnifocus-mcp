@@ -11,7 +11,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { TaskId } from "../../domain/ids.js";
-import { type ResponseMeta, ok } from "../../envelope/index.js";
+import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 
 // ---------------------------------------------------------------------------
 // Tool description
@@ -74,10 +74,7 @@ export function registerTaskDropTool(server: McpServer, ctx: TaskDropContext) {
     { description: TASK_DROP_DESCRIPTION, inputSchema: taskDropInputSchema.shape },
     async (args: TaskDropToolInput) => {
       const envelope = await handleTaskDrop(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

@@ -12,7 +12,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { flexDateString } from "../../domain/dates.js";
-import { type ResponseMeta, ok } from "../../envelope/index.js";
+import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 import type { ForecastService } from "../../services/forecastService.js";
 
 // ---------------------------------------------------------------------------
@@ -125,10 +125,7 @@ export function registerForecastGetTool(server: McpServer, ctx: ForecastGetConte
     },
     async (args: ForecastGetToolInput) => {
       const envelope = await handleForecastGet(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }

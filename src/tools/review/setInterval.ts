@@ -7,7 +7,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ProjectId as ProjectIdCtor } from "../../domain/ids.js";
-import { type ResponseMeta, ok } from "../../envelope/index.js";
+import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 import type { ReviewService } from "../../services/reviewService.js";
 
 // ---------------------------------------------------------------------------
@@ -66,10 +66,7 @@ export function registerReviewSetIntervalTool(server: McpServer, ctx: ReviewSetI
     },
     async (args: ReviewSetIntervalToolInput) => {
       const envelope = await handleReviewSetInterval(args, ctx);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
-        structuredContent: envelope as unknown as Record<string, unknown>,
-      };
+      return toolResponse(envelope);
     },
   );
 }
