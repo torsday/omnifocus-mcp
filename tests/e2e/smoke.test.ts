@@ -94,7 +94,17 @@ describe.skipIf(!E2E)("E2E — smoke", () => {
     expect(names).toContain("task_batch_complete");
     expect(names).toContain("task_batch_create");
     expect(names).toContain("task_batch_update");
-    expect(tools.tools.length).toBeGreaterThanOrEqual(65);
+    // Attachment tools (#307): four register* helpers wired via the
+    // registerAttachmentTools index helper.
+    expect(names).toContain("attachment_list");
+    expect(names).toContain("attachment_add");
+    expect(names).toContain("attachment_remove");
+    expect(names).toContain("attachment_save_to_path");
+    // Raw-script escape hatches (#307) are gated on OMNIFOCUS_ALLOW_RAW_SCRIPT
+    // and stay off by default — verify they do NOT appear here.
+    expect(names).not.toContain("run_jxa_script");
+    expect(names).not.toContain("run_omnijs_script");
+    expect(tools.tools.length).toBeGreaterThanOrEqual(69);
 
     const result = await server.client.callTool({ name: "internal_status", arguments: {} });
     const structured = result.structuredContent as { data?: { uptimeMs?: number } } | undefined;
