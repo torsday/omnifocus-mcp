@@ -5,7 +5,7 @@
 
 ## Summary
 
-An MCP (Model Context Protocol) server that exposes the full OmniFocus 3/4 feature surface to LLM agents running on macOS. Intended for a single-user, local-first workflow: one agent, one OmniFocus install, one user. The server shells to OmniFocus via JXA (primary transport) and OmniJS (fallback for features JXA can't reach), presenting a clean, typed, MCP-native tool + resource surface.
+An MCP (Model Context Protocol) server that exposes the full OmniFocus 4 feature surface to LLM agents running on macOS. Intended for a single-user, local-first workflow: one agent, one OmniFocus install, one user. The server shells to OmniFocus via JXA (primary transport) and OmniJS (fallback for features JXA can't reach), presenting a clean, typed, MCP-native tool + resource surface.
 
 ## Users
 
@@ -179,7 +179,7 @@ Cross-cutting requirements that make the MCP excellent for LLM agents specifical
   - `OMNIFOCUS_LOG_LEVEL` env var for runtime tuning (`trace | debug | info | warn | error`, default `info`)
 - **Compatibility:**
   - macOS 13+ (Ventura) — tested on 13, 14, 15
-  - OmniFocus 3.15+ and 4.x
+  - OmniFocus 4.x
   - Node.js 20 LTS and 22 LTS
   - MCP SDK current stable at time of release
   - UTF-8 end-to-end; no locale-dependent string handling
