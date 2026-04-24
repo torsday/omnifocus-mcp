@@ -127,3 +127,4 @@ For `/loop` dynamic mode (no interval specified) in this project, default `Sched
   - 0011 semver + public contract definition
   - 0012 distribution via npx/npm
   - 0013 uniform tool response envelope
+  - 0014 E2E harness uses an in-memory adapter switch
