@@ -38,14 +38,14 @@ export interface ProjectLinks {
 // Zod schemas
 // ---------------------------------------------------------------------------
 
-export const taskLinksSchema: z.ZodType<TaskLinks, z.ZodTypeDef, unknown> = z.object({
+export const taskLinksSchema: z.ZodType<TaskLinks> = z.object({
   self: z.string(),
   project: z.string().nullable(),
   parent: z.string().nullable(),
   tags: z.array(z.string()),
 });
 
-export const projectLinksSchema: z.ZodType<ProjectLinks, z.ZodTypeDef, unknown> = z.object({
+export const projectLinksSchema: z.ZodType<ProjectLinks> = z.object({
   self: z.string(),
   folder: z.string().nullable(),
 });

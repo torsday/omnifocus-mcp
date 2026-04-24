@@ -33,7 +33,7 @@ export interface Folder {
 // Schema
 // ---------------------------------------------------------------------------
 
-export const FolderSchema: z.ZodType<Folder, z.ZodTypeDef, unknown> = z.object({
+export const FolderSchema: z.ZodType<Folder> = z.object({
   id: FolderIdCtor.schema,
   name: z.string(),
   parentId: FolderIdCtor.schema.nullable(),
@@ -41,4 +41,4 @@ export const FolderSchema: z.ZodType<Folder, z.ZodTypeDef, unknown> = z.object({
   subfolderCount: z.number().int().min(0),
   createdAt: isoDateString(),
   modifiedAt: isoDateString(),
-}) as z.ZodType<Folder, z.ZodTypeDef, unknown>;
+}) as z.ZodType<Folder>;

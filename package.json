@@ -55,8 +55,8 @@
     "lru-cache": "^11.3.5",
     "pino": "^10.3.1",
     "ulid": "^2.3.0",
-    "zod": "^3.23.0",
-    "zod-to-json-schema": "^3.23.0"
+    "zod": "^4.3.6",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.7.0",
