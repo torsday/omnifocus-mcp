@@ -9,8 +9,17 @@
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.js";
-import type { ResponseMeta } from "../../envelope/index.js";
+import type { ResponseMeta, ToolEnvelope, ToolSuccess } from "../../envelope/index.js";
+import { IdempotencyStore } from "../../server/idempotencyStore.js";
 import { handleTaskUpdate, taskUpdateInputSchema } from "./update.js";
+
+/** Narrow a handler envelope to ToolSuccess or fail the assertion. */
+function assertOk<T>(envelope: ToolEnvelope<T>): ToolSuccess<T> {
+  if (!("data" in envelope)) {
+    throw new Error(`expected success envelope, got error: ${JSON.stringify(envelope)}`);
+  }
+  return envelope;
+}
 
 function recordScopes(cache: OmniFocusLruCache): InvalidationScope[] {
   const scopes: InvalidationScope[] = [];
@@ -37,7 +46,8 @@ function makeCtx() {
     ofVersion: "test",
     ...partial,
   });
-  return { ctx: { adapter, makeMeta }, adapter };
+  const idempotencyStore = new IdempotencyStore();
+  return { ctx: { adapter, makeMeta, idempotencyStore }, adapter, idempotencyStore };
 }
 
 // ---------------------------------------------------------------------------
@@ -165,7 +175,7 @@ describe("task_update — handler: scalar fields", () => {
   it("returns the full updated task entity", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "T" });
-    const envelope = await handleTaskUpdate({ id, name: "Updated" }, ctx);
+    const envelope = assertOk(await handleTaskUpdate({ id, name: "Updated" }, ctx));
     expect(envelope.data.task.id).toBe(id);
     expect(envelope.data.task.name).toBe("Updated");
     expect(envelope.meta.syncPending).toBe(true);
@@ -305,5 +315,247 @@ describe("task_update — cache invalidation", () => {
     await handleTaskUpdate({ id, flagged: true }, { ...base, cache });
 
     expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*"]);
+  });
+
+  it("does not invalidate on a dry_run preview", async () => {
+    const { ctx: base, adapter } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    const scopes = recordScopes(cache);
+    const id = await adapter.createTask({ name: "T" });
+
+    await handleTaskUpdate({ id, name: "renamed", dry_run: true }, { ...base, cache });
+
+    expect(scopes).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Schema — optional safety fields
+// ---------------------------------------------------------------------------
+
+describe("task_update — input schema: safety fields", () => {
+  it("accepts optional safety fields", () => {
+    const parsed = taskUpdateInputSchema.parse({
+      id: "task_000001",
+      expectedModifiedAt: "2026-01-01T00:00:00Z",
+      dry_run: true,
+      idempotency_key: "k-1",
+    });
+    expect(parsed.expectedModifiedAt).toBe("2026-01-01T00:00:00Z");
+    expect(parsed.dry_run).toBe(true);
+    expect(parsed.idempotency_key).toBe("k-1");
+  });
+
+  it("rejects an empty idempotency_key", () => {
+    expect(() => taskUpdateInputSchema.parse({ id: "task_000001", idempotency_key: "" })).toThrow();
+  });
+
+  it("rejects an idempotency_key > 128 chars", () => {
+    expect(() =>
+      taskUpdateInputSchema.parse({ id: "task_000001", idempotency_key: "x".repeat(129) }),
+    ).toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Safety primitives — expectedModifiedAt
+// ---------------------------------------------------------------------------
+
+describe("task_update — expectedModifiedAt guard", () => {
+  it("proceeds when expectedModifiedAt matches the current task", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "T" });
+    const task = await adapter.getTask(id);
+    const envelope = assertOk(
+      await handleTaskUpdate({ id, name: "New", expectedModifiedAt: task.modifiedAt }, ctx),
+    );
+    expect(envelope.data.task.name).toBe("New");
+  });
+
+  it("throws ConflictError (OF_CONFLICT) when expectedModifiedAt is stale", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "T" });
+    await expect(
+      handleTaskUpdate({ id, name: "New", expectedModifiedAt: "2020-01-01T00:00:00Z" }, ctx),
+    ).rejects.toMatchObject({ code: "OF_CONFLICT" });
+  });
+
+  it("does not patch the task when the guard trips", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "Original" });
+    await expect(
+      handleTaskUpdate({ id, name: "New", expectedModifiedAt: "2020-01-01T00:00:00Z" }, ctx),
+    ).rejects.toThrow();
+    const still = await adapter.getTask(id);
+    expect(still.name).toBe("Original");
+  });
+
+  it("raises ValidationError when expectedModifiedAt is malformed", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "T" });
+    await expect(
+      handleTaskUpdate({ id, name: "New", expectedModifiedAt: "not-a-timestamp" }, ctx),
+    ).rejects.toMatchObject({ code: "OF_VALIDATION" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Safety primitives — dry_run
+// ---------------------------------------------------------------------------
+
+describe("task_update — dry_run", () => {
+  it("returns the patched task as preview without mutating the adapter", async () => {
+    const { ctx, adapter } = makeCtx();
+    const tagA = await adapter.createTag({ name: "A" });
+    const id = await adapter.createTask({ name: "Original", flagged: false });
+
+    const envelope = assertOk(
+      await handleTaskUpdate(
+        { id, name: "Renamed", flagged: true, tagIds: [tagA], dry_run: true },
+        ctx,
+      ),
+    );
+
+    expect(envelope.data.task.id).toBe(id);
+    expect(envelope.data.task.name).toBe("Renamed");
+    expect(envelope.data.task.flagged).toBe(true);
+    expect(envelope.data.task.tagIds).toEqual([tagA]);
+    expect(envelope.meta.dryRun).toBe(true);
+    expect(envelope.meta.syncPending).toBe(false);
+
+    // Underlying task unchanged.
+    const still = await adapter.getTask(id);
+    expect(still.name).toBe("Original");
+    expect(still.flagged).toBe(false);
+    expect(still.tagIds).toEqual([]);
+  });
+
+  it("dry_run merges additive tag diff onto the current tag set for preview", async () => {
+    const { ctx, adapter } = makeCtx();
+    const tagA = await adapter.createTag({ name: "A" });
+    const tagB = await adapter.createTag({ name: "B" });
+    const id = await adapter.createTask({ name: "T", tagIds: [tagA] });
+
+    const envelope = assertOk(await handleTaskUpdate({ id, addTags: [tagB], dry_run: true }, ctx));
+
+    expect(envelope.data.task.tagIds).toContain(tagA);
+    expect(envelope.data.task.tagIds).toContain(tagB);
+    expect(envelope.meta.dryRun).toBe(true);
+
+    // Adapter state unchanged.
+    const still = await adapter.getTask(id);
+    expect(still.tagIds).toEqual([tagA]);
+  });
+
+  it("dry_run still enforces expectedModifiedAt", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "T" });
+    await expect(
+      handleTaskUpdate(
+        {
+          id,
+          name: "New",
+          dry_run: true,
+          expectedModifiedAt: "2020-01-01T00:00:00Z",
+        },
+        ctx,
+      ),
+    ).rejects.toMatchObject({ code: "OF_CONFLICT" });
+  });
+
+  it("dry_run for a missing task still throws NotFound (pre-fetch path)", async () => {
+    const { ctx } = makeCtx();
+    await expect(
+      handleTaskUpdate(
+        {
+          id: "task_999999" as import("../../domain/ids.js").TaskId,
+          name: "X",
+          dry_run: true,
+        },
+        ctx,
+      ),
+    ).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Safety primitives — idempotency_key
+// ---------------------------------------------------------------------------
+
+describe("task_update — idempotency_key", () => {
+  it("replays the original envelope on retry with the same key", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "Original" });
+
+    const first = assertOk(
+      await handleTaskUpdate({ id, name: "Renamed", idempotency_key: "k-1" }, ctx),
+    );
+    expect(first.data.task.name).toBe("Renamed");
+    expect(first.meta.idempotentReplay).toBeUndefined();
+
+    // Second call with the same key replays the first envelope even though the
+    // input (name) differs — same key → same outcome contract.
+    const second = assertOk(
+      await handleTaskUpdate({ id, name: "Different", idempotency_key: "k-1" }, ctx),
+    );
+    expect(second.data.task.name).toBe("Renamed");
+    expect(second.meta.idempotentReplay).toBe(true);
+
+    // Adapter saw only one write.
+    const live = await adapter.getTask(id);
+    expect(live.name).toBe("Renamed");
+  });
+
+  it("different keys are independent (each one triggers its own update)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const idA = await adapter.createTask({ name: "A" });
+    const idB = await adapter.createTask({ name: "B" });
+
+    await handleTaskUpdate({ id: idA, name: "A2", idempotency_key: "a" }, ctx);
+    await handleTaskUpdate({ id: idB, name: "B2", idempotency_key: "b" }, ctx);
+
+    expect((await adapter.getTask(idA)).name).toBe("A2");
+    expect((await adapter.getTask(idB)).name).toBe("B2");
+  });
+
+  it("no key ⇒ no caching: second call re-applies the patch", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "T" });
+
+    await handleTaskUpdate({ id, name: "First" }, ctx);
+    await handleTaskUpdate({ id, name: "Second" }, ctx);
+
+    expect((await adapter.getTask(id)).name).toBe("Second");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Safety primitives — composition
+// ---------------------------------------------------------------------------
+
+describe("task_update — dry_run + idempotency_key composition", () => {
+  it("a dry_run with a key replays the preview envelope, not a live update", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "Original" });
+
+    const first = assertOk(
+      await handleTaskUpdate({ id, name: "Preview", dry_run: true, idempotency_key: "k-dry" }, ctx),
+    );
+    expect(first.meta.dryRun).toBe(true);
+    expect(first.meta.syncPending).toBe(false);
+    expect(first.data.task.name).toBe("Preview");
+    expect((await adapter.getTask(id)).name).toBe("Original");
+
+    // Second call reuses the stored dry-run envelope even when dry_run flips off.
+    const second = assertOk(
+      await handleTaskUpdate(
+        { id, name: "LiveAttempt", dry_run: false, idempotency_key: "k-dry" },
+        ctx,
+      ),
+    );
+    expect(second.meta.dryRun).toBe(true);
+    expect(second.meta.idempotentReplay).toBe(true);
+    expect(second.data.task.name).toBe("Preview");
+    expect((await adapter.getTask(id)).name).toBe("Original");
   });
 });
