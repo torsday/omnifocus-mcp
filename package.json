@@ -46,7 +46,7 @@
     "format": "biome format --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:integration": "OMNIFOCUS_INTEGRATION=1 vitest run --dir tests/integration",
+    "test:integration": "OMNIFOCUS_INTEGRATION=1 vitest run tests/integration",
     "prepublishOnly": "pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run build"
   },
   "dependencies": {
