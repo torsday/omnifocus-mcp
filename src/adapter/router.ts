@@ -101,6 +101,9 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   moveTask: "jxa",
   reorderTask: "jxa",
   duplicateTask: "jxa",
+  batchCreateTasks: "jxa",
+  batchUpdateTasks: "jxa",
+  batchCompleteTasks: "jxa",
 
   // -- Projects -------------------------------------------------------------
   listProjects: "jxa",
@@ -258,6 +261,21 @@ export class TransportRouter implements OmniFocusAdapter {
     },
   ): Promise<{ newId: TaskId; descendantCount: number }> {
     return this.pick("duplicateTask").duplicateTask(id, opts);
+  }
+  batchCreateTasks(
+    inputs: CreateTaskInput[],
+  ): Promise<import("../domain/batch.js").BatchOutcome<TaskId>> {
+    return this.pick("batchCreateTasks").batchCreateTasks(inputs);
+  }
+  batchUpdateTasks(
+    updates: Array<{ id: TaskId; patch: UpdateTaskInput }>,
+  ): Promise<import("../domain/batch.js").BatchOutcome<TaskId>> {
+    return this.pick("batchUpdateTasks").batchUpdateTasks(updates);
+  }
+  batchCompleteTasks(
+    items: Array<{ id: TaskId; at?: Date }>,
+  ): Promise<import("../domain/batch.js").BatchOutcome<TaskId>> {
+    return this.pick("batchCompleteTasks").batchCompleteTasks(items);
   }
 
   // -- Projects -------------------------------------------------------------

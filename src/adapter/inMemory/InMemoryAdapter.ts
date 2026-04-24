@@ -82,6 +82,14 @@ export interface InMemoryAdapterOptions {
   idSeed?: number;
 }
 
+function normaliseBatchError(e: unknown): { errorCode: string; message: string } {
+  if (e instanceof Error) {
+    const code = (e as Error & { code?: string }).code ?? "OF_UNKNOWN";
+    return { errorCode: code, message: e.message };
+  }
+  return { errorCode: "OF_UNKNOWN", message: String(e) };
+}
+
 function isoOf(d: Date): string {
   // toISOString returns Zulu form ("2026-04-21T17:30:00.000Z") which is a valid
   // ISO-8601 with offset (Z == +00:00). The domain dates module accepts this.
@@ -242,6 +250,60 @@ export class InMemoryAdapter implements OmniFocusAdapter {
       modifiedAt: completedAt as unknown as Task["modifiedAt"],
     });
     this.bumpProjectCompletedCount(task.projectId, +1);
+  }
+
+  async batchCreateTasks(
+    inputs: CreateTaskInput[],
+  ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
+    const succeeded: Array<{ index: number; value: TaskId }> = [];
+    const failed: Array<{ index: number; errorCode: string; message: string }> = [];
+    for (let i = 0; i < inputs.length; i++) {
+      const input = inputs[i];
+      if (input === undefined) continue;
+      try {
+        const id = await this.createTask(input);
+        succeeded.push({ index: i, value: id });
+      } catch (e) {
+        failed.push({ index: i, ...normaliseBatchError(e) });
+      }
+    }
+    return { succeeded, failed };
+  }
+
+  async batchUpdateTasks(
+    updates: Array<{ id: TaskId; patch: UpdateTaskInput }>,
+  ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
+    const succeeded: Array<{ index: number; value: TaskId }> = [];
+    const failed: Array<{ index: number; errorCode: string; message: string }> = [];
+    for (let i = 0; i < updates.length; i++) {
+      const u = updates[i];
+      if (u === undefined) continue;
+      try {
+        await this.updateTask(u.id, u.patch);
+        succeeded.push({ index: i, value: u.id });
+      } catch (e) {
+        failed.push({ index: i, ...normaliseBatchError(e) });
+      }
+    }
+    return { succeeded, failed };
+  }
+
+  async batchCompleteTasks(
+    items: Array<{ id: TaskId; at?: Date }>,
+  ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
+    const succeeded: Array<{ index: number; value: TaskId }> = [];
+    const failed: Array<{ index: number; errorCode: string; message: string }> = [];
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      if (it === undefined) continue;
+      try {
+        await this.completeTask(it.id, it.at);
+        succeeded.push({ index: i, value: it.id });
+      } catch (e) {
+        failed.push({ index: i, ...normaliseBatchError(e) });
+      }
+    }
+    return { succeeded, failed };
   }
 
   async uncompleteTask(id: TaskId): Promise<void> {

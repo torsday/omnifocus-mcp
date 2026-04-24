@@ -69,6 +69,9 @@ import tagDeleteScript from "../../scripts/jxa/tag_delete.js";
 import tagGetScript from "../../scripts/jxa/tag_get.js";
 import tagListScript from "../../scripts/jxa/tag_list.js";
 import tagUpdateScript from "../../scripts/jxa/tag_update.js";
+import taskBatchCompleteScript from "../../scripts/jxa/task_batch_complete.js";
+import taskBatchCreateScript from "../../scripts/jxa/task_batch_create.js";
+import taskBatchUpdateScript from "../../scripts/jxa/task_batch_update.js";
 import taskCompleteScript from "../../scripts/jxa/task_complete.js";
 import taskCreateScript from "../../scripts/jxa/task_create.js";
 import taskDeleteScript from "../../scripts/jxa/task_delete.js";
@@ -337,6 +340,67 @@ export class JxaTransport implements OmniFocusAdapter {
       { ...this.runOpts, scriptName: "task_duplicate" },
     );
     return { newId: TaskIdCtor.of(result.newId), descendantCount: result.descendantCount };
+  }
+
+  async batchCreateTasks(
+    inputs: CreateTaskInput[],
+  ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
+    const raw = await runJxaScript<{
+      succeeded: Array<{ index: number; value: string }>;
+      failed: Array<{ index: number; errorCode: string; message: string }>;
+    }>(
+      taskBatchCreateScript,
+      {
+        inputs: inputs.map((i) => ({
+          name: i.name,
+          projectId: i.projectId ?? null,
+          parentId: i.parentId ?? null,
+          note: i.note ?? null,
+          flagged: i.flagged ?? false,
+          deferDate: i.deferDate ?? null,
+          dueDate: i.dueDate ?? null,
+          estimatedMinutes: i.estimatedMinutes ?? null,
+          tagIds: i.tagIds ?? [],
+          sequential: i.sequential ?? false,
+          completedByChildren: i.completedByChildren ?? false,
+        })),
+      },
+      { ...this.runOpts, scriptName: "task_batch_create" },
+    );
+    return {
+      succeeded: raw.succeeded.map((s) => ({ index: s.index, value: TaskIdCtor.of(s.value) })),
+      failed: raw.failed,
+    };
+  }
+
+  async batchUpdateTasks(
+    updates: Array<{ id: TaskId; patch: UpdateTaskInput }>,
+  ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
+    const raw = await runJxaScript<{
+      succeeded: Array<{ index: number; value: string }>;
+      failed: Array<{ index: number; errorCode: string; message: string }>;
+    }>(taskBatchUpdateScript, { updates }, { ...this.runOpts, scriptName: "task_batch_update" });
+    return {
+      succeeded: raw.succeeded.map((s) => ({ index: s.index, value: TaskIdCtor.of(s.value) })),
+      failed: raw.failed,
+    };
+  }
+
+  async batchCompleteTasks(
+    items: Array<{ id: TaskId; at?: Date }>,
+  ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
+    const raw = await runJxaScript<{
+      succeeded: Array<{ index: number; value: string }>;
+      failed: Array<{ index: number; errorCode: string; message: string }>;
+    }>(
+      taskBatchCompleteScript,
+      { items: items.map((it) => ({ id: it.id, at: it.at?.toISOString() ?? null })) },
+      { ...this.runOpts, scriptName: "task_batch_complete" },
+    );
+    return {
+      succeeded: raw.succeeded.map((s) => ({ index: s.index, value: TaskIdCtor.of(s.value) })),
+      failed: raw.failed,
+    };
   }
 
   // -- Projects (wired) -----------------------------------------------------
