@@ -1,0 +1,256 @@
+/**
+ * Attachment tools — `attachment_list`, `attachment_add`, `attachment_remove`,
+ * `attachment_save_to_path`.
+ *
+ * Attachment content (bytes) is **never** returned over MCP. Use
+ * `attachment_save_to_path` to copy an attachment to the local filesystem.
+ * All paths are validated against `OMNIFOCUS_ATTACHMENT_PATHS` (default: $HOME)
+ * before any filesystem access.
+ *
+ * @see DESIGN.md §28 — tool surface
+ * @see src/services/attachmentService.ts — service layer
+ * @see src/attachment/assertAttachmentPath.ts — path-scope guard
+ * @see src/attachment/assertAttachmentSize.ts — size-cap guard
+ * @see docs/domain-reference.md § Attachment — canonical schema
+ */
+
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import type { AttachmentOwner } from "../../adapter/OmniFocusAdapter.js";
+import { AttachmentId, ProjectId, TaskId } from "../../domain/ids.js";
+import { type ResponseMeta, ok } from "../../envelope/index.js";
+import { ValidationError } from "../../errors/index.js";
+import type { AttachmentService } from "../../services/attachmentService.js";
+
+// ---------------------------------------------------------------------------
+// Shared context
+// ---------------------------------------------------------------------------
+
+export interface AttachmentToolContext {
+  attachmentService: AttachmentService;
+  makeMeta: (partial?: Partial<ResponseMeta>) => ResponseMeta;
+}
+
+// ---------------------------------------------------------------------------
+// Shared owner schema
+// ---------------------------------------------------------------------------
+
+/**
+ * Base ZodObject for the attachment owner fields.
+ * Used for `.extend()` and `.shape` access — ZodEffects doesn't support these.
+ * Apply `ownerRefinement` when you need cross-field validation.
+ */
+const ownerBaseSchema = z.object({
+  taskId: TaskId.schema
+    .optional()
+    .describe(
+      "Persistent ID of the task that owns the attachment. " +
+        "Provide exactly one of taskId or projectId.",
+    ),
+  projectId: ProjectId.schema
+    .optional()
+    .describe(
+      "Persistent ID of the project that owns the attachment. " +
+        "Provide exactly one of taskId or projectId.",
+    ),
+});
+
+function resolveOwner(input: z.infer<typeof ownerBaseSchema>): AttachmentOwner {
+  if (input.taskId) return { taskId: TaskId.of(input.taskId) };
+  if (input.projectId) return { projectId: ProjectId.of(input.projectId) };
+  throw new ValidationError("Provide exactly one of taskId or projectId.", {});
+}
+
+// ---------------------------------------------------------------------------
+// attachment_list
+// ---------------------------------------------------------------------------
+
+export const ATTACHMENT_LIST_DESCRIPTION =
+  "List all file attachments on a task or project. " +
+  "Do not use to retrieve attachment content — use attachment_save_to_path instead. " +
+  "Returns { attachments } — array of objects with id, name, mimeType, sizeBytes, addedAt, and kind (embedded|alias). " +
+  "Provide exactly one of taskId or projectId. Read-only; safe to retry.";
+
+/** Base ZodObject — used for `shape` access in tool registration and allInputSchemas. */
+export const attachmentListInputSchema = ownerBaseSchema;
+
+export async function handleAttachmentList(
+  input: z.infer<typeof attachmentListInputSchema>,
+  ctx: AttachmentToolContext,
+) {
+  const owner = resolveOwner(input);
+  const attachments = await ctx.attachmentService.list(owner);
+  return ok({ attachments }, ctx.makeMeta());
+}
+
+// ---------------------------------------------------------------------------
+// attachment_add
+// ---------------------------------------------------------------------------
+
+export const ATTACHMENT_ADD_DESCRIPTION =
+  "Add a file attachment to a task or project from a local file path. " +
+  "The file is embedded into the OmniFocus database. " +
+  "Path must be within the allowed scope (default: $HOME; override via OMNIFOCUS_ATTACHMENT_PATHS). " +
+  "File must not exceed the size cap (default 100 MB; override via OMNIFOCUS_MAX_ATTACHMENT_MB). " +
+  "Returns the new attachment ID. " +
+  "Mutations do not propagate until sync_trigger is called.";
+
+export const attachmentAddInputSchema = ownerBaseSchema.extend({
+  filePath: z
+    .string()
+    .min(1)
+    .describe(
+      "Absolute path to the source file to attach. " +
+        "Must be within the allowed attachment path scope.",
+    ),
+});
+
+export async function handleAttachmentAdd(
+  input: z.infer<typeof attachmentAddInputSchema>,
+  ctx: AttachmentToolContext,
+) {
+  const owner = resolveOwner(input);
+  const id = await ctx.attachmentService.add({ ...owner, filePath: input.filePath });
+  return ok({ id }, ctx.makeMeta());
+}
+
+// ---------------------------------------------------------------------------
+// attachment_remove
+// ---------------------------------------------------------------------------
+
+export const ATTACHMENT_REMOVE_DESCRIPTION =
+  "Remove an attachment from a task or project by attachment ID. " +
+  "Do not use to retrieve or export attachment content — use attachment_save_to_path instead. " +
+  "Returns { removed: true } on success. Throws NotFound if the attachment or owner does not exist. " +
+  "Permanent — cannot be undone. Mutations do not propagate until sync_trigger is called.";
+
+export const attachmentRemoveInputSchema = ownerBaseSchema.extend({
+  attachmentId: AttachmentId.schema.describe(
+    "Persistent ID of the attachment to remove. Get from attachment_list.",
+  ),
+});
+
+export async function handleAttachmentRemove(
+  input: z.infer<typeof attachmentRemoveInputSchema>,
+  ctx: AttachmentToolContext,
+) {
+  const owner = resolveOwner(input);
+  await ctx.attachmentService.remove({
+    ...owner,
+    attachmentId: AttachmentId.of(input.attachmentId),
+  });
+  return ok({ removed: true }, ctx.makeMeta());
+}
+
+// ---------------------------------------------------------------------------
+// attachment_save_to_path
+// ---------------------------------------------------------------------------
+
+export const ATTACHMENT_SAVE_TO_PATH_DESCRIPTION =
+  "Copy an attachment's content to a local file path. " +
+  "Do not use to list or remove attachments — use attachment_list or attachment_remove instead. " +
+  "Returns { saved: true, path, sizeBytes } on success. " +
+  "Destination path must be within the allowed scope (default: $HOME). " +
+  "Writes the file to destPath (creates or overwrites); no side effects on OmniFocus data.";
+
+export const attachmentSaveToPathInputSchema = ownerBaseSchema.extend({
+  attachmentId: AttachmentId.schema.describe(
+    "Persistent ID of the attachment to save. Get from attachment_list.",
+  ),
+  destPath: z
+    .string()
+    .min(1)
+    .describe(
+      "Absolute destination path where the attachment will be written. " +
+        "Must be within the allowed attachment path scope. " +
+        "Existing files are overwritten.",
+    ),
+});
+
+export async function handleAttachmentSaveToPath(
+  input: z.infer<typeof attachmentSaveToPathInputSchema>,
+  ctx: AttachmentToolContext,
+) {
+  const owner = resolveOwner(input);
+  const result = await ctx.attachmentService.saveTo({
+    ...owner,
+    attachmentId: AttachmentId.of(input.attachmentId),
+    destPath: input.destPath,
+  });
+  return ok(result, ctx.makeMeta());
+}
+
+// ---------------------------------------------------------------------------
+// Batch registration
+// ---------------------------------------------------------------------------
+
+/**
+ * Register all four attachment tools on `server`.
+ *
+ * @param server — MCP server instance
+ * @param ctx    — shared dependencies (AttachmentService + makeMeta)
+ */
+export function registerAttachmentTools(server: McpServer, ctx: AttachmentToolContext): void {
+  server.registerTool(
+    "attachment_list",
+    { description: ATTACHMENT_LIST_DESCRIPTION, inputSchema: attachmentListInputSchema.shape },
+    async (args) => {
+      const envelope = await handleAttachmentList(
+        args as z.infer<typeof attachmentListInputSchema>,
+        ctx,
+      );
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
+        structuredContent: envelope as unknown as Record<string, unknown>,
+      };
+    },
+  );
+
+  server.registerTool(
+    "attachment_add",
+    { description: ATTACHMENT_ADD_DESCRIPTION, inputSchema: attachmentAddInputSchema.shape },
+    async (args) => {
+      const envelope = await handleAttachmentAdd(
+        args as z.infer<typeof attachmentAddInputSchema>,
+        ctx,
+      );
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
+        structuredContent: envelope as unknown as Record<string, unknown>,
+      };
+    },
+  );
+
+  server.registerTool(
+    "attachment_remove",
+    { description: ATTACHMENT_REMOVE_DESCRIPTION, inputSchema: attachmentRemoveInputSchema.shape },
+    async (args) => {
+      const envelope = await handleAttachmentRemove(
+        args as z.infer<typeof attachmentRemoveInputSchema>,
+        ctx,
+      );
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
+        structuredContent: envelope as unknown as Record<string, unknown>,
+      };
+    },
+  );
+
+  server.registerTool(
+    "attachment_save_to_path",
+    {
+      description: ATTACHMENT_SAVE_TO_PATH_DESCRIPTION,
+      inputSchema: attachmentSaveToPathInputSchema.shape,
+    },
+    async (args) => {
+      const envelope = await handleAttachmentSaveToPath(
+        args as z.infer<typeof attachmentSaveToPathInputSchema>,
+        ctx,
+      );
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
+        structuredContent: envelope as unknown as Record<string, unknown>,
+      };
+    },
+  );
+}

@@ -1,4 +1,10 @@
 import { APP_LAUNCH_DESCRIPTION } from "./app/launch.js";
+import {
+  ATTACHMENT_ADD_DESCRIPTION,
+  ATTACHMENT_LIST_DESCRIPTION,
+  ATTACHMENT_REMOVE_DESCRIPTION,
+  ATTACHMENT_SAVE_TO_PATH_DESCRIPTION,
+} from "./attachment/index.js";
 import { EXPORT_OPML_DESCRIPTION } from "./export/opml.js";
 import { FOLDER_CREATE_DESCRIPTION } from "./folder/create.js";
 import { FOLDER_DELETE_DESCRIPTION } from "./folder/delete.js";
@@ -43,6 +49,10 @@ import { TASK_UPDATE_DESCRIPTION } from "./task/update.js";
 
 export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   app_launch: APP_LAUNCH_DESCRIPTION,
+  attachment_add: ATTACHMENT_ADD_DESCRIPTION,
+  attachment_list: ATTACHMENT_LIST_DESCRIPTION,
+  attachment_remove: ATTACHMENT_REMOVE_DESCRIPTION,
+  attachment_save_to_path: ATTACHMENT_SAVE_TO_PATH_DESCRIPTION,
   export_opml: EXPORT_OPML_DESCRIPTION,
   forecast_get: FORECAST_GET_DESCRIPTION,
   folder_create: FOLDER_CREATE_DESCRIPTION,

@@ -17,7 +17,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { FolderId, ProjectId, TagId, TaskId } from "../domain/ids.js";
+import type { AttachmentId, FolderId, ProjectId, TagId, TaskId } from "../domain/ids.js";
 import type { OmniFocusAdapter } from "./OmniFocusAdapter.js";
 import { type AdapterMethod, ROUTING_TABLE, TransportRouter, transportFor } from "./router.js";
 
@@ -79,6 +79,10 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     pluginInvoke: record("pluginInvoke"),
     listPerspectives: record("listPerspectives"),
     evaluatePerspective: record("evaluatePerspective"),
+    listAttachments: record("listAttachments"),
+    addAttachment: record("addAttachment"),
+    removeAttachment: record("removeAttachment"),
+    saveAttachmentToPath: record("saveAttachmentToPath"),
     syncTrigger: record("syncTrigger"),
     getLastSync: record("getLastSync"),
     runJxaScript: record("runJxaScript"),
@@ -94,6 +98,7 @@ const T_ID = "task_000001" as TaskId;
 const P_ID = "proj_000001" as ProjectId;
 const TAG_ID = "tag_000001" as TagId;
 const F_ID = "folder_000001" as FolderId;
+const ATT_ID = "att_000001" as AttachmentId;
 
 function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<unknown>> {
   return {
@@ -138,6 +143,11 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
     pluginInvoke: () => r.pluginInvoke({ identifier: "com.example.test" }),
     listPerspectives: () => r.listPerspectives(),
     evaluatePerspective: () => r.evaluatePerspective("inbox"),
+    listAttachments: () => r.listAttachments({ taskId: T_ID }),
+    addAttachment: () => r.addAttachment({ taskId: T_ID, filePath: "/tmp/x.txt" }),
+    removeAttachment: () => r.removeAttachment({ taskId: T_ID, attachmentId: ATT_ID }),
+    saveAttachmentToPath: () =>
+      r.saveAttachmentToPath({ taskId: T_ID, attachmentId: ATT_ID, destPath: "/tmp/out.txt" }),
     syncTrigger: () => r.syncTrigger(),
     getLastSync: () => r.getLastSync(),
     runJxaScript: () => r.runJxaScript("noop"),
