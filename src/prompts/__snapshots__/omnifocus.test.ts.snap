@@ -1,0 +1,154 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`capture-meeting prompt > message with no projectId matches snapshot 1`] = `
+"You are capturing action items from meeting notes. Follow these steps:
+
+1. **Read the notes** below carefully.
+
+2. **Extract every action item** — anything that someone committed to do, any follow-up
+   question that needs answering, any decision that needs making. Be thorough; it is better
+   to capture too many than too few.
+
+3. **For each action item**, call \`task_create\` with:
+   - \`name\`: a clear, specific task title (imperative, ≤ 80 chars).
+   - \`projectId\`: assign to the OmniFocus inbox (no \`projectId\`).
+   - \`note\`: the verbatim sentence from the notes that generated this task.
+   - \`dueDate\`: if a specific date or deadline was mentioned.
+   - If \`task_batch_create\` is available, use it instead to create all tasks in one call.
+
+4. **Confirm** by listing the tasks you created (name + project).
+
+---
+### Meeting notes
+
+Alice will write the spec."
+`;
+
+exports[`capture-meeting prompt > message with projectId matches snapshot 1`] = `
+"You are capturing action items from meeting notes. Follow these steps:
+
+1. **Read the notes** below carefully.
+
+2. **Extract every action item** — anything that someone committed to do, any follow-up
+   question that needs answering, any decision that needs making. Be thorough; it is better
+   to capture too many than too few.
+
+3. **For each action item**, call \`task_create\` with:
+   - \`name\`: a clear, specific task title (imperative, ≤ 80 chars).
+   - \`projectId\`: assign to the project with ID \`proj_abc123\`.
+   - \`note\`: the verbatim sentence from the notes that generated this task.
+   - \`dueDate\`: if a specific date or deadline was mentioned.
+   - If \`task_batch_create\` is available, use it instead to create all tasks in one call.
+
+4. **Confirm** by listing the tasks you created (name + project).
+
+---
+### Meeting notes
+
+Alice will write the spec."
+`;
+
+exports[`daily-review prompt > message text matches snapshot 1`] = `
+"You are running a daily OmniFocus review. Follow these steps in order:
+
+1. **Load context** — read these three resources:
+   - \`omnifocus://snapshot\`      (5-count orientation: inbox, overdue, due-today, flagged, review-due)
+   - \`omnifocus://overdue\`       (tasks whose due date has passed, sorted oldest-first)
+   - \`omnifocus://forecast/today\` (tasks due or deferred to today, plus flagged)
+
+2. **Clear overdue** — for every task in \`overdue\`:
+   - If it should be done today, leave it (it will appear in forecast/today too).
+   - If it can be rescheduled, call \`task_update\` with a new \`dueDate\`.
+   - If it should be dropped, call \`task_drop\` with a reason note.
+
+3. **Plan due-today** — for every task in \`forecast/today.dueToday\`:
+   - Confirm it is still relevant. If the due date should change, call \`task_update\`.
+   - If it is already done, call \`task_complete\`.
+
+4. **Decide on flagged** — for every task in \`forecast/today.flagged\`:
+   - If it is genuinely today's priority, leave the flag.
+   - If it should not be today, call \`task_update\` to remove the flag (\`flagged: false\`).
+
+5. **Inbox zero** — if \`snapshot.inboxCount > 0\`, load \`omnifocus://inbox\` and process each
+   task: assign to a project (\`task_update\` with \`projectId\`), add tags, or complete it.
+
+6. **Report** — summarise what you did: counts of rescheduled, dropped, completed, and
+   inbox-cleared tasks. Mention any items you left for the user to decide."
+`;
+
+exports[`project-planning prompt > message with folderId matches snapshot 1`] = `
+"You are setting up a new OmniFocus project. Follow these steps:
+
+1. **Create the project** — call \`project_create\` with:
+   - \`name\`: \`Website Redesign\`
+   - \`folderId\`: \`folder_xyz\`
+   - \`note\`: the brief below, verbatim, as the project note.
+
+2. **Decompose the brief into subtasks** — read the brief carefully and derive a set of
+   concrete, actionable tasks that together achieve the project goal. Aim for 5–15 tasks.
+   Each task should be completable in ≤ 1 day. Use dependency order where it matters.
+
+3. **Create the tasks** — for each derived task, call \`task_create\` with:
+   - \`name\`: clear imperative title.
+   - \`projectId\`: the ID returned by \`project_create\` in step 1.
+   - \`note\`: any relevant detail or acceptance criterion.
+   - \`dueDate\` / \`deferDate\`: only if meaningfully implied by the brief.
+   - If \`task_batch_create\` is available, use it to create all tasks in one call.
+
+4. **Confirm** — list the project name and all created task names.
+
+---
+### Project brief
+
+Redesign the company website to improve conversion."
+`;
+
+exports[`project-planning prompt > message without folderId matches snapshot 1`] = `
+"You are setting up a new OmniFocus project. Follow these steps:
+
+1. **Create the project** — call \`project_create\` with:
+   - \`name\`: \`Website Redesign\`
+   - No folder (top-level project)
+   - \`note\`: the brief below, verbatim, as the project note.
+
+2. **Decompose the brief into subtasks** — read the brief carefully and derive a set of
+   concrete, actionable tasks that together achieve the project goal. Aim for 5–15 tasks.
+   Each task should be completable in ≤ 1 day. Use dependency order where it matters.
+
+3. **Create the tasks** — for each derived task, call \`task_create\` with:
+   - \`name\`: clear imperative title.
+   - \`projectId\`: the ID returned by \`project_create\` in step 1.
+   - \`note\`: any relevant detail or acceptance criterion.
+   - \`dueDate\` / \`deferDate\`: only if meaningfully implied by the brief.
+   - If \`task_batch_create\` is available, use it to create all tasks in one call.
+
+4. **Confirm** — list the project name and all created task names.
+
+---
+### Project brief
+
+Redesign the company website to improve conversion."
+`;
+
+exports[`weekly-review prompt > message text matches snapshot 1`] = `
+"You are running a weekly OmniFocus review. Follow these steps in order:
+
+1. **Load review queue** — read \`omnifocus://review-due\` (projects whose review date has
+   arrived, sorted by nextReviewDate ascending). If the list is empty, report "No projects
+   due for review — you are up to date." and stop.
+
+2. **For each project** in the review queue:
+   a. Load the project's tasks: \`omnifocus://project/{id}\`.
+   b. Check for stale tasks (no dueDate, no deferDate, untouched for > 2 weeks):
+      flag them with a note or drop them if clearly irrelevant.
+   c. Check whether the project is still active. If complete or abandoned, call
+      \`project_complete\` or \`project_drop\`.
+   d. If the project is healthy, call \`project_mark_reviewed\` to advance its
+      next-review date.
+
+3. **Capture new commitments** — if any stray tasks surfaced during review that belong to
+   a project, call \`task_update\` to assign them.
+
+4. **Report** — summarise: how many projects reviewed, how many marked complete/dropped,
+   how many tasks rescheduled or cleaned up."
+`;
