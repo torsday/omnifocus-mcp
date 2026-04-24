@@ -43,4 +43,24 @@ describe.skipIf(!E2E)("E2E — smoke", () => {
     expect(typeof structured?.data?.uptimeMs).toBe("number");
     expect(structured?.data?.uptimeMs).toBeGreaterThanOrEqual(0);
   });
+
+  it("lists the four OmniFocus workflow prompts", async () => {
+    try {
+      await server.start();
+    } catch (err) {
+      throw new Error(
+        `E2EServer.start() failed: ${String(err)}\n` + `stderr: ${server.stderrBuffer}`,
+      );
+    }
+
+    const prompts = await server.client.listPrompts();
+    const names = prompts.prompts.map((p) => p.name).sort();
+    expect(names).toEqual(
+      ["capture-meeting", "daily-review", "project-planning", "weekly-review"].sort(),
+    );
+
+    const daily = await server.client.getPrompt({ name: "daily-review", arguments: {} });
+    expect(daily.messages.length).toBeGreaterThan(0);
+    expect(daily.messages[0]?.role).toBe("user");
+  });
 });
