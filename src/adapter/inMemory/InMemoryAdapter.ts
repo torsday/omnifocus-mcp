@@ -90,6 +90,32 @@ function normaliseBatchError(e: unknown): { errorCode: string; message: string }
   return { errorCode: "OF_UNKNOWN", message: String(e) };
 }
 
+/**
+ * Drive a list of inputs through a per-item async operation, accumulating a
+ * `BatchOutcome`. Errors from `op` are caught and recorded against the item's
+ * index — sibling items are unaffected. The contract mirrors the adapter's
+ * batch methods (atomic validation already happened upstream; this is the
+ * best-effort execution phase).
+ */
+async function processBatch<I, V>(
+  inputs: readonly I[],
+  op: (input: I, index: number) => Promise<V>,
+): Promise<import("../../domain/batch.js").BatchOutcome<V>> {
+  const succeeded: Array<{ index: number; value: V }> = [];
+  const failed: Array<{ index: number; errorCode: string; message: string }> = [];
+  for (let i = 0; i < inputs.length; i++) {
+    const input = inputs[i];
+    if (input === undefined) continue;
+    try {
+      const value = await op(input, i);
+      succeeded.push({ index: i, value });
+    } catch (e) {
+      failed.push({ index: i, ...normaliseBatchError(e) });
+    }
+  }
+  return { succeeded, failed };
+}
+
 function isoOf(d: Date): string {
   // toISOString returns Zulu form ("2026-04-21T17:30:00.000Z") which is a valid
   // ISO-8601 with offset (Z == +00:00). The domain dates module accepts this.
@@ -255,55 +281,25 @@ export class InMemoryAdapter implements OmniFocusAdapter {
   async batchCreateTasks(
     inputs: CreateTaskInput[],
   ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
-    const succeeded: Array<{ index: number; value: TaskId }> = [];
-    const failed: Array<{ index: number; errorCode: string; message: string }> = [];
-    for (let i = 0; i < inputs.length; i++) {
-      const input = inputs[i];
-      if (input === undefined) continue;
-      try {
-        const id = await this.createTask(input);
-        succeeded.push({ index: i, value: id });
-      } catch (e) {
-        failed.push({ index: i, ...normaliseBatchError(e) });
-      }
-    }
-    return { succeeded, failed };
+    return processBatch(inputs, (input) => this.createTask(input));
   }
 
   async batchUpdateTasks(
     updates: Array<{ id: TaskId; patch: UpdateTaskInput }>,
   ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
-    const succeeded: Array<{ index: number; value: TaskId }> = [];
-    const failed: Array<{ index: number; errorCode: string; message: string }> = [];
-    for (let i = 0; i < updates.length; i++) {
-      const u = updates[i];
-      if (u === undefined) continue;
-      try {
-        await this.updateTask(u.id, u.patch);
-        succeeded.push({ index: i, value: u.id });
-      } catch (e) {
-        failed.push({ index: i, ...normaliseBatchError(e) });
-      }
-    }
-    return { succeeded, failed };
+    return processBatch(updates, async ({ id, patch }) => {
+      await this.updateTask(id, patch);
+      return id;
+    });
   }
 
   async batchCompleteTasks(
     items: Array<{ id: TaskId; at?: Date }>,
   ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
-    const succeeded: Array<{ index: number; value: TaskId }> = [];
-    const failed: Array<{ index: number; errorCode: string; message: string }> = [];
-    for (let i = 0; i < items.length; i++) {
-      const it = items[i];
-      if (it === undefined) continue;
-      try {
-        await this.completeTask(it.id, it.at);
-        succeeded.push({ index: i, value: it.id });
-      } catch (e) {
-        failed.push({ index: i, ...normaliseBatchError(e) });
-      }
-    }
-    return { succeeded, failed };
+    return processBatch(items, async ({ id, at }) => {
+      await this.completeTask(id, at);
+      return id;
+    });
   }
 
   async uncompleteTask(id: TaskId): Promise<void> {
