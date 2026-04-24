@@ -1,6 +1,23 @@
 import { defineConfig } from "vitest/config";
+import { scriptInlinerVitePlugin } from "./src/scripts/scriptLoader.js";
+
+// Integration tests drive real osascript invocations against live OmniFocus —
+// each JXA round trip is ~200–500ms and cleanup hooks may issue several
+// deletions serially. The 5s default is fine for unit tests (which run in
+// milliseconds) but is routinely too tight for integration. Raise the
+// threshold only when OMNIFOCUS_INTEGRATION=1 so unit-test regressions still
+// surface as clean timeouts.
+const INTEGRATION = process.env.OMNIFOCUS_INTEGRATION === "1";
+const TEST_TIMEOUT = INTEGRATION ? 30_000 : 5_000;
+const HOOK_TIMEOUT = INTEGRATION ? 30_000 : 5_000;
 
 export default defineConfig({
+  // Vite plugin — inlines `src/scripts/**\/*.js` as default string exports,
+  // matching the production build (tsup + scriptInlinerPlugin). Without this,
+  // `import taskCreateScript from "../../scripts/jxa/task_create.js"` imports
+  // the file as an ES module and gets `undefined`, which silently breaks
+  // integration tests (issue #276).
+  plugins: [scriptInlinerVitePlugin()],
   test: {
     include: [
       "tests/unit/**/*.test.ts",
@@ -14,8 +31,8 @@ export default defineConfig({
     environment: "node",
     globals: false,
     reporters: ["default"],
-    testTimeout: 5000,
-    hookTimeout: 5000,
+    testTimeout: TEST_TIMEOUT,
+    hookTimeout: HOOK_TIMEOUT,
     clearMocks: true,
     restoreMocks: true,
     passWithNoTests: true,
