@@ -44,7 +44,27 @@ describe.skipIf(!E2E)("E2E — smoke", () => {
     // Tag tools (#298): ten register* helpers wired in startServer.
     expect(names).toContain("tag_list");
     expect(names).toContain("tag_set_status");
-    expect(tools.tools.length).toBeGreaterThanOrEqual(17);
+    // Mid-domain tools (#300): note + search + forecast + perspective +
+    // plugin + sync + review + export + app — 20 tools across nine domains.
+    expect(names).toContain("note_append");
+    expect(names).toContain("note_get");
+    expect(names).toContain("note_set_html");
+    expect(names).toContain("search_query");
+    expect(names).toContain("forecast_get");
+    expect(names).toContain("perspective_list");
+    expect(names).toContain("perspective_evaluate");
+    expect(names).toContain("plugin_invoke");
+    expect(names).toContain("sync_status");
+    expect(names).toContain("sync_trigger");
+    expect(names).toContain("review_list_due");
+    expect(names).toContain("review_mark_reviewed");
+    expect(names).toContain("project_mark_reviewed");
+    expect(names).toContain("review_set_interval");
+    expect(names).toContain("export_opml");
+    expect(names).toContain("export_taskpaper");
+    expect(names).toContain("import_taskpaper");
+    expect(names).toContain("app_launch");
+    expect(tools.tools.length).toBeGreaterThanOrEqual(37);
 
     const result = await server.client.callTool({ name: "internal_status", arguments: {} });
     const structured = result.structuredContent as { data?: { uptimeMs?: number } } | undefined;

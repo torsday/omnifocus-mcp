@@ -3,9 +3,10 @@
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
  * API from @modelcontextprotocol/sdk. Currently registers `internal_status`,
- * the four OmniFocus workflow prompts, the ten MCP resources, and the
- * folder + tag tool surface (16 tools). The remaining tool registrations
- * and per-tool middleware composition arrive in follow-ups under #289 / #291.
+ * the four OmniFocus workflow prompts, the ten MCP resources, and 36 domain
+ * tools across folder, tag, note, search, forecast, perspective, plugin,
+ * sync, review, export, and app surfaces. Project + task tools and per-tool
+ * middleware (#291) arrive in follow-ups under #289.
  *
  * Signal handlers for SIGINT/SIGTERM delegate to `shutdownController` (#26),
  * which drains in-flight calls, flushes logs, and exits 0.
@@ -45,13 +46,32 @@ import {
   TAG_URI_TEMPLATE,
   registerOmniFocusResources,
 } from "../resources/omnifocus.js";
+import { registerAppLaunchTool } from "../tools/app/launch.js";
+import { registerExportOpmlTool } from "../tools/export/opml.js";
+import { registerTaskPaperTools } from "../tools/export/taskpaper.js";
 import { registerFolderCreateTool } from "../tools/folder/create.js";
 import { registerFolderDeleteTool } from "../tools/folder/delete.js";
 import { registerFolderGetTool } from "../tools/folder/get.js";
 import { registerFolderListTool } from "../tools/folder/list.js";
 import { registerFolderMoveTool } from "../tools/folder/move.js";
 import { registerFolderUpdateTool } from "../tools/folder/update.js";
+import { registerForecastGetTool } from "../tools/forecast/get.js";
+import { registerNoteAppendTool } from "../tools/note/append.js";
+import { registerNoteGetTool } from "../tools/note/get.js";
+import { registerNoteGetHtmlTool } from "../tools/note/get_html.js";
+import { registerNoteSetTool } from "../tools/note/set.js";
+import { registerNoteSetHtmlTool } from "../tools/note/set_html.js";
 import { registerInternalStatusTool } from "../tools/observability/internalStatus.js";
+import { registerPerspectiveEvaluateTool } from "../tools/perspective/evaluate.js";
+import { registerPerspectiveListTool } from "../tools/perspective/list.js";
+import { registerPluginInvokeTool } from "../tools/plugin/invoke.js";
+import { registerReviewListDueTool } from "../tools/review/listDue.js";
+import { registerReviewMarkReviewedTool } from "../tools/review/markReviewed.js";
+import { registerProjectMarkReviewedTool } from "../tools/review/projectMarkReviewed.js";
+import { registerReviewSetIntervalTool } from "../tools/review/setInterval.js";
+import { registerSearchQueryTool } from "../tools/search/query.js";
+import { registerSyncStatusTool } from "../tools/sync/status.js";
+import { registerSyncTriggerTool } from "../tools/sync/trigger.js";
 import { registerTagCreateTool } from "../tools/tag/create.js";
 import { registerTagDeleteTool } from "../tools/tag/delete.js";
 import { registerTagGetTool } from "../tools/tag/get.js";
@@ -156,6 +176,49 @@ export async function startServer(): Promise<void> {
   registerTagSetStatusTool(server, tagCtx);
   registerTagUpdateTool(server, tagCtx);
 
+  // Note tools — five uniform `{adapter, makeMeta}` registrations.
+  const noteCtx = { adapter, makeMeta };
+  registerNoteAppendTool(server, noteCtx);
+  registerNoteGetTool(server, noteCtx);
+  registerNoteGetHtmlTool(server, noteCtx);
+  registerNoteSetTool(server, noteCtx);
+  registerNoteSetHtmlTool(server, noteCtx);
+
+  // Search.
+  registerSearchQueryTool(server, { searchService: services.searchService, makeMeta });
+
+  // Forecast.
+  registerForecastGetTool(server, { forecastService: services.forecastService, makeMeta });
+
+  // Perspectives.
+  const perspectiveCtx = { perspectiveService: services.perspectiveService, makeMeta };
+  registerPerspectiveListTool(server, perspectiveCtx);
+  registerPerspectiveEvaluateTool(server, perspectiveCtx);
+
+  // Plugin invoke.
+  registerPluginInvokeTool(server, { adapter, makeMeta });
+
+  // Sync — trigger receives the shared cache so invalidate-on-sync can clear
+  // every cached read after a sync is kicked off (docs/cache-invalidation.md).
+  registerSyncStatusTool(server, { adapter, makeMeta });
+  registerSyncTriggerTool(server, { adapter, makeMeta, cache: services.cache });
+
+  // Review tools — four uniform `{reviewService, makeMeta}` registrations.
+  const reviewCtx = { reviewService: services.reviewService, makeMeta };
+  registerReviewListDueTool(server, reviewCtx);
+  registerReviewMarkReviewedTool(server, reviewCtx);
+  registerProjectMarkReviewedTool(server, reviewCtx);
+  registerReviewSetIntervalTool(server, reviewCtx);
+
+  // Export — opml + taskpaper (taskpaper helper registers both
+  // export_taskpaper and import_taskpaper).
+  const exportCtx = { exportService: services.exportService, makeMeta };
+  registerExportOpmlTool(server, exportCtx);
+  registerTaskPaperTools(server, exportCtx);
+
+  // App.
+  registerAppLaunchTool(server, { adapter, makeMeta });
+
   // Graceful shutdown — delegate to shutdownController so tool handlers can
   // call assertNotShuttingDown() and in-flight queues drain cleanly.
   process.on("SIGINT", () => {
@@ -202,6 +265,26 @@ export async function startServer(): Promise<void> {
         "tag_set_location",
         "tag_set_status",
         "tag_update",
+        "note_append",
+        "note_get",
+        "note_get_html",
+        "note_set",
+        "note_set_html",
+        "search_query",
+        "forecast_get",
+        "perspective_list",
+        "perspective_evaluate",
+        "plugin_invoke",
+        "sync_status",
+        "sync_trigger",
+        "review_list_due",
+        "review_mark_reviewed",
+        "project_mark_reviewed",
+        "review_set_interval",
+        "export_opml",
+        "export_taskpaper",
+        "import_taskpaper",
+        "app_launch",
       ],
       prompts: [
         DAILY_REVIEW_PROMPT,
