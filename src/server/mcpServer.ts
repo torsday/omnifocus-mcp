@@ -2,11 +2,10 @@
  * MCP server bootstrap for omnifocus-mcp.
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
- * API from @modelcontextprotocol/sdk. Currently registers the
- * `internal_status` tool, the four OmniFocus workflow prompts, and the ten
- * MCP resources (`omnifocus://capabilities` + nine data URIs). The full
- * tool surface and per-tool middleware composition arrive in follow-ups
- * under #278.
+ * API from @modelcontextprotocol/sdk. Currently registers `internal_status`,
+ * the four OmniFocus workflow prompts, the ten MCP resources, and the
+ * folder + tag tool surface (16 tools). The remaining tool registrations
+ * and per-tool middleware composition arrive in follow-ups under #289 / #291.
  *
  * Signal handlers for SIGINT/SIGTERM delegate to `shutdownController` (#26),
  * which drains in-flight calls, flushes logs, and exits 0.
@@ -46,9 +45,25 @@ import {
   TAG_URI_TEMPLATE,
   registerOmniFocusResources,
 } from "../resources/omnifocus.js";
+import { registerFolderCreateTool } from "../tools/folder/create.js";
+import { registerFolderDeleteTool } from "../tools/folder/delete.js";
+import { registerFolderGetTool } from "../tools/folder/get.js";
+import { registerFolderListTool } from "../tools/folder/list.js";
+import { registerFolderMoveTool } from "../tools/folder/move.js";
+import { registerFolderUpdateTool } from "../tools/folder/update.js";
 import { registerInternalStatusTool } from "../tools/observability/internalStatus.js";
+import { registerTagCreateTool } from "../tools/tag/create.js";
+import { registerTagDeleteTool } from "../tools/tag/delete.js";
+import { registerTagGetTool } from "../tools/tag/get.js";
+import { registerTagGetLocationTool } from "../tools/tag/getLocation.js";
+import { registerTagListTool } from "../tools/tag/list.js";
+import { registerTagMoveTool } from "../tools/tag/move.js";
+import { registerTagSetAllowsNextActionTool } from "../tools/tag/setAllowsNextAction.js";
+import { registerTagSetLocationTool } from "../tools/tag/setLocation.js";
+import { registerTagSetStatusTool } from "../tools/tag/setStatus.js";
+import { registerTagUpdateTool } from "../tools/tag/update.js";
 import { circuitBreakerRegistry } from "./circuitBreaker.js";
-import { composeAdapter, composeResourceServices, makeMeta } from "./composition.js";
+import { composeAdapter, composeServices, makeMeta } from "./composition.js";
 import { shutdownController } from "./shutdown.js";
 import { installStdoutGuard } from "./stdoutGuard.js";
 
@@ -92,11 +107,11 @@ export async function startServer(): Promise<void> {
   const transport = new StdioServerTransport();
 
   // Compose the live adapter chain (JxaTransport + OmniJsTransport →
-  // TransportRouter). Cache wrapping (#22) and the rest of the service
-  // chain (#289) arrive in follow-ups; the resource-side services land
-  // here so #290's resources can resolve.
+  // TransportRouter) and the full service bundle. Cache wrapping at the
+  // adapter layer (#22) arrives in a follow-up; per-tool middleware
+  // composition (#291) wraps individual handlers.
   const adapter = composeAdapter(config);
-  const services = composeResourceServices(adapter, config);
+  const services = composeServices(adapter, config);
 
   // Register internal_status tool.
   registerInternalStatusTool(server, {
@@ -106,19 +121,10 @@ export async function startServer(): Promise<void> {
     makeMeta,
   });
 
-  // Register MCP prompts (DESIGN §29) — four workflow templates: daily-review,
-  // weekly-review, capture-meeting, project-planning. Prompts are pure
-  // templates with no runtime dependencies, so they wire in without an
-  // adapter or service chain.
+  // Register MCP prompts (DESIGN §29) — four workflow templates.
   registerOmniFocusPrompts(server);
 
-  // Register the ten MCP resources (DESIGN §28) — capabilities plus nine
-  // data URIs (snapshot, inbox, forecast/today, overdue, flagged,
-  // review-due, project/{id}, tag/{id}, perspective/{id}).
-  //
-  // `buildCapabilities` reads from config on every resource fetch so a
-  // future lazy OF probe (#36) can update edition / version without a
-  // restart by mutating a shared cell read inside the closure.
+  // Register the ten MCP resources (DESIGN §28).
   registerCapabilitiesResource(server, () => buildCapabilities(config));
   registerOmniFocusResources(server, {
     adapter,
@@ -127,6 +133,28 @@ export async function startServer(): Promise<void> {
     forecastService: services.forecastService,
     perspectiveService: services.perspectiveService,
   });
+
+  // Folder tools — six uniform `{folderService, makeMeta}` registrations.
+  const folderCtx = { folderService: services.folderService, makeMeta };
+  registerFolderCreateTool(server, folderCtx);
+  registerFolderDeleteTool(server, folderCtx);
+  registerFolderGetTool(server, folderCtx);
+  registerFolderListTool(server, folderCtx);
+  registerFolderMoveTool(server, folderCtx);
+  registerFolderUpdateTool(server, folderCtx);
+
+  // Tag tools — ten uniform `{tagService, makeMeta}` registrations.
+  const tagCtx = { tagService: services.tagService, makeMeta };
+  registerTagCreateTool(server, tagCtx);
+  registerTagDeleteTool(server, tagCtx);
+  registerTagGetTool(server, tagCtx);
+  registerTagGetLocationTool(server, tagCtx);
+  registerTagListTool(server, tagCtx);
+  registerTagMoveTool(server, tagCtx);
+  registerTagSetAllowsNextActionTool(server, tagCtx);
+  registerTagSetLocationTool(server, tagCtx);
+  registerTagSetStatusTool(server, tagCtx);
+  registerTagUpdateTool(server, tagCtx);
 
   // Graceful shutdown — delegate to shutdownController so tool handlers can
   // call assertNotShuttingDown() and in-flight queues drain cleanly.
@@ -156,7 +184,25 @@ export async function startServer(): Promise<void> {
       event: "server.started",
       version: PACKAGE_VERSION,
       config: redactConfig(config),
-      tools: ["internal_status"],
+      tools: [
+        "internal_status",
+        "folder_create",
+        "folder_delete",
+        "folder_get",
+        "folder_list",
+        "folder_move",
+        "folder_update",
+        "tag_create",
+        "tag_delete",
+        "tag_get",
+        "tag_get_location",
+        "tag_list",
+        "tag_move",
+        "tag_set_allows_next_action",
+        "tag_set_location",
+        "tag_set_status",
+        "tag_update",
+      ],
       prompts: [
         DAILY_REVIEW_PROMPT,
         WEEKLY_REVIEW_PROMPT,
