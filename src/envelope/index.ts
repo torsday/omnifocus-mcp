@@ -163,6 +163,12 @@ export interface ResponseMeta {
     /** ISO-8601 timestamp when the current window resets. */
     resetAt: string;
   };
+  /**
+   * True when this response is a replay of a previously computed envelope
+   * under an idempotency key (see `withIdempotencyKey`). Absent on fresh
+   * responses. Agents use this to distinguish a cached replay from new work.
+   */
+  idempotentReplay?: boolean;
 }
 
 /**
