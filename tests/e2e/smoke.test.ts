@@ -63,4 +63,41 @@ describe.skipIf(!E2E)("E2E — smoke", () => {
     expect(daily.messages.length).toBeGreaterThan(0);
     expect(daily.messages[0]?.role).toBe("user");
   });
+
+  it("lists the ten MCP resources and reads omnifocus://capabilities", async () => {
+    try {
+      await server.start();
+    } catch (err) {
+      throw new Error(
+        `E2EServer.start() failed: ${String(err)}\n` + `stderr: ${server.stderrBuffer}`,
+      );
+    }
+
+    const resources = await server.client.listResources();
+    const uris = resources.resources.map((r) => r.uri).sort();
+    expect(uris).toContain("omnifocus://capabilities");
+    expect(uris).toContain("omnifocus://snapshot");
+    expect(uris).toContain("omnifocus://inbox");
+    expect(uris).toContain("omnifocus://forecast/today");
+    expect(uris).toContain("omnifocus://overdue");
+    expect(uris).toContain("omnifocus://flagged");
+    expect(uris).toContain("omnifocus://review-due");
+    // Static-URI resources only — the three template URIs surface via
+    // resources/templates/list, not resources/list.
+    expect(uris.length).toBeGreaterThanOrEqual(7);
+
+    const capabilities = await server.client.readResource({
+      uri: "omnifocus://capabilities",
+    });
+    expect(capabilities.contents.length).toBeGreaterThan(0);
+    const first = capabilities.contents[0] as { mimeType?: string; text?: string };
+    expect(first?.mimeType).toBe("application/json");
+    const parsed = JSON.parse(first?.text ?? "") as {
+      ofVersion: string;
+      ofEdition: string;
+      transports: { jxa: { available: boolean } };
+    };
+    expect(parsed.ofVersion).toBeTypeOf("string");
+    expect(parsed.transports.jxa.available).toBe(true);
+  });
 });

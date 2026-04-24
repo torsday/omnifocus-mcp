@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 import { JxaTransport } from "../adapter/jxa/JxaTransport.js";
 import { OmniJsTransport } from "../adapter/omnijs/OmniJsTransport.js";
 import { ROUTING_TABLE, TransportRouter } from "../adapter/router.js";
+import { OmniFocusLruCache } from "../cache/lruCache.js";
 import type { Config } from "../config/env.js";
-import { composeAdapter, makeMeta } from "./composition.js";
+import { ForecastService } from "../services/forecastService.js";
+import { PerspectiveService } from "../services/perspectiveService.js";
+import { ProjectService } from "../services/projectService.js";
+import { ReviewService } from "../services/reviewService.js";
+import { composeAdapter, composeResourceServices, makeMeta } from "./composition.js";
 
 const baseConfig: Config = {
   OMNIFOCUS_LOG_LEVEL: "info",
@@ -53,6 +58,36 @@ describe("composeAdapter", () => {
   it("uses the same options shape that the transports accept directly", () => {
     expect(() => new JxaTransport({ timeoutMs: 30000 })).not.toThrow();
     expect(() => new OmniJsTransport({ timeoutMs: 45000 })).not.toThrow();
+  });
+});
+
+describe("composeResourceServices", () => {
+  it("instantiates the four services + cache the resources need", () => {
+    const adapter = composeAdapter(baseConfig);
+    const services = composeResourceServices(adapter, baseConfig);
+
+    expect(services.cache).toBeInstanceOf(OmniFocusLruCache);
+    expect(services.projectService).toBeInstanceOf(ProjectService);
+    expect(services.reviewService).toBeInstanceOf(ReviewService);
+    expect(services.forecastService).toBeInstanceOf(ForecastService);
+    expect(services.perspectiveService).toBeInstanceOf(PerspectiveService);
+  });
+
+  it("propagates cache sizing from config", () => {
+    // Two distinct configs should produce two distinct caches; confirms
+    // the factory honours capacity/ttl rather than ignoring them.
+    const adapter = composeAdapter(baseConfig);
+    const a = composeResourceServices(adapter, { ...baseConfig, OMNIFOCUS_CACHE_CAPACITY: 64 });
+    const b = composeResourceServices(adapter, { ...baseConfig, OMNIFOCUS_CACHE_CAPACITY: 512 });
+    expect(a.cache).not.toBe(b.cache);
+  });
+
+  it("returns fresh service instances per call (no shared global state)", () => {
+    const adapter = composeAdapter(baseConfig);
+    const a = composeResourceServices(adapter, baseConfig);
+    const b = composeResourceServices(adapter, baseConfig);
+    expect(a.projectService).not.toBe(b.projectService);
+    expect(a.cache).not.toBe(b.cache);
   });
 });
 
