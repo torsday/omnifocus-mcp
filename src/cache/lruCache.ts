@@ -43,6 +43,12 @@ export interface CacheStats {
   hits: number;
   misses: number;
   evictions: number;
+  /**
+   * Number of `wrap()` calls that joined an already-in-flight factory for
+   * the same key instead of issuing a new adapter call. See DESIGN §16 —
+   * thundering-herd coalescing.
+   */
+  coalesced: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,8 +75,21 @@ export interface LruCacheOptions {
 export class OmniFocusLruCache extends EventEmitter {
   // lru-cache requires value extends {}; wrap in a box so we can store any value.
   private readonly cache: LRUCache<string, { v: unknown }>;
+  /**
+   * Promises for in-flight `wrap()` factory invocations, keyed by cache key.
+   * A second `wrap()` call for the same key while a prior factory is still
+   * pending joins the same promise instead of issuing a duplicate adapter
+   * call (DESIGN §16 — thundering-herd coalescing).
+   *
+   * Each entry carries a token. If `invalidate()` removes the entry before
+   * the factory resolves, the factory's result is discarded (not cached)
+   * and any already-awaiting callers still receive that original result —
+   * the only guarantee we can offer without cancellation.
+   */
+  private readonly inflight = new Map<string, { token: symbol; promise: Promise<unknown> }>();
   private hits = 0;
   private misses = 0;
+  private coalesced = 0;
   private evictions = 0;
 
   constructor({ capacity = 256, ttlMs = 30_000 }: LruCacheOptions = {}) {
@@ -88,6 +107,14 @@ export class OmniFocusLruCache extends EventEmitter {
   /**
    * Return the cached value for `key`, or call `factory` to produce it and
    * store the result before returning.
+   *
+   * Coalesces concurrent misses: if a factory for `key` is already in flight,
+   * subsequent `wrap()` calls await that same promise rather than issuing a
+   * duplicate factory invocation. Counted in `stats().coalesced`.
+   *
+   * Factory rejections are never cached; each side of a coalesced group sees
+   * the same rejection, and the next call after rejection kicks off a fresh
+   * factory.
    */
   async wrap<T>(key: string, factory: () => Promise<T>): Promise<T> {
     const cached = this.cache.get(key);
@@ -95,10 +122,32 @@ export class OmniFocusLruCache extends EventEmitter {
       this.hits++;
       return cached.v as T;
     }
+    const existing = this.inflight.get(key);
+    if (existing !== undefined) {
+      this.coalesced++;
+      return (await existing.promise) as T;
+    }
     this.misses++;
-    const value = await factory();
-    this.cache.set(key, { v: value });
-    return value;
+
+    const token = Symbol(key);
+    const promise = (async () => {
+      try {
+        const value = await factory();
+        // Only cache if our token is still the current inflight head — an
+        // invalidate() during flight clears the inflight entry so the stale
+        // result is not committed to the cache.
+        if (this.inflight.get(key)?.token === token) {
+          this.cache.set(key, { v: value });
+        }
+        return value;
+      } finally {
+        if (this.inflight.get(key)?.token === token) {
+          this.inflight.delete(key);
+        }
+      }
+    })();
+    this.inflight.set(key, { token, promise });
+    return (await promise) as T;
   }
 
   /**
@@ -125,6 +174,15 @@ export class OmniFocusLruCache extends EventEmitter {
       this.cache.delete(key);
     }
 
+    // Also evict any in-flight factories whose key falls under this scope.
+    // The factory result is discarded when it resolves (see wrap()'s token
+    // guard), so the cache cannot end up with a stale post-invalidate value.
+    for (const key of this.inflight.keys()) {
+      if (key.startsWith(prefix) || key === scope) {
+        this.inflight.delete(key);
+      }
+    }
+
     this.emit("cache.invalidated", { scope, keysRemoved: keysToDelete.length });
   }
 
@@ -135,6 +193,7 @@ export class OmniFocusLruCache extends EventEmitter {
       hits: this.hits,
       misses: this.misses,
       evictions: this.evictions,
+      coalesced: this.coalesced,
     };
   }
 
@@ -151,5 +210,6 @@ export class OmniFocusLruCache extends EventEmitter {
   /** Remove all entries. */
   clear(): void {
     this.cache.clear();
+    this.inflight.clear();
   }
 }
