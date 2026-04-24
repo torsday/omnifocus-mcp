@@ -11,8 +11,10 @@
 #   - Exactly one `model: *` label (opus|sonnet)
 #
 # Project-membership is not checked here — use the scheduled sweep
-# (`scripts/populate-project.sh`) for drift repair. Epics are exempt from the
-# model rule (they're parent trackers, not implementable work).
+# (`scripts/populate-project.sh`) for drift repair. Epics and automated-audit
+# issues (any `audit: *` label) are exempt from the model rule — epics are
+# parent trackers and audits are machine-generated notifications, neither
+# representing implementable work.
 
 name: Issue lint
 
@@ -41,13 +43,14 @@ jobs:
           type_count=$(echo "$labels_json" | jq '[.labels[] | select(.name | startswith("type: "))] | length')
           model_count=$(echo "$labels_json" | jq '[.labels[] | select(.name | startswith("model: "))] | length')
           is_epic=$(echo "$labels_json" | jq '[.labels[] | select(.name == "type: epic")] | length')
+          is_audit=$(echo "$labels_json" | jq '[.labels[] | select(.name | startswith("audit: "))] | length')
 
           problems=()
           if [ "$type_count" != "1" ]; then
             problems+=("expected 1 \`type: *\` label, found $type_count")
           fi
-          # Epics are parent trackers; model label is not required on them.
-          if [ "$is_epic" = "0" ] && [ "$model_count" != "1" ]; then
+          # Epics and automated-audit issues are exempt from the model rule.
+          if [ "$is_epic" = "0" ] && [ "$is_audit" = "0" ] && [ "$model_count" != "1" ]; then
             problems+=("expected 1 \`model: *\` label, found $model_count")
           fi
 
