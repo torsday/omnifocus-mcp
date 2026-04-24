@@ -49,7 +49,7 @@ describe("transport-text parser — property tests", () => {
         const result = parseTransportText(name);
         expect(result.tasks).toHaveLength(1);
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        expect(result.tasks.at(0)!.name).toBe(name);
+        expect(result.tasks.at(0)?.name).toBe(name);
       }),
       { numRuns: 200 },
     );
@@ -61,7 +61,7 @@ describe("transport-text parser — property tests", () => {
         const result = parseTransportText(`${name} !!`);
         expect(result.tasks).toHaveLength(1);
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        expect(result.tasks.at(0)!.flagged).toBe(true);
+        expect(result.tasks.at(0)?.flagged).toBe(true);
       }),
       { numRuns: 200 },
     );
@@ -72,7 +72,7 @@ describe("transport-text parser — property tests", () => {
       fc.property(safeWordArb, (name) => {
         const result = parseTransportText(name);
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        expect(result.tasks.at(0)!.flagged).toBeFalsy();
+        expect(result.tasks.at(0)?.flagged).toBeFalsy();
       }),
       { numRuns: 200 },
     );
@@ -85,7 +85,7 @@ describe("transport-text parser — property tests", () => {
         const result = parseTransportText(`${name} ${tagTokens}`);
         expect(result.tasks).toHaveLength(1);
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const parsedTags = result.tasks.at(0)!.tagNames ?? [];
+        const parsedTags = result.tasks.at(0)?.tagNames ?? [];
         for (const tag of tags) {
           expect(parsedTags).toContain(tag);
         }
@@ -100,7 +100,7 @@ describe("transport-text parser — property tests", () => {
         const tagTokens = tags.map((t) => `@${t}`).join(" ");
         const result = parseTransportText(`${name} ${tagTokens}`);
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const parsedTags = result.tasks.at(0)!.tagNames ?? [];
+        const parsedTags = result.tasks.at(0)?.tagNames ?? [];
         expect(parsedTags).toHaveLength(tags.length);
       }),
       { numRuns: 200 },
@@ -112,7 +112,7 @@ describe("transport-text parser — property tests", () => {
       fc.property(safeWordArb, safeWordArb, (name, note) => {
         const result = parseTransportText(`${name} //${note}`);
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        expect(result.tasks.at(0)!.note).toBe(note);
+        expect(result.tasks.at(0)?.note).toBe(note);
       }),
       { numRuns: 200 },
     );
@@ -154,9 +154,9 @@ describe("transport-text parser — property tests", () => {
         const result = parseTransportText(lines);
         expect(result.tasks).toHaveLength(2);
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        expect(result.tasks.at(0)!.projectName).toBeUndefined();
+        expect(result.tasks.at(0)?.projectName).toBeUndefined();
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        expect(result.tasks.at(1)!.projectName).toBe(project);
+        expect(result.tasks.at(1)?.projectName).toBe(project);
       }),
       { numRuns: 200 },
     );

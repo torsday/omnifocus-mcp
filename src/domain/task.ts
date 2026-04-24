@@ -24,7 +24,6 @@ import {
   type TaskId,
   TaskId as TaskIdCtor,
 } from "./ids.js";
-// biome-ignore lint/correctness/noUnusedImports: used in interface and schema
 import { type TaskLinks, taskLinksSchema } from "./links.js";
 
 // ---------------------------------------------------------------------------

@@ -175,10 +175,13 @@ async function fetchProjectTaskTree(
   const direct = await adapter.listTasks({ projectId });
   const all: Task[] = [...direct];
 
-  // BFS: for each task, fetch its children
+  // BFS: for each task, fetch its children. `for (;;)` with break-on-empty
+  // keeps `current` narrowed to Task without needing a non-null assertion
+  // on `queue.shift()`.
   const queue: Task[] = [...direct];
-  while (queue.length > 0) {
-    const current = queue.shift()!;
+  for (;;) {
+    const current = queue.shift();
+    if (current === undefined) break;
     const children = await adapter.listTasks({ parentId: current.id });
     for (const child of children) {
       all.push(child);
@@ -398,13 +401,13 @@ export class ExportService {
     const opml = [
       `<?xml version="1.0" encoding="UTF-8"?>`,
       `<opml version="2.0">`,
-      `  <head>`,
-      `    <title>OmniFocus Export</title>`,
-      `  </head>`,
-      `  <body>`,
+      "  <head>",
+      "    <title>OmniFocus Export</title>",
+      "  </head>",
+      "  <body>",
       projectOutlines,
-      `  </body>`,
-      `</opml>`,
+      "  </body>",
+      "</opml>",
     ].join("\n");
 
     return {
@@ -632,13 +635,13 @@ export class ExportService {
       };
 
       const id = await this.adapter.createTask(input);
-      created.push(id as TaskId);
+      created.push(id);
 
       if (parsed.done) {
         await this.adapter.completeTask(id);
       }
 
-      parentStack.push({ depth, id: id as TaskId });
+      parentStack.push({ depth, id });
     }
 
     return { created, warnings };

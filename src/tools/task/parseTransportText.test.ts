@@ -37,8 +37,8 @@ describe("task_parse_transport_text — handler", () => {
     );
     expect(envelope.data.count).toBe(2);
     expect(envelope.data.tasks).toHaveLength(2);
-    expect(envelope.data.tasks[0]!.name).toBe("Buy groceries");
-    expect(envelope.data.tasks[1]!.name).toBe("Call dentist");
+    expect(envelope.data.tasks[0]?.name).toBe("Buy groceries");
+    expect(envelope.data.tasks[1]?.name).toBe("Call dentist");
   });
 
   it("wraps result in ok() envelope", async () => {
@@ -52,8 +52,8 @@ describe("task_parse_transport_text — handler", () => {
     const { ctx } = makeCtx();
     const envelope = await handleTaskParseTransportText({ text: "Task #next-tuesday" }, ctx);
     expect(envelope.data.warnings).toBeDefined();
-    expect(envelope.data.warnings!.length).toBeGreaterThan(0);
-    expect(envelope.data.warnings![0]!).toContain("next-tuesday");
+    expect(envelope.data.warnings?.length).toBeGreaterThan(0);
+    expect(envelope.data.warnings?.[0]).toContain("next-tuesday");
   });
 
   it("data.warnings is undefined when no warnings", async () => {

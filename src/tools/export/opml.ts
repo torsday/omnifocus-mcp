@@ -11,8 +11,9 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { FolderId, ProjectId } from "../../domain/ids.js";
+import { FolderId, ProjectId } from "../../domain/ids.js";
 import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
+import { ValidationError } from "../../errors/index.js";
 import type { ExportScope, ExportService } from "../../services/exportService.js";
 
 // ---------------------------------------------------------------------------
@@ -59,20 +60,22 @@ export interface ExportOpmlContext {
 /**
  * Resolve the tool input into a typed `ExportScope`.
  *
- * @throws {Error} when scope requires an id but none is supplied — the Zod
- *   schema accepts `id` as optional; the handler validates the combination.
+ * @throws {ValidationError} when scope requires an id but none is supplied —
+ *   the Zod schema accepts `id` as optional; the handler validates the combination.
  */
 function resolveScope(input: ExportOpmlToolInput): ExportScope {
   if (input.scope === "all") {
     return { kind: "all" };
   }
   if (!input.id) {
-    throw new Error(`scope='${input.scope}' requires an id`);
+    throw new ValidationError(`scope='${input.scope}' requires an id`, {
+      details: { field: "id", scope: input.scope },
+    });
   }
   if (input.scope === "project") {
-    return { kind: "project", id: input.id as ProjectId };
+    return { kind: "project", id: ProjectId.of(input.id) };
   }
-  return { kind: "folder", id: input.id as FolderId };
+  return { kind: "folder", id: FolderId.of(input.id) };
 }
 
 export async function handleExportOpml(input: ExportOpmlToolInput, ctx: ExportOpmlContext) {

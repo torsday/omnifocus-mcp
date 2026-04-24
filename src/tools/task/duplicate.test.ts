@@ -167,7 +167,7 @@ describe("task_duplicate — recursive", () => {
     const { ctx, adapter } = makeCtx();
     const root = await adapter.createTask({ name: "root" });
     const c1 = await adapter.createTask({ name: "c1", parentId: root });
-    const c2 = await adapter.createTask({ name: "c2", parentId: root });
+    const _c2 = await adapter.createTask({ name: "c2", parentId: root });
     const g1 = await adapter.createTask({ name: "g1", parentId: c1 });
 
     const res = await handleTaskDuplicate({ id: root, recursive: true }, ctx);

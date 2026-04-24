@@ -16,8 +16,9 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { FolderId, ProjectId } from "../../domain/ids.js";
+import { FolderId, ProjectId } from "../../domain/ids.js";
 import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
+import { ValidationError } from "../../errors/index.js";
 import type { ExportScope, ExportService } from "../../services/exportService.js";
 
 // ---------------------------------------------------------------------------
@@ -94,12 +95,13 @@ export interface TaskPaperToolContext {
 function resolveScope(input: ExportTaskPaperToolInput): ExportScope {
   if (input.scope === "all") return { kind: "all" };
   if (!input.id) {
-    throw new Error(
+    throw new ValidationError(
       `scope="${input.scope}" requires an id — provide the ${input.scope === "project" ? "project" : "folder"} ID`,
+      { details: { field: "id", scope: input.scope } },
     );
   }
-  if (input.scope === "project") return { kind: "project", id: input.id as ProjectId };
-  return { kind: "folder", id: input.id as FolderId };
+  if (input.scope === "project") return { kind: "project", id: ProjectId.of(input.id) };
+  return { kind: "folder", id: FolderId.of(input.id) };
 }
 
 // ---------------------------------------------------------------------------
@@ -144,7 +146,7 @@ export function registerTaskPaperTools(server: McpServer, ctx: TaskPaperToolCont
     async (input: ImportTaskPaperToolInput) => {
       const result = await ctx.exportService.importTaskPaper(
         input.text,
-        input.targetProjectId as ProjectId | undefined,
+        input.targetProjectId === undefined ? undefined : ProjectId.of(input.targetProjectId),
       );
       return toolResponse(
         ok({ created: result.created, warnings: result.warnings }, ctx.makeMeta()),

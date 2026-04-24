@@ -586,9 +586,9 @@ export class InMemoryAdapter implements OmniFocusAdapter {
       if (insertAt === -1) insertAt = remaining.length;
     } else if (anchorMode === "end") {
       let last = -1;
-      for (let i = 0; i < remaining.length; i++) {
-        if (inContainer(remaining[i]![1])) last = i;
-      }
+      remaining.forEach(([, t], i) => {
+        if (inContainer(t)) last = i;
+      });
       insertAt = last === -1 ? remaining.length : last + 1;
     } else {
       const refIdx = remaining.findIndex(([tid]) => tid === anchorId);
@@ -597,11 +597,10 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     }
 
     this.tasks.clear();
-    for (let i = 0; i < remaining.length; i++) {
+    remaining.forEach(([tid, t], i) => {
       if (i === insertAt) this.tasks.set(id, updated);
-      const entry = remaining[i]!;
-      this.tasks.set(entry[0], entry[1]);
-    }
+      this.tasks.set(tid, t);
+    });
     if (insertAt >= remaining.length) this.tasks.set(id, updated);
   }
 

@@ -127,9 +127,15 @@ export async function handleTaskReorder(input: TaskReorderToolInput, ctx: TaskRe
     position = { before: input.before };
   } else if (input.after !== undefined) {
     position = { after: input.after };
+  } else if (input.at !== undefined && input.in !== undefined) {
+    position = { at: input.at, in: input.in };
   } else {
-    // input.at and input.in are both defined here by the checks above.
-    position = { at: input.at!, in: input.in! };
+    // Unreachable — the exactly-one-form and at↔in pairing checks above ensure
+    // we land on before, after, or the {at, in} pair. The compiler can't prove
+    // it because the guards are on separate fields; the throw keeps types sound.
+    throw new ValidationError("task_reorder: no positioning form matched", {
+      details: { field: "before|after|at" },
+    });
   }
 
   await ctx.adapter.reorderTask(input.id, position);

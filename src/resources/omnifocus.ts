@@ -32,7 +32,7 @@
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
-import type { ProjectId, TagId } from "../domain/ids.js";
+import { ProjectId, TagId } from "../domain/ids.js";
 import type { BuiltinPerspectiveId } from "../domain/perspective.js";
 import type { ForecastService } from "../services/forecastService.js";
 import type { PerspectiveService } from "../services/perspectiveService.js";
@@ -262,7 +262,7 @@ export function registerOmniFocusResources(server: McpServer, deps: OmniFocusRes
       mimeType: "application/json",
     },
     async (_uri, variables) => {
-      const id = (variables as { id: string }).id as ProjectId;
+      const id = ProjectId.of((variables as { id: string }).id);
       const result = await projectService.get({ id, includeTaskTree: true });
       return jsonContents(`omnifocus://project/${id}`, {
         project: result.project,
@@ -282,7 +282,7 @@ export function registerOmniFocusResources(server: McpServer, deps: OmniFocusRes
       mimeType: "application/json",
     },
     async (_uri, variables) => {
-      const id = (variables as { id: string }).id as TagId;
+      const id = TagId.of((variables as { id: string }).id);
       const [tag, tasks] = await Promise.all([
         adapter.getTag(id),
         adapter.listTasks({ tagId: id, completed: false }),

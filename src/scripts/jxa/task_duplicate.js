@@ -23,10 +23,10 @@ function run(argv) {
   if (!source) throw new Error(`Task not found: ${args.id}`);
 
   let destContainer; // OF object: project | parent task | document (inbox)
-  if (args.destination && args.destination.projectId) {
+  if (args.destination?.projectId) {
     destContainer = doc.flattenedProjects.byId(args.destination.projectId);
     if (!destContainer) throw new Error(`Project not found: ${args.destination.projectId}`);
-  } else if (args.destination && args.destination.parentId) {
+  } else if (args.destination?.parentId) {
     destContainer = doc.flattenedTasks.byId(args.destination.parentId);
     if (!destContainer) throw new Error(`Parent task not found: ${args.destination.parentId}`);
   } else if (args.destination && args.destination.toInbox === true) {

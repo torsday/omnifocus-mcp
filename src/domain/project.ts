@@ -24,7 +24,6 @@ import {
   type TagId,
   TagId as TagIdCtor,
 } from "./ids.js";
-// biome-ignore lint/correctness/noUnusedImports: used in interface and schema
 import { type ProjectLinks, projectLinksSchema } from "./links.js";
 
 // ---------------------------------------------------------------------------

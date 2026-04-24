@@ -34,7 +34,7 @@ import {
   type TaskId,
   TaskId as TaskIdCtor,
 } from "../../domain/ids.js";
-import type { AttachmentId } from "../../domain/ids.js";
+import { AttachmentId } from "../../domain/ids.js";
 import type { BuiltinPerspectiveId, Perspective } from "../../domain/perspective.js";
 import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
@@ -678,7 +678,7 @@ export class JxaTransport implements OmniFocusAdapter {
       ...this.runOpts,
       scriptName: "attachment_add",
     });
-    return result.id as AttachmentId;
+    return AttachmentId.of(result.id);
   }
 
   async removeAttachment(input: RemoveAttachmentInput): Promise<void> {
