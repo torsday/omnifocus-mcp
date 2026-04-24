@@ -168,4 +168,61 @@ describe.skipIf(!E2E)("E2E — smoke", () => {
     expect(parsed.ofVersion).toBeTypeOf("string");
     expect(parsed.transports.jxa.available).toBe(true);
   });
+
+  // Live task-tool routing through stdio — final acceptance item on #289.
+  // `task_parse_transport_text` is pure (no live OmniFocus required) so it
+  // exercises the registered handler, envelope contract, and meta wiring
+  // without depending on macOS Automation permission. Other service-backed
+  // tools are covered against a live OF in the integration suite on
+  // `mac-local` (see integration.yml).
+  it("calls task_parse_transport_text and round-trips a parsed envelope", async () => {
+    try {
+      await server.start();
+    } catch (err) {
+      throw new Error(
+        `E2EServer.start() failed: ${String(err)}\n` + `stderr: ${server.stderrBuffer}`,
+      );
+    }
+
+    const transport = [
+      "Project: Inbox cleanup",
+      "Reply to Alice @email !!",
+      "Draft Q3 plan @work #2026-05-15 //first pass",
+    ].join("\n");
+
+    const result = await server.client.callTool({
+      name: "task_parse_transport_text",
+      arguments: { text: transport },
+    });
+
+    const structured = result.structuredContent as
+      | {
+          data?: {
+            tasks?: Array<{
+              name: string;
+              tagNames?: string[];
+              projectName?: string | null;
+              flagged?: boolean;
+              note?: string | null;
+            }>;
+            count?: number;
+          };
+          meta?: { correlationId?: string };
+        }
+      | undefined;
+
+    expect(structured?.data).toBeDefined();
+    expect(structured?.data?.count).toBe(2);
+    expect(structured?.data?.tasks?.length).toBe(2);
+    expect(structured?.data?.tasks?.[0]?.name).toBe("Reply to Alice");
+    expect(structured?.data?.tasks?.[0]?.tagNames).toContain("email");
+    expect(structured?.data?.tasks?.[0]?.flagged).toBe(true);
+    expect(structured?.data?.tasks?.[0]?.projectName).toBe("Inbox cleanup");
+    expect(structured?.data?.tasks?.[1]?.tagNames).toContain("work");
+    expect(structured?.data?.tasks?.[1]?.note).toBe("first pass");
+
+    // Meta wiring (#289 acceptance) — correlationId must flow through.
+    expect(structured?.meta?.correlationId).toBeTypeOf("string");
+    expect(structured?.meta?.correlationId?.length).toBeGreaterThan(0);
+  });
 });
