@@ -92,6 +92,17 @@ Project-local (in `.claude/commands/`) override global skills when in this repo.
 | `/release-notes` | global       | CHANGELOG + release notes                                                                           |
 | `/observability` | global       | Logging, metrics, tracing, alerting                                                                 |
 
+## Loop cadence
+
+For `/loop` dynamic mode (no interval specified) in this project, default `ScheduleWakeup` to **60 seconds** — back-to-back iterations, not the skill's 1200–1800s idle default. Ship-refactor cycles are long and self-contained; the next cycle should start as soon as the current one finishes close-out.
+
+## CI status — current known issues
+
+- **Self-hosted runner `mac-local` handles PR CI.** Labels: `self-hosted, macOS, ARM64, macos-omnifocus`. `ci.yml` targets `[self-hosted, macos]` and runs locally, bypassing the GitHub Actions billing issue on macOS.
+- **GitHub-hosted workflows remain blocked on billing.** `release.yml` (`macos-latest`), `board-sync.yml` and `pr-title.yml` (`ubuntu-latest`) will not run until the billing issue on the GitHub account is resolved. None of these gate day-to-day development: release fires on version tags, the other two are informational.
+- **Integration CI requires macOS Automation permission.** `integration.yml` runs JXA scripts against a live OmniFocus on `mac-local`. The runner's shell process must have Automation access to OmniFocus (System Settings → Privacy & Security → Automation) or all tests fail with `"JXA script returned empty stdout"`.
+- **Branch protection is unavailable** on this plan (private repo, free tier) — nothing gates merge on CI. `gh pr merge --auto` behaves like immediate merge. Prefer explicit `gh pr merge <N> --rebase --delete-branch` after local verification.
+
 ## Reference docs
 
 - `README.md` — project overview with architecture at a glance
