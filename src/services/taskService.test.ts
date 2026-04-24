@@ -1,5 +1,5 @@
 /**
- * Unit tests for `TaskService.list`.
+ * Unit tests for `TaskService.list` and `TaskService.get`.
  *
  * Contract verified here:
  * - Filter plumbing matches the adapter semantics (single-tag pushed down,
@@ -9,6 +9,8 @@
  * - Unbounded queries throw `ValidationError` with the canonical suggestion.
  * - The cache layer is consulted (hit/miss) and a second identical call
  *   returns `cacheHit: true` without re-hitting the adapter.
+ * - `get` returns the task + subtasks, caches results, and throws `NotFound`
+ *   for unknown IDs; `includeSubtasks=false` omits the subtasks list.
  *
  * All tests use `InMemoryAdapter` and the real `OmniFocusLruCache` — no
  * mocks beyond clock injection. The service's contract is the value being
@@ -19,8 +21,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
 import { InMemoryAdapter } from "../adapter/inMemory/InMemoryAdapter.js";
 import { OmniFocusLruCache } from "../cache/lruCache.js";
-import type { ProjectId, TagId } from "../domain/ids.js";
-import { ValidationError } from "../errors/index.js";
+import type { ProjectId, TagId, TaskId } from "../domain/ids.js";
+import { NotFound, ValidationError } from "../errors/index.js";
 import { type TaskListInput, TaskService } from "./taskService.js";
 
 // ---------------------------------------------------------------------------
@@ -301,6 +303,90 @@ describe("TaskService.list — adapter substitutability", () => {
     const input: TaskListInput = { flagged: true };
     const out = await service.list(input);
     expect(out.tasks).toEqual([]);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TaskService.get — happy path, subtask toggle, error paths, cache
+// ---------------------------------------------------------------------------
+
+describe("TaskService.get — happy path", () => {
+  it("returns task with subtasks by default (includeSubtasks=true)", async () => {
+    const { service, adapter } = makeHarness();
+    const parentId = (await adapter.createTask({ name: "Parent" })) as TaskId;
+    await adapter.createTask({ name: "Child", parentId });
+    const result = await service.get({ id: parentId });
+    expect(result.task.id).toBe(parentId);
+    expect(result.task.name).toBe("Parent");
+    expect(result.subtasks).toHaveLength(1);
+    expect(result.subtasks?.[0]?.name).toBe("Child");
+  });
+
+  it("omits subtasks when includeSubtasks=false", async () => {
+    const { service, adapter } = makeHarness();
+    const parentId = (await adapter.createTask({ name: "Parent" })) as TaskId;
+    await adapter.createTask({ name: "Child", parentId });
+    const result = await service.get({ id: parentId, includeSubtasks: false });
+    expect(result.task.id).toBe(parentId);
+    expect(result.subtasks).toBeUndefined();
+  });
+
+  it("returns empty subtasks array when task has no children", async () => {
+    const { service, adapter } = makeHarness();
+    const id = (await adapter.createTask({ name: "Leaf" })) as TaskId;
+    const result = await service.get({ id });
+    expect(result.subtasks).toEqual([]);
+  });
+
+  it("includes _links on the returned task", async () => {
+    const { service, adapter } = makeHarness();
+    const id = (await adapter.createTask({ name: "Linked" })) as TaskId;
+    const result = await service.get({ id });
+    expect(result.task._links).toBeDefined();
+  });
+});
+
+describe("TaskService.get — error paths", () => {
+  it("throws NotFound for an unknown task ID", async () => {
+    const { service } = makeHarness();
+    const unknownId = "task_unknown99" as TaskId;
+    await expect(service.get({ id: unknownId })).rejects.toBeInstanceOf(NotFound);
+  });
+
+  it("NotFound message includes the ID for diagnostics", async () => {
+    const { service } = makeHarness();
+    const unknownId = "task_unknown99" as TaskId;
+    const err = await service.get({ id: unknownId }).catch((e: unknown) => e);
+    expect((err as NotFound).message).toMatch(/task_unknown99/);
+  });
+});
+
+describe("TaskService.get — cache", () => {
+  it("reports cacheHit=false on first call, cacheHit=true on repeat", async () => {
+    const { service, adapter } = makeHarness();
+    const id = (await adapter.createTask({ name: "Cached" })) as TaskId;
+    const first = await service.get({ id });
+    expect(first.cacheHit).toBe(false);
+    const second = await service.get({ id });
+    expect(second.cacheHit).toBe(true);
+  });
+
+  it("with-subtasks and solo calls use separate cache keys (no cross-talk)", async () => {
+    const { service, adapter } = makeHarness();
+    const id = (await adapter.createTask({ name: "T" })) as TaskId;
+    await service.get({ id, includeSubtasks: true });
+    // solo call should still be a miss (different cache slot)
+    const solo = await service.get({ id, includeSubtasks: false });
+    expect(solo.cacheHit).toBe(false);
+  });
+
+  it("repeat call does not re-query the adapter (short-circuit on hit)", async () => {
+    const { service, adapter } = makeHarness();
+    const id = (await adapter.createTask({ name: "T" })) as TaskId;
+    const spy = vi.spyOn(adapter, "getTask");
+    await service.get({ id });
+    await service.get({ id });
     expect(spy).toHaveBeenCalledTimes(1);
   });
 });
