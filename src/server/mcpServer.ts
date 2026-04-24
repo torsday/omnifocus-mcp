@@ -2,8 +2,10 @@
  * MCP server bootstrap for omnifocus-mcp.
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
- * API from @modelcontextprotocol/sdk. No tools are registered here — they
- * arrive from per-noun registrations in M1+.
+ * API from @modelcontextprotocol/sdk. Currently registers the
+ * `internal_status` tool and the four OmniFocus workflow prompts; the full
+ * tool surface, MCP resources, and per-tool middleware composition arrive in
+ * follow-ups under #278.
  *
  * Signal handlers for SIGINT/SIGTERM delegate to `shutdownController` (#26),
  * which drains in-flight calls, flushes logs, and exits 0.
@@ -20,6 +22,13 @@ import { InMemoryAdapter } from "../adapter/inMemory/InMemoryAdapter.js";
 import { parseConfig, redactConfig } from "../config/env.js";
 import type { ResponseMeta } from "../envelope/index.js";
 import { logger } from "../logging/logger.js";
+import {
+  CAPTURE_MEETING_PROMPT,
+  DAILY_REVIEW_PROMPT,
+  PROJECT_PLANNING_PROMPT,
+  WEEKLY_REVIEW_PROMPT,
+  registerOmniFocusPrompts,
+} from "../prompts/omnifocus.js";
 import { registerInternalStatusTool } from "../tools/observability/internalStatus.js";
 import { circuitBreakerRegistry } from "./circuitBreaker.js";
 import { shutdownController } from "./shutdown.js";
@@ -81,6 +90,12 @@ export async function startServer(): Promise<void> {
     }),
   });
 
+  // Register MCP prompts (DESIGN §29) — four workflow templates: daily-review,
+  // weekly-review, capture-meeting, project-planning. Prompts are pure
+  // templates with no runtime dependencies, so they wire in without an
+  // adapter or service chain.
+  registerOmniFocusPrompts(server);
+
   // Graceful shutdown — delegate to shutdownController so tool handlers can
   // call assertNotShuttingDown() and in-flight queues drain cleanly.
   process.on("SIGINT", () => {
@@ -110,6 +125,12 @@ export async function startServer(): Promise<void> {
       version: PACKAGE_VERSION,
       config: redactConfig(config),
       tools: ["internal_status"],
+      prompts: [
+        DAILY_REVIEW_PROMPT,
+        WEEKLY_REVIEW_PROMPT,
+        CAPTURE_MEETING_PROMPT,
+        PROJECT_PLANNING_PROMPT,
+      ],
     },
     "server started",
   );
