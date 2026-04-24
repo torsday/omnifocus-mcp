@@ -5,11 +5,9 @@
 #   - Repository permission "Issues: Read and write"
 # GITHUB_TOKEN can't write to user-owned projects; the PAT is required.
 #
-# Field/option IDs are hardcoded for project 4. If the project is recreated,
-# re-query:
-#   gh api graphql -f query='query { user(login:"torsday") { projectV2(number:4) {
-#     id field(name:"Status") { ... on ProjectV2SingleSelectField { id options { id name } } } } } }'
-# and update the env block below.
+# Field/option IDs are sourced from `scripts/_project-constants.sh` at job start
+# (single source of truth — see that file for rediscovery commands if the project
+# is ever recreated).
 
 name: Board sync
 
@@ -26,11 +24,6 @@ permissions:
 
 env:
   GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
-  PROJECT_ID: PVT_kwHOAARNgc4BVGvQ
-  STATUS_FIELD: PVTSSF_lAHOAARNgc4BVGvQzhQkx-E
-  OPT_IN_PROGRESS: "381a1e62"
-  OPT_IN_REVIEW: "04079029"
-  OPT_DONE: c2f7c066
 
 jobs:
   pr:
@@ -42,6 +35,19 @@ jobs:
         run: |
           echo "::warning::PROJECT_TOKEN not set — skipping board sync. Add a PAT with Projects read/write to enable."
           exit 0
+
+      - uses: actions/checkout@v4
+
+      - name: Load project constants
+        run: |
+          # shellcheck source=../../scripts/_project-constants.sh
+          source scripts/_project-constants.sh
+          {
+            echo "PROJECT_ID=$PROJECT_ID"
+            echo "STATUS_FIELD=$F_STATUS"
+            echo "OPT_IN_REVIEW=$STATUS_IN_REVIEW"
+            echo "OPT_DONE=$STATUS_DONE"
+          } >> "$GITHUB_ENV"
 
       - name: Extract linked issue numbers from PR body
         id: linked
@@ -101,6 +107,18 @@ jobs:
         run: |
           echo "::warning::PROJECT_TOKEN not set — skipping board sync."
           exit 0
+
+      - uses: actions/checkout@v4
+
+      - name: Load project constants
+        run: |
+          # shellcheck source=../../scripts/_project-constants.sh
+          source scripts/_project-constants.sh
+          {
+            echo "PROJECT_ID=$PROJECT_ID"
+            echo "STATUS_FIELD=$F_STATUS"
+            echo "OPT_DONE=$STATUS_DONE"
+          } >> "$GITHUB_ENV"
 
       - name: Flip closed issue to Done + strip label
         env:
