@@ -494,67 +494,11 @@ export class InMemoryAdapter implements OmniFocusAdapter {
 
   async reorderTask(id: TaskId, position: TaskPosition): Promise<void> {
     const task = await this.getTask(id);
-
-    // Resolve the container and whether this is a reparent.
-    let newProjectId: ProjectId | null;
-    let newParentId: TaskId | null;
-    let anchorMode: "before" | "after" | "start" | "end";
-    let anchorId: TaskId | null = null;
-
-    if ("before" in position || "after" in position) {
-      const refId = "before" in position ? position.before : position.after;
-      const ref = this.tasks.get(refId);
-      if (ref === undefined) {
-        throw new NotFound(`Reference task not found: ${refId}`, {
-          details: { resource: "task", id: refId },
-        });
-      }
-      if (refId === id) {
-        throw new ValidationError("reorderTask: reference must differ from the task id", {
-          details: { field: "position" },
-        });
-      }
-      if (ref.projectId !== task.projectId || ref.parentId !== task.parentId) {
-        throw new ValidationError(
-          "reorderTask: reference task must share parent with the task being moved",
-          { details: { field: "position" } },
-        );
-      }
-      newProjectId = task.projectId;
-      newParentId = task.parentId;
-      anchorMode = "before" in position ? "before" : "after";
-      anchorId = refId;
-    } else {
-      const { at, in: container } = position;
-      if ("projectId" in container) {
-        if (!this.projects.has(container.projectId)) {
-          throw new NotFound(`Project not found: ${container.projectId}`, {
-            details: { resource: "project", id: container.projectId },
-          });
-        }
-        newProjectId = container.projectId;
-        newParentId = null;
-      } else if ("parentId" in container) {
-        if (!this.tasks.has(container.parentId)) {
-          throw new NotFound(`Parent task not found: ${container.parentId}`, {
-            details: { resource: "task", id: container.parentId },
-          });
-        }
-        if (container.parentId === id) {
-          throw new ValidationError("reorderTask: cannot reparent a task under itself", {
-            details: { field: "position.in.parentId" },
-          });
-        }
-        // When reparenting under a task, project scope follows the new parent.
-        const parent = this.tasks.get(container.parentId);
-        newProjectId = parent?.projectId ?? null;
-        newParentId = container.parentId;
-      } else {
-        newProjectId = null;
-        newParentId = null;
-      }
-      anchorMode = at;
-    }
+    const { newProjectId, newParentId, anchorMode, anchorId } = this.resolveReorderDestination(
+      id,
+      task,
+      position,
+    );
 
     const reparented = newProjectId !== task.projectId || newParentId !== task.parentId;
     if (reparented) {
@@ -603,6 +547,86 @@ export class InMemoryAdapter implements OmniFocusAdapter {
       this.tasks.set(tid, t);
     });
     if (insertAt >= remaining.length) this.tasks.set(id, updated);
+  }
+
+  /**
+   * Validate `position` and derive the four locals that drive the reorder
+   * mutation. Encapsulates all NotFound / ValidationError throws so
+   * `reorderTask` itself reads as three phases: resolve → counter-adjust →
+   * rebuild map.
+   *
+   * @throws NotFound when a referenced task/project/parent doesn't exist
+   * @throws ValidationError for self-reference, cross-container references,
+   *   or self-reparent
+   */
+  private resolveReorderDestination(
+    id: TaskId,
+    task: Task,
+    position: TaskPosition,
+  ): {
+    newProjectId: ProjectId | null;
+    newParentId: TaskId | null;
+    anchorMode: "before" | "after" | "start" | "end";
+    anchorId: TaskId | null;
+  } {
+    if ("before" in position || "after" in position) {
+      const refId = "before" in position ? position.before : position.after;
+      const ref = this.tasks.get(refId);
+      if (ref === undefined) {
+        throw new NotFound(`Reference task not found: ${refId}`, {
+          details: { resource: "task", id: refId },
+        });
+      }
+      if (refId === id) {
+        throw new ValidationError("reorderTask: reference must differ from the task id", {
+          details: { field: "position" },
+        });
+      }
+      if (ref.projectId !== task.projectId || ref.parentId !== task.parentId) {
+        throw new ValidationError(
+          "reorderTask: reference task must share parent with the task being moved",
+          { details: { field: "position" } },
+        );
+      }
+      return {
+        newProjectId: task.projectId,
+        newParentId: task.parentId,
+        anchorMode: "before" in position ? "before" : "after",
+        anchorId: refId,
+      };
+    }
+
+    const { at, in: container } = position;
+    let newProjectId: ProjectId | null;
+    let newParentId: TaskId | null;
+    if ("projectId" in container) {
+      if (!this.projects.has(container.projectId)) {
+        throw new NotFound(`Project not found: ${container.projectId}`, {
+          details: { resource: "project", id: container.projectId },
+        });
+      }
+      newProjectId = container.projectId;
+      newParentId = null;
+    } else if ("parentId" in container) {
+      if (!this.tasks.has(container.parentId)) {
+        throw new NotFound(`Parent task not found: ${container.parentId}`, {
+          details: { resource: "task", id: container.parentId },
+        });
+      }
+      if (container.parentId === id) {
+        throw new ValidationError("reorderTask: cannot reparent a task under itself", {
+          details: { field: "position.in.parentId" },
+        });
+      }
+      // When reparenting under a task, project scope follows the new parent.
+      const parent = this.tasks.get(container.parentId);
+      newProjectId = parent?.projectId ?? null;
+      newParentId = container.parentId;
+    } else {
+      newProjectId = null;
+      newParentId = null;
+    }
+    return { newProjectId, newParentId, anchorMode: at, anchorId: null };
   }
 
   // -- Projects -------------------------------------------------------------
