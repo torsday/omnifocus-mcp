@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034
+# ^ vars here are consumed by sourcing scripts; shellcheck can't see that.
 # =============================================================================
 # _project-constants.sh — single source of truth for project #4 IDs
 # =============================================================================
-# Sourced by scripts/file-issue.sh, scripts/populate-project.sh, and
-# scripts/set-ready-status.sh. The leading underscore marks this as a library,
-# not a script you'd invoke directly.
+# Sourced by scripts/file-issue.sh, scripts/populate-project.sh,
+# scripts/set-ready-status.sh, scripts/verify-constants.sh, and by
+# .github/workflows/board-sync.yml (via a checkout + source step). The leading
+# underscore marks this as a library, not a script you'd invoke directly.
 #
-# Mirror of these values also appears in .github/workflows/board-sync.yml
-# (as workflow env vars — GHA can't source shell files). If you change any ID
-# here, search-and-replace across board-sync.yml too.
+# Drift check: scripts/verify-constants.sh re-queries the GraphQL API and
+# diffs the live project against the values below. Run it in CI to catch
+# silent drift when someone renames a field/option in the Projects UI.
 #
 # To rediscover IDs after a project recreation:
 #
@@ -46,7 +49,7 @@ STATUS_BACKLOG="1e5b9208"
 STATUS_UP_NEXT="19ebdd2c"
 STATUS_IN_PROGRESS="381a1e62"
 STATUS_IN_REVIEW="04079029"
-STATUS_ON_HOLD=""      # TODO: fill in if ever needed; not used by filer
+STATUS_ON_HOLD="8baabea1"
 STATUS_DONE="c2f7c066"
 
 # Phase option IDs
