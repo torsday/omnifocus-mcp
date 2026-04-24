@@ -1,0 +1,50 @@
+name: Refactor
+description: Restructure existing code without changing behavior
+title: "<verb-first imperative summary>"
+labels: ["type: refactor"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Refactors must not change observable behavior. If behavior changes, file as `type: feature` or `type: bug` instead. Adding `tech-debt` to refactors is common and encouraged when the cleanup has accumulated rather than being a fresh design decision.
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What smell, duplication, or design problem does this address? Why now?
+      placeholder: |
+        `EventKitRemindersStore` has grown to 600 lines with three distinct concerns (fetch, mutate, observe). Testing mutate requires stubbing fetch, which doubles fixture complexity. Splitting by concern unblocks focused tests and lines up with the SPI boundary documented in ADR-0012.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Which files/modules are in scope. Bound it — refactors that touch everything are epics, not issues.
+      placeholder: |
+        - Sources/EventKitAdapter/EventKitRemindersStore.swift
+        - Sources/EventKitAdapter/Mapping/*
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: How we'll know it's done. Behavior-preservation is the #1 criterion.
+      placeholder: |
+        - [ ] Public API of `EventKitRemindersStore` unchanged (callers do not need updates)
+        - [ ] All existing tests pass unchanged
+        - [ ] New structure documented in module docblock
+        - [ ] No increase in cyclomatic complexity on the split functions
+    validations:
+      required: true
+  - type: textarea
+    id: technical
+    attributes:
+      label: Technical Notes
+      description: Patterns to apply, anti-patterns to avoid, constraints.
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Blocked-by / blocks relationships, with issue numbers.
