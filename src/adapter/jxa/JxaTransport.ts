@@ -575,6 +575,16 @@ export class JxaTransport implements OmniFocusAdapter {
     return result.tasks.map((t) => ({ ...t, id: TaskIdCtor.of(t.id) }));
   }
 
+  async evaluateCustomPerspective(_identifier: string): Promise<Task[]> {
+    throw new ScriptError("evaluateCustomPerspective requires the OmniJS transport", {
+      details: {
+        transport: "jxa",
+        reason: "omnijs-only",
+        method: "evaluateCustomPerspective",
+      },
+    });
+  }
+
   // -- Search ---------------------------------------------------------------
 
   async searchTasks(

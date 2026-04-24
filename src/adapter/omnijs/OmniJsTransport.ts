@@ -29,10 +29,11 @@
 
 import type { Folder } from "../../domain/folder.js";
 import type { FolderId, ProjectId, TagId, TaskId } from "../../domain/ids.js";
+import { TaskId as TaskIdCtor } from "../../domain/ids.js";
 import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
 import type { Task } from "../../domain/task.js";
-import { ScriptError } from "../../errors/index.js";
+import { FeatureRequiresPro, NotFound, ScriptError } from "../../errors/index.js";
 import type {
   CreateFolderInput,
   CreateProjectInput,
@@ -292,6 +293,31 @@ export class OmniJsTransport implements OmniFocusAdapter {
     _id: import("../../domain/perspective.js").BuiltinPerspectiveId,
   ): Promise<import("../../domain/task.js").Task[]> {
     return notYetWired("evaluatePerspective");
+  }
+
+  async evaluateCustomPerspective(
+    identifier: string,
+  ): Promise<import("../../domain/task.js").Task[]> {
+    const script = await import("node:fs/promises").then((fs) =>
+      fs.readFile(new URL("../../scripts/omnijs/perspective_evaluate.js", import.meta.url), "utf8"),
+    );
+    const result = await runOmniJsScript<
+      | { tasks: import("../../domain/task.js").Task[] }
+      | { error: { code: "FEATURE_REQUIRES_PRO" | "NOT_FOUND"; message: string } }
+    >(script, { identifier }, { ...this.runOpts, scriptName: "perspective_evaluate" });
+
+    if ("error" in result) {
+      if (result.error.code === "FEATURE_REQUIRES_PRO") {
+        throw new FeatureRequiresPro(result.error.message, {
+          details: { feature: "custom-perspectives" },
+        });
+      }
+      throw new NotFound(result.error.message, {
+        details: { resource: "perspective", id: identifier },
+      });
+    }
+
+    return result.tasks.map((t) => ({ ...t, id: TaskIdCtor.of(t.id as unknown as string) }));
   }
 
   // -- Sync -----------------------------------------------------------------

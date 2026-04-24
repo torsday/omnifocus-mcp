@@ -960,6 +960,34 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     }));
   }
 
+  /**
+   * Seed map consulted by {@link evaluateCustomPerspective}. Tests call
+   * {@link seedCustomPerspective} to register a known identifier → task-id
+   * mapping; production uses the OmniJS transport directly, so this store is
+   * unused outside test harnesses.
+   */
+  private readonly customPerspectives = new Map<string, TaskId[]>();
+
+  /** Test-only helper: associate a custom perspective identifier with a task-id list. */
+  seedCustomPerspective(identifier: string, taskIds: TaskId[]): void {
+    this.customPerspectives.set(identifier, [...taskIds]);
+  }
+
+  async evaluateCustomPerspective(identifier: string): Promise<Task[]> {
+    const ids = this.customPerspectives.get(identifier);
+    if (ids === undefined) {
+      throw new NotFound(`Custom perspective not found: ${identifier}`, {
+        details: { resource: "perspective", id: identifier },
+      });
+    }
+    const out: Task[] = [];
+    for (const tid of ids) {
+      const t = this.tasks.get(tid);
+      if (t !== undefined) out.push(t);
+    }
+    return out;
+  }
+
   async evaluatePerspective(id: BuiltinPerspectiveId): Promise<Task[]> {
     const all = Array.from(this.tasks.values());
     if (id === "review" || id === "nearby") return [];

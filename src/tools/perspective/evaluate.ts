@@ -1,8 +1,11 @@
 /**
- * `perspective_evaluate` MCP tool — evaluate a built-in OmniFocus perspective.
+ * `perspective_evaluate` MCP tool — evaluate an OmniFocus perspective.
  *
- * Returns the task list for a given built-in perspective ID. Built-in
- * perspectives only (JXA path); custom perspectives are #55.
+ * Unified for built-in and custom perspectives: the service inspects the id
+ * and routes built-in ids (`"inbox"`, `"flagged"`, …) to JXA and custom ids
+ * (opaque strings from `perspective_list`) to OmniJS (#55). Custom
+ * perspectives require OmniFocus Pro and surface `FeatureRequiresPro` when
+ * the edition lacks the runtime.
  *
  * @see DESIGN.md §26
  * @see src/services/perspectiveService.ts
@@ -10,7 +13,6 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { BuiltinPerspectiveId } from "../../domain/perspective.js";
 import { type ResponseMeta, ok } from "../../envelope/index.js";
 import type { PerspectiveService } from "../../services/perspectiveService.js";
 
@@ -19,9 +21,12 @@ import type { PerspectiveService } from "../../services/perspectiveService.js";
 // ---------------------------------------------------------------------------
 
 export const PERSPECTIVE_EVALUATE_DESCRIPTION =
-  "Evaluate a built-in OmniFocus perspective and return its task list. " +
-  "Built-in perspectives only (Inbox, Projects, Tags, Forecast, Flagged, Nearby, Review). " +
-  "For custom perspectives, use the perspective_evaluate tool with a Pro OmniJS route (#55). " +
+  "Evaluate an OmniFocus perspective and return its task list. " +
+  "Accepts both built-in ids (inbox, projects, tags, forecast, flagged, nearby, review) " +
+  "and custom-perspective ids obtained from perspective_list — the tool selects the " +
+  "correct transport internally (JXA for built-in, OmniJS for custom). " +
+  "Custom perspectives require OmniFocus Pro; otherwise returns an error with " +
+  "code OF_FEATURE_REQUIRES_PRO. " +
   "Returns { tasks: Task[] }. " +
   "For 'review', returns [] — use review_list_due instead. " +
   "For 'nearby', returns [] (location unavailable). " +
@@ -33,8 +38,13 @@ export const PERSPECTIVE_EVALUATE_DESCRIPTION =
 
 export const perspectiveEvaluateInputSchema = z.object({
   perspectiveId: z
-    .enum(["inbox", "projects", "tags", "forecast", "flagged", "nearby", "review"])
-    .describe("Built-in OmniFocus perspective ID."),
+    .string()
+    .min(1)
+    .describe(
+      "OmniFocus perspective id. Accepts a built-in id " +
+        "(inbox, projects, tags, forecast, flagged, nearby, review) or a custom-perspective " +
+        "id from perspective_list (kind: custom).",
+    ),
 });
 
 export type PerspectiveEvaluateToolInput = z.infer<typeof perspectiveEvaluateInputSchema>;
@@ -56,7 +66,7 @@ export async function handlePerspectiveEvaluate(
   input: PerspectiveEvaluateToolInput,
   ctx: PerspectiveEvaluateContext,
 ) {
-  const result = await ctx.perspectiveService.evaluate(input.perspectiveId as BuiltinPerspectiveId);
+  const result = await ctx.perspectiveService.evaluate(input.perspectiveId);
   const meta = ctx.makeMeta({ cacheHit: result.cacheHit });
   return ok({ tasks: result.tasks }, meta);
 }
