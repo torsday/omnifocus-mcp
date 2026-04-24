@@ -5,11 +5,13 @@
  * each tool handler — old and future — gets reliability and observability
  * primitives without per-tool wiring:
  *
- *     assertNotShuttingDown
- *       → withCircuitBreaker (per-tool registry)
- *         → withRateLimitMeta
- *           → withLoopDetection
- *             → handler
+ *     withCorrelationId  (AsyncLocalStorage scope — #283)
+ *       → assertNotShuttingDown
+ *         → withCircuitBreaker (per-tool registry)
+ *           → withRateLimitMeta
+ *             → withLoopDetection
+ *               → withInvocationLogging  (#283 — emits tool.invoked / tool.error)
+ *                 → handler
  *
  * **Why monkey-patch `registerTool`?** The alternative — threading a
  * `composeToolHandler` through ~30 register* helpers — adds a parameter to
@@ -45,6 +47,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { type ToolEnvelope, type ToolSuccess, toolResponse } from "../envelope/index.js";
+import { withCorrelationId } from "../logging/correlation.js";
+import { withInvocationLogging } from "../logging/withInvocationLogging.js";
 import type { LoopDetector } from "../loopDetector/LoopDetector.js";
 import { withLoopDetection } from "../loopDetector/withLoopDetection.js";
 import type { ToolRateLimiter } from "../rateLimit/ToolRateLimiter.js";
@@ -74,26 +78,36 @@ export function composeToolCallback(
   callback: ToolCallback,
   deps: ToolMiddlewareDeps,
 ): ToolCallback {
-  return async (args, extra) => {
-    deps.shutdown.assertNotShuttingDown();
+  return (args, extra) => {
+    // Open a request-scoped correlationId scope as the *outermost* layer so
+    // every downstream `getCorrelationId()` (logger events, makeMeta in the
+    // envelope) sees the same ULID. AsyncLocalStorage propagates through
+    // every awaited promise inside `fn`.
+    return withCorrelationId(async () => {
+      deps.shutdown.assertNotShuttingDown();
 
-    const breaker = deps.circuitRegistry.get(toolName);
+      const breaker = deps.circuitRegistry.get(toolName);
 
-    return breaker.call(async () => {
-      // Inner handler returns the envelope unwrapped from the SDK shape.
-      // Casting to `ToolSuccess<unknown>` matches what every handler in this
-      // codebase produces today — error envelopes are not returned (handlers
-      // throw typed errors, which propagate to the SDK error path).
-      const innerEnvelope = async (): Promise<ToolSuccess<unknown>> => {
-        const result = await callback(args, extra);
-        return result.structuredContent as unknown as ToolSuccess<unknown>;
-      };
+      return breaker.call(async () => {
+        // Inner handler returns the envelope unwrapped from the SDK shape.
+        // Casting to `ToolSuccess<unknown>` matches what every handler in this
+        // codebase produces today — error envelopes are not returned (handlers
+        // throw typed errors, which propagate to the SDK error path).
+        const innerEnvelope = async (): Promise<ToolSuccess<unknown>> => {
+          const result = await callback(args, extra);
+          return result.structuredContent as unknown as ToolSuccess<unknown>;
+        };
 
-      const enveloped = await withRateLimitMeta(toolName, deps.rateLimiter, () =>
-        withLoopDetection(toolName, args, deps.loopDetector, innerEnvelope),
-      );
+        const enveloped = await withRateLimitMeta(toolName, deps.rateLimiter, () =>
+          withLoopDetection(toolName, args, deps.loopDetector, () =>
+            // `withInvocationLogging` is the innermost layer so `durationMs`
+            // measures the handler's actual wall-clock cost (#283).
+            withInvocationLogging(toolName, innerEnvelope),
+          ),
+        );
 
-      return toolResponse(enveloped as ToolEnvelope<unknown>);
+        return toolResponse(enveloped as ToolEnvelope<unknown>);
+      });
     });
   };
 }
