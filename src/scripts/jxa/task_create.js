@@ -169,7 +169,12 @@ function run(argv) {
     if (!proj) throw new Error(`Project not found: ${args.projectId}`);
     newTask = proj.make({ new: "task", withProperties: props });
   } else {
-    newTask = ofApp.defaultDocument.make({ new: "inboxTask", withProperties: props });
+    // Inbox tasks cannot be created via `doc.make({ new: "inboxTask" })` —
+    // OmniFocus 4.x rejects that with error -10024. Construct an InboxTask
+    // specifier and push it onto `doc.inboxTasks`; the reference stays
+    // usable and exposes `.id()` for the read-back (see issue #275).
+    newTask = ofApp.InboxTask(props);
+    ofApp.defaultDocument.inboxTasks.push(newTask);
   }
 
   if (args.tagIds) {

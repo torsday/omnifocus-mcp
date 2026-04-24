@@ -72,7 +72,11 @@ function run(argv) {
 
   function makeInto(container, props) {
     if (container === doc) {
-      return doc.make({ new: "inboxTask", withProperties: props });
+      // Inbox creation requires `InboxTask + inboxTasks.push` — OmniFocus 4.x
+      // rejects `doc.make({ new: "inboxTask" })` with -10024. See issue #275.
+      const task = Application("OmniFocus").InboxTask(props);
+      doc.inboxTasks.push(task);
+      return task;
     }
     return container.make({ new: "task", withProperties: props });
   }

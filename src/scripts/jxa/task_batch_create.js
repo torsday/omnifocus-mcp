@@ -42,7 +42,10 @@ function run(argv) {
         if (!proj) throw new Error(`OF_NOT_FOUND: project ${input.projectId}`);
         newTask = proj.make({ new: "task", withProperties: props });
       } else {
-        newTask = doc.make({ new: "inboxTask", withProperties: props });
+        // Inbox creation: `doc.make({ new: "inboxTask" })` fails with -10024
+        // on OmniFocus 4.x. See issue #275.
+        newTask = ofApp.InboxTask(props);
+        doc.inboxTasks.push(newTask);
       }
 
       if (input.tagIds) {
