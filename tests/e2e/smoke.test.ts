@@ -64,7 +64,16 @@ describe.skipIf(!E2E)("E2E — smoke", () => {
     expect(names).toContain("export_taskpaper");
     expect(names).toContain("import_taskpaper");
     expect(names).toContain("app_launch");
-    expect(tools.tools.length).toBeGreaterThanOrEqual(37);
+    // Project tools (#303): eight register* helpers wired in startServer.
+    expect(names).toContain("project_complete");
+    expect(names).toContain("project_create");
+    expect(names).toContain("project_delete");
+    expect(names).toContain("project_drop");
+    expect(names).toContain("project_get");
+    expect(names).toContain("project_list");
+    expect(names).toContain("project_move");
+    expect(names).toContain("project_update");
+    expect(tools.tools.length).toBeGreaterThanOrEqual(45);
 
     const result = await server.client.callTool({ name: "internal_status", arguments: {} });
     const structured = result.structuredContent as { data?: { uptimeMs?: number } } | undefined;

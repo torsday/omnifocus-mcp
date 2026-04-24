@@ -3,9 +3,9 @@
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
  * API from @modelcontextprotocol/sdk. Currently registers `internal_status`,
- * the four OmniFocus workflow prompts, the ten MCP resources, and 36 domain
+ * the four OmniFocus workflow prompts, the ten MCP resources, and 44 domain
  * tools across folder, tag, note, search, forecast, perspective, plugin,
- * sync, review, export, and app surfaces. Project + task tools and per-tool
+ * sync, review, export, app, and project surfaces. Task tools and per-tool
  * middleware (#291) arrive in follow-ups under #289.
  *
  * Signal handlers for SIGINT/SIGTERM delegate to `shutdownController` (#26),
@@ -65,6 +65,14 @@ import { registerInternalStatusTool } from "../tools/observability/internalStatu
 import { registerPerspectiveEvaluateTool } from "../tools/perspective/evaluate.js";
 import { registerPerspectiveListTool } from "../tools/perspective/list.js";
 import { registerPluginInvokeTool } from "../tools/plugin/invoke.js";
+import { registerProjectCompleteTool } from "../tools/project/complete.js";
+import { registerProjectCreateTool } from "../tools/project/create.js";
+import { registerProjectDeleteTool } from "../tools/project/delete.js";
+import { registerProjectDropTool } from "../tools/project/drop.js";
+import { registerProjectGetTool } from "../tools/project/get.js";
+import { registerProjectListTool } from "../tools/project/list.js";
+import { registerProjectMoveTool } from "../tools/project/move.js";
+import { registerProjectUpdateTool } from "../tools/project/update.js";
 import { registerReviewListDueTool } from "../tools/review/listDue.js";
 import { registerReviewMarkReviewedTool } from "../tools/review/markReviewed.js";
 import { registerProjectMarkReviewedTool } from "../tools/review/projectMarkReviewed.js";
@@ -219,6 +227,27 @@ export async function startServer(): Promise<void> {
   // App.
   registerAppLaunchTool(server, { adapter, makeMeta });
 
+  // Project tools — eight registrations split across two context shapes.
+  // Service-backed handlers receive `{projectService, makeMeta, cache?}`;
+  // adapter-backed handlers (create/delete/update — idempotent mutations)
+  // receive `{adapter, makeMeta, cache?, idempotencyStore?}` and rely on
+  // the module-singleton idempotency store. The shared cache flows in so
+  // every mutation can invalidate scopes per ADR-0006.
+  const projectServiceCtx = {
+    projectService: services.projectService,
+    makeMeta,
+    cache: services.cache,
+  };
+  const projectAdapterCtx = { adapter, makeMeta, cache: services.cache };
+  registerProjectCompleteTool(server, projectServiceCtx);
+  registerProjectCreateTool(server, projectAdapterCtx);
+  registerProjectDeleteTool(server, projectAdapterCtx);
+  registerProjectDropTool(server, projectServiceCtx);
+  registerProjectGetTool(server, { projectService: services.projectService, makeMeta });
+  registerProjectListTool(server, { projectService: services.projectService, makeMeta });
+  registerProjectMoveTool(server, projectServiceCtx);
+  registerProjectUpdateTool(server, projectAdapterCtx);
+
   // Graceful shutdown — delegate to shutdownController so tool handlers can
   // call assertNotShuttingDown() and in-flight queues drain cleanly.
   process.on("SIGINT", () => {
@@ -285,6 +314,14 @@ export async function startServer(): Promise<void> {
         "export_taskpaper",
         "import_taskpaper",
         "app_launch",
+        "project_complete",
+        "project_create",
+        "project_delete",
+        "project_drop",
+        "project_get",
+        "project_list",
+        "project_move",
+        "project_update",
       ],
       prompts: [
         DAILY_REVIEW_PROMPT,
