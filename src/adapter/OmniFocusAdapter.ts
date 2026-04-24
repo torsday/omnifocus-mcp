@@ -354,6 +354,18 @@ export interface OmniFocusAdapter {
    */
   evaluatePerspective(id: BuiltinPerspectiveId): Promise<Task[]>;
 
+  /**
+   * Evaluate a custom OmniFocus perspective by identifier and return its task
+   * list. Custom perspectives require OmniFocus Pro and are evaluated via the
+   * OmniJS transport (#55). The `identifier` is the opaque id surfaced by
+   * `listPerspectives()` for `kind: "custom"` entries.
+   *
+   * @throws FeatureRequiresPro — when the OmniFocus edition does not expose
+   *         the custom-perspective runtime (e.g. Standard without Pro).
+   * @throws NotFound — when no custom perspective with the given id exists.
+   */
+  evaluateCustomPerspective(identifier: string): Promise<Task[]>;
+
   // -- Search ----------------------------------------------------------------
 
   /**

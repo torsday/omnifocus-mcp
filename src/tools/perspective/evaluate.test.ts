@@ -41,8 +41,14 @@ describe("perspective_evaluate — input schema", () => {
     });
   });
 
-  it("rejects an unknown perspective id", () => {
-    expect(() => perspectiveEvaluateInputSchema.parse({ perspectiveId: "custom-foo" })).toThrow();
+  it("accepts a custom perspective id (opaque string)", () => {
+    expect(perspectiveEvaluateInputSchema.parse({ perspectiveId: "custom-foo" })).toEqual({
+      perspectiveId: "custom-foo",
+    });
+  });
+
+  it("rejects an empty perspective id", () => {
+    expect(() => perspectiveEvaluateInputSchema.parse({ perspectiveId: "" })).toThrow();
   });
 
   it("accepts all 7 built-in perspective ids", () => {
@@ -58,8 +64,13 @@ describe("perspective_evaluate — input schema", () => {
 
 describe("perspective_evaluate — description", () => {
   it("mentions built-in perspectives", () => {
-    expect(PERSPECTIVE_EVALUATE_DESCRIPTION).toMatch(/Inbox/);
-    expect(PERSPECTIVE_EVALUATE_DESCRIPTION).toMatch(/Forecast/);
+    expect(PERSPECTIVE_EVALUATE_DESCRIPTION).toMatch(/inbox/i);
+    expect(PERSPECTIVE_EVALUATE_DESCRIPTION).toMatch(/forecast/i);
+  });
+
+  it("mentions custom perspectives + Pro gating", () => {
+    expect(PERSPECTIVE_EVALUATE_DESCRIPTION).toMatch(/custom/i);
+    expect(PERSPECTIVE_EVALUATE_DESCRIPTION).toMatch(/Pro/);
   });
 
   it("mentions review special-case", () => {
