@@ -1,0 +1,92 @@
+# Nightly dependency-graph audit.
+#
+# Runs scripts/validate-deps.sh against the live issue tracker and opens (or
+# refreshes) a pinned tracker issue if it finds orphans, stale blocks, or
+# cycles. No findings → no issue, no noise.
+#
+# The validator itself is read-only. This workflow only writes one issue
+# (title: "[audit] Dependency-graph drift — <date>") to surface findings.
+#
+# Also runnable on-demand via the workflow_dispatch trigger.
+
+name: Dependency graph — nightly audit
+
+on:
+  schedule:
+    # 10:17 UTC daily ≈ 02:17 PT — off-peak, non-round-hour to dodge the :00 spike.
+    - cron: "17 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      AUDIT_LABEL: "audit: dep-graph"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run validator
+        id: validate
+        run: |
+          set +e
+          OUT="$(scripts/validate-deps.sh 2>&1)"
+          RC=$?
+          echo "rc=$RC" >> "$GITHUB_OUTPUT"
+          {
+            echo "report<<REPORT_EOF"
+            printf '%s\n' "$OUT"
+            echo "REPORT_EOF"
+          } >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$OUT"
+          exit 0
+
+      - name: Ensure audit label exists
+        if: steps.validate.outputs.rc != '0'
+        run: |
+          gh label create "$AUDIT_LABEL" \
+            --color "fbca04" \
+            --description "Automated audit finding; close once resolved" \
+            2>/dev/null || true
+
+      - name: Open or update audit tracker issue
+        if: steps.validate.outputs.rc != '0'
+        env:
+          REPORT: ${{ steps.validate.outputs.report }}
+        run: |
+          TITLE="[audit] Dependency-graph drift"
+          BODY=$(cat <<EOF
+          Nightly \`scripts/validate-deps.sh\` run found issues in the dependency graph.
+
+          Last run: $(date -u +"%Y-%m-%d %H:%M UTC")
+          Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          \`\`\`
+          ${REPORT}
+          \`\`\`
+
+          Fix via \`/groom\` or manual edits, then close this issue. It will
+          reopen automatically on the next nightly run if drift persists.
+          EOF
+          )
+
+          # Reuse an existing open audit issue if present; else create.
+          EXISTING=$(gh issue list \
+            --state open --label "$AUDIT_LABEL" \
+            --search "in:title \"$TITLE\"" \
+            --json number --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING" ]; then
+            gh issue edit "$EXISTING" --body "$BODY"
+            echo "Refreshed #$EXISTING"
+          else
+            gh issue create \
+              --title "$TITLE" \
+              --body "$BODY" \
+              --label "$AUDIT_LABEL" \
+              --label "type: chore"
+          fi
