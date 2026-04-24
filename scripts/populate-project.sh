@@ -10,43 +10,10 @@
 # =============================================================================
 set -euo pipefail
 
-OWNER="torsday"
-PROJECT_NUM=4
-
-# Field IDs (discovered once via `gh project field-list`)
-F_PHASE="PVTSSF_lAHOAARNgc4BVGvQzhQkyDM"
-F_PRIORITY="PVTSSF_lAHOAARNgc4BVGvQzhQkyEM"
-F_SIZE="PVTSSF_lAHOAARNgc4BVGvQzhQkyEQ"
-F_RISK="PVTSSF_lAHOAARNgc4BVGvQzhQkyEU"
-
-# Phase option IDs
-O_PHASE_M0="d3ea64bc"
-O_PHASE_M1="7604af38"
-O_PHASE_M2="14583f99"
-O_PHASE_M3="659e0f86"
-O_PHASE_M4="43383303"
-O_PHASE_M5="e39db280"
-
-# Priority option IDs
-O_P0="a7ac64ac"
-O_P1="2bcd66d3"
-O_P2="d28a8726"
-O_P3="11749026"
-
-# Size option IDs
-O_SIZE_XS="c038b672"
-O_SIZE_S="4a9932c9"
-O_SIZE_M="987fabe1"
-O_SIZE_L="0b17ef74"
-O_SIZE_XL="438cc739"
-
-# Risk option IDs
-O_RISK_HIGH="62767387"
-O_RISK_MED="1e89155b"
-O_RISK_LOW="3f572490"
-
-# Project ID (for item-edit commands)
-PROJECT_ID="PVT_kwHOAARNgc4BVGvQ"
+# Project/field/option IDs live in scripts/_project-constants.sh (single source of truth)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_project-constants.sh
+source "$SCRIPT_DIR/_project-constants.sh"
 
 # Fetch all issues with labels in a single call
 echo "Fetching all issues with labels..." >&2
