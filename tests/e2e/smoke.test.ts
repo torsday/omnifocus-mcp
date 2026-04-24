@@ -73,7 +73,28 @@ describe.skipIf(!E2E)("E2E — smoke", () => {
     expect(names).toContain("project_list");
     expect(names).toContain("project_move");
     expect(names).toContain("project_update");
-    expect(tools.tools.length).toBeGreaterThanOrEqual(45);
+    // Task tools (#305): twenty register* helpers wired in startServer.
+    expect(names).toContain("task_get");
+    expect(names).toContain("task_list");
+    expect(names).toContain("task_find_by_name");
+    expect(names).toContain("task_get_many");
+    expect(names).toContain("task_parse_transport_text");
+    expect(names).toContain("task_create");
+    expect(names).toContain("task_update");
+    expect(names).toContain("task_delete");
+    expect(names).toContain("task_complete");
+    expect(names).toContain("task_uncomplete");
+    expect(names).toContain("task_drop");
+    expect(names).toContain("task_undrop");
+    expect(names).toContain("task_move");
+    expect(names).toContain("task_reorder");
+    expect(names).toContain("task_duplicate");
+    expect(names).toContain("task_set_repetition");
+    expect(names).toContain("task_clear_repetition");
+    expect(names).toContain("task_batch_complete");
+    expect(names).toContain("task_batch_create");
+    expect(names).toContain("task_batch_update");
+    expect(tools.tools.length).toBeGreaterThanOrEqual(65);
 
     const result = await server.client.callTool({ name: "internal_status", arguments: {} });
     const structured = result.structuredContent as { data?: { uptimeMs?: number } } | undefined;
