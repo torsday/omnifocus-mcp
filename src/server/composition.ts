@@ -4,12 +4,8 @@
  * into the runtime shape that `startServer` consumes.
  *
  * Splitting this out of `mcpServer.ts` keeps the bootstrap file readable
- * once #289 (49 tool registrations) and #290 (10 resource registrations)
- * land — both call into the factories defined here so they don't re-do the
- * adapter chain plumbing.
- *
- * Service composition for tools (`TaskService`, etc.) arrives with #289 and
- * will likely also live in this file.
+ * once #289 (49 tool registrations) lands — all 49 registrations call into
+ * the factories defined here so they don't re-do the adapter chain plumbing.
  *
  * @see DESIGN.md §17 — lifecycle
  * @see ADR-0002 — JXA + OmniJS dual transport
@@ -25,10 +21,17 @@ import { OmniFocusLruCache } from "../cache/lruCache.js";
 import type { Config } from "../config/env.js";
 import type { ResponseMeta, Transport } from "../envelope/index.js";
 import { generateCorrelationId } from "../logging/correlation.js";
+import { AttachmentService } from "../services/attachmentService.js";
+import { ExportService } from "../services/exportService.js";
+import { FolderService } from "../services/folderService.js";
 import { ForecastService } from "../services/forecastService.js";
 import { PerspectiveService } from "../services/perspectiveService.js";
+import { PluginService } from "../services/pluginService.js";
 import { ProjectService } from "../services/projectService.js";
 import { ReviewService } from "../services/reviewService.js";
+import { SearchService } from "../services/searchService.js";
+import { TagService } from "../services/tagService.js";
+import { TaskService } from "../services/taskService.js";
 
 // ---------------------------------------------------------------------------
 // Adapter chain
@@ -54,14 +57,81 @@ export function composeAdapter(config: Config): TransportRouter {
 }
 
 // ---------------------------------------------------------------------------
-// Resource service chain
+// Service chain
 // ---------------------------------------------------------------------------
 
 /**
- * The four services consumed by `registerOmniFocusResources` (#290), plus
- * the LRU cache they share. Returned as a bundle so `startServer` can both
- * pass them into the resource registrar and reuse the same instances when
- * #289 lands the tool registrations (every service singleton — by design).
+ * The full service bundle for the runtime: all 11 services plus the shared
+ * `OmniFocusLruCache` they read through. Every cache-aware service
+ * (`Task`, `Project`, `Tag`, `Folder`) holds the **same** cache instance so
+ * cross-service mutations invalidate consistently per ADR-0006.
+ *
+ * `startServer` constructs this once at boot and threads the same bundle
+ * into both `registerOmniFocusResources` (#290) and the per-tool
+ * registrations (#289).
+ */
+export interface ServiceChain {
+  cache: OmniFocusLruCache;
+  taskService: TaskService;
+  projectService: ProjectService;
+  tagService: TagService;
+  folderService: FolderService;
+  attachmentService: AttachmentService;
+  exportService: ExportService;
+  forecastService: ForecastService;
+  perspectiveService: PerspectiveService;
+  pluginService: PluginService;
+  reviewService: ReviewService;
+  searchService: SearchService;
+}
+
+/**
+ * Build the shared read-cache plus the 11 service singletons the runtime
+ * consumes.
+ *
+ * The cache is sized from `OMNIFOCUS_CACHE_CAPACITY` /
+ * `OMNIFOCUS_CACHE_TTL_MS`. `AttachmentService` reads its allowlist and
+ * size cap from `OMNIFOCUS_ATTACHMENT_PATHS` /
+ * `OMNIFOCUS_MAX_ATTACHMENT_MB` directly — the rest depend only on the
+ * adapter and (where caching applies) the shared cache.
+ *
+ * No state is closed over: each call returns fresh instances, so tests can
+ * compose isolated runtimes without globals.
+ */
+export function composeServices(adapter: OmniFocusAdapter, config: Config): ServiceChain {
+  const cache = new OmniFocusLruCache({
+    capacity: config.OMNIFOCUS_CACHE_CAPACITY,
+    ttlMs: config.OMNIFOCUS_CACHE_TTL_MS,
+  });
+  return {
+    cache,
+    taskService: new TaskService({ adapter, cache }),
+    projectService: new ProjectService({ adapter, cache }),
+    tagService: new TagService({ adapter, cache }),
+    folderService: new FolderService({ adapter, cache }),
+    attachmentService: new AttachmentService({
+      adapter,
+      allowedPaths: config.OMNIFOCUS_ATTACHMENT_PATHS,
+      maxAttachmentMb: config.OMNIFOCUS_MAX_ATTACHMENT_MB,
+    }),
+    exportService: new ExportService({ adapter }),
+    forecastService: new ForecastService({ adapter }),
+    perspectiveService: new PerspectiveService({ adapter }),
+    pluginService: new PluginService({ adapter }),
+    reviewService: new ReviewService({ adapter }),
+    searchService: new SearchService({ adapter }),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Resource service chain (back-compat shim)
+// ---------------------------------------------------------------------------
+
+/**
+ * Subset of {@link ServiceChain} that {@link
+ * import("../resources/omnifocus.js").registerOmniFocusResources}
+ * consumes. Kept as a distinct alias so call sites that only need resource
+ * deps don't widen their dependency surface.
  */
 export interface ResourceServiceChain {
   cache: OmniFocusLruCache;
@@ -72,32 +142,19 @@ export interface ResourceServiceChain {
 }
 
 /**
- * Build the read-cache and the four services that the OmniFocus data
- * resources consume.
- *
- * The cache is sized from `OMNIFOCUS_CACHE_CAPACITY` /
- * `OMNIFOCUS_CACHE_TTL_MS` and shared across services so cross-service
- * mutations invalidate consistently per ADR-0006. The full set of services
- * (TaskService, TagService, FolderService, AttachmentService, ExportService,
- * PluginService, SearchService) is composed in #289 alongside the tool
- * wiring; this slice only instantiates what `registerOmniFocusResources`
- * needs.
+ * Back-compat shim — returns the four services
+ * `registerOmniFocusResources` consumes plus the shared cache. New callers
+ * should prefer {@link composeServices} and pick fields off the wider
+ * bundle; kept here so #290's wiring continues to type-check during the
+ * #289 transition.
  */
 export function composeResourceServices(
   adapter: OmniFocusAdapter,
   config: Config,
 ): ResourceServiceChain {
-  const cache = new OmniFocusLruCache({
-    capacity: config.OMNIFOCUS_CACHE_CAPACITY,
-    ttlMs: config.OMNIFOCUS_CACHE_TTL_MS,
-  });
-  return {
-    cache,
-    projectService: new ProjectService({ adapter, cache }),
-    reviewService: new ReviewService({ adapter }),
-    forecastService: new ForecastService({ adapter }),
-    perspectiveService: new PerspectiveService({ adapter }),
-  };
+  const { cache, projectService, reviewService, forecastService, perspectiveService } =
+    composeServices(adapter, config);
+  return { cache, projectService, reviewService, forecastService, perspectiveService };
 }
 
 // ---------------------------------------------------------------------------

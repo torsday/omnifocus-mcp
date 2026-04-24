@@ -4,11 +4,23 @@ import { OmniJsTransport } from "../adapter/omnijs/OmniJsTransport.js";
 import { ROUTING_TABLE, TransportRouter } from "../adapter/router.js";
 import { OmniFocusLruCache } from "../cache/lruCache.js";
 import type { Config } from "../config/env.js";
+import { AttachmentService } from "../services/attachmentService.js";
+import { ExportService } from "../services/exportService.js";
+import { FolderService } from "../services/folderService.js";
 import { ForecastService } from "../services/forecastService.js";
 import { PerspectiveService } from "../services/perspectiveService.js";
+import { PluginService } from "../services/pluginService.js";
 import { ProjectService } from "../services/projectService.js";
 import { ReviewService } from "../services/reviewService.js";
-import { composeAdapter, composeResourceServices, makeMeta } from "./composition.js";
+import { SearchService } from "../services/searchService.js";
+import { TagService } from "../services/tagService.js";
+import { TaskService } from "../services/taskService.js";
+import {
+  composeAdapter,
+  composeResourceServices,
+  composeServices,
+  makeMeta,
+} from "./composition.js";
 
 const baseConfig: Config = {
   OMNIFOCUS_LOG_LEVEL: "info",
@@ -61,6 +73,42 @@ describe("composeAdapter", () => {
   });
 });
 
+describe("composeServices", () => {
+  it("instantiates all 11 services + the shared cache", () => {
+    const adapter = composeAdapter(baseConfig);
+    const services = composeServices(adapter, baseConfig);
+
+    expect(services.cache).toBeInstanceOf(OmniFocusLruCache);
+    expect(services.taskService).toBeInstanceOf(TaskService);
+    expect(services.projectService).toBeInstanceOf(ProjectService);
+    expect(services.tagService).toBeInstanceOf(TagService);
+    expect(services.folderService).toBeInstanceOf(FolderService);
+    expect(services.attachmentService).toBeInstanceOf(AttachmentService);
+    expect(services.exportService).toBeInstanceOf(ExportService);
+    expect(services.forecastService).toBeInstanceOf(ForecastService);
+    expect(services.perspectiveService).toBeInstanceOf(PerspectiveService);
+    expect(services.pluginService).toBeInstanceOf(PluginService);
+    expect(services.reviewService).toBeInstanceOf(ReviewService);
+    expect(services.searchService).toBeInstanceOf(SearchService);
+  });
+
+  it("propagates cache sizing from config", () => {
+    const adapter = composeAdapter(baseConfig);
+    const a = composeServices(adapter, { ...baseConfig, OMNIFOCUS_CACHE_CAPACITY: 64 });
+    const b = composeServices(adapter, { ...baseConfig, OMNIFOCUS_CACHE_CAPACITY: 512 });
+    expect(a.cache).not.toBe(b.cache);
+  });
+
+  it("returns fresh service instances per call (no shared global state)", () => {
+    const adapter = composeAdapter(baseConfig);
+    const a = composeServices(adapter, baseConfig);
+    const b = composeServices(adapter, baseConfig);
+    expect(a.taskService).not.toBe(b.taskService);
+    expect(a.projectService).not.toBe(b.projectService);
+    expect(a.cache).not.toBe(b.cache);
+  });
+});
+
 describe("composeResourceServices", () => {
   it("instantiates the four services + cache the resources need", () => {
     const adapter = composeAdapter(baseConfig);
@@ -74,8 +122,6 @@ describe("composeResourceServices", () => {
   });
 
   it("propagates cache sizing from config", () => {
-    // Two distinct configs should produce two distinct caches; confirms
-    // the factory honours capacity/ttl rather than ignoring them.
     const adapter = composeAdapter(baseConfig);
     const a = composeResourceServices(adapter, { ...baseConfig, OMNIFOCUS_CACHE_CAPACITY: 64 });
     const b = composeResourceServices(adapter, { ...baseConfig, OMNIFOCUS_CACHE_CAPACITY: 512 });
