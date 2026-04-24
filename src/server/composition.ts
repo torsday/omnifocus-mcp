@@ -20,7 +20,7 @@ import { TransportRouter } from "../adapter/router.js";
 import { OmniFocusLruCache } from "../cache/lruCache.js";
 import type { Config } from "../config/env.js";
 import type { ResponseMeta, Transport } from "../envelope/index.js";
-import { generateCorrelationId } from "../logging/correlation.js";
+import { generateCorrelationId, getCorrelationId } from "../logging/correlation.js";
 import { AttachmentService } from "../services/attachmentService.js";
 import { ExportService } from "../services/exportService.js";
 import { FolderService } from "../services/folderService.js";
@@ -177,8 +177,12 @@ const DEFAULT_OF_VERSION = "unknown";
  * shared cell that subsequent calls read from.
  */
 export function makeMeta(partial: Partial<ResponseMeta> = {}): ResponseMeta {
+  // Read from the request-scoped `withCorrelationId` AsyncLocalStorage when
+  // available so the envelope's correlationId matches the value emitted on
+  // the corresponding `tool.invoked` / `tool.error` log event (#283). Outside
+  // a scope (test fixtures, internal callers) we fall back to a fresh ULID.
   return {
-    correlationId: generateCorrelationId(),
+    correlationId: getCorrelationId() ?? generateCorrelationId(),
     durationMs: 0,
     cacheHit: false,
     transport: DEFAULT_TRANSPORT,
