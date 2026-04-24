@@ -100,6 +100,7 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   deleteTask: "jxa",
   moveTask: "jxa",
   reorderTask: "jxa",
+  duplicateTask: "jxa",
 
   // -- Projects -------------------------------------------------------------
   listProjects: "jxa",
@@ -241,6 +242,15 @@ export class TransportRouter implements OmniFocusAdapter {
   }
   reorderTask(id: TaskId, position: TaskPosition): Promise<void> {
     return this.pick("reorderTask").reorderTask(id, position);
+  }
+  duplicateTask(
+    id: TaskId,
+    opts: {
+      recursive: boolean;
+      destination?: { projectId: ProjectId } | { parentId: TaskId } | { toInbox: true };
+    },
+  ): Promise<{ newId: TaskId; descendantCount: number }> {
+    return this.pick("duplicateTask").duplicateTask(id, opts);
   }
 
   // -- Projects -------------------------------------------------------------

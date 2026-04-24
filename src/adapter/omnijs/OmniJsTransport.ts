@@ -133,6 +133,15 @@ export class OmniJsTransport implements OmniFocusAdapter {
   async reorderTask(_id: TaskId, _position: TaskPosition): Promise<void> {
     return notYetWired("reorderTask");
   }
+  async duplicateTask(
+    _id: TaskId,
+    _opts: {
+      recursive: boolean;
+      destination?: { projectId: ProjectId } | { parentId: TaskId } | { toInbox: true };
+    },
+  ): Promise<{ newId: TaskId; descendantCount: number }> {
+    return notYetWired("duplicateTask");
+  }
 
   // -- Projects -------------------------------------------------------------
 

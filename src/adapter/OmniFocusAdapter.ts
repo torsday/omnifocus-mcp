@@ -271,6 +271,32 @@ export interface OmniFocusAdapter {
   deleteTask(id: TaskId): Promise<void>;
   moveTask(id: TaskId, destination: { projectId?: ProjectId; parentId?: TaskId }): Promise<void>;
   /**
+   * Duplicate a task. Editable fields (name, note, noteHtml, dates, flagged,
+   * tags, estimatedMinutes, repetition, sequential, completedByChildren) copy
+   * over; system fields (id, createdAt, modifiedAt, completedAt, droppedAt)
+   * are regenerated on the clone. Completed/dropped state is NOT carried — a
+   * duplicate is a fresh, active task.
+   *
+   * When `recursive: true`, the full subtask subtree is walked depth-first and
+   * duplicated under the clone, preserving child order.
+   *
+   * By default the clone lands alongside the source (same projectId/parentId).
+   * Supply `destination` to override — one of `{ projectId }`, `{ parentId }`,
+   * or `{ toInbox: true }`. Throws `ValidationError` when more than one
+   * destination is set; `NotFound` when the source task or destination
+   * container does not exist.
+   *
+   * Returns the clone's new ID and the number of descendants duplicated
+   * beneath it (0 when `recursive: false`).
+   */
+  duplicateTask(
+    id: TaskId,
+    opts: {
+      recursive: boolean;
+      destination?: { projectId: ProjectId } | { parentId: TaskId } | { toInbox: true };
+    },
+  ): Promise<{ newId: TaskId; descendantCount: number }>;
+  /**
    * Reorder a task relative to its siblings. See {@link TaskPosition}.
    *
    * - `{ before: TaskId }` / `{ after: TaskId }`: the reference must share a

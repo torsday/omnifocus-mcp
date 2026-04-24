@@ -310,6 +310,114 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     if (task.completed) this.bumpProjectCompletedCount(newProjectId, +1);
   }
 
+  async duplicateTask(
+    id: TaskId,
+    opts: {
+      recursive: boolean;
+      destination?: { projectId: ProjectId } | { parentId: TaskId } | { toInbox: true };
+    },
+  ): Promise<{ newId: TaskId; descendantCount: number }> {
+    const source = await this.getTask(id);
+
+    // Validate / resolve destination.
+    let destProjectId: ProjectId | null;
+    let destParentId: TaskId | null;
+    if (opts.destination === undefined) {
+      destProjectId = source.projectId;
+      destParentId = source.parentId;
+    } else {
+      const dest = opts.destination;
+      const destKeys =
+        ("projectId" in dest ? 1 : 0) +
+        ("parentId" in dest ? 1 : 0) +
+        ("toInbox" in dest && dest.toInbox === true ? 1 : 0);
+      if (destKeys !== 1) {
+        throw new ValidationError(
+          "duplicateTask: destination must specify exactly one of projectId, parentId, or toInbox",
+          { details: { field: "destination" } },
+        );
+      }
+      if ("projectId" in dest) {
+        if (!this.projects.has(dest.projectId)) {
+          throw new NotFound(`Project not found: ${dest.projectId}`, {
+            details: { resource: "project", id: dest.projectId },
+          });
+        }
+        destProjectId = dest.projectId;
+        destParentId = null;
+      } else if ("parentId" in dest) {
+        const parent = this.tasks.get(dest.parentId);
+        if (parent === undefined) {
+          throw new NotFound(`Parent task not found: ${dest.parentId}`, {
+            details: { resource: "task", id: dest.parentId },
+          });
+        }
+        destProjectId = parent.projectId;
+        destParentId = dest.parentId;
+      } else {
+        destProjectId = null;
+        destParentId = null;
+      }
+    }
+
+    // Snapshot of direct children BEFORE cloning (insertion order == sibling order).
+    // Needed only when recursive: we walk from the original source's subtree.
+    const childrenOf = (parentId: TaskId): Task[] =>
+      Array.from(this.tasks.values()).filter((t) => t.parentId === parentId);
+
+    const cloneOne = (src: Task, projectId: ProjectId | null, parentId: TaskId | null): TaskId => {
+      const newId = this.nextId("task", TaskIdCtor);
+      const now = isoOf(this.now()) as Task["createdAt"];
+      const clone: Task = {
+        id: newId,
+        name: src.name,
+        note: src.note,
+        noteHtml: src.noteHtml,
+        projectId,
+        parentId,
+        tagIds: [...src.tagIds],
+        deferDate: src.deferDate,
+        dueDate: src.dueDate,
+        estimatedMinutes: src.estimatedMinutes,
+        flagged: src.flagged,
+        completed: false,
+        completedAt: null,
+        dropped: false,
+        droppedAt: null,
+        available: true,
+        blocked: false,
+        sequential: src.sequential,
+        completedByChildren: src.completedByChildren,
+        repetition: src.repetition,
+        createdAt: now,
+        modifiedAt: now,
+      };
+      this.tasks.set(newId, clone);
+      this.bumpProjectTaskCount(projectId, +1);
+      return newId;
+    };
+
+    const newRootId = cloneOne(source, destProjectId, destParentId);
+    let descendantCount = 0;
+
+    if (opts.recursive) {
+      const walk = (
+        srcParentId: TaskId,
+        cloneParentId: TaskId,
+        cloneProjectId: ProjectId | null,
+      ) => {
+        for (const child of childrenOf(srcParentId)) {
+          const childClone = cloneOne(child, cloneProjectId, cloneParentId);
+          descendantCount += 1;
+          walk(child.id, childClone, cloneProjectId);
+        }
+      };
+      walk(source.id, newRootId, destProjectId);
+    }
+
+    return { newId: newRootId, descendantCount };
+  }
+
   async reorderTask(id: TaskId, position: TaskPosition): Promise<void> {
     const task = await this.getTask(id);
 

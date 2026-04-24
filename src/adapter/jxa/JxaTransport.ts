@@ -67,6 +67,7 @@ import taskCompleteScript from "../../scripts/jxa/task_complete.js";
 import taskCreateScript from "../../scripts/jxa/task_create.js";
 import taskDeleteScript from "../../scripts/jxa/task_delete.js";
 import taskDropScript from "../../scripts/jxa/task_drop.js";
+import taskDuplicateScript from "../../scripts/jxa/task_duplicate.js";
 import taskGetScript from "../../scripts/jxa/task_get.js";
 import taskGetManyScript from "../../scripts/jxa/task_get_many.js";
 import taskListScript from "../../scripts/jxa/task_list.js";
@@ -302,6 +303,29 @@ export class JxaTransport implements OmniFocusAdapter {
       ...this.runOpts,
       scriptName: "task_reorder",
     });
+  }
+
+  async duplicateTask(
+    id: TaskId,
+    opts: {
+      recursive: boolean;
+      destination?: { projectId: ProjectId } | { parentId: TaskId } | { toInbox: true };
+    },
+  ): Promise<{ newId: TaskId; descendantCount: number }> {
+    const destination =
+      opts.destination === undefined
+        ? undefined
+        : "projectId" in opts.destination
+          ? { projectId: opts.destination.projectId }
+          : "parentId" in opts.destination
+            ? { parentId: opts.destination.parentId }
+            : { toInbox: true as const };
+    const result = await runJxaScript<{ newId: string; descendantCount: number }>(
+      taskDuplicateScript,
+      { id, recursive: opts.recursive, destination },
+      { ...this.runOpts, scriptName: "task_duplicate" },
+    );
+    return { newId: TaskIdCtor.of(result.newId), descendantCount: result.descendantCount };
   }
 
   // -- Projects (wired) -----------------------------------------------------
