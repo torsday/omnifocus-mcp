@@ -283,7 +283,7 @@ export class OmniJsTransport implements OmniFocusAdapter {
 
   // -- Raw escape hatch (off by default; gated by env at the tool layer) ----
 
-  async runOmniJsScript(script: string): Promise<unknown> {
-    return runOmniJsScript(script, {}, { ...this.runOpts, scriptName: "raw" });
+  async runOmniJsScript(script: string, arg?: unknown): Promise<unknown> {
+    return runOmniJsScript(script, arg ?? {}, { ...this.runOpts, scriptName: "raw" });
   }
 }

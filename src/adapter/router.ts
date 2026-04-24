@@ -380,17 +380,17 @@ export class TransportRouter implements OmniFocusAdapter {
   // exposes them — if the chosen transport doesn't implement the method we
   // throw a `TypeError` at the boundary so the misconfiguration is loud.
 
-  runJxaScript(script: string): Promise<unknown> {
+  runJxaScript(script: string, arg?: unknown): Promise<unknown> {
     const target = this.pick("runJxaScript");
     if (typeof target.runJxaScript !== "function") {
       return Promise.reject(
         new TypeError("Router dispatched runJxaScript to a transport that does not implement it"),
       );
     }
-    return target.runJxaScript(script);
+    return target.runJxaScript(script, arg);
   }
 
-  runOmniJsScript(script: string): Promise<unknown> {
+  runOmniJsScript(script: string, arg?: unknown): Promise<unknown> {
     const target = this.pick("runOmniJsScript");
     if (typeof target.runOmniJsScript !== "function") {
       return Promise.reject(
@@ -399,6 +399,6 @@ export class TransportRouter implements OmniFocusAdapter {
         ),
       );
     }
-    return target.runOmniJsScript(script);
+    return target.runOmniJsScript(script, arg);
   }
 }

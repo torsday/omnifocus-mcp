@@ -399,6 +399,24 @@ export interface OmniFocusAdapter {
 
   // -- Raw escape hatches (only wired when OMNIFOCUS_ALLOW_RAW_SCRIPT=1) -----
 
-  runJxaScript?(script: string): Promise<unknown>;
-  runOmniJsScript?(script: string): Promise<unknown>;
+  /**
+   * Execute an arbitrary JXA script body. The script must define a
+   * `function run(argv)` and return a JSON-encoded value. `arg` is serialised
+   * to JSON and passed as the single `run()` argument; omit for scripts that
+   * don't need input.
+   *
+   * Dangerous: runs with full Automation privileges. Exposed at the tool
+   * layer only when `OMNIFOCUS_ALLOW_RAW_SCRIPT=1` (ADR-0004).
+   */
+  runJxaScript?(script: string, arg?: unknown): Promise<unknown>;
+
+  /**
+   * Execute an arbitrary OmniJS script body via OmniAutomation. `arg` is
+   * passed through the callback-file bridge (DESIGN §6.2) so the script can
+   * access `JSON.parse(argv)`. Omit for scripts that don't need input.
+   *
+   * Dangerous: runs with full Automation privileges. Exposed at the tool
+   * layer only when `OMNIFOCUS_ALLOW_RAW_SCRIPT=1` (ADR-0004).
+   */
+  runOmniJsScript?(script: string, arg?: unknown): Promise<unknown>;
 }
