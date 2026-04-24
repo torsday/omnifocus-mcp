@@ -7,6 +7,7 @@ export default defineConfig({
       "tests/contract/**/*.test.ts",
       "tests/chaos/**/*.test.ts",
       "tests/integration/**/*.test.ts",
+      "tests/e2e/**/*.test.ts",
       "src/**/*.test.ts",
     ],
     exclude: ["node_modules", "dist"],
