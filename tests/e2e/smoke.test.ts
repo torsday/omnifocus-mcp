@@ -35,8 +35,16 @@ describe.skipIf(!E2E)("E2E — smoke", () => {
     }
 
     const tools = await server.client.listTools();
-    expect(tools.tools.length).toBeGreaterThan(0);
-    expect(tools.tools.map((t) => t.name)).toContain("internal_status");
+    const names = tools.tools.map((t) => t.name);
+    expect(names).toContain("internal_status");
+    // Folder tools (#298): six register* helpers wired in startServer.
+    expect(names).toContain("folder_list");
+    expect(names).toContain("folder_create");
+    expect(names).toContain("folder_delete");
+    // Tag tools (#298): ten register* helpers wired in startServer.
+    expect(names).toContain("tag_list");
+    expect(names).toContain("tag_set_status");
+    expect(tools.tools.length).toBeGreaterThanOrEqual(17);
 
     const result = await server.client.callTool({ name: "internal_status", arguments: {} });
     const structured = result.structuredContent as { data?: { uptimeMs?: number } } | undefined;
