@@ -1268,6 +1268,8 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     if (filter.deferredAfter !== undefined) {
       if (task.deferDate === null || task.deferDate <= filter.deferredAfter) return false;
     }
+    // inbox=true: only tasks with no project assignment (projectId === null)
+    if (filter.inbox === true && task.projectId !== null) return false;
     return true;
   }
 

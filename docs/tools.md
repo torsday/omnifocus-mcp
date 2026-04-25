@@ -2504,7 +2504,7 @@ Fetch up to 100 tasks by persistent ID in a single OmniFocus round-trip. Use whe
 
 ## task_list
 
-List tasks in OmniFocus with optional filters (project, tag, flagged, completion, due dates). Use this for filter-based queries across tasks. Do NOT use for a known single task (use task_get). For name-based lookup, prefer task_find_by_name. For full-text content search across names and notes, prefer search_query. Returns tasks[] with pagination; safe to call repeatedly; no side effects.
+List tasks in OmniFocus with optional filters (project, tag, inbox, flagged, completion, due dates). Use inbox=true to fetch unprocessed Inbox tasks. Use this for filter-based queries across tasks. Do NOT use for a known single task (use task_get). For name-based lookup, prefer task_find_by_name. For full-text content search across names and notes, prefer search_query. Returns tasks[] with pagination; safe to call repeatedly; no side effects.
 
 ### Input
 
@@ -2523,6 +2523,7 @@ List tasks in OmniFocus with optional filters (project, tag, flagged, completion
 | `sortBy` | one of: dueDate | createdAt | modifiedAt | name | No | Field to sort tasks by: 'createdAt' (default), 'dueDate', 'modifiedAt', or 'name'. Tasks with no value for the chosen field (e.g. no dueDate) sort last. |
 | `sortDirection` | one of: asc | desc | No | Sort direction: 'asc' (default, oldest/lowest first) or 'desc' (newest/highest first). |
 | `updatedSince` | string | No | Return only tasks modified strictly after this timestamp. Accepts ISO-8601 with offset (e.g. '2026-04-21T10:00:00-07:00') or a relative shortcut: today, yesterday, this-week, next-week, end-of-week, end-of-month. Use this for incremental sync: call without updatedSince on session start, then pass the previous response timestamp on subsequent calls. Note: deleted tasks cannot be detected — use a snapshot resource for deletion detection. |
+| `inbox` | boolean | No | true = Inbox tasks only (no project assignment). Cannot be combined with projectId or parentId. Use this to surface unprocessed captures without knowing their IDs. |
 | `cursor` | string | No | Opaque cursor from a previous task_list response. Must use the same filters — changing filters mid-sequence returns a ValidationError. |
 
 ### Example call

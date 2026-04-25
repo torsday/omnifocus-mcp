@@ -84,6 +84,11 @@ export interface TaskListInput {
    * Relative shortcuts are resolved server-side to local midnight.
    */
   updatedSince?: string;
+  /**
+   * When `true`, restrict to the OmniFocus Inbox — tasks that have no project
+   * assignment. Cannot be combined with `projectId` or `parentId`.
+   */
+  inbox?: boolean;
   /** 1..1000; service default is 200 when caller omits and any filter is set. */
   limit?: number;
   cursor?: string;
@@ -322,7 +327,8 @@ export class TaskService {
       input.dueAfter !== undefined ||
       input.deferredBefore !== undefined ||
       input.parentId !== undefined ||
-      input.updatedSince !== undefined
+      input.updatedSince !== undefined ||
+      input.inbox === true
     );
   }
 
@@ -355,6 +361,17 @@ export class TaskService {
       }
     }
 
+    // inbox=true is incompatible with projectId or parentId (inbox tasks have none)
+    if (input.inbox && (input.projectId !== undefined || input.parentId !== undefined)) {
+      throw new ValidationError(
+        "inbox filter cannot be combined with projectId or parentId — inbox tasks have no project assignment.",
+        {
+          suggestion: "Remove projectId/parentId when filtering by inbox.",
+          details: { field: "inbox" },
+        },
+      );
+    }
+
     return {
       projectId: input.projectId,
       tagIds,
@@ -368,6 +385,7 @@ export class TaskService {
       sortBy: input.sortBy ?? "createdAt",
       sortDirection: input.sortDirection ?? "asc",
       updatedSince,
+      inbox: input.inbox,
     };
   }
 
@@ -394,6 +412,8 @@ export class TaskService {
     //               schema may apply its own default before reaching here)
     if (n.completed === "only") filter.completed = true;
     else if (n.completed === "exclude") filter.completed = false;
+
+    if (n.inbox === true) filter.inbox = true;
 
     return filter;
   }
@@ -443,4 +463,5 @@ interface NormalizedFilter {
   sortDirection: "asc" | "desc";
   /** Resolved ISO-8601 timestamp (relative shortcuts already expanded). */
   updatedSince: string | undefined;
+  inbox: boolean | undefined;
 }
