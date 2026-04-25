@@ -1,0 +1,142 @@
+[
+  {
+    "id": 1,
+    "prompt": "Show me all tasks in my OmniFocus inbox",
+    "correct_tool": "task_list",
+    "rationale": "task_list is the correct query tool for listing/filtering tasks; omit projectId to get inbox tasks",
+    "confusion_pair": null
+  },
+  {
+    "id": 2,
+    "prompt": "Get the details for task with ID abc123",
+    "correct_tool": "task_get",
+    "rationale": "task_get is the single-item fetch by known ID; task_find_by_name is for name search, task_list for filter queries",
+    "confusion_pair": "task_find_by_name, task_list"
+  },
+  {
+    "id": 3,
+    "prompt": "Find all tasks named 'Buy groceries'",
+    "correct_tool": "task_find_by_name",
+    "rationale": "task_find_by_name exists specifically for name-based lookup when no ID is known",
+    "confusion_pair": "task_list (lacks name search), task_get (requires known ID)"
+  },
+  {
+    "id": 4,
+    "prompt": "Create 5 tasks for my project all at once: 'Research', 'Outline', 'Draft', 'Review', 'Publish'",
+    "correct_tool": "task_batch_create",
+    "rationale": "task_batch_create saves 5 JXA round trips; task_batch_create description says 'Prefer this tool over repeated task_create calls whenever you are creating more than one task'",
+    "confusion_pair": "task_create (repeated calls)"
+  },
+  {
+    "id": 5,
+    "prompt": "Mark task xyz789 as completed",
+    "correct_tool": "task_complete",
+    "rationale": "task_complete is the dedicated completion tool; task_update description explicitly says 'Do not use to complete a task; prefer task_complete instead'",
+    "confusion_pair": "task_update (description explicitly redirects to task_complete)"
+  },
+  {
+    "id": 6,
+    "prompt": "Complete all tasks in my 'End of week' list at once",
+    "correct_tool": "task_batch_complete",
+    "rationale": "task_batch_complete is the efficient batch completion path; task_update in a loop is wasteful",
+    "confusion_pair": "task_update (repeated calls)"
+  },
+  {
+    "id": 7,
+    "prompt": "Move task abc123 to project proj456",
+    "correct_tool": "task_move",
+    "rationale": "task_move handles project reparenting; task_update cannot change a task's project membership",
+    "confusion_pair": "task_update (doesn't support project reassignment)"
+  },
+  {
+    "id": 8,
+    "prompt": "Export my 'Work' project as OPML for import into another app",
+    "correct_tool": "export_opml",
+    "rationale": "export_opml exports at project/folder/all scope to OPML format; description says 'Do NOT use to export a single task'",
+    "confusion_pair": "task_list (returns JSON not OPML)"
+  },
+  {
+    "id": 9,
+    "prompt": "What tasks are due today?",
+    "correct_tool": "task_list",
+    "rationale": "task_list with dueBefore filter is the direct query; forecast_get is for structured 'today's plate' view including deferred and flagged",
+    "confusion_pair": "forecast_get (structured forecast, not a raw filter query)"
+  },
+  {
+    "id": 10,
+    "prompt": "Get the OmniFocus forecast view for today",
+    "correct_tool": "forecast_get",
+    "rationale": "forecast_get returns the structured forecast perspective grouped by overdue/dueToday/deferredToday/flagged; task_list lacks this grouping",
+    "confusion_pair": "task_list (misses forecast grouping structure)"
+  },
+  {
+    "id": 11,
+    "prompt": "Read the note on task abc123",
+    "correct_tool": "note_get",
+    "rationale": "note_get is dedicated to reading plain-text notes; note_get_html for rich formatting; task_get also returns a truncated note field but note_get returns the full note",
+    "confusion_pair": "note_get_html (only needed for formatting fidelity)"
+  },
+  {
+    "id": 12,
+    "prompt": "The note on task abc123 has important formatting — I need the full rich-text version",
+    "correct_tool": "note_get_html",
+    "rationale": "note_get_html preserves HTML formatting (bold, lists, etc.); note_get strips it to plain text",
+    "confusion_pair": "note_get (strips formatting)"
+  },
+  {
+    "id": 13,
+    "prompt": "Append '— follow up needed' to the note on task abc123 without overwriting the existing note",
+    "correct_tool": "note_append",
+    "rationale": "note_append adds to existing note content; note_set replaces the whole note; description says 'Do not use to replace the note entirely; prefer note_set instead'",
+    "confusion_pair": "note_set (replaces, doesn't append)"
+  },
+  {
+    "id": 14,
+    "prompt": "Search OmniFocus for anything related to 'quarterly report'",
+    "correct_tool": "search_query",
+    "rationale": "search_query runs full-text search across task names AND notes; task_find_by_name only searches task names",
+    "confusion_pair": "task_find_by_name (task names only, not notes)"
+  },
+  {
+    "id": 15,
+    "prompt": "Create a new project called 'Q3 Planning' inside the 'Work' folder",
+    "correct_tool": "project_create",
+    "rationale": "project_create accepts folderId to place the project inside a folder; folder_create creates a folder, not a project",
+    "confusion_pair": "folder_create (creates folder not project)"
+  },
+  {
+    "id": 16,
+    "prompt": "Sync my changes to OmniFocus so they appear on my iPhone",
+    "correct_tool": "sync_trigger",
+    "rationale": "sync_trigger initiates cross-device sync; sync_status is read-only and doesn't trigger anything",
+    "confusion_pair": "sync_status (read-only, no trigger)"
+  },
+  {
+    "id": 17,
+    "prompt": "Mark project proj123 as reviewed",
+    "correct_tool": "project_mark_reviewed",
+    "rationale": "project_mark_reviewed / review_mark_reviewed are the dedicated review actions; project_update cannot set the review date",
+    "confusion_pair": "project_update (no review date field)"
+  },
+  {
+    "id": 18,
+    "prompt": "I know the names 'Research', 'Draft', 'Review' — find those tasks",
+    "correct_tool": "task_find_by_name",
+    "rationale": "task_find_by_name searches by name; task_get_many requires already-known IDs, task_list doesn't support name filtering",
+    "confusion_pair": "task_get_many (needs IDs not names), task_list (no name filter)"
+  },
+  {
+    "id": 19,
+    "prompt": "I have IDs for 10 tasks — fetch their full details in one call",
+    "correct_tool": "task_get_many",
+    "rationale": "task_get_many batches fetch for up to 100 known IDs in one round trip; task_get is single-item only",
+    "confusion_pair": "task_get (single only), task_list (query-based not ID-batch)"
+  },
+  {
+    "id": 20,
+    "prompt": "Set up a weekly repeating schedule for task abc123",
+    "correct_tool": "task_set_repetition",
+    "rationale": "task_set_repetition is the dedicated repetition setter; task_update description doesn't mention repetition fields because they're handled separately",
+    "confusion_pair": "task_update (no repetition field)"
+  }
+]
