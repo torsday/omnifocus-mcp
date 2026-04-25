@@ -22,6 +22,17 @@
  *    or `.tags[*].name` of a domain object inside a metadata construction
  *    context (suggestion/message/warning literals) is forbidden.
  *
+ * 4. **no-network-import** — imports of `http`, `https`, `node-fetch`, `axios`,
+ *    `undici`, or `fetch` (as a standalone import) are forbidden. omnifocus-mcp
+ *    communicates with OmniFocus only — outbound HTTP is never needed and would
+ *    be a supply-chain / data-exfiltration risk (DESIGN §18).
+ *
+ * 5. **no-layer-violation** — enforces the adapter ↔ services ↔ tools layering:
+ *    - `adapter/` must not import from `services/` or `tools/`
+ *    - `tools/` must not import from `adapter/` directly (must go through a service)
+ *    `domain/`, `errors/`, `envelope/`, `logging/`, `rateLimit/`, `concurrency/`,
+ *    and `linting/` are utility layers reachable from everywhere.
+ *
  * @see DESIGN.md §6.7 — error taxonomy
  * @see DESIGN.md §18 — security posture / prompt injection containment
  * @see docs/adr/0008-branded-id-types.md
@@ -77,13 +88,68 @@ export const EXCLUDED_FILES_RE =
   /\.(test|spec)\.(ts|js)$|src[/\\]linting[/\\]customRules\.(ts|js)$/;
 
 // ---------------------------------------------------------------------------
+// Rule 4: no-network-import
+// ---------------------------------------------------------------------------
+
+/**
+ * Banned network-library identifiers. Matches both static `import` statements
+ * and dynamic `import(...)` calls.
+ *
+ * `node:http` and `node:https` are also banned — the server speaks only to
+ * OmniFocus via JXA/OmniJS; there is no legitimate outbound HTTP use case.
+ */
+export const NETWORK_IMPORT_RE =
+  /\bimport\s*(?:\([^)]*['"]|[^'"]*['"])(node:https?|https?|node-fetch|axios|undici|cross-fetch)['"]/;
+
+// ---------------------------------------------------------------------------
+// Rule 5: no-layer-violation
+// ---------------------------------------------------------------------------
+
+/**
+ * Detect imports that cross the adapter ↔ services ↔ tools layer boundary.
+ *
+ * The `OmniFocusAdapter` interface is the public seam — tools and services may
+ * import it freely. The *implementations* (`adapter/jxa/` and `adapter/omnijs/`)
+ * must never be imported outside the adapter layer itself; only the router and
+ * composition wiring are allowed to reach them. Likewise, transport implementations
+ * must never reach up into services/ or tools/.
+ *
+ * Forbidden:
+ *   adapter/jxa/ or adapter/omnijs/ importing from services/ or tools/
+ *   services/ or tools/ importing from adapter/jxa/ or adapter/omnijs/
+ *     (they must import the OmniFocusAdapter interface, not the implementations)
+ */
+
+/** Match any relative or absolute import that targets `services/` */
+export const IMPORT_SERVICES_RE = /\bfrom\s+['"][^'"]*\/services\//;
+/** Match any relative or absolute import that targets `tools/` */
+export const IMPORT_TOOLS_RE = /\bfrom\s+['"][^'"]*\/tools\//;
+/**
+ * Match imports targeting the transport *implementations* (not the interface).
+ * `adapter/OmniFocusAdapter` and `adapter/inMemory/` are permitted from anywhere.
+ */
+export const IMPORT_ADAPTER_IMPL_RE = /\bfrom\s+['"][^'"]*\/adapter\/(jxa|omnijs)\//;
+
+/** Detect that a file lives inside a transport implementation directory */
+export const IN_ADAPTER_IMPL_RE = /src[/\\]adapter[/\\](jxa|omnijs)[/\\]/;
+/** Detect that a file lives under `src/services/` */
+export const IN_SERVICES_RE = /src[/\\]services[/\\]/;
+/** Detect that a file lives under `src/tools/` */
+export const IN_TOOLS_RE = /src[/\\]tools[/\\]/;
+
+// ---------------------------------------------------------------------------
 // Violation type
 // ---------------------------------------------------------------------------
 
 export interface Violation {
   file: string;
   line: number;
-  rule: "no-id-cast" | "no-generic-error" | "no-metadata-interpolation";
+  rule:
+    | "no-id-cast"
+    | "no-generic-error"
+    | "no-metadata-interpolation"
+    | "no-network-import"
+    | "no-layer-violation";
   excerpt: string;
 }
 
@@ -128,6 +194,42 @@ export function checkFileContent(filePath: string, content: string): Violation[]
         file: filePath,
         line: i + 1,
         rule: "no-metadata-interpolation",
+        excerpt: line.trim(),
+      });
+    }
+
+    // Rule 4: no-network-import
+    if (NETWORK_IMPORT_RE.test(line)) {
+      violations.push({
+        file: filePath,
+        line: i + 1,
+        rule: "no-network-import",
+        excerpt: line.trim(),
+      });
+    }
+
+    // Rule 5: no-layer-violation
+    // Transport implementations must not import up into services/ or tools/
+    if (
+      IN_ADAPTER_IMPL_RE.test(filePath) &&
+      (IMPORT_SERVICES_RE.test(line) || IMPORT_TOOLS_RE.test(line))
+    ) {
+      violations.push({
+        file: filePath,
+        line: i + 1,
+        rule: "no-layer-violation",
+        excerpt: line.trim(),
+      });
+    }
+    // services/ and tools/ must not reach into transport implementations directly
+    if (
+      (IN_SERVICES_RE.test(filePath) || IN_TOOLS_RE.test(filePath)) &&
+      IMPORT_ADAPTER_IMPL_RE.test(line)
+    ) {
+      violations.push({
+        file: filePath,
+        line: i + 1,
+        rule: "no-layer-violation",
         excerpt: line.trim(),
       });
     }
