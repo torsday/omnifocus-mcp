@@ -56,26 +56,26 @@ function run(argv) {
     };
   }
 
+  // OmniFocus 4.x rejects ofApp.make({ new: "tag", at: ..., withProperties })
+  // with error -10024. Use the Tag(props)+push pattern (mirrors task_create
+  // fix in #331 and project/folder/tag fix in #319).
+  const doc = ofApp.defaultDocument;
   let newTag;
   if (args.parentId) {
-    const allTags = ofApp.defaultDocument.flattenedTags();
-    let parentTag = null;
-    for (let i = 0; i < allTags.length; i++) {
-      if (allTags[i].id() === args.parentId) {
-        parentTag = allTags[i];
-        break;
-      }
-    }
+    const parentTag = doc.flattenedTags.byId(args.parentId);
     if (!parentTag) throw new Error(`Parent tag not found: ${args.parentId}`);
-    // OmniFocus 4.x rejects `ofApp.make({ new: "tag", at: ... })` with
-    // error -1728 (errAENoSuchObject). Use the specifier-push pattern instead.
     newTag = ofApp.Tag({ name: args.name });
     parentTag.tags.push(newTag);
   } else {
-    // Same fix for document-level tag creation.
     newTag = ofApp.Tag({ name: args.name });
-    ofApp.defaultDocument.tags.push(newTag);
+    doc.tags.push(newTag);
   }
 
-  return JSON.stringify({ tag: buildTag(newTag) });
+  // Re-fetch via a stable specifier before calling buildTag.
+  // After push(), property accesses (status(), creationDate(), etc.) on the
+  // pushed specifier throw -1728 until the JXA bridge flushes deferred events.
+  // .id() is safe immediately; all other properties require re-fetch.
+  const tagId = newTag.id();
+  const fetchedTag = doc.flattenedTags.byId(tagId);
+  return JSON.stringify({ tag: buildTag(fetchedTag) });
 }
