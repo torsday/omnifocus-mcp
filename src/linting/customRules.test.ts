@@ -162,6 +162,130 @@ describe("no-metadata-interpolation rule", () => {
   });
 });
 
+describe("no-network-import rule", () => {
+  it("flags a static import of node:https", () => {
+    const v = checkFileContent("src/services/foo.ts", 'import https from "node:https";');
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-network-import");
+  });
+
+  it("flags a static import of node:http", () => {
+    const v = checkFileContent("src/services/foo.ts", 'import http from "node:http";');
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-network-import");
+  });
+
+  it("flags a static import of axios", () => {
+    const v = checkFileContent("src/services/foo.ts", 'import axios from "axios";');
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-network-import");
+  });
+
+  it("flags a static import of node-fetch", () => {
+    const v = checkFileContent("src/tools/task/list.ts", 'import fetch from "node-fetch";');
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-network-import");
+  });
+
+  it("flags a static import of undici", () => {
+    const v = checkFileContent("src/adapter/omnijs/runner.ts", 'import { request } from "undici";');
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-network-import");
+  });
+
+  it("flags a dynamic import of https", () => {
+    const v = checkFileContent("src/foo.ts", 'import("https")');
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-network-import");
+  });
+
+  it("does not flag node:fs imports", () => {
+    const v = checkFileContent("src/services/foo.ts", 'import fs from "node:fs";');
+    expect(v).toHaveLength(0);
+  });
+
+  it("does not flag node:path imports", () => {
+    const v = checkFileContent("src/services/foo.ts", 'import path from "node:path";');
+    expect(v).toHaveLength(0);
+  });
+
+  it("does not flag comment lines", () => {
+    const v = checkFileContent("src/foo.ts", '// import axios from "axios"; — do not do this');
+    expect(v).toHaveLength(0);
+  });
+});
+
+describe("no-layer-violation rule", () => {
+  it("flags transport implementation importing from services/", () => {
+    const v = checkFileContent(
+      "src/adapter/jxa/JxaTransport.ts",
+      'import { TaskService } from "../../services/taskService.js";',
+    );
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-layer-violation");
+  });
+
+  it("flags transport implementation importing from tools/", () => {
+    const v = checkFileContent(
+      "src/adapter/omnijs/OmniJsTransport.ts",
+      'import { handleTaskCreate } from "../../tools/task/create.js";',
+    );
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-layer-violation");
+  });
+
+  it("flags services/ importing from adapter implementation (jxa)", () => {
+    const v = checkFileContent(
+      "src/services/taskService.ts",
+      'import { JxaTransport } from "../adapter/jxa/JxaTransport.js";',
+    );
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-layer-violation");
+  });
+
+  it("flags tools/ importing from adapter implementation (omnijs)", () => {
+    const v = checkFileContent(
+      "src/tools/task/create.ts",
+      'import { OmniJsTransport } from "../../adapter/omnijs/OmniJsTransport.js";',
+    );
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-layer-violation");
+  });
+
+  it("does NOT flag tools/ importing the OmniFocusAdapter interface", () => {
+    const v = checkFileContent(
+      "src/tools/task/create.ts",
+      'import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";',
+    );
+    expect(v).toHaveLength(0);
+  });
+
+  it("does NOT flag services/ importing the OmniFocusAdapter interface", () => {
+    const v = checkFileContent(
+      "src/services/taskService.ts",
+      'import type { OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";',
+    );
+    expect(v).toHaveLength(0);
+  });
+
+  it("does NOT flag adapter router importing transport implementations", () => {
+    // The router lives inside adapter/ and is allowed to import jxa/ and omnijs/
+    const v = checkFileContent(
+      "src/adapter/router.ts",
+      'import { JxaTransport } from "./jxa/JxaTransport.js";',
+    );
+    expect(v).toHaveLength(0);
+  });
+
+  it("does NOT flag adapter inMemory layer (not a transport implementation)", () => {
+    const v = checkFileContent(
+      "src/adapter/inMemory/InMemoryAdapter.ts",
+      'import type { OmniFocusAdapter } from "../OmniFocusAdapter.js";',
+    );
+    expect(v).toHaveLength(0);
+  });
+});
+
 describe("multi-rule", () => {
   it("reports both violations in the same file", () => {
     const content = 'const id = x as TaskId;\nthrow new Error("bad");';
