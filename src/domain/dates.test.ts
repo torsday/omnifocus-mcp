@@ -116,10 +116,12 @@ describe("property — every pattern-matching valid timestamp parses", () => {
   it("isoDateString accepts any well-formed timestamp with offset", () => {
     fc.assert(
       fc.property(
-        fc.date({
-          min: new Date("1970-01-01T00:00:00Z"),
-          max: new Date("2100-01-01T00:00:00Z"),
-        }),
+        fc
+          .date({
+            min: new Date("1970-01-01T00:00:00Z"),
+            max: new Date("2100-01-01T00:00:00Z"),
+          })
+          .filter((d) => !isNaN(d.getTime())),
         (d) => {
           const iso = d.toISOString(); // always ends in Z
           expect(ISO_8601_WITH_OFFSET.test(iso)).toBe(true);
@@ -135,10 +137,12 @@ describe("property — strings without offset are uniformly rejected", () => {
   it("isoDateString rejects any string that looks like ISO-8601 but lacks an offset", () => {
     fc.assert(
       fc.property(
-        fc.date({
-          min: new Date("1970-01-01T00:00:00Z"),
-          max: new Date("2100-01-01T00:00:00Z"),
-        }),
+        fc
+          .date({
+            min: new Date("1970-01-01T00:00:00Z"),
+            max: new Date("2100-01-01T00:00:00Z"),
+          })
+          .filter((d) => !isNaN(d.getTime())),
         (d) => {
           // Strip the trailing Z to produce a bare-local-time string.
           const bare = d.toISOString().replace(/Z$/, "");
