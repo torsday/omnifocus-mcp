@@ -1,6 +1,6 @@
 {
   "name": "@torsday/omnifocus-mcp",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "MCP server exposing the full OmniFocus surface to LLM agents (placeholder — implementation in progress; see https://github.com/torsday/omnifocus-mcp for the backlog).",
   "keywords": [
     "mcp",

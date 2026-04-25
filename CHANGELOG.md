@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+See [GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues) and [Project #4](https://github.com/users/torsday/projects/4) for the live backlog and status.
+
+---
+
+## [1.0.0] — 2026-04-25
+
 ### Changed
 
 - **TypeScript 6 migration** — bump `typescript` dev-dep from `^5.4` to `^6.0.3` (#122). No source changes required: `pnpm typecheck`, `pnpm test` (1667 tests), `pnpm build`, and `pnpm lint` (47 pre-existing errors, unchanged) all pass against TS 6. Dependabot's closed attempt (#115) predated the Zod 4 migration in #123, which cleared the legacy `z.ZodType<T, z.ZodTypeDef, unknown>` patterns that previously made a TS bump look breaking. ([#122](https://github.com/torsday/omnifocus-mcp/issues/122))
@@ -44,15 +50,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `LifecycleManager` — lazy OmniFocus detection + version gate (DESIGN §17). Single-flight probe that caches `{ ofVersion, ofEdition }` on first success, emits one `of.detected` log event, and exposes `checkMinimumVersion(minimum, featureName)` that throws `FeatureRequiresOfVersion` (`OF_FEATURE_REQUIRES_VERSION`) when detected OmniFocus is older than required. Does not poison the cache on probe failure. ([#25](https://github.com/torsday/omnifocus-mcp/issues/25))
 - Adapter contract test harness — parameterized suite at `tests/contract/adapter.contract.ts` that every `OmniFocusAdapter` implementation must satisfy. Covers CRUD on tasks/projects/tags/folders, filter semantics (`listTasks`/`listProjects`/`listTags`/`listFolders`), and the typed error taxonomy (`NotFound`, `ValidationError`). Wired green against `InMemoryAdapter` in the unit tier (`tests/contract/inMemory.contract.test.ts`); the same suite is runnable against `JxaTransport` / `OmniJsTransport` / `TransportRouter` from the integration tier. `tests/README.md` documents the layout. ([#30](https://github.com/torsday/omnifocus-mcp/issues/30))
 - `ReadPool` / `WriteQueue` — concurrency primitives per ADR-0009 / DESIGN §16. `ReadPool` is a FIFO-fair bounded-concurrency semaphore (`OMNIFOCUS_READ_POOL_SIZE`, default 2). `WriteQueue` is a single-slot strictly-serial queue with soft-cap backpressure (`OMNIFOCUS_WRITE_QUEUE_CAP`, default 50) that throws `QueueFull` (`OF_QUEUE_FULL`) synchronously when saturated; the same class backs the separate OmniJS queue. Both implement `DrainableQueue` so the shutdown controller can drain them. ([#20](https://github.com/torsday/omnifocus-mcp/issues/20))
-
-See [GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues) and [Project #4](https://github.com/users/torsday/projects/4) for the live backlog and status.
-
----
-
-## [1.0.0] — Unreleased
-
-> **Status:** Pre-release. All features listed here are implemented and tested.
-> Version will be bumped to 1.0.0 at the formal release cut.
 
 ### Added
 
