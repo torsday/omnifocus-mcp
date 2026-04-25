@@ -1601,7 +1601,7 @@ _No parameters._
 
 ## task_find_by_name
 
-Find tasks in OmniFocus by name. Returns ALL matching tasks (names are not unique in OmniFocus). Names collide in OmniFocus; prefer task_get with an ID when you have one. Zero matches returns an empty array — not an error. Returns tasks[]; safe to call repeatedly; no side effects.
+Find tasks in OmniFocus by name. Returns ALL matching tasks (names are not unique in OmniFocus). Names collide in OmniFocus; prefer task_get with an ID when you have one. Use search_query instead when you need to search task notes as well, or want full-text content search. Zero matches returns an empty array — not an error. Returns tasks[]; safe to call repeatedly; no side effects.
 
 ### Input
 
@@ -1740,7 +1740,7 @@ Fetch up to 100 tasks by persistent ID in a single OmniFocus round-trip. Use whe
 
 ## task_list
 
-List tasks in OmniFocus with optional filters. Use this for queries across tasks. Do NOT use for a known single task (use `task_get`). Returns tasks[] with pagination; safe to call repeatedly; no side effects.
+List tasks in OmniFocus with optional filters (project, tag, flagged, completion, due dates). Use this for filter-based queries across tasks. Do NOT use for a known single task (use task_get). For name-based lookup, prefer task_find_by_name. For full-text content search across names and notes, prefer search_query. Returns tasks[] with pagination; safe to call repeatedly; no side effects.
 
 ### Input
 
