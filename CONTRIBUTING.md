@@ -61,6 +61,40 @@ Inherited from [`coding.md`](https://github.com/torsday/llm_prompts/blob/main/co
 - [ ] No user content (task names, notes, tags) interpolated into metadata fields (`suggestion`, `message`, `warnings`)
 ```
 
+## Self-hosted CI runner setup (macOS Automation permission)
+
+The integration test suite (`pnpm test:integration`) runs JXA scripts that send Apple Events to OmniFocus. macOS requires an explicit one-time Automation permission grant for the process that spawns `osascript`. Without it, every JXA call fails with error -1743 and the test suite reports `"JXA script returned empty stdout"` with no further context.
+
+### One-time grant (runner or developer machine)
+
+1. Open **System Settings → Privacy & Security → Automation**
+2. Locate the terminal or runner process (typically `bash`, `zsh`, or the GitHub Actions runner agent)
+3. Enable the toggle next to **OmniFocus**
+4. Re-run the tests — no restart required
+
+### Verifying permission before running tests
+
+```bash
+bash scripts/check-automation-permission.sh
+```
+
+Exits 0 with `✓ Automation permission for OmniFocus is granted.` if permission is present.
+Exits 1 with a step-by-step recovery guide if it detects error -1743.
+
+### In CI
+
+`integration.yml` calls `check-automation-permission.sh` as a pre-step (after confirming OmniFocus is running and before the test suite). A missing permission fails fast with an `::error::` annotation instead of a cryptic empty-stdout failure.
+
+### After a macOS update or runner reinstall
+
+macOS may revoke Automation permissions when the OS is updated or the terminal binary changes path. If integration tests start failing with empty stdout after a system update, run the preflight script first:
+
+```bash
+bash scripts/check-automation-permission.sh
+```
+
+If it exits 1, re-grant permission in System Settings as above.
+
 ## Ask before
 
 - Introducing a new runtime dependency ([`DESIGN.md §25`](./DESIGN.md#25-dependency-inventory) inventory requires justification)
