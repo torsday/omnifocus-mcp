@@ -23,26 +23,24 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { flexDateString } from "../../domain/dates.js";
 import { ProjectId, TagId } from "../../domain/ids.js";
-import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { ok, type Pagination, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import type { SearchService } from "../../services/searchService.js";
 
 // ---------------------------------------------------------------------------
 // Tool description
 // ---------------------------------------------------------------------------
 
 export const TASK_SEARCH_DESCRIPTION =
-  "Search OmniFocus tasks by keyword and/or structured filters. " +
+  "Search OmniFocus tasks by keyword and/or structured filters, with cursor pagination. " +
   "q is optional — omit it to filter by tag, project, date range, or availability alone. " +
   "When q is supplied, scans task names and/or notes (controlled by scope) for a case-insensitive substring match. " +
   "Narrow results with: projectId, tagIds (task must carry ALL listed tags), " +
   "available, dueBefore, dueAfter, flagged, and completed. " +
   "At least one of q, projectId, tagIds, available, dueBefore, or dueAfter must be provided. " +
   "Do NOT use when you already have an ID — prefer task_get instead. " +
-  "Prefer task_list for paginated browsing over large result sets. " +
-  "Returns the full Task domain shape — same as task_list — so no follow-up read is needed. " +
-  "Returns tasks[]; safe to call repeatedly; no side effects.";
+  "Returns tasks[] with pagination (limit defaults to 100, max 500); safe to call repeatedly; no side effects.";
 
 // ---------------------------------------------------------------------------
 // Input schema
@@ -96,6 +94,19 @@ export const taskSearchInputShape = {
     .describe(
       "'exclude' = active tasks only (default); 'only' = completed tasks only; 'any' = both.",
     ),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(500)
+    .optional()
+    .describe("Max results per page (1..500). Default 100. Use cursor to fetch subsequent pages."),
+  cursor: z
+    .string()
+    .optional()
+    .describe(
+      "Opaque cursor from a previous task_search response. Must use the same filters — changing filters mid-sequence returns a ValidationError.",
+    ),
 };
 
 /** Full schema with at-least-one-field refinement — use for runtime validation. */
@@ -122,18 +133,19 @@ export type TaskSearchToolInput = z.infer<typeof taskSearchInputSchema>;
 // ---------------------------------------------------------------------------
 
 export interface TaskSearchContext {
-  adapter: OmniFocusAdapter;
+  searchService: SearchService;
   makeMeta: (partial?: Partial<ResponseMeta>) => ResponseMeta;
 }
 
 /**
  * Pure handler for `task_search`.
  *
- * Delegates to `adapter.searchTasks()` which executes the `task_search.js`
- * JXA script with the supplied filter parameters.
+ * Delegates to {@link SearchService.search} which applies full-text matching,
+ * stable sort, and cursor pagination. Returns `tasks[]` plus `pagination`
+ * metadata in the standard ADR-0013 envelope.
  */
 export async function handleTaskSearch(input: TaskSearchToolInput, ctx: TaskSearchContext) {
-  const tasks = await ctx.adapter.searchTasks({
+  const result = await ctx.searchService.search({
     ...(input.q !== undefined && { q: input.q }),
     ...(input.scope !== undefined && { scope: input.scope }),
     ...(input.projectId !== undefined && { projectId: input.projectId }),
@@ -143,8 +155,14 @@ export async function handleTaskSearch(input: TaskSearchToolInput, ctx: TaskSear
     ...(input.dueAfter !== undefined && { dueAfter: input.dueAfter }),
     ...(input.flagged !== undefined && { flagged: input.flagged }),
     ...(input.completed !== undefined && { completed: input.completed }),
+    ...(input.limit !== undefined && { limit: input.limit }),
+    ...(input.cursor !== undefined && { cursor: input.cursor }),
   });
-  return ok({ tasks }, ctx.makeMeta());
+  const pagination: Pagination = {
+    cursor: result.nextCursor,
+    hasMore: result.hasMore,
+  };
+  return ok({ tasks: result.tasks }, ctx.makeMeta({ cacheHit: result.cacheHit }), pagination);
 }
 
 // ---------------------------------------------------------------------------

@@ -11,6 +11,7 @@
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import type { ResponseMeta } from "../../envelope/index.js";
+import { SearchService } from "../../services/searchService.js";
 import { handleTaskSearch, taskSearchInputSchema } from "./search.js";
 
 // ---------------------------------------------------------------------------
@@ -22,6 +23,7 @@ function makeCtx() {
   const adapter = new InMemoryAdapter({
     now: () => new Date(Date.UTC(2026, 0, 1, 0, 0, tick++)),
   });
+  const searchService = new SearchService({ adapter });
   const makeMeta = (partial: Partial<ResponseMeta> = {}): ResponseMeta => ({
     correlationId: "test-cid",
     durationMs: 1,
@@ -30,7 +32,7 @@ function makeCtx() {
     ofVersion: "test",
     ...partial,
   });
-  return { ctx: { adapter, makeMeta }, adapter };
+  return { ctx: { searchService, makeMeta }, adapter };
 }
 
 // ---------------------------------------------------------------------------
@@ -69,6 +71,20 @@ describe("task_search — input schema", () => {
 
   it("rejects invalid completed value", () => {
     expect(() => taskSearchInputSchema.parse({ q: "x", completed: "yes" })).toThrow();
+  });
+
+  it("accepts limit and cursor", () => {
+    const parsed = taskSearchInputSchema.parse({ q: "x", limit: 50, cursor: "opaque-token" });
+    expect(parsed.limit).toBe(50);
+    expect(parsed.cursor).toBe("opaque-token");
+  });
+
+  it("rejects limit > 500", () => {
+    expect(() => taskSearchInputSchema.parse({ q: "x", limit: 600 })).toThrow();
+  });
+
+  it("rejects limit < 1", () => {
+    expect(() => taskSearchInputSchema.parse({ q: "x", limit: 0 })).toThrow();
   });
 });
 
@@ -193,5 +209,44 @@ describe("task_search — handler", () => {
     const result = await handleTaskSearch({ q: "review", projectId: pid }, ctx);
     expect(result.data.tasks).toHaveLength(1);
     expect(result.data.tasks[0]?.projectId).toBe(pid);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Pagination
+// ---------------------------------------------------------------------------
+
+describe("task_search — pagination", () => {
+  it("returns pagination metadata in the envelope", async () => {
+    const { ctx, adapter } = makeCtx();
+    for (let i = 0; i < 5; i++) await adapter.createTask({ name: `buy item ${i}` });
+
+    const result = await handleTaskSearch({ q: "buy", limit: 3 }, ctx);
+    expect(result.data.tasks).toHaveLength(3);
+    expect(result.pagination).toMatchObject({ hasMore: true });
+    expect(result.pagination?.cursor).toBeDefined();
+  });
+
+  it("second page fetches remaining results via cursor", async () => {
+    const { ctx, adapter } = makeCtx();
+    for (let i = 0; i < 5; i++) await adapter.createTask({ name: `buy item ${i}` });
+
+    const page1 = await handleTaskSearch({ q: "buy", limit: 3 }, ctx);
+    const cursor = page1.pagination?.cursor;
+    expect(cursor).toBeDefined();
+
+    const page2 = await handleTaskSearch({ q: "buy", limit: 3, cursor: cursor! }, ctx);
+    expect(page2.data.tasks).toHaveLength(2);
+    expect(page2.pagination?.hasMore).toBe(false);
+  });
+
+  it("all results fit on one page when limit exceeds result count", async () => {
+    const { ctx, adapter } = makeCtx();
+    for (let i = 0; i < 3; i++) await adapter.createTask({ name: `buy item ${i}` });
+
+    const result = await handleTaskSearch({ q: "buy", limit: 10 }, ctx);
+    expect(result.data.tasks).toHaveLength(3);
+    expect(result.pagination?.hasMore).toBe(false);
+    expect(result.pagination?.cursor).toBeNull();
   });
 });

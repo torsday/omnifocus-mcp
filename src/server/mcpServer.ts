@@ -337,7 +337,7 @@ export async function startServer(): Promise<void> {
   registerTaskGetTool(server, taskServiceCtx);
   registerTaskListTool(server, taskServiceCtx);
   registerTaskFindByNameTool(server, taskAdapterCtx);
-  registerTaskSearchTool(server, taskAdapterCtx);
+  registerTaskSearchTool(server, { searchService: services.searchService, makeMeta });
   registerTaskGetManyTool(server, taskAdapterCtx);
   registerTaskParseTransportTextTool(server, { makeMeta });
   registerTaskBatchCompleteTool(server, taskMutationCtx);
