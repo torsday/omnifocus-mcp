@@ -8,8 +8,11 @@ import { scriptInlinerVitePlugin } from "./src/scripts/scriptLoader.js";
 // threshold only when OMNIFOCUS_INTEGRATION=1 so unit-test regressions still
 // surface as clean timeouts.
 const INTEGRATION = process.env.OMNIFOCUS_INTEGRATION === "1";
-const TEST_TIMEOUT = INTEGRATION ? 30_000 : 5_000;
-const HOOK_TIMEOUT = INTEGRATION ? 30_000 : 5_000;
+const PERF = process.env.OMNIFOCUS_PERF === "1";
+// Perf suite has long beforeAll (seeding) and individual trials; use a
+// generous per-test timeout when OMNIFOCUS_PERF=1.
+const TEST_TIMEOUT = PERF ? 120_000 : INTEGRATION ? 30_000 : 5_000;
+const HOOK_TIMEOUT = PERF ? 120_000 : INTEGRATION ? 30_000 : 5_000;
 
 export default defineConfig({
   // Vite plugin — inlines `src/scripts/**\/*.js` as default string exports,
@@ -24,6 +27,7 @@ export default defineConfig({
       "tests/contract/**/*.test.ts",
       "tests/chaos/**/*.test.ts",
       "tests/integration/**/*.test.ts",
+      "tests/perf/**/*.perf.test.ts",
       "tests/e2e/**/*.test.ts",
       "src/**/*.test.ts",
     ],
