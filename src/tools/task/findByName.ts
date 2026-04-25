@@ -29,6 +29,7 @@ export const TASK_FIND_BY_NAME_DESCRIPTION =
   "Find tasks in OmniFocus by name. " +
   "Returns ALL matching tasks (names are not unique in OmniFocus). " +
   "Names collide in OmniFocus; prefer task_get with an ID when you have one. " +
+  "Use search_query instead when you need to search task notes as well, or want full-text content search. " +
   "Zero matches returns an empty array — not an error. " +
   "Returns tasks[]; safe to call repeatedly; no side effects.";
 

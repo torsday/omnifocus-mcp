@@ -31,9 +31,11 @@ import type { TaskListInput, TaskService } from "../../services/taskService.js";
 // ---------------------------------------------------------------------------
 
 export const TASK_LIST_DESCRIPTION =
-  "List tasks in OmniFocus with optional filters. " +
-  "Use this for queries across tasks. " +
-  "Do NOT use for a known single task (use `task_get`). " +
+  "List tasks in OmniFocus with optional filters (project, tag, flagged, completion, due dates). " +
+  "Use this for filter-based queries across tasks. " +
+  "Do NOT use for a known single task (use task_get). " +
+  "For name-based lookup, prefer task_find_by_name. " +
+  "For full-text content search across names and notes, prefer search_query. " +
   "Returns tasks[] with pagination; safe to call repeatedly; no side effects.";
 
 // ---------------------------------------------------------------------------
