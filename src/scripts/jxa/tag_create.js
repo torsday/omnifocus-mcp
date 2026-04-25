@@ -56,6 +56,10 @@ function run(argv) {
     };
   }
 
+  if (!args.name || args.name.trim() === "") {
+    throw new Error("ValidationError: name is required and cannot be empty");
+  }
+
   // OmniFocus 4.x rejects ofApp.make({ new: "tag", at: ..., withProperties })
   // with error -10024. Use the Tag(props)+push pattern (mirrors task_create
   // fix in #331 and project/folder/tag fix in #319).
