@@ -127,6 +127,7 @@ const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
   task_move: { id: FAKE_TASK_ID, projectId: null },
   task_parse_transport_text: { text: "Reply to Alice @email !!" },
   task_reorder: { id: FAKE_TASK_ID, position: "top" },
+  task_search: { q: "test" },
   task_set_repetition: {
     id: FAKE_TASK_ID,
     rule: { unit: "days", steps: 1, anchor: "due-date", method: "fixed" },
