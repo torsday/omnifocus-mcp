@@ -157,8 +157,49 @@ export class OmniJsTransport implements OmniFocusAdapter {
       });
     }
   }
-  async reorderTask(_id: TaskId, _position: TaskPosition): Promise<void> {
-    return notYetWired("reorderTask");
+  async reorderTask(id: TaskId, position: TaskPosition): Promise<void> {
+    const script = await import("node:fs/promises").then((fs) =>
+      fs.readFile(new URL("../../scripts/omnijs/task_reorder.js", import.meta.url), "utf8"),
+    );
+
+    let payload: {
+      id: TaskId;
+      mode: "before" | "after" | "start" | "end";
+      refId?: TaskId;
+      container?: {
+        projectId?: ProjectId;
+        parentId?: TaskId;
+        inbox?: true;
+      };
+    };
+    if ("before" in position) {
+      payload = { id, mode: "before", refId: position.before };
+    } else if ("after" in position) {
+      payload = { id, mode: "after", refId: position.after };
+    } else {
+      const container =
+        "projectId" in position.in
+          ? { projectId: position.in.projectId }
+          : "parentId" in position.in
+            ? { parentId: position.in.parentId }
+            : { inbox: true as const };
+      payload = { id, mode: position.at, container };
+    }
+
+    const result = await runOmniJsScript<
+      { id: string } | { error: { code: "NOT_FOUND" | "VALIDATION"; message: string } }
+    >(script, payload, { ...this.runOpts, scriptName: "task_reorder" });
+
+    if ("error" in result) {
+      if (result.error.code === "NOT_FOUND") {
+        throw new NotFound(result.error.message, {
+          details: { transport: "omnijs", scriptName: "task_reorder" },
+        });
+      }
+      throw new ValidationError(result.error.message, {
+        details: { transport: "omnijs", scriptName: "task_reorder" },
+      });
+    }
   }
   async duplicateTask(
     _id: TaskId,
