@@ -473,6 +473,25 @@ export interface OmniFocusAdapter {
    */
   pluginInvoke(input: PluginInvokeInput): Promise<PluginInvokeResult>;
 
+  // -- Change detection ------------------------------------------------------
+
+  /**
+   * Return the IDs of tasks and projects whose `modificationDate` is
+   * **≥ `sinceIso`** (ISO-8601). Used by `DatabaseWatcher` after an
+   * FSEventStream or `fs.watch` event to perform targeted cache invalidation
+   * and per-object MCP resource notifications rather than a blanket cache
+   * clear.
+   *
+   * Implementations scan `flattenedTasks` and `flattenedProjects` in a single
+   * JXA call; on large databases this takes 300–700 ms. The caller must
+   * debounce upstream so this is not called more than once per write burst.
+   *
+   * @param sinceIso - ISO-8601 lower bound. The JXA comparison is `>=`, so
+   *   pass the `detectedAt` timestamp minus a small safety buffer (200 ms) to
+   *   guard against sub-second clock skew between the Swift watcher and JXA.
+   */
+  getChangesSince(sinceIso: string): Promise<{ taskIds: string[]; projectIds: string[] }>;
+
   // -- Raw escape hatches (only wired when OMNIFOCUS_ALLOW_RAW_SCRIPT=1) -----
 
   /**

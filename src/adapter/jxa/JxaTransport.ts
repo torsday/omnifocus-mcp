@@ -45,6 +45,7 @@ import attachmentAddScript from "../../scripts/jxa/attachment_add.js";
 import attachmentListScript from "../../scripts/jxa/attachment_list.js";
 import attachmentRemoveScript from "../../scripts/jxa/attachment_remove.js";
 import attachmentSaveToPathScript from "../../scripts/jxa/attachment_save_to_path.js";
+import changesSinceScript from "../../scripts/jxa/changes_since.js";
 import folderCreateScript from "../../scripts/jxa/folder_create.js";
 import folderDeleteScript from "../../scripts/jxa/folder_delete.js";
 import folderGetScript from "../../scripts/jxa/folder_get.js";
@@ -744,6 +745,19 @@ export class JxaTransport implements OmniFocusAdapter {
     // by `syncTrigger`. The lifecycle layer (#25) owns that cache; until
     // it lands, signal "unknown" rather than a misleading timestamp.
     return { lastSyncAt: null, inFlight: false };
+  }
+
+  // -- Change detection ------------------------------------------------------
+
+  async getChangesSince(sinceIso: string): Promise<{ taskIds: string[]; projectIds: string[] }> {
+    const result = await runJxaScript<{
+      tasks: Array<{ id: string; modificationDate: string }>;
+      projects: Array<{ id: string; modificationDate: string }>;
+    }>(changesSinceScript, { sinceIso }, { ...this.runOpts, scriptName: "changes_since" });
+    return {
+      taskIds: result.tasks.map((t) => t.id),
+      projectIds: result.projects.map((p) => p.id),
+    };
   }
 
   // -- Raw escape hatch (off by default; gated by env at the tool layer) ----

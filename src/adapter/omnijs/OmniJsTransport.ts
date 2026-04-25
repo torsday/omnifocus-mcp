@@ -416,6 +416,16 @@ export class OmniJsTransport implements OmniFocusAdapter {
     return notYetWired("getLastSync");
   }
 
+  // -- Change detection — delegated to JXA (OmniJS has no modificationDate API)
+
+  async getChangesSince(_sinceIso: string): Promise<{ taskIds: string[]; projectIds: string[] }> {
+    // OmniJS does not expose modificationDate queries. Signal that the caller
+    // should fall back to a full cache clear. In production the TransportRouter
+    // routes getChangesSince to JXA, so this path is only reached in isolated
+    // OmniJsTransport tests.
+    return { taskIds: [], projectIds: [] };
+  }
+
   // -- Raw escape hatch (off by default; gated by env at the tool layer) ----
 
   async runOmniJsScript(script: string, arg?: unknown): Promise<unknown> {

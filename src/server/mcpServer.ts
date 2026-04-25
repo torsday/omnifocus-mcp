@@ -126,6 +126,7 @@ import { registerTaskUncompleteTool } from "../tools/task/uncomplete.js";
 import { registerTaskUndropTool } from "../tools/task/undrop.js";
 import { registerTaskUpdateTool } from "../tools/task/update.js";
 import { DatabaseWatcher } from "../watcher/DatabaseWatcher.js";
+import type { ChangeContext } from "../watcher/types.js";
 import { circuitBreakerRegistry } from "./circuitBreaker.js";
 import { composeAdapter, composeServices, makeMeta } from "./composition.js";
 import { installToolMiddleware } from "./middleware.js";
@@ -395,10 +396,16 @@ export async function startServer(): Promise<void> {
 
   await server.connect(transport);
 
-  // Start the database watcher. On any OmniFocus write, invalidate the read
-  // cache and push notifications/resources/updated for all subscribable URIs
-  // so MCP clients can re-read without polling.
-  const resourceUrisToNotify = [
+  // Start the database watcher. On any OmniFocus write:
+  //  1. Query OmniFocus for which specific tasks/projects changed (JXA).
+  //  2. Perform targeted cache invalidation for those objects.
+  //  3. Push per-object resource notifications + aggregate-view notifications
+  //     so MCP clients can re-read only what actually changed.
+  //
+  // When getChangesSince() is unavailable or fails (e.g. OF not running),
+  // we fall back to clearing the entire cache and notifying all aggregate URIs
+  // — equivalent to the previous coarse behaviour.
+  const aggregateUrisToNotify = [
     SNAPSHOT_URI,
     INBOX_URI,
     FORECAST_TODAY_URI,
@@ -406,16 +413,67 @@ export async function startServer(): Promise<void> {
     FLAGGED_URI,
     REVIEW_DUE_URI,
   ];
-  const dbWatcher = new DatabaseWatcher(() => {
-    // Bust the read cache so the next resource/tool call fetches fresh data.
-    services.cache.clear();
-    // Notify subscribed MCP clients.
-    for (const uri of resourceUrisToNotify) {
-      server.server.sendResourceUpdated({ uri }).catch(() => {
-        // Swallow — client may have disconnected between events.
-      });
+
+  const handleDatabaseChange = async (ctx: ChangeContext): Promise<void> => {
+    // Safety buffer: subtract 200 ms from detectedAt to guard against
+    // sub-second clock skew between the Swift watcher and the JXA runtime.
+    const sinceMs = new Date(ctx.detectedAt).getTime() - 200;
+    const sinceIso = new Date(sinceMs).toISOString();
+
+    let changed: { taskIds: string[]; projectIds: string[] } = { taskIds: [], projectIds: [] };
+    let querySucceeded = false;
+
+    try {
+      changed = await adapter.getChangesSince(sinceIso);
+      querySucceeded = true;
+    } catch (err) {
+      // OF may not be running, or the JXA bridge may be warming up.
+      // Fall back to blanket cache clear.
+      logger.debug({ event: "database.changed.query_failed", err });
     }
-    logger.debug({ event: "database.changed", notified: resourceUrisToNotify.length });
+
+    if (querySucceeded && (changed.taskIds.length > 0 || changed.projectIds.length > 0)) {
+      // Targeted: evict only the affected entries.
+      for (const id of changed.taskIds) {
+        services.cache.invalidate(`task:${id}`);
+      }
+      for (const id of changed.projectIds) {
+        services.cache.invalidate(`project:${id}`);
+      }
+    } else {
+      // Unknown what changed (query failed, or nothing found with new timestamp).
+      // Clear everything conservatively.
+      services.cache.clear();
+    }
+
+    // Per-object resource notifications (agents subscribed to specific tasks/projects)
+    for (const id of changed.taskIds) {
+      server.server.sendResourceUpdated({ uri: `omnifocus://task/${id}` }).catch(() => {});
+    }
+    for (const id of changed.projectIds) {
+      server.server.sendResourceUpdated({ uri: `omnifocus://project/${id}` }).catch(() => {});
+    }
+
+    // Aggregate-view notifications — always fire so snapshot/inbox/forecast
+    // clients see the update regardless of what specifically changed.
+    for (const uri of aggregateUrisToNotify) {
+      server.server.sendResourceUpdated({ uri }).catch(() => {});
+    }
+
+    logger.debug({
+      event: "database.changed",
+      source: ctx.source,
+      detectedAt: ctx.detectedAt,
+      changedTasks: changed.taskIds.length,
+      changedProjects: changed.projectIds.length,
+      cacheStrategy: querySucceeded ? "targeted" : "full-clear",
+    });
+  };
+
+  const dbWatcher = new DatabaseWatcher((ctx) => {
+    handleDatabaseChange(ctx).catch((err) => {
+      logger.error({ event: "database.changed.handler_error", err });
+    });
   });
   dbWatcher.start();
   // The watcher is stopped via process exit (persistent: false keeps it from
