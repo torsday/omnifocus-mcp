@@ -98,6 +98,42 @@ describe("task_update — input schema", () => {
     ).toThrow();
   });
 
+  it("rejects dueDate earlier than deferDate", () => {
+    expect(() =>
+      taskUpdateInputSchema.parse({
+        id: "task_000001",
+        deferDate: "2025-06-01T00:00:00+00:00",
+        dueDate: "2025-05-01T00:00:00+00:00",
+      }),
+    ).toThrow();
+  });
+
+  it("accepts dueDate equal to deferDate", () => {
+    const parsed = taskUpdateInputSchema.parse({
+      id: "task_000001",
+      deferDate: "2025-06-01T00:00:00+00:00",
+      dueDate: "2025-06-01T00:00:00+00:00",
+    });
+    expect(parsed.dueDate).toBe("2025-06-01T00:00:00+00:00");
+  });
+
+  it("accepts dueDate after deferDate", () => {
+    const parsed = taskUpdateInputSchema.parse({
+      id: "task_000001",
+      deferDate: "2025-05-01T00:00:00+00:00",
+      dueDate: "2025-06-01T00:00:00+00:00",
+    });
+    expect(parsed.dueDate).toBe("2025-06-01T00:00:00+00:00");
+  });
+
+  it("accepts dueDate with no deferDate in patch", () => {
+    const parsed = taskUpdateInputSchema.parse({
+      id: "task_000001",
+      dueDate: "2025-05-01T00:00:00+00:00",
+    });
+    expect(parsed.dueDate).toBe("2025-05-01T00:00:00+00:00");
+  });
+
   it("accepts addTags and removeTags together (no tagIds)", () => {
     const parsed = taskUpdateInputSchema.parse({
       id: "task_000001",

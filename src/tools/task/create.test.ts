@@ -71,6 +71,44 @@ describe("task_create — input schema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("rejects dueDate earlier than deferDate", () => {
+    const result = taskCreateInputSchema.safeParse({
+      name: "Test",
+      deferDate: "2025-06-01T00:00:00+00:00",
+      dueDate: "2025-05-01T00:00:00+00:00",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.path).toContain("dueDate");
+    }
+  });
+
+  it("accepts dueDate equal to deferDate", () => {
+    const result = taskCreateInputSchema.safeParse({
+      name: "Test",
+      deferDate: "2025-06-01T00:00:00+00:00",
+      dueDate: "2025-06-01T00:00:00+00:00",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts dueDate after deferDate", () => {
+    const result = taskCreateInputSchema.safeParse({
+      name: "Test",
+      deferDate: "2025-05-01T00:00:00+00:00",
+      dueDate: "2025-06-01T00:00:00+00:00",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts dueDate with no deferDate", () => {
+    const result = taskCreateInputSchema.safeParse({
+      name: "Test",
+      dueDate: "2025-05-01T00:00:00+00:00",
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("accepts idempotency_key", () => {
     const result = taskCreateInputSchema.safeParse({ name: "Test", idempotency_key: "abc" });
     expect(result.success).toBe(true);
