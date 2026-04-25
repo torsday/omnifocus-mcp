@@ -18,9 +18,12 @@ function run(argv) {
   ofApp.includeStandardAdditions = false;
 
   function normalizeStatus(raw) {
-    if (raw === "on hold") return "on-hold";
-    if (raw === "done") return "completed";
-    return raw;
+    // OmniFocus 4.8.8 returns verbose strings with a " status" suffix
+    // (e.g. "active status", "on hold status"). Strip for uniform handling.
+    const s = typeof raw === "string" ? raw.replace(/ status$/, "") : raw;
+    if (s === "on hold") return "on-hold";
+    if (s === "done") return "completed";
+    return s; // "active", "dropped"
   }
 
   function buildProject(proj) {
