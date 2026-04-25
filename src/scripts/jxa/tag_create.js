@@ -67,17 +67,14 @@ function run(argv) {
       }
     }
     if (!parentTag) throw new Error(`Parent tag not found: ${args.parentId}`);
-    newTag = ofApp.make({
-      new: "tag",
-      at: parentTag.tags.end,
-      withProperties: { name: args.name },
-    });
+    // OmniFocus 4.x rejects `ofApp.make({ new: "tag", at: ... })` with
+    // error -1728 (errAENoSuchObject). Use the specifier-push pattern instead.
+    newTag = ofApp.Tag({ name: args.name });
+    parentTag.tags.push(newTag);
   } else {
-    newTag = ofApp.make({
-      new: "tag",
-      at: ofApp.defaultDocument.tags.end,
-      withProperties: { name: args.name },
-    });
+    // Same fix for document-level tag creation.
+    newTag = ofApp.Tag({ name: args.name });
+    ofApp.defaultDocument.tags.push(newTag);
   }
 
   return JSON.stringify({ tag: buildTag(newTag) });
