@@ -127,18 +127,6 @@ export interface JxaTransportOptions {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Sentinel thrown by every method whose underlying JXA script hasn't been
- * wired yet. The `details.reason` value is part of the deliberately-narrow
- * contract that `TransportRouter` (#19) and unit tests inspect to decide
- * whether to route to `OmniJsTransport` instead.
- */
-function notYetWired(method: string): never {
-  throw new ScriptError(`JxaTransport.${method} is not wired yet`, {
-    details: { transport: "jxa", reason: "not-yet-wired", method },
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Transport
 // ---------------------------------------------------------------------------
@@ -738,14 +726,20 @@ export class JxaTransport implements OmniFocusAdapter {
   }
 
   // -- Plug-in invocation ---------------------------------------------------
-  // Plug-in invocation requires the OmniJS runtime; JXA has no access to the
-  // PlugIn API. This stub satisfies the interface — TransportRouter always
-  // routes pluginInvoke to OmniJsTransport.
+  // Plug-in invocation requires the OmniJS runtime; JXA has no API surface
+  // for Omni Automation plug-ins. TransportRouter permanently routes
+  // pluginInvoke → OmniJsTransport (router.ts ROUTING_TABLE). This stub
+  // satisfies the OmniFocusAdapter interface but should never be reached in
+  // production. It throws a ScriptError (not notYetWired) so accidental
+  // calls are clearly diagnosed rather than silently discarded.
 
   async pluginInvoke(
     _input: import("../OmniFocusAdapter.js").PluginInvokeInput,
   ): Promise<import("../OmniFocusAdapter.js").PluginInvokeResult> {
-    return notYetWired("pluginInvoke");
+    throw new ScriptError(
+      "pluginInvoke is handled by OmniJsTransport; JxaTransport is not in the routing path for this method",
+      { details: { transport: "jxa", reason: "routed-to-omnijs" } },
+    );
   }
 
   // -- Sync (wired) ---------------------------------------------------------

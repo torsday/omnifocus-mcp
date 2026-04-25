@@ -31,6 +31,8 @@ export const TASK_SEARCH_DESCRIPTION =
   "Scans task names and/or notes (controlled by scope) for a case-insensitive substring match. " +
   "Optionally narrow results by projectId, tagIds (task must carry ALL listed tags), " +
   "flagged state, and completion state. " +
+  "Do NOT use when you already have an ID — prefer task_get instead. " +
+  "Do NOT use for structured browsing by project/tag; prefer task_list for that. " +
   "Returns the full Task domain shape — same as task_list — so no follow-up read is needed. " +
   "Returns tasks[]; safe to call repeatedly; no side effects.";
 
