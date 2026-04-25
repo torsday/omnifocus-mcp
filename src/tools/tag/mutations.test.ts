@@ -279,7 +279,7 @@ describe("TagService — cache invalidation", () => {
     const adapter = new InMemoryAdapter({ now: () => new Date(0) });
     const cache = new OmniFocusLruCache();
     const scopes: InvalidationScope[] = [];
-    cache.on("cache.invalidated", (e: { scope: InvalidationScope }) => scopes.push(e.scope));
+    cache.on("cache.invalidated", (e: { scopes: InvalidationScope[] }) => scopes.push(...e.scopes));
     const tagService = new TagService({ adapter, cache });
 
     const { id } = await tagService.create({ name: "Work" });
@@ -291,7 +291,7 @@ describe("TagService — cache invalidation", () => {
     const adapter = new InMemoryAdapter({ now: () => new Date(0) });
     const cache = new OmniFocusLruCache();
     const scopes: InvalidationScope[] = [];
-    cache.on("cache.invalidated", (e: { scope: InvalidationScope }) => scopes.push(e.scope));
+    cache.on("cache.invalidated", (e: { scopes: InvalidationScope[] }) => scopes.push(...e.scopes));
     const tagService = new TagService({ adapter, cache });
 
     const { id } = await tagService.create({ name: "Work" });

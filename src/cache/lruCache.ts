@@ -16,6 +16,8 @@
 
 import { EventEmitter } from "node:events";
 import { LRUCache } from "lru-cache";
+import { getCorrelationId } from "../logging/correlation.js";
+import { logger } from "../logging/logger.js";
 
 // ---------------------------------------------------------------------------
 // Invalidation scope types
@@ -183,7 +185,18 @@ export class OmniFocusLruCache extends EventEmitter {
       }
     }
 
-    this.emit("cache.invalidated", { scope, keysRemoved: keysToDelete.length });
+    const evicted = keysToDelete.length;
+    const correlationId = getCorrelationId();
+    const payload = {
+      event: "cache.invalidated" as const,
+      scopes: [scope],
+      evicted,
+      ...(correlationId !== undefined ? { correlationId } : {}),
+    };
+    if (evicted > 0) {
+      logger.info(payload, "cache.invalidated");
+    }
+    this.emit("cache.invalidated", payload);
   }
 
   /** Return a snapshot of cache stats for `internal_status`. */
