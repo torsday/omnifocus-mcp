@@ -86,7 +86,7 @@ jobs:
 
       - name: Upload test results on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integration-test-results-${{ matrix.node-version }}-${{ github.run_id }}
           path: |
