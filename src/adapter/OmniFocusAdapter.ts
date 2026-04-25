@@ -306,6 +306,16 @@ export interface OmniFocusAdapter {
    */
   batchCompleteTasks(items: Array<{ id: TaskId; at?: Date }>): Promise<BatchOutcome<TaskId>>;
   /**
+   * Best-effort batch delete. One transport round-trip per batch. Permanently
+   * removes each task; per-item failures are reported in `failed[]`.
+   */
+  batchDeleteTasks(items: Array<{ id: TaskId }>): Promise<BatchOutcome<TaskId>>;
+  /**
+   * Best-effort batch drop (cancel). One transport round-trip per batch.
+   * Marks each task as dropped; per-item failures are reported in `failed[]`.
+   */
+  batchDropTasks(items: Array<{ id: TaskId }>): Promise<BatchOutcome<TaskId>>;
+  /**
    * Duplicate a task. Editable fields (name, note, noteHtml, dates, flagged,
    * tags, estimatedMinutes, repetition, sequential, completedByChildren) copy
    * over; system fields (id, createdAt, modifiedAt, completedAt, droppedAt)

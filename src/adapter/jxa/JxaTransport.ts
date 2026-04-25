@@ -75,6 +75,8 @@ import tagListScript from "../../scripts/jxa/tag_list.js";
 import tagUpdateScript from "../../scripts/jxa/tag_update.js";
 import taskBatchCompleteScript from "../../scripts/jxa/task_batch_complete.js";
 import taskBatchCreateScript from "../../scripts/jxa/task_batch_create.js";
+import taskBatchDeleteScript from "../../scripts/jxa/task_batch_delete.js";
+import taskBatchDropScript from "../../scripts/jxa/task_batch_drop.js";
 import taskBatchUpdateScript from "../../scripts/jxa/task_batch_update.js";
 import taskCompleteScript from "../../scripts/jxa/task_complete.js";
 import taskCreateScript from "../../scripts/jxa/task_create.js";
@@ -372,6 +374,40 @@ export class JxaTransport implements OmniFocusAdapter {
       taskBatchCompleteScript,
       { items: items.map((it) => ({ id: it.id, at: it.at?.toISOString() ?? null })) },
       { ...this.runOpts, scriptName: "task_batch_complete" },
+    );
+    return {
+      succeeded: raw.succeeded.map((s) => ({ index: s.index, value: TaskIdCtor.of(s.value) })),
+      failed: raw.failed,
+    };
+  }
+
+  async batchDeleteTasks(
+    items: Array<{ id: TaskId }>,
+  ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
+    const raw = await runJxaScript<{
+      succeeded: Array<{ index: number; value: string }>;
+      failed: Array<{ index: number; errorCode: string; message: string }>;
+    }>(
+      taskBatchDeleteScript,
+      { items: items.map((it) => ({ id: it.id })) },
+      { ...this.runOpts, scriptName: "task_batch_delete" },
+    );
+    return {
+      succeeded: raw.succeeded.map((s) => ({ index: s.index, value: TaskIdCtor.of(s.value) })),
+      failed: raw.failed,
+    };
+  }
+
+  async batchDropTasks(
+    items: Array<{ id: TaskId }>,
+  ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
+    const raw = await runJxaScript<{
+      succeeded: Array<{ index: number; value: string }>;
+      failed: Array<{ index: number; errorCode: string; message: string }>;
+    }>(
+      taskBatchDropScript,
+      { items: items.map((it) => ({ id: it.id })) },
+      { ...this.runOpts, scriptName: "task_batch_drop" },
     );
     return {
       succeeded: raw.succeeded.map((s) => ({ index: s.index, value: TaskIdCtor.of(s.value) })),

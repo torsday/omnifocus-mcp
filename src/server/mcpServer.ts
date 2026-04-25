@@ -108,6 +108,8 @@ import { registerTagSetStatusTool } from "../tools/tag/setStatus.js";
 import { registerTagUpdateTool } from "../tools/tag/update.js";
 import { registerTaskBatchCompleteTool } from "../tools/task/batchComplete.js";
 import { registerTaskBatchCreateTool } from "../tools/task/batchCreate.js";
+import { registerTaskBatchDeleteTool } from "../tools/task/batchDelete.js";
+import { registerTaskBatchDropTool } from "../tools/task/batchDrop.js";
 import { registerTaskBatchUpdateTool } from "../tools/task/batchUpdate.js";
 import { registerTaskClearRepetitionTool } from "../tools/task/clearRepetition.js";
 import { registerTaskCompleteTool } from "../tools/task/complete.js";
@@ -346,6 +348,8 @@ export async function startServer(): Promise<void> {
   registerTaskParseTransportTextTool(server, { makeMeta });
   registerTaskBatchCompleteTool(server, taskMutationCtx);
   registerTaskBatchCreateTool(server, taskMutationCtx);
+  registerTaskBatchDeleteTool(server, taskMutationCtx);
+  registerTaskBatchDropTool(server, taskMutationCtx);
   registerTaskBatchUpdateTool(server, taskMutationCtx);
   registerTaskClearRepetitionTool(server, taskMutationCtx);
   registerTaskCompleteTool(server, taskMutationCtx);
