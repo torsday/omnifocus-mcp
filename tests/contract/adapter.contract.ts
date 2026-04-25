@@ -266,18 +266,23 @@ export function runAdapterContract(label: string, options: AdapterContractOption
       });
 
       test("flagged filter narrows to flagged tasks", async () => {
-        await adapter.createTask({ name: "a", flagged: true });
-        await adapter.createTask({ name: "b", flagged: false });
-        const result = await adapter.listTasks({ flagged: true });
+        // Scope to a test project so the filter doesn't race against the user's
+        // existing flagged tasks (which would cause timeouts or false positives).
+        const projectId = await adapter.createProject({ name: "flagged-filter-test" });
+        await adapter.createTask({ name: "a", flagged: true, projectId });
+        await adapter.createTask({ name: "b", flagged: false, projectId });
+        const result = await adapter.listTasks({ flagged: true, projectId });
         expect(result.map((t) => t.name)).toEqual(["a"]);
       });
 
       test("completed filter narrows to (un)completed tasks", async () => {
-        const a = await adapter.createTask({ name: "a" });
-        await adapter.createTask({ name: "b" });
+        // Scope to a test project for isolation (user's DB may have many completed tasks).
+        const projectId = await adapter.createProject({ name: "completed-filter-test" });
+        const a = await adapter.createTask({ name: "a", projectId });
+        await adapter.createTask({ name: "b", projectId });
         await adapter.completeTask(a);
-        const open = await adapter.listTasks({ completed: false });
-        const done = await adapter.listTasks({ completed: true });
+        const open = await adapter.listTasks({ completed: false, projectId });
+        const done = await adapter.listTasks({ completed: true, projectId });
         expect(open.map((t) => t.name)).toEqual(["b"]);
         expect(done.map((t) => t.name)).toEqual(["a"]);
       });
@@ -291,10 +296,19 @@ export function runAdapterContract(label: string, options: AdapterContractOption
       });
 
       test("dueBefore filter is strictly exclusive on the upper bound", async () => {
-        await adapter.createTask({ name: "before", dueDate: "2026-04-21T00:00:00Z" });
-        await adapter.createTask({ name: "same", dueDate: "2026-04-22T00:00:00Z" });
-        await adapter.createTask({ name: "after", dueDate: "2026-04-23T00:00:00Z" });
-        const result = await adapter.listTasks({ dueBefore: "2026-04-22T00:00:00Z" });
+        // Scope to a test project so the filter only sees these three tasks.
+        const projectId = await adapter.createProject({ name: "duebefore-filter-test" });
+        await adapter.createTask({
+          name: "before",
+          dueDate: "2026-04-21T00:00:00Z",
+          projectId,
+        });
+        await adapter.createTask({ name: "same", dueDate: "2026-04-22T00:00:00Z", projectId });
+        await adapter.createTask({ name: "after", dueDate: "2026-04-23T00:00:00Z", projectId });
+        const result = await adapter.listTasks({
+          dueBefore: "2026-04-22T00:00:00Z",
+          projectId,
+        });
         expect(result.map((t) => t.name).sort()).toEqual(["before"]);
       });
 
