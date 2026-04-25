@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   require-issue-link:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macos]
     # Waiver: add the `no-issue` label to skip this check.
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-issue') }}
     steps:
