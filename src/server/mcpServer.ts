@@ -125,6 +125,7 @@ import { registerTaskSetRepetitionTool } from "../tools/task/setRepetition.js";
 import { registerTaskUncompleteTool } from "../tools/task/uncomplete.js";
 import { registerTaskUndropTool } from "../tools/task/undrop.js";
 import { registerTaskUpdateTool } from "../tools/task/update.js";
+import { DatabaseWatcher } from "../watcher/DatabaseWatcher.js";
 import { circuitBreakerRegistry } from "./circuitBreaker.js";
 import { composeAdapter, composeServices, makeMeta } from "./composition.js";
 import { installToolMiddleware } from "./middleware.js";
@@ -393,6 +394,33 @@ export async function startServer(): Promise<void> {
   });
 
   await server.connect(transport);
+
+  // Start the database watcher. On any OmniFocus write, invalidate the read
+  // cache and push notifications/resources/updated for all subscribable URIs
+  // so MCP clients can re-read without polling.
+  const resourceUrisToNotify = [
+    SNAPSHOT_URI,
+    INBOX_URI,
+    FORECAST_TODAY_URI,
+    OVERDUE_URI,
+    FLAGGED_URI,
+    REVIEW_DUE_URI,
+  ];
+  const dbWatcher = new DatabaseWatcher(() => {
+    // Bust the read cache so the next resource/tool call fetches fresh data.
+    services.cache.clear();
+    // Notify subscribed MCP clients.
+    for (const uri of resourceUrisToNotify) {
+      server.server.sendResourceUpdated({ uri }).catch(() => {
+        // Swallow — client may have disconnected between events.
+      });
+    }
+    logger.debug({ event: "database.changed", notified: resourceUrisToNotify.length });
+  });
+  dbWatcher.start();
+  // The watcher is stopped via process exit (persistent: false keeps it from
+  // blocking exit), but stop eagerly on SIGINT/SIGTERM for clean logging.
+  process.on("exit", () => dbWatcher.stop());
 
   // Build the tools manifest emitted in `server.started`. Raw-script tools
   // are listed only when actually registered.
