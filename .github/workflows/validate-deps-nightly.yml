@@ -28,7 +28,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       AUDIT_LABEL: "audit: dep-graph"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Run validator
         id: validate

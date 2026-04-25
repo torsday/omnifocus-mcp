@@ -39,7 +39,7 @@ jobs:
           echo "::warning::PROJECT_TOKEN not set — skipping board sync. Add a PAT with Projects read/write to enable."
           exit 0
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Load project constants
         run: |
@@ -118,7 +118,7 @@ jobs:
           echo "::warning::PROJECT_TOKEN not set — skipping board sync."
           exit 0
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Load project constants
         run: |
