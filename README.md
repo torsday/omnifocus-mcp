@@ -1,20 +1,20 @@
 # omnifocus-mcp
 
-[![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange)](./SPEC.md)
+[![Version: 1.0.0](https://img.shields.io/badge/version-1.0.0-blue)](./CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node: 20 LTS / 22 LTS](https://img.shields.io/badge/node-20%20%7C%2022-brightgreen)](./package.json)
 [![Platform: macOS 13+](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)](https://www.apple.com/macos/)
-[![Conventional Commits](https://img.shields.io/badge/conventional%20commits-1.0.0-yellow)](https://www.conventionalcommits.org)
 
-> **An MCP server exposing the full OmniFocus surface to LLM agents.** Ask Claude or any MCP-compatible client to read, query, create, and modify your OmniFocus tasks, projects, tags, perspectives, and attachments — through 50 typed tools, built to a "single-user local-first" standard with engineering excellence as a first-class goal.
+> **Give Claude full, typed access to your OmniFocus.** Read your inbox, create tasks, close projects, batch-update dozens of items, evaluate perspectives, trigger sync — all through natural language. `omnifocus-mcp` wires a 69-tool MCP server directly to OmniFocus on macOS via JXA and OmniJS, with circuit breakers, rate limits, and an agent-aware error hierarchy so Claude knows exactly what to do next when something goes wrong.
 
 ---
 
 ## Table of contents
 
-- [What it is](#what-it-is)
+- [Why this exists](#why-this-exists)
 - [Quick start](#quick-start)
 - [Example interactions](#example-interactions)
+- [Prompts](#prompts)
 - [If you are an AI agent](#if-you-are-an-ai-agent)
 - [Tools](#tools)
 - [Resources](#resources)
@@ -26,9 +26,23 @@
 - [Troubleshooting](#troubleshooting)
 - [Client setup guides](#client-setup-guides)
 - [Design documents](#design-documents)
-- [Project conventions](#project-conventions)
 - [Contributing](#contributing)
 - [License](#license)
+
+---
+
+## Why this exists
+
+OmniFocus is a powerful GTD tool, but it's an island. Your tasks sit there while you context-switch between Claude and your task manager, manually copy-pasting notes, updating projects, and trying to keep everything in sync with your actual work.
+
+`omnifocus-mcp` removes that friction. With it connected, Claude can:
+
+- **Capture** — turn a conversation into tasks directly in OmniFocus, with the right project, tags, due dates, and notes, without you touching the app
+- **Review** — pull today's overdue items, this week's forecast, or a full project breakdown into context so Claude can reason about your workload alongside your work
+- **Maintain** — batch-defer a pile of overdue tasks, complete a sprint's worth of items, reorganize projects after a meeting debrief
+- **Reflect** — ask "what's in my inbox right now?" or "what projects haven't been reviewed in a month?" and get structured, actionable answers
+
+The server is built to a single-user local-first standard: no network surface, no cloud sync, typed errors with agent-readable remediation hints, safe by default.
 
 ---
 
@@ -61,25 +75,11 @@
 
 5. **Verify** — ask Claude: *"Use the internal_status tool and tell me what it returns."*
 
-Detailed per-client guides live in [`docs/clients/`](./docs/clients/).
+Detailed per-client guides: [`docs/clients/`](./docs/clients/)
 
 ---
-
-## What it is
-
-`omnifocus-mcp` is an MCP (Model Context Protocol) server that gives any MCP-compatible client — Claude Desktop, Claude Code, or any stdio-speaking agent — full, typed, audited access to OmniFocus on macOS.
-
-- **Full coverage.** Tasks, projects, tags, folders, perspectives (built-in and custom), forecast, review, notes, attachments, batch operations, import/export, sync.
-- **Two transports, one interface.** JXA via `osascript` for the majority of OmniFocus operations; OmniJS via `Application("OmniFocus").evaluateJavascript()` for custom perspectives, plug-ins, task reordering, and reparenting. A `TransportRouter` picks per operation; services never see the transport.
-- **Typed everything.** Zod at the API boundary, branded opaque IDs, ISO-8601 with offset dates, discriminated error hierarchy.
-- **Agent-aware.** Every tool description follows the [`agent_systems.md`](https://github.com/torsday/llm_prompts/blob/main/agent_systems.md) "what / when not / returns / side effects" standard. Errors carry `{ code, message, suggestion, details }` so agents know what to do next.
-- **Safe by default.** No network surface, no stdout writes (MCP uses stdio), opt-in escape hatches, circuit breakers, rate limits, write serialization.
 
 ## Example interactions
-
-These show the kind of work you can ask Claude to do once omnifocus-mcp is connected.
-
----
 
 **"What's in my inbox right now?"**
 
@@ -98,8 +98,8 @@ Claude calls `task_list` with `{ "available": true, "limit": 20 }` and returns a
 **"Mark all my overdue tasks as deferred to tomorrow."**
 
 1. Claude calls `task_list` with `{ "dueBefore": "today", "available": true }` to find overdue items.
-2. For each task, calls `task_update` with `{ "deferDate": "tomorrow" }`.
-3. Reports a summary: *"Deferred 7 overdue tasks to tomorrow. Call sync_trigger if you want iCloud to update immediately."*
+2. Calls `task_batch_update` with `{ "deferDate": "tomorrow" }` for all of them in one atomic call.
+3. Reports: *"Deferred 7 overdue tasks to tomorrow. Call sync_trigger if you want iCloud to update immediately."*
 
 ---
 
@@ -108,6 +108,59 @@ Claude calls `task_list` with `{ "available": true, "limit": 20 }` and returns a
 1. Claude calls `perspective_list` to find the "Work" perspective ID.
 2. Calls `perspective_evaluate` with `{ "perspectiveId": "<id>" }` to get tasks in that perspective.
 3. Filters and presents items with due dates within the current week.
+
+---
+
+**"I just finished the sprint — complete all tasks in the Mobile App project."**
+
+1. Claude calls `project_get` to retrieve the project and its tasks.
+2. Calls `task_batch_complete` with the full list of task IDs in one call.
+3. Confirms the count and suggests calling `sync_trigger` for cross-device visibility.
+
+---
+
+## Prompts
+
+`omnifocus-mcp` ships four **MCP prompt templates** — structured workflows you can invoke by name from any MCP client that supports prompts. In Claude Desktop they appear in the prompt picker; in Claude Code you can invoke them with `/mcp omnifocus <prompt-name>`.
+
+### `daily-review` — triage your day
+
+Loads your snapshot, overdue tasks, and today's forecast; reschedules or drops overdue items; confirms due-today tasks; processes the inbox. No parameters needed.
+
+```
+Use the daily-review prompt
+```
+
+### `weekly-review` — walk your projects
+
+Loads every project whose review date has arrived; checks each one for stale tasks; marks it reviewed or completes/drops it. No parameters needed.
+
+```
+Use the weekly-review prompt
+```
+
+### `capture-meeting` — extract action items
+
+Takes raw meeting notes and creates OmniFocus tasks for every commitment, follow-up, and decision point. Pass the notes as text and optionally a project ID.
+
+```
+Use the capture-meeting prompt with notes="Sync with Alice: she'll send the report by Thursday.
+Bob to review the contract. Need to schedule follow-up call."
+```
+
+Results in two inbox tasks: "Send report to [person]" and "Review contract" with the source sentences as notes.
+
+### `project-planning` — decompose a brief
+
+Creates a new project and populates it with a set of concrete, ordered, one-day tasks derived from a free-text brief.
+
+```
+Use the project-planning prompt with name="Q3 Marketing Site" brief="Redesign the marketing
+site landing page and pricing page. New brand colors, updated copy, responsive mobile layout.
+Launch by end of July."
+```
+
+Results in a new OmniFocus project with 8–12 tasks covering design, copy, development, and review phases, ready to schedule and assign.
 
 ---
 
@@ -126,7 +179,7 @@ Every error carries a stable `code`, a human-readable `suggestion`, and a machin
 | `remediationClass` | Meaning | Your action |
 |--------------------|---------|-------------|
 | `environment` | OmniFocus is not running, permissions denied, or a Pro/version feature is missing | Stop. Surface `suggestion` to the user; do not retry automatically |
-| `input` | Bad ID, invalid field value, or schema violation | Fix the input using `details` for specifics; retry |
+| `input` | Bad ID, invalid field value, schema violation, or loop detected | Fix the input using `details` for specifics; retry |
 | `transient` | Timeout, rate limit, queue full, or circuit open | Wait `details.retryAfterMs` ms, then retry once |
 | `infrastructure` | JXA or OmniJS script failed | Retry once; if still failing, surface to user |
 | `lifecycle` | Server is shutting down | Reconnect to a fresh server instance |
@@ -143,7 +196,7 @@ Shortcuts resolve to midnight in the server's local timezone.
 
 ### Mutations and sync
 
-Every write tool returns the full updated domain object, not just an acknowledgement. The response `meta.syncPending` is `true` immediately after a write — OmniFocus has saved locally but not yet synced to iCloud. Call `sync_trigger` if cross-device visibility matters; otherwise the sync happens automatically within a few minutes.
+Every write tool returns the full updated domain object, not just an acknowledgement. The response `meta.syncPending` is `true` immediately after a write — OmniFocus has saved locally but not yet synced to iCloud. Call `sync_trigger` if cross-device visibility matters; otherwise sync happens automatically within a few minutes.
 
 ### Null consistency
 
@@ -155,7 +208,7 @@ All optional scalar fields are **always present** in responses, set to `null` wh
 
 ### Dry-run — validate before committing
 
-`task_update` and `project_update` accept `dry_run?: boolean`. When `true`, input is fully validated and the would-be result is returned, but nothing is written to OmniFocus. `meta.dryRun: true` is set on the response. Use this to confirm inputs before destructive operations.
+`task_update` and `project_update` accept `dry_run?: boolean`. When `true`, input is fully validated and the would-be result is returned, but nothing is written to OmniFocus. `meta.dryRun: true` is set on the response.
 
 ### Additive tag edits — no read-modify-write needed
 
@@ -164,6 +217,10 @@ All optional scalar fields are **always present** in responses, set to `null` wh
 ### Conflict detection — optimistic concurrency
 
 `task_update` accepts `expectedModifiedAt`. If the task was modified since your read, the server returns `OF_CONFLICT` (`remediationClass: "input"`). Re-read with `task_get`, merge your changes, and retry with the fresh `modifiedAt`.
+
+### Loop detection — don't get stuck
+
+If you call the same tool with identical arguments 5+ times in a 60-second window, the server appends `WARN_LOOP_DETECTED` to `meta.warnings`. At 10 repetitions it throws `OF_LOOP_DETECTED` (`remediationClass: "input"`). Act on the result of your previous call rather than repeating it.
 
 ### Capabilities pre-flight
 
@@ -182,6 +239,7 @@ Non-fatal issues appear in `meta.warnings` as `{ code, message, suggestion?, det
 | `WARN_IDS_NOT_FOUND` | Some IDs in a bulk call were not found | Check `details.missing` |
 | `WARN_RESULT_TRUNCATED` | Response hit size limit; more items exist | Follow pagination cursor |
 | `WARN_SYNC_PENDING` | Write saved locally; iCloud sync not yet triggered | Call `sync_trigger` if needed |
+| `WARN_LOOP_DETECTED` | Same tool+args called ≥5 times in 60s | Act on previous result before repeating |
 
 ### Incremental sync — `updatedSince`
 
@@ -230,14 +288,15 @@ All responses have this shape:
 
 - **Daily work**: `task_list` (inbox or today filter) → `task_create` / `task_update` / `task_complete`
 - **Projects**: `project_list` → `project_create` / `project_update`
-- **Finding things**: `task_search` or `search_query`; `tag_list` for available tags
+- **Finding things**: `task_search` (keyword + optional tag/project/date filters); `tag_list` for available tags
+- **Bulk ops**: `task_batch_create` / `task_batch_update` / `task_batch_complete` for up to 50 items atomically
 - **Sync**: `sync_trigger` after bulk mutations; `internal_status` to check server health
 
 ---
 
 ## Tools
 
-50 tools are registered, organized by domain. See [`docs/tools.md`](./docs/tools.md) for the full auto-generated reference with input schemas, example calls, and example responses.
+69 tools are registered, organized by domain. See [`docs/tools.md`](./docs/tools.md) for the full auto-generated reference with input schemas, example calls, and example responses.
 
 ### App lifecycle
 | Tool | Description |
@@ -253,12 +312,15 @@ All responses have this shape:
 | `task_create` | Create a task (project, tags, due, defer, flag, note, repeat) |
 | `task_update` | Update a task (addTags/removeTags, dry_run, expectedModifiedAt) |
 | `task_complete` | Mark a task complete |
+| `task_uncomplete` | Unmark a completed task |
 | `task_delete` | Delete a task |
+| `task_drop` | Drop (defer indefinitely) a task |
+| `task_undrop` | Restore a dropped task |
 | `task_move` | Reparent a task to a different project or parent task |
 | `task_reorder` | Reorder a task among its siblings |
 | `task_duplicate` | Duplicate a task (optionally recursive) |
 | `task_find_by_name` | Find tasks by exact or fuzzy name match |
-| `task_search` | Full-text search across task names and notes |
+| `task_search` | Full-text search across task names and notes, with optional tag/project/date/availability filters |
 | `task_set_repetition` | Set a repeat rule on a task |
 | `task_clear_repetition` | Remove a repeat rule from a task |
 | `task_parse_transport_text` | Parse transport text DSL → structured tasks (no side effects) |
@@ -275,10 +337,9 @@ All responses have this shape:
 | `project_update` | Update a project (dry_run, idempotency_key, expectedModifiedAt) |
 | `project_complete` | Mark a project complete |
 | `project_delete` | Delete a project (idempotency_key supported) |
+| `project_drop` | Drop (defer indefinitely) a project |
 | `project_move` | Move a project to a different folder |
-| `project_mark_reviewed` | Mark a project as reviewed |
-| `project_list_due_for_review` | List projects whose next review date is today or past |
-| `project_set_review_interval` | Set the review interval (days) for a project |
+| `project_mark_reviewed` | Mark a project as reviewed (alias for review_mark_reviewed) |
 
 ### Folders
 | Tool | Description |
@@ -333,6 +394,13 @@ All responses have this shape:
 | `forecast_get` | Get today's forecast grouped by overdue / due today / due later / inbox |
 | `search_query` | Full-text search across tasks and projects |
 
+### Review
+| Tool | Description |
+|---|---|
+| `review_list_due` | List projects whose next review date is today or past |
+| `review_mark_reviewed` | Mark a project as reviewed and set the next review date |
+| `review_set_interval` | Set the review interval (days) for a project |
+
 ### Sync & app
 | Tool | Description |
 |---|---|
@@ -344,10 +412,13 @@ All responses have this shape:
 |---|---|
 | `plugin_invoke` | Invoke an installed Omni Automation plug-in by bundle identifier |
 
-### Export
+### Export & import
 | Tool | Description |
 |---|---|
 | `export_opml` | Export a project (or all projects) as OPML |
+| `export_taskpaper` | Export a project (or all projects) as TaskPaper |
+| `import_opml` | Import tasks from an OPML string into OmniFocus |
+| `import_taskpaper` | Import tasks from a TaskPaper string into OmniFocus |
 
 ### Observability
 | Tool | Description |
@@ -402,7 +473,7 @@ Ten MCP resources are registered under the `omnifocus://` scheme. Resources are 
 
 Full ISO-8601 dates (`YYYY-MM-DD`) are also accepted. Unparseable dates emit a `warnings[]` entry.
 
-### Examples
+### Example
 
 ```
 Project: Work
@@ -413,22 +484,6 @@ Follow up with Bob ::next-week
 Project: Personal
 Buy groceries @errands #today
 Call dentist @phone ::tomorrow !! //ask about X-ray appointment
-```
-
-Parsing the above returns:
-
-```jsonc
-{
-  "tasks": [
-    { "name": "Prepare Q2 report", "tagNames": ["work"], "dueDate": "2026-05-02T00:00:00-07:00", "flagged": true, "projectName": "Work" },
-    { "name": "Send draft to Alice", "tagNames": ["work", "email"], "dueDate": "2026-04-26T00:00:00-07:00", "note": "attach spreadsheet", "projectName": "Work" },
-    { "name": "Follow up with Bob", "deferDate": "2026-04-28T00:00:00-07:00", "projectName": "Work" },
-    { "name": "Buy groceries", "tagNames": ["errands"], "dueDate": "2026-04-25T00:00:00-07:00", "projectName": "Personal" },
-    { "name": "Call dentist", "tagNames": ["phone"], "deferDate": "2026-04-26T00:00:00-07:00", "flagged": true, "note": "ask about X-ray appointment", "projectName": "Personal" }
-  ],
-  "count": 5,
-  "warnings": []
-}
 ```
 
 Tag names and project names are raw strings — resolve to IDs with `tag_list` and `project_list` before passing to `task_create`.
@@ -454,11 +509,21 @@ flowchart LR
     class Adapter boundary
 ```
 
-The full layered diagram with the in-memory test adapter, queues, and circuit breakers lives in [`DESIGN.md §6`](./DESIGN.md#6-architecture).
+**Key design points:**
+
+- **Adapter seam** — services never see `osascript` or URL schemes; `OmniFocusAdapter` is the only OS boundary. Tests swap in an `InMemoryAdapter`.
+- **Dual transport** — JXA via `osascript` for CRUD; OmniJS via `evaluateJavascript()` for custom perspectives, plug-ins, reorder, and reparent. A `TransportRouter` picks per operation.
+- **Read pool + write queue** — concurrent JXA reads from a configurable pool; mutations serialized through a write queue; OmniJS operations through a separate queue.
+- **30s LRU read cache** — invalidated on every write. Mutations are never served stale.
+- **Middleware stack** — every registered tool runs through: `assertNotShuttingDown` → `circuitBreaker` → `rateLimitMeta` → `loopDetection`.
+
+The full layered diagram with queues, circuit breakers, and the test adapter lives in [`DESIGN.md §6`](./DESIGN.md#6-architecture).
+
+---
 
 ## Status and roadmap
 
-All six milestones are implemented. The server is feature-complete and pre-release (pending v1.0.0 tag):
+All six milestones shipped. v1.0.0 is released on npm.
 
 | Phase | Milestone | Status |
 |---|---|---|
@@ -467,14 +532,42 @@ All six milestones are implemented. The server is feature-complete and pre-relea
 | M2 | Metadata + perspectives (OmniJS) | ✅ Done |
 | M3 | Advanced (repeat, notes, review, batch, DSL) | ✅ Done |
 | M4 | Long tail (attachments, OPML, sync, plug-ins, raw scripts) | ✅ Done |
-| M5 | Polish & release (observability, E2E, CI, docs, npm) | 🔄 In progress |
+| M5 | Polish & release (observability, E2E, CI, docs, npm) | ✅ Done |
 
-Track live progress on the [**GitHub Project board**](https://github.com/users/torsday/projects/4). The remaining work before v1.0.0 is tracked in [GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues).
+Track open issues and future enhancements on the [**GitHub Project board**](https://github.com/users/torsday/projects/4).
+
+---
 
 ## Install
 
 ```bash
-# Claude Desktop — add to ~/Library/Application Support/Claude/claude_desktop_config.json
+# Global install
+npm install -g @torsday/omnifocus-mcp
+
+# Or run without installing (npx)
+npx -y @torsday/omnifocus-mcp
+```
+
+**Claude Desktop** — add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "omnifocus": {
+      "command": "omnifocus-mcp",
+      "args": [],
+      "env": { "OMNIFOCUS_LOG_LEVEL": "info" }
+    }
+  }
+}
+```
+
+**Claude Code**:
+```bash
+claude mcp add omnifocus omnifocus-mcp
+```
+
+**npx (no global install)**:
+```json
 {
   "mcpServers": {
     "omnifocus": {
@@ -484,16 +577,13 @@ Track live progress on the [**GitHub Project board**](https://github.com/users/t
     }
   }
 }
-
-# Claude Code
-claude mcp add omnifocus -- npx -y @torsday/omnifocus-mcp
-
-# Or run standalone
-npm install -g @torsday/omnifocus-mcp
-omnifocus-mcp
 ```
 
-On first run, macOS asks permission for Claude to automate OmniFocus. Click **OK**. If you denied it by mistake: **System Settings → Privacy & Security → Automation → [app] → OmniFocus** ✓. See the [troubleshooting guide](./docs/troubleshooting.md) and the per-client guides in [`docs/clients/`](./docs/clients/) for step-by-step recovery.
+On first run, macOS asks permission for Claude to automate OmniFocus. Click **OK**. If you denied it by mistake: **System Settings → Privacy & Security → Automation → [app] → OmniFocus** ✓
+
+See the [troubleshooting guide](./docs/troubleshooting.md) and per-client guides in [`docs/clients/`](./docs/clients/) for detailed setup.
+
+---
 
 ## Environment variables
 
@@ -515,7 +605,7 @@ Full table with override semantics: [`DESIGN.md §22`](./DESIGN.md#22-configurat
 
 ### Running integration tests
 
-Integration tests run against a live OmniFocus install. Before running them, seed the fixture database:
+Integration tests run against a live OmniFocus install:
 
 ```bash
 # 1. Make sure OmniFocus is running and Automation permission is granted
@@ -529,7 +619,7 @@ node scripts/seed-integration-db.js --clean
 OMNIFOCUS_INTEGRATION=1 pnpm test:integration
 ```
 
-The seed script creates a set of tagged `mcp-fixture:` items (folders, projects, tasks, tags) that integration tests rely on. Re-running the script without `--clean` skips items that already exist.
+The seed script creates `mcp-fixture:` prefixed items (folders, projects, tasks, tags) that integration tests rely on.
 
 ---
 
@@ -545,15 +635,14 @@ The seed script creates a set of tagged `mcp-fixture:` items (folders, projects,
 
 ### macOS Automation permission denied
 
-**Symptom:** Every tool call returns `PermissionDenied` / `OF_PERMISSION_DENIED`. This happens when the shell process running omnifocus-mcp was denied Automation access to OmniFocus.
+**Symptom:** Every tool call returns `OF_PERMISSION_DENIED`.
 
 **Fix:**
 1. Open **System Settings → Privacy & Security → Automation**.
-2. Find the app running the MCP server (Terminal, Claude Desktop, or the shell used by your CI runner).
+2. Find the app running the MCP server (Terminal, Claude Desktop, or your CI runner's shell).
 3. Enable the **OmniFocus** checkbox.
 4. Restart omnifocus-mcp.
 
-You can verify permission is granted with:
 ```bash
 bash scripts/check-automation-permission.sh
 ```
@@ -564,7 +653,7 @@ bash scripts/check-automation-permission.sh
 
 JXA starts an `osascript` subprocess on each call. The first call after a system sleep or a fresh OmniFocus launch can take 5–15 seconds while the database loads. This is normal.
 
-If calls consistently time out, increase the timeout:
+If calls consistently time out:
 ```bash
 OMNIFOCUS_JXA_TIMEOUT_MS=60000 omnifocus-mcp
 ```
@@ -575,7 +664,7 @@ OMNIFOCUS_JXA_TIMEOUT_MS=60000 omnifocus-mcp
 
 **Error:** `ValidationError: run_jxa_script is not available in this adapter configuration`
 
-**Fix:** The raw-script tools are off by default. Start the server with:
+**Fix:** The raw-script tools are opt-in. Start the server with:
 ```bash
 OMNIFOCUS_ALLOW_RAW_SCRIPT=1 omnifocus-mcp
 ```
@@ -586,7 +675,7 @@ See [`docs/adr/0004-raw-script-escape-hatch.md`](./docs/adr/0004-raw-script-esca
 
 ### Stale data after a write
 
-Writes are saved locally and show up immediately in subsequent tool calls. However, changes don't reach other devices until iCloud sync runs. Call `sync_trigger` after bulk mutations or when cross-device visibility matters.
+Writes are saved locally and show up immediately in subsequent tool calls. Changes don't reach other devices until iCloud sync runs. Call `sync_trigger` after bulk mutations or when cross-device visibility matters.
 
 ---
 
@@ -599,20 +688,19 @@ Writes are saved locally and show up immediately in subsequent tool calls. Howev
 
 ## Client setup guides
 
-Step-by-step setup, environment variable reference, macOS Automation permission walkthrough, and troubleshooting for each client target:
-
 | Client | Guide |
 |---|---|
 | Claude Desktop | [`docs/clients/claude-desktop.md`](./docs/clients/claude-desktop.md) |
 | Claude Code (CLI) | [`docs/clients/claude-code.md`](./docs/clients/claude-code.md) |
 | Generic stdio client | [`docs/clients/generic-stdio.md`](./docs/clients/generic-stdio.md) |
 
+---
+
 ## Design documents
 
 - **[`SPEC.md`](./SPEC.md)** — functional scope and non-functional requirements; resolved v1 decisions
 - **[`DESIGN.md`](./DESIGN.md)** — 28-section architecture; options evaluated; R/S/M assessment; example tool implementation
 - **[`docs/security.md`](./docs/security.md)** — attack surface, mitigations, and test coverage
-- **[GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues)** + **[Project #4](https://github.com/users/torsday/projects/4)** — live backlog, dependencies, and status
 - **[`docs/domain-reference.md`](./docs/domain-reference.md)** — OmniFocus glossary, canonical schemas, lossiness matrix for export/import
 - **[`docs/adr/`](./docs/adr/)** — Architecture Decision Records covering every load-bearing choice:
 
@@ -632,13 +720,13 @@ Step-by-step setup, environment variable reference, macOS Automation permission 
 | [0012](./docs/adr/0012-distribution-npx.md) | Distribution via `npx` / npm |
 | [0013](./docs/adr/0013-tool-response-envelope.md) | Uniform response envelope |
 
-## Project conventions
-
-Project conventions (adapter seam, script-asset discipline, ID-only lookups, date contract, cache invalidation, attachments-by-path) live in [`CLAUDE.md`](./CLAUDE.md). Any contribution follows the standards from [`coding.md`](https://github.com/torsday/llm_prompts/blob/main/coding.md), [`systems_design.md`](https://github.com/torsday/llm_prompts/blob/main/systems_design.md), and [`agent_systems.md`](https://github.com/torsday/llm_prompts/blob/main/agent_systems.md).
+---
 
 ## Contributing
 
-This is a single-developer project; external contributions are not currently solicited. The design, ADRs, and task backlog are nevertheless public so the work is inspectable and forkable. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the patterns any contribution would need to follow.
+This is a single-developer project; external contributions are not currently solicited. The design, ADRs, and task backlog are public so the work is inspectable and forkable. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the patterns any contribution would need to follow.
+
+---
 
 ## License
 
