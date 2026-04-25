@@ -159,15 +159,22 @@ function run(argv) {
   if (args.estimatedMinutes != null) props.estimatedMinutes = args.estimatedMinutes;
   if (args.sequential != null) props.sequential = args.sequential;
 
+  // OmniFocus 4.x rejects `container.make({ new: "task", withProperties })` with
+  // error -10024 ("Can't make or move that element into that container").
+  // The working pattern mirrors the inbox-task fix in #275 and the
+  // project/folder/tag fix in #319: construct a specifier via the class name
+  // and push it onto the target collection.
   let newTask;
   if (args.parentId) {
     const parent = ofApp.defaultDocument.flattenedTasks.byId(args.parentId);
     if (!parent) throw new Error(`Parent task not found: ${args.parentId}`);
-    newTask = parent.make({ new: "task", withProperties: props });
+    newTask = ofApp.Task(props);
+    parent.tasks.push(newTask);
   } else if (args.projectId) {
     const proj = ofApp.defaultDocument.flattenedProjects.byId(args.projectId);
     if (!proj) throw new Error(`Project not found: ${args.projectId}`);
-    newTask = proj.make({ new: "task", withProperties: props });
+    newTask = ofApp.Task(props);
+    proj.tasks.push(newTask);
   } else {
     // Inbox tasks cannot be created via `doc.make({ new: "inboxTask" })` —
     // OmniFocus 4.x rejects that with error -10024. Construct an InboxTask
@@ -192,5 +199,14 @@ function run(argv) {
     } catch (_e) {}
   }
 
+  // Re-fetch via a stable specifier for projectId/parentId branches.
+  // After push(), calling containingProject() / parentTask() on the pushed
+  // specifier returns stale null data until the JXA bridge flushes deferred
+  // events. .id() is safe immediately; all other properties require re-fetch.
+  if (args.parentId || args.projectId) {
+    const taskId = newTask.id();
+    const fetchedTask = ofApp.defaultDocument.flattenedTasks.byId(taskId);
+    return JSON.stringify({ task: buildTask(fetchedTask) });
+  }
   return JSON.stringify({ task: buildTask(newTask) });
 }
