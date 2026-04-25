@@ -41,6 +41,14 @@ const envSchema = z.object({
     .string()
     .prefault("")
     .transform((v) => v === "1"),
+  // ADR-0014 — E2E harness flag. When set, `composeAdapter` returns a
+  // TransportRouter backed by the in-memory adapter so the spawned-server
+  // E2E suite can invoke every registered tool deterministically without
+  // macOS Automation permission. Production callers never set this.
+  OMNIFOCUS_E2E_USE_MEMORY: z
+    .string()
+    .prefault("")
+    .transform((v) => v === "1"),
   OMNIFOCUS_ALLOW_RAW_SCRIPT: z
     .string()
     .prefault("")
@@ -86,6 +94,7 @@ export function parseConfig(
     OMNIFOCUS_LOG_LEVEL: processEnv.OMNIFOCUS_LOG_LEVEL,
     OMNIFOCUS_INTEGRATION: processEnv.OMNIFOCUS_INTEGRATION,
     OMNIFOCUS_E2E: processEnv.OMNIFOCUS_E2E,
+    OMNIFOCUS_E2E_USE_MEMORY: processEnv.OMNIFOCUS_E2E_USE_MEMORY,
     OMNIFOCUS_ALLOW_RAW_SCRIPT: processEnv.OMNIFOCUS_ALLOW_RAW_SCRIPT,
     OMNIFOCUS_CACHE_TTL_MS: processEnv.OMNIFOCUS_CACHE_TTL_MS,
     OMNIFOCUS_CACHE_CAPACITY: processEnv.OMNIFOCUS_CACHE_CAPACITY,
@@ -126,6 +135,7 @@ export function redactConfig(config: Config): Record<string, unknown> {
     OMNIFOCUS_LOG_LEVEL: config.OMNIFOCUS_LOG_LEVEL,
     OMNIFOCUS_INTEGRATION: config.OMNIFOCUS_INTEGRATION,
     OMNIFOCUS_E2E: config.OMNIFOCUS_E2E,
+    OMNIFOCUS_E2E_USE_MEMORY: config.OMNIFOCUS_E2E_USE_MEMORY,
     OMNIFOCUS_ALLOW_RAW_SCRIPT: config.OMNIFOCUS_ALLOW_RAW_SCRIPT,
     OMNIFOCUS_CACHE_TTL_MS: config.OMNIFOCUS_CACHE_TTL_MS,
     OMNIFOCUS_CACHE_CAPACITY: config.OMNIFOCUS_CACHE_CAPACITY,

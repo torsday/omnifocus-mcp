@@ -14,6 +14,7 @@
  */
 
 import type { OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
+import { InMemoryAdapter } from "../adapter/inMemory/InMemoryAdapter.js";
 import { JxaTransport } from "../adapter/jxa/JxaTransport.js";
 import { OmniJsTransport } from "../adapter/omnijs/OmniJsTransport.js";
 import { TransportRouter } from "../adapter/router.js";
@@ -51,6 +52,16 @@ import { TaskService } from "../services/taskService.js";
  * tests can exercise the raw transport chain without the LRU layer.
  */
 export function composeAdapter(config: Config): TransportRouter {
+  // ADR-0014 — when the E2E harness sets `OMNIFOCUS_E2E_USE_MEMORY=1`,
+  // back the router with a single shared `InMemoryAdapter` instead of the
+  // live JXA + OmniJS chain. Both routing legs point at the same instance
+  // so `ROUTING_TABLE`'s per-method dispatch still applies — every method
+  // is satisfied by the in-memory store, and `meta.transport` reflects the
+  // routed leg the call traversed. Production callers never set the flag.
+  if (config.OMNIFOCUS_E2E_USE_MEMORY) {
+    const memory = new InMemoryAdapter();
+    return new TransportRouter({ jxa: memory, omnijs: memory });
+  }
   const jxa = new JxaTransport({ timeoutMs: config.OMNIFOCUS_JXA_TIMEOUT_MS });
   const omnijs = new OmniJsTransport({ timeoutMs: config.OMNIFOCUS_OMNIJS_TIMEOUT_MS });
   return TransportRouter.fromTransports(jxa, omnijs);
