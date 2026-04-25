@@ -33,7 +33,7 @@ import { TaskId as TaskIdCtor } from "../../domain/ids.js";
 import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
 import type { Task } from "../../domain/task.js";
-import { FeatureRequiresPro, NotFound, ScriptError } from "../../errors/index.js";
+import { FeatureRequiresPro, NotFound, ScriptError, ValidationError } from "../../errors/index.js";
 import type {
   CreateFolderInput,
   CreateProjectInput,
@@ -126,10 +126,36 @@ export class OmniJsTransport implements OmniFocusAdapter {
     return notYetWired("deleteTask");
   }
   async moveTask(
-    _id: TaskId,
-    _destination: { projectId?: ProjectId; parentId?: TaskId },
+    id: TaskId,
+    destination: { projectId?: ProjectId; parentId?: TaskId },
   ): Promise<void> {
-    return notYetWired("moveTask");
+    // JXA's task.move() fails with error 9 ("Replacement not supported") in
+    // OmniFocus 4.x. Database.moveTasks() in OmniJS performs genuine reparenting
+    // while preserving the task's persistent ID — hence this routes to OmniJS.
+    const script = await import("node:fs/promises").then((fs) =>
+      fs.readFile(new URL("../../scripts/omnijs/task_move.js", import.meta.url), "utf8"),
+    );
+    const result = await runOmniJsScript<
+      { id: string } | { error: { code: "NOT_FOUND" | "VALIDATION"; message: string } }
+    >(
+      script,
+      {
+        id,
+        projectId: destination.projectId ?? null,
+        parentId: destination.parentId ?? null,
+      },
+      { ...this.runOpts, scriptName: "task_move" },
+    );
+    if ("error" in result) {
+      if (result.error.code === "NOT_FOUND") {
+        throw new NotFound(result.error.message, {
+          details: { transport: "omnijs", scriptName: "task_move" },
+        });
+      }
+      throw new ValidationError(result.error.message, {
+        details: { transport: "omnijs", scriptName: "task_move" },
+      });
+    }
   }
   async reorderTask(_id: TaskId, _position: TaskPosition): Promise<void> {
     return notYetWired("reorderTask");

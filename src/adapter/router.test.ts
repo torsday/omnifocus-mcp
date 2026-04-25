@@ -202,15 +202,16 @@ describe("TransportRouter — routing", () => {
   });
 
   it("forwards arguments unchanged to the chosen transport", async () => {
-    const jxa = {
-      ...makeStub("jxa"),
+    const jxa = makeStub("jxa");
+    const omnijs = {
+      ...makeStub("omnijs"),
+      // moveTask routes to OmniJS (JXA task.move() → error 9 in OF 4.x)
       moveTask: vi.fn(async (_id: TaskId, _dest: unknown): Promise<void> => undefined),
     };
-    const omnijs = makeStub("omnijs");
     const router = new TransportRouter({ jxa, omnijs });
     const dest = { projectId: P_ID };
     await router.moveTask(T_ID, dest);
-    expect(jxa.moveTask).toHaveBeenCalledWith(T_ID, dest);
+    expect(omnijs.moveTask).toHaveBeenCalledWith(T_ID, dest);
   });
 });
 
@@ -240,7 +241,12 @@ describe("TransportRouter — table integrity", () => {
       .filter(([, t]) => t === "omnijs")
       .map(([m]) => m)
       .sort();
-    expect(omniJsRoutes).toEqual(["evaluateCustomPerspective", "pluginInvoke", "runOmniJsScript"]);
+    expect(omniJsRoutes).toEqual([
+      "evaluateCustomPerspective",
+      "moveTask", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works
+      "pluginInvoke",
+      "runOmniJsScript",
+    ]);
   });
 });
 
