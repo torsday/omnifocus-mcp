@@ -10,7 +10,7 @@ on:
 
 jobs:
   release:
-    runs-on: macos-latest
+    runs-on: [self-hosted, macos]
     permissions:
       contents: write   # needed to create a GitHub Release
       id-token: write   # needed for npm provenance
