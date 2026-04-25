@@ -50,6 +50,7 @@ import folderDeleteScript from "../../scripts/jxa/folder_delete.js";
 import folderGetScript from "../../scripts/jxa/folder_get.js";
 import folderListScript from "../../scripts/jxa/folder_list.js";
 import folderUpdateScript from "../../scripts/jxa/folder_update.js";
+import forecastGetScript from "../../scripts/jxa/forecast_get.js";
 import perspectiveEvaluateScript from "../../scripts/jxa/perspective_evaluate.js";
 import perspectiveListScript from "../../scripts/jxa/perspective_list.js";
 import projectCompleteScript from "../../scripts/jxa/project_complete.js";
@@ -93,6 +94,8 @@ import type {
   CreateProjectInput,
   CreateTagInput,
   CreateTaskInput,
+  ForecastInput,
+  ForecastResult,
   ListAttachmentsInput,
   OmniFocusAdapter,
   RemoveAttachmentInput,
@@ -669,10 +672,24 @@ export class JxaTransport implements OmniFocusAdapter {
     return result.tasks.map((t) => ({ ...t, id: TaskIdCtor.of(t.id) }));
   }
 
-  async getForecast(
-    _input: import("../OmniFocusAdapter.js").ForecastInput,
-  ): Promise<import("../OmniFocusAdapter.js").ForecastResult> {
-    return notYetWired("getForecast");
+  async getForecast(input: ForecastInput): Promise<ForecastResult> {
+    const result = await runJxaScript<ForecastResult>(
+      forecastGetScript,
+      {
+        from: input.from,
+        to: input.to,
+        includeOverdue: input.includeOverdue ?? true,
+        includeDeferred: input.includeDeferred ?? true,
+        includeFlagged: input.includeFlagged ?? true,
+      },
+      { ...this.runOpts, scriptName: "forecast_get" },
+    );
+    return {
+      overdue: result.overdue.map((t) => ({ ...t, id: TaskIdCtor.of(t.id) })),
+      dueToday: result.dueToday.map((t) => ({ ...t, id: TaskIdCtor.of(t.id) })),
+      deferredToday: result.deferredToday.map((t) => ({ ...t, id: TaskIdCtor.of(t.id) })),
+      flagged: result.flagged.map((t) => ({ ...t, id: TaskIdCtor.of(t.id) })),
+    };
   }
 
   // -- Attachments (wired) --------------------------------------------------

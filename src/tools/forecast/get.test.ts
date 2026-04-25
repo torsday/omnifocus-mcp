@@ -103,4 +103,49 @@ describe("forecast_get — handler", () => {
     const envelope = await handleForecastGet(parseInput({ from: FROM, to: TO }), ctx);
     expect(envelope.meta.cacheHit).toBe(false);
   });
+
+  it("returns empty buckets when no tasks match the range", async () => {
+    const { ctx } = makeCtx();
+    // No tasks created — all buckets should be empty arrays.
+    const envelope = await handleForecastGet(parseInput({ from: FROM, to: TO }), ctx);
+    expect(envelope.data.overdue).toHaveLength(0);
+    expect(envelope.data.dueToday).toHaveLength(0);
+    expect(envelope.data.deferredToday).toHaveLength(0);
+    expect(envelope.data.flagged).toHaveLength(0);
+  });
+
+  it("spans a multi-day range and buckets correctly", async () => {
+    const { ctx, adapter } = makeCtx();
+    const from = "2026-04-23T00:00:00.000Z";
+    const to = "2026-04-25T23:59:59.999Z";
+
+    await adapter.createTask({ name: "Day 1", dueDate: "2026-04-23T09:00:00.000Z" });
+    await adapter.createTask({ name: "Day 3", dueDate: "2026-04-25T09:00:00.000Z" });
+    await adapter.createTask({ name: "Before range", dueDate: "2026-04-22T09:00:00.000Z" });
+    await adapter.createTask({ name: "After range", dueDate: "2026-04-26T09:00:00.000Z" });
+
+    const envelope = await handleForecastGet(parseInput({ from, to, includeOverdue: false }), ctx);
+    const names = envelope.data.dueToday.map((t) => t.name);
+    expect(names).toContain("Day 1");
+    expect(names).toContain("Day 3");
+    expect(names).not.toContain("Before range");
+    expect(names).not.toContain("After range");
+  });
+
+  it("places a flagged task in flagged bucket", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTask({ name: "Important", flagged: true });
+    const envelope = await handleForecastGet(parseInput({ from: FROM, to: TO }), ctx);
+    expect(envelope.data.flagged.some((t) => t.name === "Important")).toBe(true);
+  });
+
+  it("excludes flagged bucket when includeFlagged=false", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTask({ name: "Important", flagged: true });
+    const envelope = await handleForecastGet(
+      parseInput({ from: FROM, to: TO, includeFlagged: false }),
+      ctx,
+    );
+    expect(envelope.data.flagged).toHaveLength(0);
+  });
 });
