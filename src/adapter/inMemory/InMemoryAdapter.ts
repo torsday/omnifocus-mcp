@@ -347,6 +347,24 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     });
   }
 
+  async batchDeleteTasks(
+    items: Array<{ id: TaskId }>,
+  ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
+    return processBatch(items, async ({ id }) => {
+      await this.deleteTask(id);
+      return id;
+    });
+  }
+
+  async batchDropTasks(
+    items: Array<{ id: TaskId }>,
+  ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
+    return processBatch(items, async ({ id }) => {
+      await this.dropTask(id);
+      return id;
+    });
+  }
+
   async deleteTask(id: TaskId): Promise<void> {
     const task = await this.getTask(id);
     this.tasks.delete(id);

@@ -225,6 +225,16 @@ export class OmniJsTransport implements OmniFocusAdapter {
   ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
     return notYetWired("batchCompleteTasks");
   }
+  async batchDeleteTasks(
+    _items: Array<{ id: TaskId }>,
+  ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
+    return notYetWired("batchDeleteTasks");
+  }
+  async batchDropTasks(
+    _items: Array<{ id: TaskId }>,
+  ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
+    return notYetWired("batchDropTasks");
+  }
 
   // -- Projects -------------------------------------------------------------
 
