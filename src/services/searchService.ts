@@ -81,10 +81,13 @@ export class SearchService {
 
     // Build the stable filter (exclude pagination fields from the hash)
     const filterForHash: Record<string, unknown> = {
-      q: input.q,
+      ...(input.q !== undefined ? { q: input.q } : {}),
       scope: input.scope ?? "all",
       ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
       ...(input.tagIds !== undefined ? { tagIds: [...input.tagIds].sort() } : {}),
+      ...(input.available !== undefined ? { available: input.available } : {}),
+      ...(input.dueBefore !== undefined ? { dueBefore: input.dueBefore } : {}),
+      ...(input.dueAfter !== undefined ? { dueAfter: input.dueAfter } : {}),
       ...(input.flagged !== undefined ? { flagged: input.flagged } : {}),
       ...(input.completed !== undefined ? { completed: input.completed } : {}),
     };
@@ -98,10 +101,13 @@ export class SearchService {
 
     // Fetch all matching tasks from the adapter
     const searchFilter: SearchFilter = {
-      q: input.q,
+      ...(input.q !== undefined ? { q: input.q } : {}),
       ...(input.scope !== undefined ? { scope: input.scope } : {}),
       ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
       ...(input.tagIds !== undefined ? { tagIds: input.tagIds } : {}),
+      ...(input.available !== undefined ? { available: input.available } : {}),
+      ...(input.dueBefore !== undefined ? { dueBefore: input.dueBefore } : {}),
+      ...(input.dueAfter !== undefined ? { dueAfter: input.dueAfter } : {}),
       ...(input.flagged !== undefined ? { flagged: input.flagged } : {}),
       ...(input.completed !== undefined ? { completed: input.completed } : {}),
     };

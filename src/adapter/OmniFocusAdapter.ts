@@ -103,14 +103,20 @@ export interface UpdateProjectInput {
  * or both depending on `scope`. Additional fields narrow the match set.
  */
 export interface SearchFilter {
-  /** Search query string. Case-insensitive; empty string matches all. */
-  q: string;
-  /** Which fields to search. Default: "all". */
+  /** Search query string. Optional — omit to filter without keyword. */
+  q?: string;
+  /** Which fields to search. Default: "all". Ignored when q is omitted. */
   scope?: "name" | "note" | "all";
   /** Restrict to tasks in this project. */
   projectId?: ProjectId;
   /** Restrict to tasks carrying ALL of these tags. */
   tagIds?: TagId[];
+  /** true = available tasks only (not blocked, deferred, or completed); false = unavailable only; omit = all. */
+  available?: boolean;
+  /** Tasks with dueDate strictly before this ISO-8601 timestamp. */
+  dueBefore?: string;
+  /** Tasks with dueDate strictly after this ISO-8601 timestamp. */
+  dueAfter?: string;
   /** true = flagged only; false = unflagged only; omit = all. */
   flagged?: boolean;
   /** "exclude" = active only; "only" = completed only; "any" = both. */
