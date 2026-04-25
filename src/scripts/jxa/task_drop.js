@@ -13,17 +13,12 @@ function run(argv) {
   const ofApp = Application("OmniFocus");
   ofApp.includeStandardAdditions = false;
 
-  const allTasks = ofApp.defaultDocument.flattenedTasks();
-  let found = null;
-  for (let i = 0; i < allTasks.length; i++) {
-    if (allTasks[i].id() === args.id) {
-      found = allTasks[i];
-      break;
-    }
-  }
+  const found = ofApp.defaultDocument.flattenedTasks.byId(args.id);
   if (!found) throw new Error(`Task not found: ${args.id}`);
 
-  found.dropped = true;
+  // In OmniFocus 4.x JXA, `task.dropped = true` is rejected with -10003
+  // ("Can't set that. Access not allowed."). Use ofApp.markDropped() instead.
+  ofApp.markDropped(found);
 
   return JSON.stringify({ id: args.id });
 }
