@@ -1,12 +1,14 @@
 /**
- * JXA: search tasks by keyword, optionally filtered by project, tags,
- * flagged state, and completion state.
+ * JXA: search tasks by keyword and/or structured filters.
  *
  * Args (argv[0] JSON): {
- *   q: string,            // search query (case-insensitive)
+ *   q?: string,                    // optional keyword (case-insensitive)
  *   scope?: "name"|"note"|"all",   // which fields to search (default "all")
  *   projectId?: string|null,
  *   tagIds?: string[]|null,        // task must carry ALL listed tags
+ *   available?: boolean|null,      // true = available tasks only
+ *   dueBefore?: string|null,       // ISO-8601 upper bound (exclusive)
+ *   dueAfter?: string|null,        // ISO-8601 lower bound (exclusive)
  *   flagged?: boolean|null,
  *   completed?: "any"|"only"|"exclude"|null   // default "exclude"
  * }
@@ -22,10 +24,12 @@ function run(argv) {
   const ofApp = Application("OmniFocus");
   ofApp.includeStandardAdditions = false;
 
-  const q = (args.q || "").toLowerCase();
+  const q = args.q ? args.q.toLowerCase() : null;
   const scope = args.scope || "all";
   const completed =
     args.completed !== undefined && args.completed !== null ? args.completed : "exclude";
+  const dueBefore = args.dueBefore ? new Date(args.dueBefore) : null;
+  const dueAfter = args.dueAfter ? new Date(args.dueAfter) : null;
 
   // ---------------------------------------------------------------------------
   // buildTask — same shape as task_list.js
@@ -177,9 +181,21 @@ function run(argv) {
     if (completed === "only" && !built.completed) continue;
     // "any" passes through both
 
+    // Available filter
+    if (args.available === true && !built.available) continue;
+    if (args.available === false && built.available) continue;
+
     // Flagged filter
     if (args.flagged !== null && args.flagged !== undefined && built.flagged !== args.flagged)
       continue;
+
+    // Due date range filters
+    if (dueBefore !== null || dueAfter !== null) {
+      if (!built.dueDate) continue; // tasks with no due date never match a date filter
+      const due = new Date(built.dueDate);
+      if (dueBefore !== null && due >= dueBefore) continue;
+      if (dueAfter !== null && due <= dueAfter) continue;
+    }
 
     // Tag filter — task must carry ALL listed tags
     if (args.tagIds && args.tagIds.length > 0) {
@@ -187,7 +203,7 @@ function run(argv) {
       if (!allPresent) continue;
     }
 
-    // Text search
+    // Text search (only applied when q is provided)
     if (q) {
       const nameMatch = built.name.toLowerCase().includes(q);
       const noteMatch = built.note ? built.note.toLowerCase().includes(q) : false;

@@ -985,14 +985,16 @@ export class InMemoryAdapter implements OmniFocusAdapter {
    * same semantics as `listTasks`. Returns matching tasks in creation order.
    */
   async searchTasks(filter: SearchFilter): Promise<Task[]> {
-    const q = filter.q.toLowerCase();
+    const q = filter.q !== undefined ? filter.q.toLowerCase() : null;
     const scope = filter.scope ?? "all";
 
     return Array.from(this.tasks.values()).filter((task) => {
-      // Text match
-      const inName = scope !== "note" && task.name.toLowerCase().includes(q);
-      const inNote = scope !== "name" && (task.note ?? "").toLowerCase().includes(q);
-      if (!inName && !inNote) return false;
+      // Text match (only when q provided)
+      if (q !== null) {
+        const inName = scope !== "note" && task.name.toLowerCase().includes(q);
+        const inNote = scope !== "name" && (task.note ?? "").toLowerCase().includes(q);
+        if (!inName && !inNote) return false;
+      }
 
       // projectId filter
       if (filter.projectId !== undefined && task.projectId !== filter.projectId) return false;
@@ -1001,6 +1003,17 @@ export class InMemoryAdapter implements OmniFocusAdapter {
       if (filter.tagIds !== undefined && filter.tagIds.length > 0) {
         const taskTagSet = new Set(task.tagIds);
         if (!filter.tagIds.every((tid) => taskTagSet.has(tid))) return false;
+      }
+
+      // available filter
+      if (filter.available !== undefined && task.available !== filter.available) return false;
+
+      // due date range filters
+      if (filter.dueBefore !== undefined || filter.dueAfter !== undefined) {
+        if (task.dueDate === null) return false;
+        const due = new Date(task.dueDate);
+        if (filter.dueBefore !== undefined && due >= new Date(filter.dueBefore)) return false;
+        if (filter.dueAfter !== undefined && due <= new Date(filter.dueAfter)) return false;
       }
 
       // flagged filter
