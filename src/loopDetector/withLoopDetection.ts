@@ -3,12 +3,12 @@
  *
  * Wraps a tool handler to:
  * 1. Record the `(tool, args)` invocation via `LoopDetector.record()`.
- * 2. If a `WARN_LOOP_DETECTED` warning is returned, append it to the
- *    `meta.warnings` array of the response.
- *
- * The wrapper is transparent — it preserves the envelope shape and type
- * parameter of the wrapped handler. It never blocks or throws on loop
- * detection; the warning is advisory only.
+ * 2. Emit a `loop.detected` warn log event on every detection (warn or error).
+ * 3. If level is `"warn"` (calls ≥ `threshold`), append `WARN_LOOP_DETECTED`
+ *    to `meta.warnings` of the response.
+ * 4. If level is `"error"` (calls ≥ `errorThreshold`), throw `LoopDetected`
+ *    (`OF_LOOP_DETECTED`) before invoking the handler — the agent is told to
+ *    stop repeating and act on previous results.
  *
  * @see src/loopDetector/LoopDetector.ts
  * @see DESIGN.md §6.11 — loop detection
@@ -16,6 +16,8 @@
  */
 
 import type { ResponseMeta, ToolSuccess } from "../envelope/index.js";
+import { LoopDetected } from "../errors/index.js";
+import { logger } from "../logging/logger.js";
 import type { LoopDetector } from "./LoopDetector.js";
 
 /**
@@ -32,17 +34,37 @@ export function withLoopDetection<T>(
   detector: LoopDetector,
   handler: () => Promise<ToolSuccess<T>>,
 ): Promise<ToolSuccess<T>> {
-  const warning = detector.record(toolName, args);
+  const result = detector.record(toolName, args);
+
+  if (result !== undefined) {
+    const { level, warning } = result;
+    const count = (warning.details?.count as number | undefined) ?? 0;
+    const windowMs = ((warning.details?.windowSeconds as number | undefined) ?? 60) * 1000;
+
+    logger.warn({
+      event: "loop.detected",
+      tool: toolName,
+      callCount: count,
+      windowMs,
+      level,
+    });
+
+    if (level === "error") {
+      return Promise.reject(
+        new LoopDetected(toolName, count, (warning.details?.windowSeconds as number) ?? 60),
+      );
+    }
+  }
 
   return handler().then((envelope) => {
-    if (warning === undefined) return envelope;
+    if (result === undefined) return envelope;
 
     const existingWarnings = envelope.meta.warnings ?? [];
     return {
       ...envelope,
       meta: {
         ...envelope.meta,
-        warnings: [...existingWarnings, warning],
+        warnings: [...existingWarnings, result.warning],
       } satisfies ResponseMeta,
     };
   });
