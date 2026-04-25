@@ -650,6 +650,10 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     return project;
   }
 
+  async getProjectsMany(ids: ProjectId[]): Promise<(Project | null)[]> {
+    return ids.map((id) => this.projects.get(id) ?? null);
+  }
+
   async createProject(input: CreateProjectInput): Promise<ProjectId> {
     if (input.name.trim() === "") {
       throw new ValidationError("Project name must be non-empty", {
@@ -828,6 +832,10 @@ export class InMemoryAdapter implements OmniFocusAdapter {
       throw new NotFound(`Tag not found: ${id}`, { details: { resource: "tag", id } });
     }
     return tag;
+  }
+
+  async getTagsMany(ids: TagId[]): Promise<(Tag | null)[]> {
+    return ids.map((id) => this.tags.get(id) ?? null);
   }
 
   async createTag(input: CreateTagInput): Promise<TagId> {

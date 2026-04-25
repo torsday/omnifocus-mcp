@@ -108,6 +108,7 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   // -- Projects -------------------------------------------------------------
   listProjects: "jxa",
   getProject: "jxa",
+  getProjectsMany: "jxa",
   createProject: "jxa",
   updateProject: "jxa",
   completeProject: "jxa",
@@ -121,6 +122,7 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   // -- Tags -----------------------------------------------------------------
   listTags: "jxa",
   getTag: "jxa",
+  getTagsMany: "jxa",
   createTag: "jxa",
   updateTag: "jxa",
   deleteTag: "jxa",
@@ -289,6 +291,9 @@ export class TransportRouter implements OmniFocusAdapter {
   getProject(id: ProjectId): Promise<Project> {
     return this.pick("getProject").getProject(id);
   }
+  getProjectsMany(ids: ProjectId[]): Promise<(Project | null)[]> {
+    return this.pick("getProjectsMany").getProjectsMany(ids);
+  }
   createProject(input: CreateProjectInput): Promise<ProjectId> {
     return this.pick("createProject").createProject(input);
   }
@@ -327,6 +332,9 @@ export class TransportRouter implements OmniFocusAdapter {
   }
   getTag(id: TagId): Promise<Tag> {
     return this.pick("getTag").getTag(id);
+  }
+  getTagsMany(ids: TagId[]): Promise<(Tag | null)[]> {
+    return this.pick("getTagsMany").getTagsMany(ids);
   }
   createTag(input: CreateTagInput): Promise<TagId> {
     return this.pick("createTag").createTag(input);

@@ -59,6 +59,7 @@ import projectCreateScript from "../../scripts/jxa/project_create.js";
 import projectDeleteScript from "../../scripts/jxa/project_delete.js";
 import projectDropScript from "../../scripts/jxa/project_drop.js";
 import projectGetScript from "../../scripts/jxa/project_get.js";
+import projectGetManyScript from "../../scripts/jxa/project_get_many.js";
 import projectListScript from "../../scripts/jxa/project_list.js";
 import projectMarkReviewedScript from "../../scripts/jxa/project_mark_reviewed.js";
 import projectMoveScript from "../../scripts/jxa/project_move.js";
@@ -69,6 +70,7 @@ import syncTriggerScript from "../../scripts/jxa/sync_trigger.js";
 import tagCreateScript from "../../scripts/jxa/tag_create.js";
 import tagDeleteScript from "../../scripts/jxa/tag_delete.js";
 import tagGetScript from "../../scripts/jxa/tag_get.js";
+import tagGetManyScript from "../../scripts/jxa/tag_get_many.js";
 import tagListScript from "../../scripts/jxa/tag_list.js";
 import tagUpdateScript from "../../scripts/jxa/tag_update.js";
 import taskBatchCompleteScript from "../../scripts/jxa/task_batch_complete.js";
@@ -400,6 +402,15 @@ export class JxaTransport implements OmniFocusAdapter {
     return { ...result.project, id: ProjectIdCtor.of(result.project.id) };
   }
 
+  async getProjectsMany(ids: ProjectId[]): Promise<(Project | null)[]> {
+    const result = await runJxaScript<{ projects: (Project | null)[] }>(
+      projectGetManyScript,
+      { ids },
+      { ...this.runOpts, scriptName: "project_get_many" },
+    );
+    return result.projects.map((p) => (p ? { ...p, id: ProjectIdCtor.of(p.id) } : null));
+  }
+
   async createProject(input: CreateProjectInput): Promise<ProjectId> {
     const result = await runJxaScript<{ project: Project }>(
       projectCreateScript,
@@ -515,6 +526,15 @@ export class JxaTransport implements OmniFocusAdapter {
       { ...this.runOpts, scriptName: "tag_get" },
     );
     return { ...result.tag, id: TagIdCtor.of(result.tag.id) };
+  }
+
+  async getTagsMany(ids: TagId[]): Promise<(Tag | null)[]> {
+    const result = await runJxaScript<{ tags: (Tag | null)[] }>(
+      tagGetManyScript,
+      { ids },
+      { ...this.runOpts, scriptName: "tag_get_many" },
+    );
+    return result.tags.map((t) => (t ? { ...t, id: TagIdCtor.of(t.id) } : null));
   }
 
   async createTag(input: CreateTagInput): Promise<TagId> {
