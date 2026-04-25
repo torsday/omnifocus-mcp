@@ -13,6 +13,7 @@ import type { FolderId, ProjectId, TagId, TaskId } from "../domain/ids.js";
 import type { Project } from "../domain/project.js";
 import { NotFound, ValidationError } from "../errors/index.js";
 import { renderProjectOutline } from "./export/opml.js";
+import { type OutlineNode, parseOpml } from "./export/opmlParser.js";
 import { countLeadingTabs, parseTaskPaperLine, renderTaskPaper } from "./export/taskpaper.js";
 import { fetchProjectTaskTree, partitionTasksByParent } from "./export/tree.js";
 
@@ -57,6 +58,21 @@ export interface ImportTaskPaperResult {
    * could not be resolved.
    */
   warnings: string[];
+}
+
+export interface ImportOpmlResult {
+  /**
+   * Number of tasks (leaf outlines) imported.
+   *
+   * **Lossiness:** OPML preserves text and nesting only. Due dates, defer
+   * dates, and flagged state encoded in `omnifocus:task` attributes are
+   * retained on round-trip. Tags, attachments, notes, repetition rules,
+   * and other OmniFocus-specific metadata are not encoded in OPML and will
+   * be silently dropped.
+   */
+  imported: number;
+  /** IDs of every task created. */
+  taskIds: TaskId[];
 }
 
 // ---------------------------------------------------------------------------
@@ -336,5 +352,108 @@ export class ExportService {
     }
 
     return { created, warnings };
+  }
+
+  // ---------------------------------------------------------------------------
+  // importOpml
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Parse an OPML XML string and create tasks in OmniFocus.
+   *
+   * Follows the structure produced by `export_opml`:
+   * - Top-level `<outline type="omnifocus:project">` elements are matched
+   *   to existing projects by their `id` attribute first, then by `text`
+   *   (name) as a fallback. Unrecognised projects land in the inbox.
+   * - Nested `<outline>` elements become tasks under their parent, preserving
+   *   hierarchy depth.
+   * - `destinationProjectId` overrides all project matching — every top-level
+   *   outline is imported into that project regardless of type or id.
+   *
+   * **Lossiness:** OPML preserves text and nesting only. Due/defer dates and
+   * flagged state encoded as attributes are retained; tags, notes,
+   * attachments, repetition rules, and other metadata are dropped.
+   *
+   * @throws {ValidationError} when `opml` is empty or not well-formed OPML.
+   */
+  async importOpml(
+    opml: string,
+    opts: { destinationProjectId?: ProjectId } = {},
+  ): Promise<ImportOpmlResult> {
+    if (!opml.trim()) {
+      throw new ValidationError("opml is empty", {
+        suggestion: "Provide a non-empty OPML XML string.",
+      });
+    }
+
+    // parseOpml throws ValidationError directly on malformed input.
+    const parsed = parseOpml(opml);
+
+    // Build project lookup caches for project-type outlines:
+    // - By OmniFocus ID string (round-trip from export_opml)
+    // - By name (case-insensitive fallback)
+    const projects = await this.adapter.listProjects();
+    const projectById = new Map<string, ProjectId>(projects.map((p) => [String(p.id), p.id]));
+    const projectByName = new Map<string, ProjectId>(
+      projects.map((p) => [p.name.toLowerCase(), p.id]),
+    );
+
+    const allTaskIds: TaskId[] = [];
+
+    /**
+     * Recursively create outline nodes as tasks.
+     *
+     * @param nodes    - Outline nodes to import
+     * @param projectId - Project to create tasks in (undefined → inbox)
+     * @param parentId  - Parent task ID for nested tasks (undefined → top-level)
+     */
+    const importNodes = async (
+      nodes: OutlineNode[],
+      projectId: ProjectId | undefined,
+      parentId: TaskId | undefined,
+    ): Promise<void> => {
+      for (const node of nodes) {
+        // The adapter rejects tasks with both projectId and parentId set.
+        // parentId takes precedence for child tasks — the project is implied.
+        const input: CreateTaskInput = {
+          name: node.text || "(untitled)",
+          ...(parentId !== undefined ? { parentId } : projectId !== undefined ? { projectId } : {}),
+          ...(node.due !== undefined ? { dueDate: node.due } : {}),
+          ...(node.defer !== undefined ? { deferDate: node.defer } : {}),
+          ...(node.flagged === true ? { flagged: true } : {}),
+        };
+
+        const taskId = await this.adapter.createTask(input);
+        allTaskIds.push(taskId);
+
+        if (node.children.length > 0) {
+          await importNodes(node.children, projectId, taskId);
+        }
+      }
+    };
+
+    for (const topNode of parsed.body) {
+      if (opts.destinationProjectId !== undefined) {
+        // User supplied an explicit destination — import everything there.
+        await importNodes([topNode], opts.destinationProjectId, undefined);
+        continue;
+      }
+
+      // Top-level outline: if it's a project-type, resolve to the matching project.
+      if (topNode.type === "omnifocus:project") {
+        // Try matching by OF ID first (round-trip from export_opml), then by name.
+        const resolvedId =
+          (topNode.id !== undefined ? projectById.get(topNode.id) : undefined) ??
+          projectByName.get(topNode.text.toLowerCase());
+
+        // Import tasks inside this project outline into the matched project (or inbox).
+        await importNodes(topNode.children, resolvedId, undefined);
+      } else {
+        // Plain task outline (or non-project type) — land in inbox.
+        await importNodes([topNode], undefined, undefined);
+      }
+    }
+
+    return { imported: allTaskIds.length, taskIds: allTaskIds };
   }
 }

@@ -59,6 +59,7 @@ import {
 import { registerAppLaunchTool } from "../tools/app/launch.js";
 import { registerAttachmentTools } from "../tools/attachment/index.js";
 import { registerExportOpmlTool } from "../tools/export/opml.js";
+import { registerImportOpmlTool } from "../tools/export/opml_import.js";
 import { registerTaskPaperTools } from "../tools/export/taskpaper.js";
 import { registerFolderCreateTool } from "../tools/folder/create.js";
 import { registerFolderDeleteTool } from "../tools/folder/delete.js";
@@ -294,6 +295,7 @@ export async function startServer(): Promise<void> {
   // export_taskpaper and import_taskpaper).
   const exportCtx = { exportService: services.exportService, makeMeta };
   registerExportOpmlTool(server, exportCtx);
+  registerImportOpmlTool(server, exportCtx);
   registerTaskPaperTools(server, exportCtx);
 
   // App.
@@ -429,6 +431,7 @@ export async function startServer(): Promise<void> {
     "project_mark_reviewed",
     "review_set_interval",
     "export_opml",
+    "import_opml",
     "export_taskpaper",
     "import_taskpaper",
     "app_launch",
