@@ -50,7 +50,7 @@ import type {
   UpdateTagInput,
   UpdateTaskInput,
 } from "../OmniFocusAdapter.js";
-import { type RunScriptOptions, type ScriptSpawner, runOmniJsScript } from "./scriptRunner.js";
+import { type RunScriptOptions, runOmniJsScript, type ScriptSpawner } from "./scriptRunner.js";
 
 // ---------------------------------------------------------------------------
 // Construction
@@ -228,9 +228,10 @@ export class OmniJsTransport implements OmniFocusAdapter {
 
   // -- Projects -------------------------------------------------------------
 
-  async listProjects(_filter?: { folderId?: FolderId; status?: Project["status"] }): Promise<
-    Project[]
-  > {
+  async listProjects(_filter?: {
+    folderId?: FolderId;
+    status?: Project["status"];
+  }): Promise<Project[]> {
     return notYetWired("listProjects");
   }
   async getProject(_id: ProjectId): Promise<Project> {

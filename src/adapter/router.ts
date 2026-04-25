@@ -44,6 +44,7 @@ import type { FolderId, ProjectId, TagId, TaskId } from "../domain/ids.js";
 import type { Project } from "../domain/project.js";
 import type { Tag } from "../domain/tag.js";
 import type { Task } from "../domain/task.js";
+import type { JxaTransport } from "./jxa/JxaTransport.js";
 import type {
   CreateFolderInput,
   CreateProjectInput,
@@ -58,7 +59,6 @@ import type {
   UpdateTagInput,
   UpdateTaskInput,
 } from "./OmniFocusAdapter.js";
-import type { JxaTransport } from "./jxa/JxaTransport.js";
 import type { OmniJsTransport } from "./omnijs/OmniJsTransport.js";
 
 // ---------------------------------------------------------------------------

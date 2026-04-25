@@ -10,8 +10,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
+import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import type { ProjectId, TaskId } from "../../domain/ids.js";
 import type { ResponseMeta, ToolEnvelope } from "../../envelope/index.js";
 import { handleTaskBatchComplete, taskBatchCompleteInputBaseSchema } from "./batchComplete.js";

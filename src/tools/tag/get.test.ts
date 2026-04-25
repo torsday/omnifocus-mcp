@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { TagService } from "../../services/tagService.js";
-import { TAG_GET_DESCRIPTION, handleTagGet, tagGetInputSchema } from "./get.js";
+import { handleTagGet, TAG_GET_DESCRIPTION, tagGetInputSchema } from "./get.js";
 
 // ---------------------------------------------------------------------------
 // Harness

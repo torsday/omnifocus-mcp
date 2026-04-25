@@ -163,17 +163,17 @@ function run(argv) {
   if (!found) throw new Error(`Task not found: ${args.id}`);
 
   if (args.name !== undefined) found.name = args.name;
-  if (Object.prototype.hasOwnProperty.call(args, "note")) {
+  if (Object.hasOwn(args, "note")) {
     found.note = args.note ?? "";
   }
   if (args.flagged !== undefined) found.flagged = args.flagged;
-  if (Object.prototype.hasOwnProperty.call(args, "deferDate")) {
+  if (Object.hasOwn(args, "deferDate")) {
     found.deferDate = args.deferDate ? new Date(args.deferDate) : null;
   }
-  if (Object.prototype.hasOwnProperty.call(args, "dueDate")) {
+  if (Object.hasOwn(args, "dueDate")) {
     found.dueDate = args.dueDate ? new Date(args.dueDate) : null;
   }
-  if (Object.prototype.hasOwnProperty.call(args, "estimatedMinutes")) {
+  if (Object.hasOwn(args, "estimatedMinutes")) {
     found.estimatedMinutes = args.estimatedMinutes;
   }
   if (args.sequential !== undefined) found.sequential = args.sequential;

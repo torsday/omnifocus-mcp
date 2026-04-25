@@ -27,11 +27,18 @@
   "bin": {
     "omnifocus-mcp": "./dist/index.js"
   },
-  "files": ["dist", "README.md", "LICENSE", "CHANGELOG.md"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "engines": {
     "node": ">=20"
   },
-  "os": ["darwin"],
+  "os": [
+    "darwin"
+  ],
   "publishConfig": {
     "access": "public"
   },
@@ -60,7 +67,7 @@
     "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.7.0",
+    "@biomejs/biome": "^2.4.13",
     "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^1.5.0",
     "esbuild": "0.28.0",

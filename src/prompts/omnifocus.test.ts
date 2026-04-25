@@ -11,15 +11,15 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { describe, expect, it, vi } from "vitest";
 import {
-  CAPTURE_MEETING_PROMPT,
-  DAILY_REVIEW_PROMPT,
-  PROJECT_PLANNING_PROMPT,
-  WEEKLY_REVIEW_PROMPT,
   buildCaptureMeetingMessage,
   buildDailyReviewMessage,
   buildProjectPlanningMessage,
   buildWeeklyReviewMessage,
+  CAPTURE_MEETING_PROMPT,
+  DAILY_REVIEW_PROMPT,
+  PROJECT_PLANNING_PROMPT,
   registerOmniFocusPrompts,
+  WEEKLY_REVIEW_PROMPT,
 } from "./omnifocus.js";
 
 // ---------------------------------------------------------------------------

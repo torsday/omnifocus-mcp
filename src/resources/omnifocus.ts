@@ -29,8 +29,8 @@
  * @see docs/adr/0006-read-cache-strategy.md
  */
 
-import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
 import { ProjectId, TagId } from "../domain/ids.js";
 import type { BuiltinPerspectiveId } from "../domain/perspective.js";

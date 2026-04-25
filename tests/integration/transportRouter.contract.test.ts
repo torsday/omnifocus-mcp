@@ -21,8 +21,8 @@
  */
 
 import { describe, test } from "vitest";
-import type { OmniFocusAdapter } from "../../src/adapter/OmniFocusAdapter.js";
 import { JxaTransport } from "../../src/adapter/jxa/JxaTransport.js";
+import type { OmniFocusAdapter } from "../../src/adapter/OmniFocusAdapter.js";
 import { OmniJsTransport } from "../../src/adapter/omnijs/OmniJsTransport.js";
 import { TransportRouter } from "../../src/adapter/router.js";
 import type { FolderId, ProjectId, TagId, TaskId } from "../../src/domain/ids.js";

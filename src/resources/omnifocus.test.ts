@@ -31,9 +31,9 @@ import {
   PERSPECTIVE_URI_TEMPLATE,
   PROJECT_URI_TEMPLATE,
   REVIEW_DUE_URI,
+  registerOmniFocusResources,
   SNAPSHOT_URI,
   TAG_URI_TEMPLATE,
-  registerOmniFocusResources,
 } from "./omnifocus.js";
 
 // ---------------------------------------------------------------------------

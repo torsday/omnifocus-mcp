@@ -16,7 +16,7 @@ import { z } from "zod";
 import type { CreateTaskInput, OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { ProjectId, TagId, TaskId } from "../../domain/ids.js";
-import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
+import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 export const TASK_BATCH_CREATE_DESCRIPTION =
   "Create many OmniFocus tasks in a single JXA round trip. " +

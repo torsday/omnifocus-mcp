@@ -10,9 +10,9 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { ok } from "../envelope/index.js";
 import type { ResponseMeta } from "../envelope/index.js";
-import { LoopDetector, buildCallKey } from "./LoopDetector.js";
+import { ok } from "../envelope/index.js";
+import { buildCallKey, LoopDetector } from "./LoopDetector.js";
 import { withLoopDetection } from "./withLoopDetection.js";
 
 // ---------------------------------------------------------------------------

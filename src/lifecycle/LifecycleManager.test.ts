@@ -14,10 +14,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { FeatureRequiresOfVersion } from "../errors/index.js";
 import {
+  compareVersions,
   type LifecycleLogger,
   LifecycleManager,
   type OfAppInfo,
-  compareVersions,
 } from "./LifecycleManager.js";
 
 function silentLogger(): LifecycleLogger {

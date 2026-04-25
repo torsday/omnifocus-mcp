@@ -28,12 +28,12 @@ import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { TagId, TaskId } from "../../domain/ids.js";
 import type { Task } from "../../domain/task.js";
-import { type ResponseMeta, type ToolEnvelope, ok, toolResponse } from "../../envelope/index.js";
+import { ok, type ResponseMeta, type ToolEnvelope, toolResponse } from "../../envelope/index.js";
 import { assertNotModifiedSince } from "../../server/assertNotModifiedSince.js";
 import { dryRunGuard } from "../../server/dryRunGuard.js";
 import {
-  type IdempotencyStore,
   idempotencyStore as defaultIdempotencyStore,
+  type IdempotencyStore,
   withIdempotencyKey,
 } from "../../server/idempotencyStore.js";
 

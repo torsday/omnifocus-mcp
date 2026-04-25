@@ -8,8 +8,8 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  type DescriptionShapeResult,
   checkDescriptionShape,
+  type DescriptionShapeResult,
   formatShapeViolations,
 } from "./descriptionShape.js";
 

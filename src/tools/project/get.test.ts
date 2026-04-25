@@ -9,7 +9,7 @@ import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import { OmniFocusLruCache } from "../../cache/lruCache.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { ProjectService } from "../../services/projectService.js";
-import { PROJECT_GET_DESCRIPTION, handleProjectGet, projectGetInputSchema } from "./get.js";
+import { handleProjectGet, PROJECT_GET_DESCRIPTION, projectGetInputSchema } from "./get.js";
 
 function makeCtx() {
   let tick = 0;

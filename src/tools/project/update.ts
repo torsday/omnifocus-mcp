@@ -22,12 +22,12 @@ import type { OmniFocusAdapter, UpdateProjectInput } from "../../adapter/OmniFoc
 import { type InvalidatingCache, invalidateProjectMutation } from "../../cache/invalidation.js";
 import type { ProjectId as ProjectIdType } from "../../domain/ids.js";
 import { ProjectId, TagId } from "../../domain/ids.js";
-import { type ResponseMeta, type ToolEnvelope, ok, toolResponse } from "../../envelope/index.js";
+import { ok, type ResponseMeta, type ToolEnvelope, toolResponse } from "../../envelope/index.js";
 import { assertNotModifiedSince } from "../../server/assertNotModifiedSince.js";
 import { dryRunGuard } from "../../server/dryRunGuard.js";
 import {
-  type IdempotencyStore,
   idempotencyStore as defaultIdempotencyStore,
+  type IdempotencyStore,
   withIdempotencyKey,
 } from "../../server/idempotencyStore.js";
 

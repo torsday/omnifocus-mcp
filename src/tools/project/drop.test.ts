@@ -7,7 +7,7 @@ import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { ProjectService } from "../../services/projectService.js";
-import { PROJECT_DROP_DESCRIPTION, handleProjectDrop, projectDropInputSchema } from "./drop.js";
+import { handleProjectDrop, PROJECT_DROP_DESCRIPTION, projectDropInputSchema } from "./drop.js";
 
 function recordScopes(cache: OmniFocusLruCache): InvalidationScope[] {
   const scopes: InvalidationScope[] = [];

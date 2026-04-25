@@ -12,7 +12,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { TaskId } from "../../domain/ids.js";
-import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
+import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TaskGetInput, TaskService } from "../../services/taskService.js";
 
 export const TASK_GET_DESCRIPTION =

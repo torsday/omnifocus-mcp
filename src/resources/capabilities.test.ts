@@ -6,8 +6,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { describe, expect, it, vi } from "vitest";
 import type { Config } from "../config/env.js";
 import {
-  CAPABILITIES_URI,
   buildCapabilities,
+  CAPABILITIES_URI,
   registerCapabilitiesResource,
 } from "./capabilities.js";
 

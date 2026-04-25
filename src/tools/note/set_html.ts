@@ -22,7 +22,7 @@ import {
   invalidateTaskMutation,
 } from "../../cache/invalidation.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
-import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
+import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 // ---------------------------------------------------------------------------
 // Tool description

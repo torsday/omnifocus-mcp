@@ -154,7 +154,7 @@ function run(argv) {
   const allTasks = ofApp.defaultDocument.flattenedTasks();
   for (let i = 0; i < allTasks.length; i++) {
     const tid = allTasks[i].id();
-    if (Object.prototype.hasOwnProperty.call(idSet, tid)) {
+    if (Object.hasOwn(idSet, tid)) {
       idSet[tid] = buildTask(allTasks[i]);
     }
   }

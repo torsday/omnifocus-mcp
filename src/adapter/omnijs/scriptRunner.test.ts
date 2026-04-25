@@ -18,9 +18,9 @@ import {
   TransportUnavailable,
 } from "../../errors/index.js";
 import {
+  runOmniJsScript,
   type ScriptSpawner,
   type SpawnResult,
-  runOmniJsScript,
   wrapOmniJsForJxa,
 } from "./scriptRunner.js";
 

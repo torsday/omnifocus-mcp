@@ -14,7 +14,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter, UpdateTaskInput } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { TagId, TaskId } from "../../domain/ids.js";
-import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
+import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 export const TASK_BATCH_UPDATE_DESCRIPTION =
   "Partially update many OmniFocus tasks in a single JXA round trip. " +

@@ -7,8 +7,8 @@ import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { ReviewService } from "../../services/reviewService.js";
 import {
-  PROJECT_MARK_REVIEWED_DESCRIPTION,
   handleProjectMarkReviewed,
+  PROJECT_MARK_REVIEWED_DESCRIPTION,
   projectMarkReviewedInputSchema,
 } from "./projectMarkReviewed.js";
 

@@ -5,11 +5,11 @@ import {
   AttachmentId,
   FolderId,
   IdConstructors,
+  isOmniFocusId,
   OMNIFOCUS_ID_PATTERN,
   ProjectId,
   TagId,
   TaskId,
-  isOmniFocusId,
 } from "./ids.js";
 
 describe("isOmniFocusId", () => {

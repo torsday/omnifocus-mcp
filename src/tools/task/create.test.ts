@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import type { ResponseMeta, ToolEnvelope, ToolSuccess } from "../../envelope/index.js";
 import { IdempotencyStore } from "../../server/idempotencyStore.js";
-import { TASK_CREATE_DESCRIPTION, handleTaskCreate, taskCreateInputSchema } from "./create.js";
+import { handleTaskCreate, TASK_CREATE_DESCRIPTION, taskCreateInputSchema } from "./create.js";
 
 /** Narrow a handler envelope to ToolSuccess or fail the assertion. */
 function assertOk<T>(envelope: ToolEnvelope<T>): ToolSuccess<T> {

@@ -7,8 +7,8 @@ import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { ReviewService } from "../../services/reviewService.js";
 import {
-  REVIEW_LIST_DUE_DESCRIPTION,
   handleReviewListDue,
+  REVIEW_LIST_DUE_DESCRIPTION,
   reviewListDueInputSchema,
 } from "./listDue.js";
 
