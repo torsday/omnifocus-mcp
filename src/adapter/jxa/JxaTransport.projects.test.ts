@@ -12,7 +12,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { FolderId, ProjectId } from "../../domain/ids.js";
-import { ScriptError } from "../../errors/index.js";
+import { NotFound, ScriptError } from "../../errors/index.js";
 import { JxaTransport } from "./JxaTransport.js";
 import type { ScriptSpawner, SpawnResult } from "./scriptRunner.js";
 
@@ -121,9 +121,9 @@ describe("JxaTransport — getProject", () => {
     expect(arg.id).toBe("proj_aaa");
   });
 
-  it("surfaces ScriptError on not-found", async () => {
+  it("surfaces NotFound on not-found", async () => {
     const t = new JxaTransport({ spawner: spawnerFailing("project not found") });
-    await expect(t.getProject("proj_missing" as ProjectId)).rejects.toBeInstanceOf(ScriptError);
+    await expect(t.getProject("proj_missing" as ProjectId)).rejects.toBeInstanceOf(NotFound);
   });
 });
 
@@ -219,9 +219,9 @@ describe("JxaTransport — dropProject", () => {
     await expect(t.dropProject("proj_aaa" as ProjectId)).resolves.toBeUndefined();
   });
 
-  it("surfaces ScriptError on not-found", async () => {
+  it("surfaces NotFound on not-found", async () => {
     const t = new JxaTransport({ spawner: spawnerFailing("project not found") });
-    await expect(t.dropProject("proj_missing" as ProjectId)).rejects.toBeInstanceOf(ScriptError);
+    await expect(t.dropProject("proj_missing" as ProjectId)).rejects.toBeInstanceOf(NotFound);
   });
 });
 
@@ -269,9 +269,9 @@ describe("JxaTransport — deleteProject", () => {
     await expect(t.deleteProject("proj_aaa" as ProjectId)).resolves.toBeUndefined();
   });
 
-  it("surfaces ScriptError on not-found", async () => {
+  it("surfaces NotFound on not-found", async () => {
     const t = new JxaTransport({ spawner: spawnerFailing("project not found") });
-    await expect(t.deleteProject("proj_missing" as ProjectId)).rejects.toBeInstanceOf(ScriptError);
+    await expect(t.deleteProject("proj_missing" as ProjectId)).rejects.toBeInstanceOf(NotFound);
   });
 });
 

@@ -9,11 +9,14 @@
 
 import { describe, expect, it, vi } from "vitest";
 import {
+  ConflictError,
+  NotFound,
   OmniFocusError,
   OmniFocusNotRunning,
   PermissionDenied,
   ScriptError,
   TransportUnavailable,
+  ValidationError,
 } from "../../errors/index.js";
 import { type ScriptSpawner, type SpawnResult, runJxaScript } from "./scriptRunner.js";
 
@@ -160,5 +163,70 @@ describe("runJxaScript — error mapping", () => {
       const err = await runJxaScript("script", {}, { spawner }).catch((e) => e);
       expect(err).toBeInstanceOf(OmniFocusError);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// classifyJxaStderr — NotFound / ValidationError / ConflictError patterns
+// ---------------------------------------------------------------------------
+
+describe("runJxaScript — error taxonomy: NotFound", () => {
+  it("maps 'Task not found: <id>' to NotFound", async () => {
+    const spawner = fakeSpawner({ exitCode: 1, stderr: "Task not found: abc123" });
+    await expect(runJxaScript("s", {}, { spawner })).rejects.toBeInstanceOf(NotFound);
+  });
+
+  it("maps 'Project not found: <id>' to NotFound", async () => {
+    const spawner = fakeSpawner({ exitCode: 1, stderr: "Project not found: xyz" });
+    await expect(runJxaScript("s", {}, { spawner })).rejects.toBeInstanceOf(NotFound);
+  });
+
+  it("maps 'Folder not found: <id>' to NotFound", async () => {
+    const spawner = fakeSpawner({ exitCode: 1, stderr: "Folder not found: fid" });
+    await expect(runJxaScript("s", {}, { spawner })).rejects.toBeInstanceOf(NotFound);
+  });
+
+  it("maps 'Tag not found: <id>' to NotFound", async () => {
+    const spawner = fakeSpawner({ exitCode: 1, stderr: "Tag not found: tid" });
+    await expect(runJxaScript("s", {}, { spawner })).rejects.toBeInstanceOf(NotFound);
+  });
+
+  it("maps 'Parent task not found: <id>' to NotFound", async () => {
+    const spawner = fakeSpawner({ exitCode: 1, stderr: "Parent task not found: pid" });
+    await expect(runJxaScript("s", {}, { spawner })).rejects.toBeInstanceOf(NotFound);
+  });
+
+  it("maps 'OF_NOT_FOUND: project <id>' (batch scripts) to NotFound", async () => {
+    const spawner = fakeSpawner({ exitCode: 1, stderr: "OF_NOT_FOUND: project abc" });
+    await expect(runJxaScript("s", {}, { spawner })).rejects.toBeInstanceOf(NotFound);
+  });
+});
+
+describe("runJxaScript — error taxonomy: ValidationError", () => {
+  it("maps 'OF_VALIDATION: ...' to ValidationError", async () => {
+    const spawner = fakeSpawner({ exitCode: 1, stderr: "OF_VALIDATION: name is empty" });
+    await expect(runJxaScript("s", {}, { spawner })).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("maps 'X is required' patterns to ValidationError", async () => {
+    const spawner = fakeSpawner({
+      exitCode: 1,
+      stderr: "One of taskId or projectId is required",
+    });
+    await expect(runJxaScript("s", {}, { spawner })).rejects.toBeInstanceOf(ValidationError);
+  });
+});
+
+describe("runJxaScript — error taxonomy: ConflictError", () => {
+  it("maps 'OF_CONFLICT: ...' to ConflictError", async () => {
+    const spawner = fakeSpawner({ exitCode: 1, stderr: "OF_CONFLICT: stale modifiedAt" });
+    await expect(runJxaScript("s", {}, { spawner })).rejects.toBeInstanceOf(ConflictError);
+  });
+});
+
+describe("runJxaScript — error taxonomy: no false positives", () => {
+  it("does not map generic non-zero exit to NotFound", async () => {
+    const spawner = fakeSpawner({ exitCode: 1, stderr: "unexpected JXA crash" });
+    await expect(runJxaScript("s", {}, { spawner })).rejects.toBeInstanceOf(ScriptError);
   });
 });

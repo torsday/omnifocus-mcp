@@ -12,7 +12,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { FolderId, TagId } from "../../domain/ids.js";
-import { ScriptError } from "../../errors/index.js";
+import { NotFound, ScriptError } from "../../errors/index.js";
 import { JxaTransport } from "./JxaTransport.js";
 import type { ScriptSpawner, SpawnResult } from "./scriptRunner.js";
 
@@ -122,9 +122,9 @@ describe("JxaTransport — getTag", () => {
     expect(arg.id).toBe("tag_aaa");
   });
 
-  it("surfaces ScriptError on not-found", async () => {
+  it("surfaces NotFound on not-found", async () => {
     const t = new JxaTransport({ spawner: spawnerFailing("tag not found") });
-    await expect(t.getTag("tag_missing" as TagId)).rejects.toBeInstanceOf(ScriptError);
+    await expect(t.getTag("tag_missing" as TagId)).rejects.toBeInstanceOf(NotFound);
   });
 });
 
@@ -206,9 +206,9 @@ describe("JxaTransport — deleteTag", () => {
     expect(arg.id).toBe("tag_aaa");
   });
 
-  it("surfaces ScriptError on not-found", async () => {
+  it("surfaces NotFound on not-found", async () => {
     const t = new JxaTransport({ spawner: spawnerFailing("tag not found") });
-    await expect(t.deleteTag("tag_missing" as TagId)).rejects.toBeInstanceOf(ScriptError);
+    await expect(t.deleteTag("tag_missing" as TagId)).rejects.toBeInstanceOf(NotFound);
   });
 });
 
