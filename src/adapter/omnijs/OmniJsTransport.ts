@@ -237,6 +237,9 @@ export class OmniJsTransport implements OmniFocusAdapter {
   async getProject(_id: ProjectId): Promise<Project> {
     return notYetWired("getProject");
   }
+  async getProjectsMany(_ids: ProjectId[]): Promise<(Project | null)[]> {
+    return notYetWired("getProjectsMany");
+  }
   async createProject(_input: CreateProjectInput): Promise<ProjectId> {
     return notYetWired("createProject");
   }
@@ -275,6 +278,9 @@ export class OmniJsTransport implements OmniFocusAdapter {
   }
   async getTag(_id: TagId): Promise<Tag> {
     return notYetWired("getTag");
+  }
+  async getTagsMany(_ids: TagId[]): Promise<(Tag | null)[]> {
+    return notYetWired("getTagsMany");
   }
   async createTag(_input: CreateTagInput): Promise<TagId> {
     return notYetWired("createTag");

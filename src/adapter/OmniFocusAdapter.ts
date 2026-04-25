@@ -346,6 +346,8 @@ export interface OmniFocusAdapter {
 
   listProjects(filter?: { folderId?: FolderId; status?: Project["status"] }): Promise<Project[]>;
   getProject(id: ProjectId): Promise<Project>;
+  /** Bulk fetch by ID list — returns projects in input order. Missing IDs return `null` for that position. */
+  getProjectsMany(ids: ProjectId[]): Promise<(Project | null)[]>;
   createProject(input: CreateProjectInput): Promise<ProjectId>;
   updateProject(id: ProjectId, patch: UpdateProjectInput): Promise<void>;
   completeProject(id: ProjectId, at?: Date): Promise<void>;
@@ -364,6 +366,8 @@ export interface OmniFocusAdapter {
 
   listTags(filter?: { parentId?: TagId; status?: Tag["status"] }): Promise<Tag[]>;
   getTag(id: TagId): Promise<Tag>;
+  /** Bulk fetch by ID list — returns tags in input order. Missing IDs return `null` for that position. */
+  getTagsMany(ids: TagId[]): Promise<(Tag | null)[]>;
   createTag(input: CreateTagInput): Promise<TagId>;
   updateTag(id: TagId, patch: UpdateTagInput): Promise<void>;
   deleteTag(id: TagId): Promise<void>;
