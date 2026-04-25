@@ -96,10 +96,20 @@ const taskCreateInputBaseSchema = z.object({
  * The base schema's `.shape` is used for MCP tool registration so the SDK
  * can read individual field descriptors (ZodEffects from `.refine()` lacks `.shape`).
  */
-export const taskCreateInputSchema = taskCreateInputBaseSchema.refine(
-  (v) => !(v.projectId !== undefined && v.parentTaskId !== undefined),
-  { message: "Supply at most one of projectId or parentTaskId", path: ["projectId"] },
-);
+export const taskCreateInputSchema = taskCreateInputBaseSchema
+  .refine((v) => !(v.projectId !== undefined && v.parentTaskId !== undefined), {
+    message: "Supply at most one of projectId or parentTaskId",
+    path: ["projectId"],
+  })
+  .refine(
+    (v) =>
+      !(
+        v.dueDate !== undefined &&
+        v.deferDate !== undefined &&
+        new Date(v.dueDate) < new Date(v.deferDate)
+      ),
+    { message: "dueDate must not be earlier than deferDate", path: ["dueDate"] },
+  );
 
 export type TaskCreateToolInput = z.infer<typeof taskCreateInputSchema>;
 

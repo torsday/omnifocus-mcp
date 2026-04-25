@@ -158,16 +158,22 @@ export const taskUpdateInputBaseSchema = z.object({
  * The base schema's `.shape` is used for MCP tool registration so the SDK
  * can read individual field descriptors (ZodEffects from `.refine()` lacks `.shape`).
  */
-export const taskUpdateInputSchema = taskUpdateInputBaseSchema.refine(
-  (val) =>
-    !(val.tagIds !== undefined && (val.addTags !== undefined || val.removeTags !== undefined)),
-  {
-    message:
-      "tagIds cannot be combined with addTags/removeTags. " +
-      "Use tagIds for full replacement, or addTags/removeTags for additive diff.",
-    path: ["tagIds"],
-  },
-);
+export const taskUpdateInputSchema = taskUpdateInputBaseSchema
+  .refine(
+    (val) =>
+      !(val.tagIds !== undefined && (val.addTags !== undefined || val.removeTags !== undefined)),
+    {
+      message:
+        "tagIds cannot be combined with addTags/removeTags. " +
+        "Use tagIds for full replacement, or addTags/removeTags for additive diff.",
+      path: ["tagIds"],
+    },
+  )
+  .refine(
+    (v) =>
+      !(v.dueDate != null && v.deferDate != null && new Date(v.dueDate) < new Date(v.deferDate)),
+    { message: "dueDate must not be earlier than deferDate", path: ["dueDate"] },
+  );
 
 export type TaskUpdateToolInput = z.infer<typeof taskUpdateInputSchema>;
 
