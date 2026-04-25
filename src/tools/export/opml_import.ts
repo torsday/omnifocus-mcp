@@ -33,8 +33,9 @@ export const IMPORT_OPML_DESCRIPTION =
   "land in the Inbox. " +
   "LOSSY: due dates, defer dates, and flagged state are preserved; tags, notes, " +
   "attachments, and repetition rules are silently dropped (not encoded in OPML). " +
+  "Do NOT use to export data; prefer export_opml for that. " +
   "Returns { imported, taskIds } where imported is the count of tasks created. " +
-  "Mutations — creates tasks; sync via sync_trigger after import to propagate to other devices.";
+  "Writes to OmniFocus; call sync_trigger after import to propagate changes to other devices.";
 
 // ---------------------------------------------------------------------------
 // Input schema

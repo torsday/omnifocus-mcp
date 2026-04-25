@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 50 tools registered.
+> Auto-generated from source. 73 tools registered.
 
 ## Table of contents
 
@@ -12,6 +12,7 @@
 - [attachment_remove](#attachment_remove)
 - [attachment_save_to_path](#attachment_save_to_path)
 - [export_opml](#export_opml)
+- [export_taskpaper](#export_taskpaper)
 - [folder_create](#folder_create)
 - [folder_delete](#folder_delete)
 - [folder_get](#folder_get)
@@ -19,14 +20,31 @@
 - [folder_move](#folder_move)
 - [folder_update](#folder_update)
 - [forecast_get](#forecast_get)
+- [import_opml](#import_opml)
+- [import_taskpaper](#import_taskpaper)
 - [internal_status](#internal_status)
 - [note_append](#note_append)
 - [note_get](#note_get)
 - [note_get_html](#note_get_html)
 - [note_set](#note_set)
 - [note_set_html](#note_set_html)
+- [perspective_evaluate](#perspective_evaluate)
+- [perspective_list](#perspective_list)
 - [plugin_invoke](#plugin_invoke)
+- [project_complete](#project_complete)
+- [project_create](#project_create)
 - [project_delete](#project_delete)
+- [project_drop](#project_drop)
+- [project_get](#project_get)
+- [project_list](#project_list)
+- [project_mark_reviewed](#project_mark_reviewed)
+- [project_move](#project_move)
+- [project_update](#project_update)
+- [review_list_due](#review_list_due)
+- [review_mark_reviewed](#review_mark_reviewed)
+- [review_set_interval](#review_set_interval)
+- [run_jxa_script](#run_jxa_script)
+- [run_omnijs_script](#run_omnijs_script)
 - [search_query](#search_query)
 - [sync_status](#sync_status)
 - [sync_trigger](#sync_trigger)
@@ -44,7 +62,10 @@
 - [task_batch_create](#task_batch_create)
 - [task_batch_update](#task_batch_update)
 - [task_clear_repetition](#task_clear_repetition)
+- [task_complete](#task_complete)
+- [task_create](#task_create)
 - [task_delete](#task_delete)
+- [task_drop](#task_drop)
 - [task_duplicate](#task_duplicate)
 - [task_find_by_name](#task_find_by_name)
 - [task_get](#task_get)
@@ -55,6 +76,8 @@
 - [task_reorder](#task_reorder)
 - [task_search](#task_search)
 - [task_set_repetition](#task_set_repetition)
+- [task_uncomplete](#task_uncomplete)
+- [task_undrop](#task_undrop)
 - [task_update](#task_update)
 
 ---
@@ -242,6 +265,40 @@ _No parameters._
 ```json
 {
   "toolName": "export_opml",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## export_taskpaper
+
+Export OmniFocus data as TaskPaper plain text. Three scopes: 'project' (one project + its tasks), 'folder' (all projects in a folder), or 'all' (all active projects). Export is lossy — HTML notes are downgraded to plain text; tag locations, attachments, and complex repetition rules are omitted. Lossiness warnings are returned in meta.warnings. Do NOT use to import data; prefer import_taskpaper for that. Returns { taskpaper, projectCount, taskCount }. Safe to call repeatedly; no side effects.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `scope` | one of: project | folder | all | Yes | What to export: 'project' (one project), 'folder' (all projects in a folder), or 'all' (all active projects). |
+| `id` | string | No | Required when scope='project' (project ID from project_list) or scope='folder' (folder ID from folder_list). Omit for scope='all'. |
+
+### Example call
+
+```json
+{
+  "toolName": "export_taskpaper",
   "arguments": {}
 }
 ```
@@ -540,6 +597,74 @@ _No parameters._
 ```
 ---
 
+## import_opml
+
+Import tasks from an OPML XML string into OmniFocus. Parses the OPML produced by export_opml and recreates the task hierarchy. Top-level <outline type="omnifocus:project"> elements are matched to existing projects by OmniFocus ID (for round-trip) then by name; unmatched project outlines land in the Inbox. LOSSY: due dates, defer dates, and flagged state are preserved; tags, notes, attachments, and repetition rules are silently dropped (not encoded in OPML). Do NOT use to export data; prefer export_opml for that. Returns { imported, taskIds } where imported is the count of tasks created. Writes to OmniFocus; call sync_trigger after import to propagate changes to other devices.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `opml` | string | Yes | Well-formed OPML XML string to import. Use the output of export_opml for a round-trip. |
+| `destinationProjectId` | string | No | When set, all tasks are created in this project regardless of project headings in the OPML. Get the ID from project_list. Omit to match projects by ID/name from the OPML structure. |
+
+### Example call
+
+```json
+{
+  "toolName": "import_opml",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## import_taskpaper
+
+Import tasks from TaskPaper text into OmniFocus. Parses '- Task name @tag @due(2026-01-15) @defer(2026-01-10) @flagged' lines. Indented subtasks become children of the nearest parent task. Project headings ('Project name:') map to existing OF projects by name — unrecognised headings fall back to inbox (warning emitted). Unknown @tags are created automatically. Do NOT use to export data; prefer export_taskpaper for that. Returns { created: TaskId[], warnings: string[] }. Writes to OmniFocus; call sync_trigger to propagate changes to other devices.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `text` | string | Yes | TaskPaper-formatted text to import. Each '- Task name' line becomes a task. |
+| `targetProjectId` | string | No | When set, all top-level tasks are created in this project regardless of project headings in the text. Get the ID from project_list. |
+
+### Example call
+
+```json
+{
+  "toolName": "import_taskpaper",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
 ## internal_status
 
 Return a health snapshot of the running omnifocus-mcp server. Do NOT use this to read OmniFocus data — prefer task_list, project_list, sync_status, etc. Returns { uptimeMs, ofRunning, lastSync, cache, circuits, queueDepth }. uptimeMs is the milliseconds since the server process started. circuits lists each circuit-breaker name and state (closed/open/half_open). lastSync mirrors sync_status data; null if getLastSync throws. Read-only; no side effects.
@@ -777,6 +902,70 @@ Replace the HTML fragment note on a task or project. Overwrites the existing not
 ```
 ---
 
+## perspective_evaluate
+
+Evaluate an OmniFocus perspective and return its task list. Accepts both built-in ids (inbox, projects, tags, forecast, flagged, nearby, review) and custom-perspective ids obtained from perspective_list — the tool selects the correct transport internally (JXA for built-in, OmniJS for custom). Custom perspectives require OmniFocus Pro; otherwise returns an error with code OF_FEATURE_REQUIRES_PRO. Returns { tasks: Task[] }. For 'review', returns [] — use review_list_due instead. For 'nearby', returns [] (location unavailable). No side effects; read-only.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `perspectiveId` | string | Yes | OmniFocus perspective id. Accepts a built-in id (inbox, projects, tags, forecast, flagged, nearby, review) or a custom-perspective id from perspective_list (kind: custom). |
+
+### Example call
+
+```json
+{
+  "toolName": "perspective_evaluate",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## perspective_list
+
+List all perspectives in OmniFocus — both built-in (Inbox, Projects, Tags, Forecast, Flagged, Nearby, Review) and custom (OmniFocus Pro). Do not use to evaluate a perspective; prefer perspective_evaluate for that. Returns each perspective's id, name, kind (builtin|custom), and requiresPro flag. Safe to call repeatedly; no side effects, no writes.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "perspective_list",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
 ## plugin_invoke
 
 Invoke a named Omni Automation plug-in action in OmniFocus. Use this when you need to run a specific installed plug-in — not for built-in OmniFocus operations. Do NOT use to run arbitrary JavaScript; for raw scripting use run_omnijs_script (requires opt-in env var). `identifier` is the plug-in's bundle ID (e.g. `"com.example.my-plugin"`). `arg` is an optional JSON-serialisable value passed to the plug-in action as Action.args[0]. Returns { result } where result is the plug-in's return value (arbitrary JSON). Throws NotFound if the plug-in is not installed. Side effects: plug-in may mutate OmniFocus data; call sync_trigger if you need changes on other devices.
@@ -790,6 +979,83 @@ _No parameters._
 ```json
 {
   "toolName": "plugin_invoke",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## project_complete
+
+Complete an OmniFocus project — marks it done with today's date and moves it out of the active view. Use when a project is finished. Do not use to archive or hide a project without completing it; prefer project_drop for that. Returns { completed: true, id }. Side effects: sets completionDate, removes from active projects, sets meta.syncPending = true.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the project to complete. |
+
+### Example call
+
+```json
+{
+  "toolName": "project_complete",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## project_create
+
+Create a new OmniFocus project. Optionally place it in a folder, assign tags, set completion criterion, status, defer/due dates, estimated minutes, flagged state, and review interval. Safety control: pass idempotency_key to make transport retries safe — identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of creating a duplicate project. Returns { created: true, id }. Side effects: creates a project in OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the project to appear on other devices.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Project name. Required, must be non-empty. |
+| `folderId` | string | No | Folder ID to place the project in. Omit for root. |
+| `note` | string | No | Plain-text note for the project. |
+| `status` | one of: active | on-hold | No | Initial project status. Default: active. |
+| `completionCriterion` | one of: parallel | sequential | singleActions | No | How the project's tasks are completed: parallel (any order), sequential (in order), or singleActions. |
+| `deferDate` | string | No | Defer date as ISO-8601 with UTC offset. |
+| `dueDate` | string | No | Due date as ISO-8601 with UTC offset. |
+| `estimatedMinutes` | number | No | Estimated total duration in minutes. |
+| `flagged` | boolean | No | Flag the project. |
+| `tagIds` | string[] | No | Tag IDs to apply to the project. |
+| `reviewIntervalDays` | number | No | Review interval in days. Omit to use OmniFocus default. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe creates. Identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of creating a duplicate project. |
+
+### Example call
+
+```json
+{
+  "toolName": "project_create",
   "arguments": {}
 }
 ```
@@ -841,6 +1107,391 @@ Permanently delete an OmniFocus project and ALL its contained tasks. IRREVERSIBL
     "deleted": true,
     "id": "abc123"
   },
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## project_drop
+
+Drop an OmniFocus project — marks it as on-hold/dropped and removes it from the active view without completing it. Use to defer or abandon a project while keeping it recoverable. Do not use if the project is actually done; prefer project_complete for that. Returns { dropped: true, id }. Side effects: changes project status, sets meta.syncPending = true.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the project to drop. |
+
+### Example call
+
+```json
+{
+  "toolName": "project_drop",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## project_get
+
+Fetch a single OmniFocus project by persistent ID. Do NOT use for queries across projects — use project_list. When includeTaskTree=true (default), the project's flat task list is attached. Returns { project, tasks? }; safe to call repeatedly; no side effects.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent project ID. Get from project_list or search_query. |
+| `includeTaskTree` | boolean | No | Whether to attach the project's tasks (flat array; clients rebuild the tree via parentId). Default true. Set to false for a fast project-only read. |
+
+### Example call
+
+```json
+{
+  "toolName": "project_get",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## project_list
+
+List projects in OmniFocus with optional filters. Use for queries across projects. Do NOT use for a known single project (use project_get). Filters: folderId, status, flagged, reviewDueBefore. Returns projects[] with pagination; safe to call repeatedly; no side effects.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `folderId` | string | No | Restrict to projects inside this folder. Get the ID from folder_list. Omit for all folders. |
+| `status` | one of: active | on-hold | done | dropped | No | Restrict to projects with this status. 'active' = available; 'on-hold' = paused; 'done' = completed; 'dropped' = abandoned. Omit for any status. |
+| `flagged` | boolean | No | true = flagged only; false = unflagged only; omit = both. |
+| `reviewDueBefore` | string | No | Restrict to projects whose next review date is strictly before this moment. ISO-8601 with offset (e.g. '2026-05-01T00:00:00-07:00'). Projects without a review interval are excluded. |
+| `limit` | number | No | Max projects per page (1..1000). Default 200. Use `cursor` to fetch subsequent pages. |
+| `cursor` | string | No | Opaque cursor from a previous project_list response. Must use the same filters — changing filters mid-sequence returns a ValidationError. |
+
+### Example call
+
+```json
+{
+  "toolName": "project_list",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## project_mark_reviewed
+
+Convenience alias for review_mark_reviewed — mark a single project as reviewed, setting lastReviewDate to now and advancing nextReviewDate. Use when you have a project id and want a single-call review operation. Do not use to list projects due for review; prefer review_list_due for that. Returns the project id. Side effects: writes to OmniFocus; sets syncPending = true.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the project to mark as reviewed. |
+
+### Example call
+
+```json
+{
+  "toolName": "project_mark_reviewed",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## project_move
+
+Move an OmniFocus project to a different folder. Pass folderId to move into a folder, or null to move to the root (no folder). Use when reorganizing projects. Do not use to complete or drop a project. Returns { moved: true, id }. Side effects: changes the project's folder, sets meta.syncPending = true.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the project to move. |
+| `folderId` | string | null | Yes | Target folder ID, or null to move to root. |
+
+### Example call
+
+```json
+{
+  "toolName": "project_move",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## project_update
+
+Partially update mutable fields on an OmniFocus project. Only supplied fields are changed; omit a field to leave it unchanged. Pass null for note, deferDate, dueDate, estimatedMinutes, or reviewIntervalDays to clear those fields. Do NOT use to create or delete projects; prefer project_create or project_delete instead. Safety controls: set dry_run=true to preview without mutating; pass expectedModifiedAt (from a recent project_get) to reject the call if the project changed since you read it; pass idempotency_key to coalesce retries so the same update is only performed once. Returns { updated: true, id }. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent project ID. Get from project_list or project_get. |
+| `name` | string | No | New project name. Must be non-empty if supplied. |
+| `note` | string | null | No | Plain-text note. Pass null to clear. |
+| `noteHtml` | string | null | No | HTML note. Pass null to clear. Prefer note for plain-text edits. |
+| `status` | one of: active | on-hold | No | Project status. Use project_complete or project_drop to close a project. |
+| `completionCriterion` | one of: parallel | sequential | singleActions | No | How the project's tasks are completed. |
+| `deferDate` | string | null | No | ISO-8601 defer date with UTC offset. Pass null to clear. |
+| `dueDate` | string | null | No | ISO-8601 due date with UTC offset. Pass null to clear. |
+| `estimatedMinutes` | number | null | No | Estimated total duration in minutes. Pass null to clear. |
+| `flagged` | boolean | No | Flag or unflag the project. |
+| `tagIds` | string[] | No | Full-replacement tag list. Replaces all existing tags. |
+| `reviewIntervalDays` | number | null | No | Review interval in days. Pass null to clear. |
+| `expectedModifiedAt` | string | No | Optimistic-concurrency guard: ISO-8601 timestamp from a recent project_get. If the project's current modifiedAt differs, the call fails with OF_CONFLICT and no update is performed. Omit to skip the check. |
+| `dry_run` | boolean | No | When true, validates input and returns a preview envelope with meta.dryRun = true; no adapter call is made and no mutation occurs. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe updates. Identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of re-applying the patch. |
+
+### Example call
+
+```json
+{
+  "toolName": "project_update",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## review_list_due
+
+List projects due for review in OmniFocus — those whose next review date is today or earlier, or has never been set. Sorted by next review date ascending (overdue first, never-reviewed first). Do not use to get all projects; prefer project_list for that. Returns each project's id, name, nextReviewDate, lastReviewDate, and reviewIntervalDays. Safe to call repeatedly; no side effects, no writes.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "review_list_due",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## review_mark_reviewed
+
+Mark a project as reviewed in OmniFocus — sets lastReviewDate to now and advances nextReviewDate by the project's review interval. Use this after completing a weekly review of a project. Do not use to change the review interval; prefer review_set_interval for that. Returns the project id. Side effects: writes to OmniFocus; sets syncPending = true.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the project to mark as reviewed. |
+
+### Example call
+
+```json
+{
+  "toolName": "review_mark_reviewed",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## review_set_interval
+
+Set a project's review interval in OmniFocus — updates how many days between reviews. Use null to remove the recurring schedule. Do not use to mark a project as reviewed; prefer review_mark_reviewed for that. Returns the project id. Side effects: writes to OmniFocus; sets syncPending = true.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the project to update. |
+| `days` | number | null | Yes | Review interval in days. Pass null to remove the recurring review schedule. |
+
+### Example call
+
+```json
+{
+  "toolName": "review_set_interval",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## run_jxa_script
+
+⚠ DANGEROUS — raw JXA escape hatch. Executes an arbitrary JavaScript-for-Automation script against OmniFocus with FULL Automation privileges (read, write, delete, move, sync). Only available when the server was started with OMNIFOCUS_ALLOW_RAW_SCRIPT=1. Every call is audit-logged with the full script body. Do NOT use this for operations covered by the typed tools (task_*, project_*, tag_*, folder_*, etc.) — typed tools are safer, idempotent, and return structured results. Use ONLY when you need a feature no typed tool exposes AND you control the environment. `script` must be a JXA program that defines `function run(argv)` and returns a JSON-encoded string. `arg` is an optional JSON-serialisable value passed as argv[0] (defaults to `{}`). Returns { result } where result is the parsed JSON output of the script (arbitrary shape). Side effects: may mutate, delete, or exfiltrate any OmniFocus data the user has access to. Use sync_trigger separately if the script mutated data and you need it to propagate.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `script` | string | Yes | Raw JXA script body. Must define `function run(argv)` and return a JSON-encoded string. |
+| `arg` | unknown | No | Optional JSON-serialisable argument passed to `run()` as argv[0]. Defaults to `{}`. |
+
+### Example call
+
+```json
+{
+  "toolName": "run_jxa_script",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## run_omnijs_script
+
+⚠ DANGEROUS — raw OmniJS escape hatch. Executes an arbitrary Omni Automation (OmniJS) script against OmniFocus with FULL Automation privileges (read, write, delete, move, sync, plug-in APIs). Only available when the server was started with OMNIFOCUS_ALLOW_RAW_SCRIPT=1. Every call is audit-logged with the full script body. Do NOT use this for operations covered by the typed tools (task_*, project_*, plugin_invoke, etc.) — typed tools are safer, idempotent, and return structured results. Use ONLY when you need a feature no typed tool exposes AND you control the environment. `script` is a raw OmniJS program; the serialised result must be JSON-encodable. `arg` is an optional JSON-serialisable value forwarded through the callback-file bridge (defaults to `{}`). Returns { result } where result is the parsed JSON output of the script (arbitrary shape). Side effects: may mutate, delete, or exfiltrate any OmniFocus data the user has access to. Use sync_trigger separately if the script mutated data and you need it to propagate.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `script` | string | Yes | Raw OmniJS script body. Must produce a JSON-encodable result. |
+| `arg` | unknown | No | Optional JSON-serialisable argument forwarded through the callback-file bridge. Defaults to `{}`. |
+
+### Example call
+
+```json
+{
+  "toolName": "run_omnijs_script",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
   "meta": {
     "requestId": "req_01ABC",
     "durationMs": 5
@@ -1528,6 +2179,84 @@ Remove the repetition rule from an OmniFocus task. After clearing, the task beco
 ```
 ---
 
+## task_complete
+
+Complete an OmniFocus task — marks it done with a completion timestamp. Accepts an optional ISO-8601 date for the completion time; defaults to now. Idempotent: returns noChange: true if the task is already completed. Do not use to drop or delete a task. Returns { done: true, id } or { noChange: true, id }. Side effects: sets completedAt, sets meta.syncPending = true.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent task ID. |
+| `at` | string | No | ISO-8601 completion time. Defaults to now. |
+
+### Example call
+
+```json
+{
+  "toolName": "task_complete",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_create
+
+Create a new task in OmniFocus — in the inbox, inside a project, or as a subtask of another task. Supply exactly one of: projectId (project task), parentTaskId (subtask), or neither (inbox). Do not use for bulk creation; prefer task_batch_create for that. Safety control: pass idempotency_key to make transport retries safe — identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of creating a duplicate task. Returns the new task's id. Side effects: creates a task in OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the task to appear on other devices.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Task name. Required, must be non-empty. |
+| `projectId` | string | No | Project to add the task to. Omit for inbox or subtask. |
+| `parentTaskId` | string | No | Parent task ID for a subtask. Omit for inbox or project task. |
+| `note` | string | No | Plain-text note. |
+| `flagged` | boolean | No | Flag the task. |
+| `dueDate` | string | No | Due date as ISO-8601 with offset. |
+| `deferDate` | string | No | Defer date as ISO-8601 with offset. |
+| `estimatedMinutes` | number | No | Estimated duration in minutes. |
+| `tagIds` | string[] | No | Tag IDs to apply. |
+| `sequential` | boolean | No | If true, subtasks must be completed in order. |
+| `completedByChildren` | boolean | No | Complete when all subtasks complete. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe creates. Identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of creating a duplicate task. |
+
+### Example call
+
+```json
+{
+  "toolName": "task_create",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
 ## task_delete
 
 Permanently delete an OmniFocus task. IRREVERSIBLE — uses OmniFocus deleteObject; there is no undo. Prefer task_drop when you want a recoverable status change. Only use task_delete when the agent has explicit user intent to permanently remove the task. Safety controls: set dry_run=true to preview without mutating; pass expectedModifiedAt (from a recent task_get) to reject the call if the task changed since you read it; pass idempotency_key to coalesce retries so the same delete is only performed once. Returns { deleted: true, id } on success. Side effects: removes the task from OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the deletion to appear on other devices.
@@ -1561,6 +2290,40 @@ Permanently delete an OmniFocus task. IRREVERSIBLE — uses OmniFocus deleteObje
     "deleted": true,
     "id": "abc123"
   },
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_drop
+
+Drop an OmniFocus task — marks it as dropped/deferred and removes it from active view. Reversible via task_undrop. Accepts an optional ISO-8601 date. Idempotent: returns noChange: true if already dropped. Do not use to complete or delete a task. Returns { done: true, id } or { noChange: true, id }. Side effects: sets droppedAt, sets meta.syncPending = true.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent task ID. |
+| `at` | string | No | ISO-8601 drop time. Defaults to now. |
+
+### Example call
+
+```json
+{
+  "toolName": "task_drop",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
   "meta": {
     "requestId": "req_01ABC",
     "durationMs": 5
@@ -1896,16 +2659,19 @@ _No parameters._
 
 ## task_search
 
-Search OmniFocus tasks by keyword. Scans task names and/or notes (controlled by scope) for a case-insensitive substring match. Optionally narrow results by projectId, tagIds (task must carry ALL listed tags), flagged state, and completion state. Do NOT use when you already have an ID — prefer task_get instead. Do NOT use for structured browsing by project/tag; prefer task_list for that. Returns the full Task domain shape — same as task_list — so no follow-up read is needed. Returns tasks[]; safe to call repeatedly; no side effects.
+Search OmniFocus tasks by keyword and/or structured filters. q is optional — omit it to filter by tag, project, date range, or availability alone. When q is supplied, scans task names and/or notes (controlled by scope) for a case-insensitive substring match. Narrow results with: projectId, tagIds (task must carry ALL listed tags), available, dueBefore, dueAfter, flagged, and completed. At least one of q, projectId, tagIds, available, dueBefore, or dueAfter must be provided. Do NOT use when you already have an ID — prefer task_get instead. Prefer task_list for paginated browsing over large result sets. Returns the full Task domain shape — same as task_list — so no follow-up read is needed. Returns tasks[]; safe to call repeatedly; no side effects.
 
 ### Input
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `q` | string | Yes | Search query. Case-insensitive substring match applied to the fields in scope. |
-| `scope` | one of: name | note | all | No | 'name' = search task name only; 'note' = search note only; 'all' = both (default). |
+| `q` | string | No | Search query. Case-insensitive substring match applied to the fields in scope. Optional — omit to filter by tags, project, date range, or availability alone. |
+| `scope` | one of: name | note | all | No | 'name' = search task name only; 'note' = search note only; 'all' = both (default). Ignored when q is omitted. |
 | `projectId` | string | No | Restrict search to tasks within this project. |
 | `tagIds` | string[] | No | Restrict to tasks carrying ALL of these tag IDs. |
+| `available` | boolean | No | true = only tasks available to work on now (not blocked, not deferred, not completed). Omit = all. |
+| `dueBefore` | string | No | Tasks with dueDate strictly before this moment. ISO-8601 with offset or relative shortcut. |
+| `dueAfter` | string | No | Tasks with dueDate strictly after this moment. ISO-8601 with offset or relative shortcut. |
 | `flagged` | boolean | No | true = flagged tasks only; false = unflagged only; omit = all. |
 | `completed` | one of: any | only | exclude | No | 'exclude' = active tasks only (default); 'only' = completed tasks only; 'any' = both. |
 
@@ -1972,6 +2738,72 @@ Set the repetition rule on an OmniFocus task. Overwrites any existing rule. Use 
       "steps": 1
     }
   },
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_uncomplete
+
+Mark an OmniFocus task as incomplete — removes its completion timestamp. Idempotent: returns noChange: true if the task is already incomplete. Do not use to drop or delete a task. Returns { done: true, id } or { noChange: true, id }. Side effects: clears completedAt, sets meta.syncPending = true.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent task ID. |
+
+### Example call
+
+```json
+{
+  "toolName": "task_uncomplete",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_undrop
+
+Restore a dropped OmniFocus task — clears its dropped status and returns it to the active view. Idempotent: returns noChange: true if the task is not dropped. Do not use to complete a task. Returns { done: true, id } or { noChange: true, id }. Side effects: clears droppedAt, sets meta.syncPending = true.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent task ID. |
+
+### Example call
+
+```json
+{
+  "toolName": "task_undrop",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
   "meta": {
     "requestId": "req_01ABC",
     "durationMs": 5
