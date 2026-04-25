@@ -27,7 +27,7 @@ permissions:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macos]
     # Skip if the edit was made by the filer script — it verifies its own output.
     if: github.event.issue.state == 'open'
     env:

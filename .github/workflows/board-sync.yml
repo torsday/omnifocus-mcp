@@ -31,7 +31,7 @@ env:
 jobs:
   pr:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macos]
     steps:
       - name: Skip if no token
         if: env.GH_TOKEN == ''
@@ -110,7 +110,7 @@ jobs:
 
   issue-closed:
     if: github.event_name == 'issues' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macos]
     steps:
       - name: Skip if no token
         if: env.GH_TOKEN == ''

@@ -98,8 +98,8 @@ For `/loop` dynamic mode (no interval specified) in this project, default `Sched
 
 ## CI status — current known issues
 
-- **Self-hosted runner `mac-local` handles PR CI.** Labels: `self-hosted, macOS, ARM64, macos-omnifocus`. `ci.yml` targets `[self-hosted, macos]` and runs locally, bypassing the GitHub Actions billing issue on macOS.
-- **GitHub-hosted workflows remain blocked on billing.** `release.yml` (`macos-latest`), `board-sync.yml` and `pr-title.yml` (`ubuntu-latest`) will not run until the billing issue on the GitHub account is resolved. None of these gate day-to-day development: release fires on version tags, the other two are informational.
+- **Self-hosted runner `mac-local` handles PR CI.** Labels: `self-hosted, macOS, ARM64, macos-omnifocus`. The following workflows target `[self-hosted, macos]` and run locally, bypassing GitHub-hosted billing: `ci.yml`, `release.yml`, `integration.yml`, `board-sync.yml`, `issue-lint.yml`, `pr-link.yml`, `validate-deps-nightly.yml`, `verify-constants.yml`.
+- **Two workflows remain on `ubuntu-latest`** because they depend on Linux-only Docker actions: `meta-lint.yml` (`ludeeus/action-shellcheck`) and `pr-title.yml` (`amannn/action-semantic-pull-request`). They will not run until either the GitHub-hosted billing issue is resolved, a Linux self-hosted runner is added, or the Docker actions are replaced with macOS-native equivalents (e.g. `brew install shellcheck` + a script step for shellcheck). None of these gate day-to-day development.
 - **Integration CI requires macOS Automation permission.** `integration.yml` runs JXA scripts against a live OmniFocus on `mac-local`. The runner's shell process must have Automation access to OmniFocus (System Settings → Privacy & Security → Automation) or all tests fail with `"JXA script returned empty stdout"`.
 - **Branch protection is unavailable** on this plan (private repo, free tier) — nothing gates merge on CI. `gh pr merge --auto` behaves like immediate merge. Prefer explicit `gh pr merge <N> --rebase --delete-branch` after local verification.
 
