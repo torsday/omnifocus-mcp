@@ -82,7 +82,6 @@ import taskGetScript from "../../scripts/jxa/task_get.js";
 import taskGetManyScript from "../../scripts/jxa/task_get_many.js";
 import taskListScript from "../../scripts/jxa/task_list.js";
 import taskMoveScript from "../../scripts/jxa/task_move.js";
-import taskReorderScript from "../../scripts/jxa/task_reorder.js";
 import taskSearchScript from "../../scripts/jxa/task_search.js";
 import taskUncompleteScript from "../../scripts/jxa/task_uncomplete.js";
 import taskUndropScript from "../../scripts/jxa/task_undrop.js";
@@ -282,33 +281,14 @@ export class JxaTransport implements OmniFocusAdapter {
     );
   }
 
-  async reorderTask(id: TaskId, position: TaskPosition): Promise<void> {
-    let payload: {
-      id: TaskId;
-      mode: "before" | "after" | "start" | "end";
-      refId?: TaskId;
-      container?: {
-        projectId?: ProjectId | null;
-        parentId?: TaskId | null;
-        inbox?: true;
-      };
-    };
-    if ("before" in position) {
-      payload = { id, mode: "before", refId: position.before };
-    } else if ("after" in position) {
-      payload = { id, mode: "after", refId: position.after };
-    } else {
-      const container =
-        "projectId" in position.in
-          ? { projectId: position.in.projectId }
-          : "parentId" in position.in
-            ? { parentId: position.in.parentId }
-            : { inbox: true as const };
-      payload = { id, mode: position.at, container };
-    }
-    await runJxaScript<{ id: string }>(taskReorderScript, payload, {
-      ...this.runOpts,
-      scriptName: "task_reorder",
+  async reorderTask(_id: TaskId, _position: TaskPosition): Promise<void> {
+    // JXA's task.move() with `positioned:` shares the same broken code path
+    // as the non-positioned form — both throw error 9 ("Replacement not
+    // supported currently") in OmniFocus 4.x. reorderTask routes to
+    // OmniJsTransport which uses Database.moveTasks() + ChildInsertionLocation.
+    // See docs/spikes/2026-04-task-reorder.md for the full evaluation.
+    throw new ScriptError("reorderTask routes to OmniJsTransport — JXA transport unavailable", {
+      details: { transport: "jxa", reason: "routes-to-omnijs", method: "reorderTask" },
     });
   }
 

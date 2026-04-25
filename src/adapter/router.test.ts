@@ -245,6 +245,7 @@ describe("TransportRouter — table integrity", () => {
       "evaluateCustomPerspective",
       "moveTask", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works
       "pluginInvoke",
+      "reorderTask", // JXA task.move(positioned:) → same error 9; OmniJS moveTasks + ChildInsertionLocation
       "runOmniJsScript",
     ]);
   });
