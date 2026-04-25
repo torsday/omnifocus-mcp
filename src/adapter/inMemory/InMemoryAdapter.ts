@@ -1230,6 +1230,19 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     );
   }
 
+  // -- Change detection ------------------------------------------------------
+
+  async getChangesSince(sinceIso: string): Promise<{ taskIds: string[]; projectIds: string[] }> {
+    const since = new Date(sinceIso).getTime();
+    const taskIds = [...this.tasks.values()]
+      .filter((t) => new Date(t.modifiedAt).getTime() >= since)
+      .map((t) => t.id as string);
+    const projectIds = [...this.projects.values()]
+      .filter((p) => new Date(p.modifiedAt).getTime() >= since)
+      .map((p) => p.id as string);
+    return { taskIds, projectIds };
+  }
+
   // -- Internal helpers -----------------------------------------------------
 
   private matchesTask(task: Task, filter: TaskFilter): boolean {

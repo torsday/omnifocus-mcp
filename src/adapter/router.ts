@@ -157,6 +157,9 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   // -- Plug-in invocation ---------------------------------------------------
   pluginInvoke: "omnijs",
 
+  // -- Change detection ------------------------------------------------------
+  getChangesSince: "jxa",
+
   // -- Raw escape hatches ---------------------------------------------------
   runJxaScript: "jxa",
   runOmniJsScript: "omnijs",
@@ -453,5 +456,9 @@ export class TransportRouter implements OmniFocusAdapter {
       );
     }
     return target.runOmniJsScript(script, arg);
+  }
+
+  getChangesSince(sinceIso: string): Promise<{ taskIds: string[]; projectIds: string[] }> {
+    return this.pick("getChangesSince").getChangesSince(sinceIso);
   }
 }

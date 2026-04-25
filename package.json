@@ -44,6 +44,8 @@
   },
   "scripts": {
     "build": "tsup",
+    "build:watcher": "bash scripts/build-watcher.sh",
+    "build:watcher:all": "bash scripts/build-watcher.sh --all",
     "dev": "tsx watch src/index.ts",
     "typecheck": "tsc --noEmit",
     "docs:generate": "tsx scripts/generate-tool-docs.ts",

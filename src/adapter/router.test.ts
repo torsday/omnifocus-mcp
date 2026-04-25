@@ -89,6 +89,7 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     saveAttachmentToPath: record("saveAttachmentToPath"),
     syncTrigger: record("syncTrigger"),
     getLastSync: record("getLastSync"),
+    getChangesSince: record("getChangesSince"),
     runJxaScript: record("runJxaScript"),
     runOmniJsScript: record("runOmniJsScript"),
   };
@@ -158,6 +159,7 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
       r.saveAttachmentToPath({ taskId: T_ID, attachmentId: ATT_ID, destPath: "/tmp/out.txt" }),
     syncTrigger: () => r.syncTrigger(),
     getLastSync: () => r.getLastSync(),
+    getChangesSince: () => r.getChangesSince("2026-01-01T00:00:00.000Z"),
     runJxaScript: () => r.runJxaScript("noop"),
     runOmniJsScript: () => r.runOmniJsScript("noop"),
   };
