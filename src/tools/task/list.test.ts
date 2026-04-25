@@ -12,7 +12,7 @@ import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import { OmniFocusLruCache } from "../../cache/lruCache.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { TaskService } from "../../services/taskService.js";
-import { TASK_LIST_DESCRIPTION, handleTaskList, taskListInputSchema } from "./list.js";
+import { handleTaskList, TASK_LIST_DESCRIPTION, taskListInputSchema } from "./list.js";
 
 // ---------------------------------------------------------------------------
 // Harness

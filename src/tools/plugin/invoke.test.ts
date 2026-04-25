@@ -11,8 +11,8 @@ import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { NotFound } from "../../errors/index.js";
 import {
-  PLUGIN_INVOKE_DESCRIPTION,
   handlePluginInvoke,
+  PLUGIN_INVOKE_DESCRIPTION,
   pluginInvokeInputSchema,
 } from "./invoke.js";
 

@@ -35,13 +35,13 @@ import {
   CAPTURE_MEETING_PROMPT,
   DAILY_REVIEW_PROMPT,
   PROJECT_PLANNING_PROMPT,
-  WEEKLY_REVIEW_PROMPT,
   registerOmniFocusPrompts,
+  WEEKLY_REVIEW_PROMPT,
 } from "../prompts/omnifocus.js";
 import { ToolRateLimiter } from "../rateLimit/ToolRateLimiter.js";
 import {
-  CAPABILITIES_URI,
   buildCapabilities,
+  CAPABILITIES_URI,
   registerCapabilitiesResource,
 } from "../resources/capabilities.js";
 import {
@@ -52,9 +52,9 @@ import {
   PERSPECTIVE_URI_TEMPLATE,
   PROJECT_URI_TEMPLATE,
   REVIEW_DUE_URI,
+  registerOmniFocusResources,
   SNAPSHOT_URI,
   TAG_URI_TEMPLATE,
-  registerOmniFocusResources,
 } from "../resources/omnifocus.js";
 import { registerAppLaunchTool } from "../tools/app/launch.js";
 import { registerAttachmentTools } from "../tools/attachment/index.js";

@@ -7,8 +7,8 @@ import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { PerspectiveService } from "../../services/perspectiveService.js";
 import {
-  PERSPECTIVE_LIST_DESCRIPTION,
   handlePerspectiveList,
+  PERSPECTIVE_LIST_DESCRIPTION,
   perspectiveListInputSchema,
 } from "./list.js";
 

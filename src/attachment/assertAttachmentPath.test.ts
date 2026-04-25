@@ -15,6 +15,7 @@ vi.mock("node:fs/promises", () => ({
 }));
 
 import { realpath } from "node:fs/promises";
+
 const mockRealpath = vi.mocked(realpath);
 
 // ---------------------------------------------------------------------------

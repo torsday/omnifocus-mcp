@@ -8,8 +8,8 @@ import type { InvalidatingCache } from "../../cache/invalidation.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { ReviewService } from "../../services/reviewService.js";
 import {
-  REVIEW_MARK_REVIEWED_DESCRIPTION,
   handleReviewMarkReviewed,
+  REVIEW_MARK_REVIEWED_DESCRIPTION,
   reviewMarkReviewedInputSchema,
 } from "./markReviewed.js";
 

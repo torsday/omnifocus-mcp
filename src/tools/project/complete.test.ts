@@ -8,8 +8,8 @@ import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.
 import type { ResponseMeta } from "../../envelope/index.js";
 import { ProjectService } from "../../services/projectService.js";
 import {
-  PROJECT_COMPLETE_DESCRIPTION,
   handleProjectComplete,
+  PROJECT_COMPLETE_DESCRIPTION,
   projectCompleteInputSchema,
 } from "./complete.js";
 

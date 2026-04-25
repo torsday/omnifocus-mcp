@@ -18,8 +18,8 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
 import { InMemoryAdapter } from "../adapter/inMemory/InMemoryAdapter.js";
+import type { OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
 import { OmniFocusLruCache } from "../cache/lruCache.js";
 import type { ProjectId, TagId, TaskId } from "../domain/ids.js";
 import { NotFound, ValidationError } from "../errors/index.js";

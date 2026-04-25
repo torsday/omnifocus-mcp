@@ -5,8 +5,8 @@
 import { describe, expect, it } from "vitest";
 import type { ResponseMeta } from "../../envelope/index.js";
 import {
-  TASK_PARSE_TRANSPORT_TEXT_DESCRIPTION,
   handleTaskParseTransportText,
+  TASK_PARSE_TRANSPORT_TEXT_DESCRIPTION,
 } from "./parseTransportText.js";
 
 // ---------------------------------------------------------------------------

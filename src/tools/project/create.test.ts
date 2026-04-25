@@ -11,8 +11,8 @@ import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.
 import type { ResponseMeta, ToolEnvelope, ToolSuccess } from "../../envelope/index.js";
 import { IdempotencyStore } from "../../server/idempotencyStore.js";
 import {
-  PROJECT_CREATE_DESCRIPTION,
   handleProjectCreate,
+  PROJECT_CREATE_DESCRIPTION,
   projectCreateInputSchema,
 } from "./create.js";
 

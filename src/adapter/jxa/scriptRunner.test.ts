@@ -18,7 +18,7 @@ import {
   TransportUnavailable,
   ValidationError,
 } from "../../errors/index.js";
-import { type ScriptSpawner, type SpawnResult, runJxaScript } from "./scriptRunner.js";
+import { runJxaScript, type ScriptSpawner, type SpawnResult } from "./scriptRunner.js";
 
 function fakeSpawner(result: Partial<SpawnResult>): ScriptSpawner {
   return vi.fn(

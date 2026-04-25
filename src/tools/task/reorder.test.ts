@@ -8,8 +8,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
+import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
 import type { ResponseMeta } from "../../envelope/index.js";

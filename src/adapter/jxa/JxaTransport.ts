@@ -25,6 +25,7 @@
 import type { Attachment } from "../../domain/attachment.js";
 import type { Folder } from "../../domain/folder.js";
 import {
+  AttachmentId,
   type FolderId,
   FolderId as FolderIdCtor,
   type ProjectId,
@@ -34,7 +35,6 @@ import {
   type TaskId,
   TaskId as TaskIdCtor,
 } from "../../domain/ids.js";
-import { AttachmentId } from "../../domain/ids.js";
 import type { BuiltinPerspectiveId, Perspective } from "../../domain/perspective.js";
 import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
@@ -109,7 +109,7 @@ import type {
   UpdateTagInput,
   UpdateTaskInput,
 } from "../OmniFocusAdapter.js";
-import { type RunScriptOptions, type ScriptSpawner, runJxaScript } from "./scriptRunner.js";
+import { type RunScriptOptions, runJxaScript, type ScriptSpawner } from "./scriptRunner.js";
 
 // ---------------------------------------------------------------------------
 // Construction
@@ -378,9 +378,10 @@ export class JxaTransport implements OmniFocusAdapter {
 
   // -- Projects (wired) -----------------------------------------------------
 
-  async listProjects(filter?: { folderId?: FolderId; status?: Project["status"] }): Promise<
-    Project[]
-  > {
+  async listProjects(filter?: {
+    folderId?: FolderId;
+    status?: Project["status"];
+  }): Promise<Project[]> {
     const result = await runJxaScript<{ projects: Project[] }>(
       projectListScript,
       { folderId: filter?.folderId ?? null, status: filter?.status ?? null },

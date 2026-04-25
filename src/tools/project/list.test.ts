@@ -11,7 +11,7 @@ import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import { OmniFocusLruCache } from "../../cache/lruCache.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { ProjectService } from "../../services/projectService.js";
-import { PROJECT_LIST_DESCRIPTION, handleProjectList, projectListInputSchema } from "./list.js";
+import { handleProjectList, PROJECT_LIST_DESCRIPTION, projectListInputSchema } from "./list.js";
 
 function makeCtx() {
   let tick = 0;

@@ -4,6 +4,7 @@ import {
   ConflictError,
   FeatureRequiresOfVersion,
   FeatureRequiresPro,
+  isOmniFocusError,
   NotFound,
   OmniFocusError,
   OmniFocusNotRunning,
@@ -15,7 +16,6 @@ import {
   Timeout,
   TransportUnavailable,
   ValidationError,
-  isOmniFocusError,
 } from "./index.js";
 
 describe("OmniFocusError", () => {

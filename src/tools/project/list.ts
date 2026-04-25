@@ -12,7 +12,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { FolderId } from "../../domain/ids.js";
-import { type Pagination, type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
+import { ok, type Pagination, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { ProjectListInput, ProjectService } from "../../services/projectService.js";
 
 // ---------------------------------------------------------------------------

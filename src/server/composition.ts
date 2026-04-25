@@ -13,9 +13,9 @@
  * @see ADR-0009 — read pool + write queue + OmniJS queue
  */
 
-import type { OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
 import { InMemoryAdapter } from "../adapter/inMemory/InMemoryAdapter.js";
 import { JxaTransport } from "../adapter/jxa/JxaTransport.js";
+import type { OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
 import { OmniJsTransport } from "../adapter/omnijs/OmniJsTransport.js";
 import { TransportRouter } from "../adapter/router.js";
 import { OmniFocusLruCache } from "../cache/lruCache.js";

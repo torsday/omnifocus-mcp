@@ -18,7 +18,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { AttachmentOwner } from "../../adapter/OmniFocusAdapter.js";
 import { AttachmentId, ProjectId, TaskId } from "../../domain/ids.js";
-import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
+import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import { ValidationError } from "../../errors/index.js";
 import type { AttachmentService } from "../../services/attachmentService.js";
 

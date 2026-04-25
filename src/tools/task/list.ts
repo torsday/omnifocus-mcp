@@ -22,9 +22,9 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { flexDateString } from "../../domain/dates.js";
 import { ProjectId, TagId, TaskId } from "../../domain/ids.js";
-import { type Pagination, type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
-import { TaskSortBySchema } from "../../services/taskService.js";
+import { ok, type Pagination, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TaskListInput, TaskService } from "../../services/taskService.js";
+import { TaskSortBySchema } from "../../services/taskService.js";
 
 // ---------------------------------------------------------------------------
 // Tool description (shown to the LLM via tools/list)

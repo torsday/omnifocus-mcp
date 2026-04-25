@@ -13,7 +13,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
+import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { PerspectiveService } from "../../services/perspectiveService.js";
 
 // ---------------------------------------------------------------------------

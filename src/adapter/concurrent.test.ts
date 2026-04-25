@@ -10,8 +10,8 @@
 import { describe, expect, it } from "vitest";
 import { ReadPool } from "../concurrency/ReadPool.js";
 import { WriteQueue } from "../concurrency/WriteQueue.js";
-import type { OmniFocusAdapter } from "./OmniFocusAdapter.js";
 import { MUTATING_METHODS, pickGate, wrapWithConcurrency } from "./concurrent.js";
+import type { OmniFocusAdapter } from "./OmniFocusAdapter.js";
 
 function makeDeps() {
   return {

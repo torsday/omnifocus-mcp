@@ -8,7 +8,7 @@
 import { readFileSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
-import { type Violation, checkFileContent } from "../src/linting/customRules.js";
+import { checkFileContent, type Violation } from "../src/linting/customRules.js";
 
 async function collectSourceFiles(dir = "src"): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });

@@ -18,6 +18,7 @@ vi.mock("node:fs/promises", () => ({
 }));
 
 import { stat } from "node:fs/promises";
+
 const mockStat = vi.mocked(stat);
 
 const MB = 1024 * 1024;

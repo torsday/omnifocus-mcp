@@ -9,7 +9,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { type InvalidatingCache, invalidateProjectMutation } from "../../cache/invalidation.js";
 import { FolderId, ProjectId } from "../../domain/ids.js";
-import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
+import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { ProjectService } from "../../services/projectService.js";
 
 // ---------------------------------------------------------------------------

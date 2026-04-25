@@ -67,7 +67,7 @@ if (!PERF) {
   ) {
     const margin = targetMs * 1.2;
     const pass = results.p95 <= margin ? "✅" : "❌";
-    // biome-ignore lint/suspicious/noConsoleLog: intentional benchmark output
+    // biome-ignore lint/suspicious/noConsole: intentional benchmark output
     console.log(
       `  ${pass} ${label.padEnd(30)} p50=${results.p50.toFixed(0).padStart(5)}ms  p95=${results.p95.toFixed(0).padStart(5)}ms  p99=${results.p99.toFixed(0).padStart(5)}ms  target=${targetMs}ms`,
     );
@@ -101,7 +101,7 @@ if (!PERF) {
   const FIXTURE_TASK_COUNT = 50; // small — enough to measure relative timing
 
   beforeAll(async () => {
-    // biome-ignore lint/suspicious/noConsoleLog: intentional benchmark output
+    // biome-ignore lint/suspicious/noConsole: intentional benchmark output
     console.log("\n📊 Perf suite: setting up fixture...");
     // Create a dedicated project with enough tasks to exercise list/get paths.
     fixtureProjectId = await router.createProject({ name: "perf-bench-fixture" });
@@ -116,7 +116,7 @@ if (!PERF) {
       createdTaskIds.push(id);
     }
     firstTaskId = createdTaskIds[0] ?? null;
-    // biome-ignore lint/suspicious/noConsoleLog: intentional benchmark output
+    // biome-ignore lint/suspicious/noConsole: intentional benchmark output
     console.log(`   Created ${FIXTURE_TASK_COUNT} tasks in project ${fixtureProjectId}`);
   }, 120_000);
 
@@ -136,7 +136,7 @@ if (!PERF) {
         /* already gone */
       }
     }
-    // biome-ignore lint/suspicious/noConsoleLog: intentional benchmark output
+    // biome-ignore lint/suspicious/noConsole: intentional benchmark output
     console.log("   Fixture cleaned up.");
   }, 120_000);
 

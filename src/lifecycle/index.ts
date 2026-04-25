@@ -6,8 +6,8 @@
 
 export {
   compareVersions,
-  LifecycleManager,
   type LifecycleLogger,
+  LifecycleManager,
   type LifecycleManagerOptions,
   type OfAppInfo,
 } from "./LifecycleManager.js";

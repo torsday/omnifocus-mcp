@@ -27,6 +27,8 @@
 import type { Attachment } from "../../domain/attachment.js";
 import type { Folder } from "../../domain/folder.js";
 import {
+  type AttachmentId,
+  AttachmentId as AttachmentIdCtor,
   type FolderId,
   FolderId as FolderIdCtor,
   type ProjectId,
@@ -36,7 +38,6 @@ import {
   type TaskId,
   TaskId as TaskIdCtor,
 } from "../../domain/ids.js";
-import { type AttachmentId, AttachmentId as AttachmentIdCtor } from "../../domain/ids.js";
 import {
   BUILTIN_PERSPECTIVE_IDS,
   type BuiltinPerspectiveId,

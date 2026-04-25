@@ -19,7 +19,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
-import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
+import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 // ---------------------------------------------------------------------------
 // Tool description
@@ -102,6 +102,8 @@ export async function handleTaskFindByName(input: TaskFindByNameInput, ctx: Task
         return name.startsWith(q);
       case "contains":
         return name.includes(q);
+      default:
+        return false;
     }
   });
 
