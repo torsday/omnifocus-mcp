@@ -47,17 +47,14 @@ function run(argv) {
       }
     }
     if (!parentFolder) throw new Error(`Parent folder not found: ${args.parentId}`);
-    newFolder = ofApp.make({
-      new: "folder",
-      at: parentFolder.folders.end,
-      withProperties: { name: args.name },
-    });
+    // OmniFocus 4.x rejects `ofApp.make({ new: "folder", at: ... })` with
+    // error -1728 (errAENoSuchObject). Use the specifier-push pattern instead.
+    newFolder = ofApp.Folder({ name: args.name });
+    parentFolder.folders.push(newFolder);
   } else {
-    newFolder = ofApp.make({
-      new: "folder",
-      at: ofApp.defaultDocument.folders.end,
-      withProperties: { name: args.name },
-    });
+    // Same fix for document-level folder creation.
+    newFolder = ofApp.Folder({ name: args.name });
+    ofApp.defaultDocument.folders.push(newFolder);
   }
 
   return JSON.stringify({ folder: buildFolder(newFolder) });
