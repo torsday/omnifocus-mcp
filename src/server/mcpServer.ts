@@ -230,8 +230,10 @@ export async function startServer(): Promise<void> {
   registerTagSetStatusTool(server, tagCtx);
   registerTagUpdateTool(server, tagCtx);
 
-  // Note tools — five uniform `{adapter, makeMeta}` registrations.
-  const noteCtx = { adapter, makeMeta };
+  // Note tools — five `{adapter, makeMeta, cache}` registrations.
+  // cache is required so note mutations invalidate stale task/project entries
+  // (ADR-0006 / docs/cache-invalidation.md).
+  const noteCtx = { adapter, makeMeta, cache: services.cache };
   registerNoteAppendTool(server, noteCtx);
   registerNoteGetTool(server, noteCtx);
   registerNoteGetHtmlTool(server, noteCtx);
@@ -257,7 +259,9 @@ export async function startServer(): Promise<void> {
   registerSyncStatusTool(server, { adapter, makeMeta });
   registerSyncTriggerTool(server, { adapter, makeMeta, cache: services.cache });
 
-  // Review tools — four uniform `{reviewService, makeMeta}` registrations.
+  // Review tools — four `{reviewService, makeMeta}` registrations.
+  // ReviewService receives the shared cache so markReviewed/setInterval
+  // invalidate stale project entries (ADR-0006).
   const reviewCtx = { reviewService: services.reviewService, makeMeta };
   registerReviewListDueTool(server, reviewCtx);
   registerReviewMarkReviewedTool(server, reviewCtx);

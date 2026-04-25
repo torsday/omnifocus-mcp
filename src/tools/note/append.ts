@@ -14,6 +14,11 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
+import {
+  type InvalidatingCache,
+  invalidateProjectMutation,
+  invalidateTaskMutation,
+} from "../../cache/invalidation.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
 import { type ResponseMeta, ok, toolResponse } from "../../envelope/index.js";
 
@@ -59,13 +64,16 @@ export type NoteAppendToolInput = z.infer<typeof noteAppendInputSchema>;
 export interface NoteAppendContext {
   adapter: OmniFocusAdapter;
   makeMeta: (partial?: Partial<ResponseMeta>) => ResponseMeta;
+  /** Optional cache; when supplied, flushes stale task/project entries after write. */
+  cache?: InvalidatingCache;
 }
 
 /**
  * Pure handler for `note_append`.
  *
  * Reads the current note, appends `text` with a newline separator (when
- * the existing note is non-empty), then writes the result back.
+ * the existing note is non-empty), then writes the result back and
+ * invalidates the relevant cache scopes.
  *
  * @throws {NotFound} when the task or project ID does not exist
  */
@@ -79,8 +87,14 @@ export async function handleNoteAppend(input: NoteAppendToolInput, ctx: NoteAppe
 
   if (input.targetKind === "task") {
     await ctx.adapter.updateTask(TaskId.of(input.id), { note: combined });
+    if (ctx.cache !== undefined) {
+      invalidateTaskMutation(ctx.cache, { taskId: TaskId.of(input.id) });
+    }
   } else {
     await ctx.adapter.updateProject(ProjectId.of(input.id), { note: combined });
+    if (ctx.cache !== undefined) {
+      invalidateProjectMutation(ctx.cache, { projectId: ProjectId.of(input.id) });
+    }
   }
 
   return ok({ updated: true as const, id: input.id }, ctx.makeMeta({ syncPending: true }));

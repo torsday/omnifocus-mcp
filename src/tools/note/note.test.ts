@@ -3,11 +3,12 @@
  *
  * Covers: schema validation, read/write on tasks and projects,
  * null/empty note semantics, append separator logic, NotFound propagation,
- * syncPending flag, and HTML round-trip fidelity.
+ * syncPending flag, HTML round-trip fidelity, and cache invalidation.
  */
 
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
+import type { InvalidatingCache } from "../../cache/invalidation.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { handleNoteAppend, noteAppendInputSchema } from "./append.js";
 import { handleNoteGet, noteGetInputSchema } from "./get.js";
@@ -33,6 +34,17 @@ function makeCtx() {
     ...partial,
   });
   return { ctx: { adapter, makeMeta }, adapter };
+}
+
+/** Minimal InvalidatingCache recorder — tracks every invalidate() call. */
+function makeSpyCache(): { cache: InvalidatingCache; calls: string[] } {
+  const calls: string[] = [];
+  const cache: InvalidatingCache = {
+    invalidate: (scope) => {
+      calls.push(scope);
+    },
+  };
+  return { cache, calls };
 }
 
 // ---------------------------------------------------------------------------
@@ -187,6 +199,28 @@ describe("note_set — handler", () => {
       handleNoteSet({ targetKind: "task", id: "task_999999", note: "x" }, ctx),
     ).rejects.toThrow();
   });
+
+  it("invalidates task cache scope on task write", async () => {
+    const { ctx, adapter } = makeCtx();
+    const { cache, calls } = makeSpyCache();
+    const id = await adapter.createTask({ name: "T" });
+    await handleNoteSet({ targetKind: "task", id, note: "x" }, { ...ctx, cache });
+    expect(calls.some((s) => s.startsWith("task:"))).toBe(true);
+  });
+
+  it("invalidates project cache scope on project write", async () => {
+    const { ctx, adapter } = makeCtx();
+    const { cache, calls } = makeSpyCache();
+    const id = await adapter.createProject({ name: "P" });
+    await handleNoteSet({ targetKind: "project", id, note: "x" }, { ...ctx, cache });
+    expect(calls.some((s) => s.startsWith("project:"))).toBe(true);
+  });
+
+  it("does not throw when cache is omitted", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "T" });
+    await expect(handleNoteSet({ targetKind: "task", id, note: "x" }, ctx)).resolves.toBeDefined();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -252,6 +286,22 @@ describe("note_append — handler", () => {
     await expect(
       handleNoteAppend({ targetKind: "task", id: "task_999999", text: "x" }, ctx),
     ).rejects.toThrow();
+  });
+
+  it("invalidates task cache scope on task append", async () => {
+    const { ctx, adapter } = makeCtx();
+    const { cache, calls } = makeSpyCache();
+    const id = await adapter.createTask({ name: "T" });
+    await handleNoteAppend({ targetKind: "task", id, text: "x" }, { ...ctx, cache });
+    expect(calls.some((s) => s.startsWith("task:"))).toBe(true);
+  });
+
+  it("invalidates project cache scope on project append", async () => {
+    const { ctx, adapter } = makeCtx();
+    const { cache, calls } = makeSpyCache();
+    const id = await adapter.createProject({ name: "P" });
+    await handleNoteAppend({ targetKind: "project", id, text: "x" }, { ...ctx, cache });
+    expect(calls.some((s) => s.startsWith("project:"))).toBe(true);
   });
 });
 
@@ -434,5 +484,21 @@ describe("note_set_html — handler", () => {
     await handleNoteSetHtml({ targetKind: "task", id, noteHtml: html }, ctx);
     const envelope = await handleNoteGetHtml({ targetKind: "task", id }, ctx);
     expect(envelope.data.noteHtml).toBe(html);
+  });
+
+  it("invalidates task cache scope on task write", async () => {
+    const { ctx, adapter } = makeCtx();
+    const { cache, calls } = makeSpyCache();
+    const id = await adapter.createTask({ name: "T" });
+    await handleNoteSetHtml({ targetKind: "task", id, noteHtml: "<b>x</b>" }, { ...ctx, cache });
+    expect(calls.some((s) => s.startsWith("task:"))).toBe(true);
+  });
+
+  it("invalidates project cache scope on project write", async () => {
+    const { ctx, adapter } = makeCtx();
+    const { cache, calls } = makeSpyCache();
+    const id = await adapter.createProject({ name: "P" });
+    await handleNoteSetHtml({ targetKind: "project", id, noteHtml: "<b>x</b>" }, { ...ctx, cache });
+    expect(calls.some((s) => s.startsWith("project:"))).toBe(true);
   });
 });

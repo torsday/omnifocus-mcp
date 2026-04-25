@@ -129,7 +129,7 @@ export function composeServices(adapter: OmniFocusAdapter, config: Config): Serv
     forecastService: new ForecastService({ adapter }),
     perspectiveService: new PerspectiveService({ adapter }),
     pluginService: new PluginService({ adapter }),
-    reviewService: new ReviewService({ adapter }),
+    reviewService: new ReviewService({ adapter, cache }),
     searchService: new SearchService({ adapter }),
   };
 }
