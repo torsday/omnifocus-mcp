@@ -18,7 +18,8 @@ export const REVIEW_SET_INTERVAL_DESCRIPTION =
   "Set a project's review interval in OmniFocus — updates how many days between reviews. " +
   "Use null to remove the recurring schedule. " +
   "Do not use to mark a project as reviewed; prefer review_mark_reviewed for that. " +
-  "Returns the project id. Sets syncPending: true.";
+  "Returns the project id. " +
+  "Side effects: writes to OmniFocus; sets syncPending = true.";
 
 // ---------------------------------------------------------------------------
 // Input schema

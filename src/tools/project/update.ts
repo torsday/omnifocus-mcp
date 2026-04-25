@@ -39,6 +39,7 @@ export const PROJECT_UPDATE_DESCRIPTION =
   "Partially update mutable fields on an OmniFocus project. " +
   "Only supplied fields are changed; omit a field to leave it unchanged. " +
   "Pass null for note, deferDate, dueDate, estimatedMinutes, or reviewIntervalDays to clear those fields. " +
+  "Do NOT use to create or delete projects; prefer project_create or project_delete instead. " +
   "Safety controls: set dry_run=true to preview without mutating; pass expectedModifiedAt " +
   "(from a recent project_get) to reject the call if the project changed since you read it; " +
   "pass idempotency_key to coalesce retries so the same update is only performed once. " +

@@ -32,6 +32,7 @@ export const EXPORT_TASKPAPER_DESCRIPTION =
   "Export is lossy — HTML notes are downgraded to plain text; tag locations, " +
   "attachments, and complex repetition rules are omitted. " +
   "Lossiness warnings are returned in meta.warnings. " +
+  "Do NOT use to import data; prefer import_taskpaper for that. " +
   "Returns { taskpaper, projectCount, taskCount }. " +
   "Safe to call repeatedly; no side effects.";
 
@@ -42,7 +43,9 @@ export const IMPORT_TASKPAPER_DESCRIPTION =
   "Project headings ('Project name:') map to existing OF projects by name — " +
   "unrecognised headings fall back to inbox (warning emitted). " +
   "Unknown @tags are created automatically. " +
-  "Returns { created: TaskId[], warnings: string[] }.";
+  "Do NOT use to export data; prefer export_taskpaper for that. " +
+  "Returns { created: TaskId[], warnings: string[] }. " +
+  "Writes to OmniFocus; call sync_trigger to propagate changes to other devices.";
 
 // ---------------------------------------------------------------------------
 // Input schemas

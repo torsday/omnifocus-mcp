@@ -18,7 +18,8 @@ export const REVIEW_MARK_REVIEWED_DESCRIPTION =
   "Mark a project as reviewed in OmniFocus — sets lastReviewDate to now and advances nextReviewDate by the project's review interval. " +
   "Use this after completing a weekly review of a project. " +
   "Do not use to change the review interval; prefer review_set_interval for that. " +
-  "Returns the project id. Sets syncPending: true.";
+  "Returns the project id. " +
+  "Side effects: writes to OmniFocus; sets syncPending = true.";
 
 // ---------------------------------------------------------------------------
 // Input schema

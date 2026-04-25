@@ -19,7 +19,8 @@ export const PROJECT_MARK_REVIEWED_DESCRIPTION =
   "Convenience alias for review_mark_reviewed — mark a single project as reviewed, setting lastReviewDate to now and advancing nextReviewDate. " +
   "Use when you have a project id and want a single-call review operation. " +
   "Do not use to list projects due for review; prefer review_list_due for that. " +
-  "Returns the project id. Sets syncPending: true.";
+  "Returns the project id. " +
+  "Side effects: writes to OmniFocus; sets syncPending = true.";
 
 // ---------------------------------------------------------------------------
 // Input schema
