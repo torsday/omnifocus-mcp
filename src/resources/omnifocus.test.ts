@@ -173,12 +173,30 @@ describe("registerOmniFocusResources — registration", () => {
 describe("omnifocus://snapshot", () => {
   it("returns all five counts as 0 on an empty adapter", async () => {
     const { read } = makeHarness();
-    const data = (await read("omnifocus-snapshot")) as Record<string, number>;
+    const data = (await read("omnifocus-snapshot")) as Record<string, unknown>;
     expect(data.inboxCount).toBe(0);
     expect(data.overdueCount).toBe(0);
     expect(data.dueTodayCount).toBe(0);
     expect(data.flaggedCount).toBe(0);
     expect(data.reviewDueCount).toBe(0);
+  });
+
+  it("includes syncStatus with lastSyncAt and inFlight", async () => {
+    const { read } = makeHarness();
+    const data = (await read("omnifocus-snapshot")) as Record<string, unknown>;
+    expect(data.syncStatus).toMatchObject({
+      lastSyncAt: null,
+      inFlight: false,
+    });
+  });
+
+  it("syncStatus.lastSyncAt updates after a sync", async () => {
+    const { adapter, read } = makeHarness();
+    await adapter.syncTrigger();
+    const data = (await read("omnifocus-snapshot")) as Record<string, unknown>;
+    const ss = data.syncStatus as { lastSyncAt: string | null; inFlight: boolean };
+    expect(ss.lastSyncAt).not.toBeNull();
+    expect(typeof ss.lastSyncAt).toBe("string");
   });
 
   it("counts inbox tasks (no project, no parent)", async () => {

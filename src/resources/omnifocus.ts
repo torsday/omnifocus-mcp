@@ -5,7 +5,7 @@
  * They let an agent load structured context without spending a tool call.
  *
  * Static URIs:
- *   omnifocus://snapshot       — five-count orientation object
+ *   omnifocus://snapshot       — orientation object with counts + sync status
  *   omnifocus://inbox          — inbox tasks as Task[]
  *   omnifocus://forecast/today — today's forecast grouped by category
  *   omnifocus://overdue        — overdue tasks sorted by dueDate ASC
@@ -112,17 +112,20 @@ export function registerOmniFocusResources(server: McpServer, deps: OmniFocusRes
     SNAPSHOT_URI,
     {
       description:
-        "Five-count snapshot of the current OmniFocus state: " +
-        "inboxCount, overdueCount, dueTodayCount, flaggedCount, reviewDueCount. " +
-        "Read at session start to orient before calling task_list or forecast_get.",
+        "Orientation snapshot of the current OmniFocus state: " +
+        "inboxCount, overdueCount, dueTodayCount, flaggedCount, reviewDueCount, " +
+        "and syncStatus { lastSyncAt, inFlight }. " +
+        "Read at session start to orient before calling task_list or forecast_get. " +
+        "Use syncStatus.lastSyncAt to detect stale data before making decisions.",
       mimeType: "application/json",
     },
     async (_uri) => {
       const { from, to } = todayRange();
-      const [inboxTasks, forecast, reviewProjects] = await Promise.all([
+      const [inboxTasks, forecast, reviewProjects, syncStatus] = await Promise.all([
         adapter.listTasks({ completed: false }),
         adapter.getForecast({ from, to, includeOverdue: true, includeFlagged: true }),
         adapter.listProjectsDueForReview(),
+        adapter.getLastSync(),
       ]);
 
       const inboxCount = inboxTasks.filter(
@@ -135,6 +138,10 @@ export function registerOmniFocusResources(server: McpServer, deps: OmniFocusRes
         dueTodayCount: forecast.dueToday.length,
         flaggedCount: forecast.flagged.length,
         reviewDueCount: reviewProjects.length,
+        syncStatus: {
+          lastSyncAt: syncStatus.lastSyncAt,
+          inFlight: syncStatus.inFlight,
+        },
       });
     },
   );
