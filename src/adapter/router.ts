@@ -98,7 +98,7 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   dropTask: "jxa",
   undropTask: "jxa",
   deleteTask: "jxa",
-  moveTask: "jxa",
+  moveTask: "omnijs", // JXA task.move() → error 9 in OF 4.x; Database.moveTasks() via OmniJS works
   reorderTask: "jxa",
   duplicateTask: "jxa",
   batchCreateTasks: "jxa",
