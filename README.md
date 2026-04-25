@@ -1,13 +1,12 @@
 # omnifocus-mcp
 
-[![Status: design-complete](https://img.shields.io/badge/status-design%20complete-blue)](./SPEC.md)
-[![Phase: M0](https://img.shields.io/badge/phase-M0%20foundation-orange)](https://github.com/torsday/omnifocus-mcp/milestones)
+[![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange)](./SPEC.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node: 20 LTS / 22 LTS](https://img.shields.io/badge/node-20%20%7C%2022-brightgreen)](./package.json)
 [![Platform: macOS 13+](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)](https://www.apple.com/macos/)
 [![Conventional Commits](https://img.shields.io/badge/conventional%20commits-1.0.0-yellow)](https://www.conventionalcommits.org)
 
-> **An MCP server exposing the full OmniFocus surface to LLM agents.** Ask Claude or any MCP-compatible client to read, query, create, and modify your OmniFocus tasks, projects, tags, perspectives, and attachments — through 60+ typed tools, built to a "single-user local-first" standard with engineering excellence as a first-class goal.
+> **An MCP server exposing the full OmniFocus surface to LLM agents.** Ask Claude or any MCP-compatible client to read, query, create, and modify your OmniFocus tasks, projects, tags, perspectives, and attachments — through 50 typed tools, built to a "single-user local-first" standard with engineering excellence as a first-class goal.
 
 ---
 
@@ -17,9 +16,14 @@
 - [Quick start](#quick-start)
 - [Example interactions](#example-interactions)
 - [If you are an AI agent](#if-you-are-an-ai-agent)
+- [Tools](#tools)
+- [Resources](#resources)
+- [Transport text DSL](#transport-text-dsl)
 - [Architecture at a glance](#architecture-at-a-glance)
 - [Status and roadmap](#status-and-roadmap)
 - [Install](#install)
+- [Environment variables](#environment-variables)
+- [Troubleshooting](#troubleshooting)
 - [Client setup guides](#client-setup-guides)
 - [Design documents](#design-documents)
 - [Project conventions](#project-conventions)
@@ -66,7 +70,7 @@ Detailed per-client guides live in [`docs/clients/`](./docs/clients/).
 `omnifocus-mcp` is an MCP (Model Context Protocol) server that gives any MCP-compatible client — Claude Desktop, Claude Code, or any stdio-speaking agent — full, typed, audited access to OmniFocus on macOS.
 
 - **Full coverage.** Tasks, projects, tags, folders, perspectives (built-in and custom), forecast, review, notes, attachments, batch operations, import/export, sync.
-- **Two transports, one interface.** JXA via `osascript` for 85% of OmniFocus; OmniJS via the URL scheme for custom perspectives, plug-ins, and newer features. A `TransportRouter` picks per operation; services never see the transport.
+- **Two transports, one interface.** JXA via `osascript` for the majority of OmniFocus operations; OmniJS via `Application("OmniFocus").evaluateJavascript()` for custom perspectives, plug-ins, task reordering, and reparenting. A `TransportRouter` picks per operation; services never see the transport.
 - **Typed everything.** Zod at the API boundary, branded opaque IDs, ISO-8601 with offset dates, discriminated error hierarchy.
 - **Agent-aware.** Every tool description follows the [`agent_systems.md`](https://github.com/torsday/llm_prompts/blob/main/agent_systems.md) "what / when not / returns / side effects" standard. Errors carry `{ code, message, suggestion, details }` so agents know what to do next.
 - **Safe by default.** No network surface, no stdout writes (MCP uses stdio), opt-in escape hatches, circuit breakers, rate limits, write serialization.
@@ -101,7 +105,9 @@ Claude calls `task_list` with `{ "available": true, "limit": 20 }` and returns a
 
 **"Show me what's due this week in the Work perspective."**
 
-Claude calls `perspective_task_list` with `{ "perspectiveName": "Work" }` and `{ "dueWithin": "this-week" }`, then presents a structured view grouped by project.
+1. Claude calls `perspective_list` to find the "Work" perspective ID.
+2. Calls `perspective_evaluate` with `{ "perspectiveId": "<id>" }` to get tasks in that perspective.
+3. Filters and presents items with due dates within the current week.
 
 ---
 
@@ -145,19 +151,19 @@ All optional scalar fields are **always present** in responses, set to `null` wh
 
 ### Idempotency — safe retries
 
-Every mutation tool accepts an optional `idempotencyKey?: string`. If you supply one and the call succeeds, replaying the exact same key within 5 minutes returns the cached result with `meta.idempotencyReplay: true` and skips the OmniFocus call. Use a deterministic key scoped to your session and intent (e.g. `"session-abc/create-task-standup"`).
+`project_create`, `project_update`, and `project_delete` accept an optional `idempotency_key?: string`. If you supply one and the call succeeds, replaying the exact same key within 5 minutes returns the cached result with `meta.idempotentReplay: true` and skips the OmniFocus call. Use a deterministic key scoped to your session and intent (e.g. `"session-abc/create-project-finance"`).
 
 ### Dry-run — validate before committing
 
-Every mutation tool accepts `dryRun?: boolean`. When `true`, input is fully validated and the would-be result is returned, but nothing is written to OmniFocus. `meta.dryRun: true` is set on the response. Use this to confirm inputs before destructive operations.
+`task_update` and `project_update` accept `dry_run?: boolean`. When `true`, input is fully validated and the would-be result is returned, but nothing is written to OmniFocus. `meta.dryRun: true` is set on the response. Use this to confirm inputs before destructive operations.
 
 ### Additive tag edits — no read-modify-write needed
 
-`task_update` accepts `addTags`, `removeTags`, and `setFlagged` patch fields alongside the existing full-replacement `tags` field. Prefer these for incremental edits — they apply a diff atomically inside the write queue with no race against concurrent user edits.
+`task_update` accepts `addTags`, `removeTags`, and `setFlagged` patch fields alongside the existing full-replacement `tagIds` field. Prefer these for incremental edits — they apply a diff atomically inside the write queue with no race against concurrent user edits.
 
 ### Conflict detection — optimistic concurrency
 
-Pass `expectedModifiedAt` with mutations. If the resource was modified since your read, the server returns `OF_CONFLICT` (`remediationClass: "input"`). Re-read with `*_get`, merge, and retry with the fresh `modifiedAt`.
+`task_update` accepts `expectedModifiedAt`. If the task was modified since your read, the server returns `OF_CONFLICT` (`remediationClass: "input"`). Re-read with `task_get`, merge your changes, and retry with the fresh `modifiedAt`.
 
 ### Capabilities pre-flight
 
@@ -179,7 +185,7 @@ Non-fatal issues appear in `meta.warnings` as `{ code, message, suggestion?, det
 
 ### Incremental sync — `updatedSince`
 
-`task_list` and `project_list` accept `updatedSince?: string` (ISO-8601 or relative shortcut). Use it to fetch only changed items after your initial load:
+`task_list` accepts `updatedSince?: string` (ISO-8601 or relative shortcut). Use it to fetch only changed items after your initial load:
 
 ```jsonc
 // First call: full load
@@ -193,7 +199,7 @@ Note: deleted items cannot be surfaced via `updatedSince` — compare `meta.snap
 
 ### Navigation hints — follow `_links`
 
-Every `Task` and `Project` response includes `_links` with resource URIs for related objects:
+Every `Task` response includes `_links` with resource URIs for related objects:
 
 ```jsonc
 {
@@ -206,7 +212,7 @@ Every `Task` and `Project` response includes `_links` with resource URIs for rel
 }
 ```
 
-Pass `_links.project` directly to `resources/read` or use the ID fragment for `project_get`. You never need to construct a URI manually.
+Pass the ID fragment to `task_get`, `project_get`, etc. You never need to construct a URI manually.
 
 ### Response envelope
 
@@ -224,8 +230,208 @@ All responses have this shape:
 
 - **Daily work**: `task_list` (inbox or today filter) → `task_create` / `task_update` / `task_complete`
 - **Projects**: `project_list` → `project_create` / `project_update`
-- **Finding things**: `task_search` with `search_query`; `tag_list` for available tags
+- **Finding things**: `task_search` or `search_query`; `tag_list` for available tags
 - **Sync**: `sync_trigger` after bulk mutations; `internal_status` to check server health
+
+---
+
+## Tools
+
+50 tools are registered, organized by domain. See [`docs/tools.md`](./docs/tools.md) for the full auto-generated reference with input schemas, example calls, and example responses.
+
+### App lifecycle
+| Tool | Description |
+|---|---|
+| `app_launch` | Explicitly launch OmniFocus (idempotent) |
+
+### Tasks
+| Tool | Description |
+|---|---|
+| `task_list` | List tasks with filters (available, flagged, due, project, tag, updatedSince) |
+| `task_get` | Get a single task by ID |
+| `task_get_many` | Get multiple tasks by ID in one call |
+| `task_create` | Create a task (project, tags, due, defer, flag, note, repeat) |
+| `task_update` | Update a task (addTags/removeTags, dry_run, expectedModifiedAt) |
+| `task_complete` | Mark a task complete |
+| `task_delete` | Delete a task |
+| `task_move` | Reparent a task to a different project or parent task |
+| `task_reorder` | Reorder a task among its siblings |
+| `task_duplicate` | Duplicate a task (optionally recursive) |
+| `task_find_by_name` | Find tasks by exact or fuzzy name match |
+| `task_search` | Full-text search across task names and notes |
+| `task_set_repetition` | Set a repeat rule on a task |
+| `task_clear_repetition` | Remove a repeat rule from a task |
+| `task_parse_transport_text` | Parse transport text DSL → structured tasks (no side effects) |
+| `task_batch_create` | Create up to 50 tasks atomically |
+| `task_batch_update` | Update up to 50 tasks atomically |
+| `task_batch_complete` | Complete up to 50 tasks atomically |
+
+### Projects
+| Tool | Description |
+|---|---|
+| `project_list` | List projects with filters (folder, status) |
+| `project_get` | Get a single project by ID |
+| `project_create` | Create a project (idempotency_key supported) |
+| `project_update` | Update a project (dry_run, idempotency_key, expectedModifiedAt) |
+| `project_complete` | Mark a project complete |
+| `project_delete` | Delete a project (idempotency_key supported) |
+| `project_move` | Move a project to a different folder |
+| `project_mark_reviewed` | Mark a project as reviewed |
+| `project_list_due_for_review` | List projects whose next review date is today or past |
+| `project_set_review_interval` | Set the review interval (days) for a project |
+
+### Folders
+| Tool | Description |
+|---|---|
+| `folder_list` | List folders |
+| `folder_get` | Get a single folder by ID |
+| `folder_create` | Create a folder |
+| `folder_update` | Rename a folder |
+| `folder_delete` | Delete a folder |
+| `folder_move` | Move a folder to a parent folder |
+
+### Tags
+| Tool | Description |
+|---|---|
+| `tag_list` | List tags |
+| `tag_get` | Get a single tag by ID |
+| `tag_create` | Create a tag |
+| `tag_update` | Rename a tag |
+| `tag_delete` | Delete a tag |
+| `tag_move` | Move a tag under a parent tag |
+| `tag_set_status` | Set tag status (active/on-hold/dropped) |
+| `tag_set_allows_next_action` | Toggle "allows next action" on a tag |
+| `tag_get_location` | Get a tag's location in the hierarchy |
+| `tag_set_location` | Set a tag's location in the hierarchy |
+
+### Notes
+| Tool | Description |
+|---|---|
+| `note_get` | Get a task or project note (plain text) |
+| `note_get_html` | Get a task or project note (HTML) |
+| `note_set` | Set a task or project note (plain text, replaces) |
+| `note_set_html` | Set a task or project note (HTML, replaces) |
+| `note_append` | Append text to a task or project note |
+
+### Attachments
+| Tool | Description |
+|---|---|
+| `attachment_list` | List attachments on a task or project |
+| `attachment_add` | Embed a local file as an attachment |
+| `attachment_remove` | Remove an attachment by ID |
+| `attachment_save_to_path` | Save an attachment's bytes to a local file |
+
+### Perspectives
+| Tool | Description |
+|---|---|
+| `perspective_list` | List all perspectives (built-in and custom) |
+| `perspective_evaluate` | Evaluate a perspective and return its tasks |
+
+### Forecast & search
+| Tool | Description |
+|---|---|
+| `forecast_get` | Get today's forecast grouped by overdue / due today / due later / inbox |
+| `search_query` | Full-text search across tasks and projects |
+
+### Sync & app
+| Tool | Description |
+|---|---|
+| `sync_trigger` | Trigger an OmniFocus iCloud sync |
+| `sync_status` | Get the last sync timestamp and status |
+
+### Plug-ins
+| Tool | Description |
+|---|---|
+| `plugin_invoke` | Invoke an installed Omni Automation plug-in by bundle identifier |
+
+### Export
+| Tool | Description |
+|---|---|
+| `export_opml` | Export a project (or all projects) as OPML |
+
+### Observability
+| Tool | Description |
+|---|---|
+| `internal_status` | Server health: transport status, queue depths, cache stats, rate limits |
+
+### Raw scripts _(opt-in, off by default)_
+| Tool | Description |
+|---|---|
+| `run_jxa_script` | Execute arbitrary JXA — requires `OMNIFOCUS_ALLOW_RAW_SCRIPT=1` |
+| `run_omnijs_script` | Execute arbitrary OmniJS — requires `OMNIFOCUS_ALLOW_RAW_SCRIPT=1` |
+
+---
+
+## Resources
+
+Ten MCP resources are registered under the `omnifocus://` scheme. Resources are read-only, URI-addressable, and enumerable via `resources/list`.
+
+| URI | Returns |
+|---|---|
+| `omnifocus://capabilities` | Server capabilities: OF version, edition, transport status, feature flags |
+| `omnifocus://snapshot` | Five-count orientation object: inbox, flagged, overdue, dueToday, projectsDueForReview |
+| `omnifocus://inbox` | Inbox tasks as `Task[]` |
+| `omnifocus://forecast/today` | Today's forecast grouped by overdue / due today / due later / inbox |
+| `omnifocus://overdue` | All overdue tasks sorted by dueDate ASC |
+| `omnifocus://flagged` | All flagged available tasks |
+| `omnifocus://review-due` | Projects with nextReviewDate ≤ today |
+| `omnifocus://project/{id}` | Single project + full task tree |
+| `omnifocus://tag/{id}` | Single tag + its tasks |
+| `omnifocus://perspective/{id}` | Perspective evaluation result (same shape as `perspective_evaluate`) |
+
+---
+
+## Transport text DSL
+
+`task_parse_transport_text` parses a lightweight DSL inspired by OmniFocus Mail Drop into structured task objects. **No tasks are created** — pass the returned `tasks[]` to `task_create` or `task_batch_create` separately.
+
+### Token syntax
+
+| Token | Example | Meaning |
+|---|---|---|
+| `@tag` | `@work` | Assign a tag by name |
+| `#date` | `#2026-05-01` or `#today` | Due date |
+| `::date` | `::tomorrow` | Defer date |
+| `!!` | `!!` | Flag the task |
+| `//text` | `//Call back before noon` | Append as task note |
+| `Project: Name` | `Project: Finance` | Set project context for subsequent tasks |
+
+### Date shortcuts
+
+`today` · `tomorrow` · `yesterday` — resolved to midnight local time.
+
+Full ISO-8601 dates (`YYYY-MM-DD`) are also accepted. Unparseable dates emit a `warnings[]` entry.
+
+### Examples
+
+```
+Project: Work
+Prepare Q2 report @work #end-of-week !!
+Send draft to Alice @work @email #tomorrow //attach spreadsheet
+Follow up with Bob ::next-week
+
+Project: Personal
+Buy groceries @errands #today
+Call dentist @phone ::tomorrow !! //ask about X-ray appointment
+```
+
+Parsing the above returns:
+
+```jsonc
+{
+  "tasks": [
+    { "name": "Prepare Q2 report", "tagNames": ["work"], "dueDate": "2026-05-02T00:00:00-07:00", "flagged": true, "projectName": "Work" },
+    { "name": "Send draft to Alice", "tagNames": ["work", "email"], "dueDate": "2026-04-26T00:00:00-07:00", "note": "attach spreadsheet", "projectName": "Work" },
+    { "name": "Follow up with Bob", "deferDate": "2026-04-28T00:00:00-07:00", "projectName": "Work" },
+    { "name": "Buy groceries", "tagNames": ["errands"], "dueDate": "2026-04-25T00:00:00-07:00", "projectName": "Personal" },
+    { "name": "Call dentist", "tagNames": ["phone"], "deferDate": "2026-04-26T00:00:00-07:00", "flagged": true, "note": "ask about X-ray appointment", "projectName": "Personal" }
+  ],
+  "count": 5,
+  "warnings": []
+}
+```
+
+Tag names and project names are raw strings — resolve to IDs with `tag_list` and `project_list` before passing to `task_create`.
 
 ---
 
@@ -240,7 +446,7 @@ flowchart LR
     Cache --> Adapter{OmniFocus<br/>Adapter}
     Adapter --> Router[Transport<br/>Router]
     Router -->|CRUD, forecast, search| Jxa[JxaTransport]
-    Router -->|Custom perspectives,<br/>plug-ins| OmniJs[OmniJsTransport]
+    Router -->|Perspectives, plug-ins,<br/>reorder, reparent| OmniJs[OmniJsTransport]
     Jxa --> OF[(OmniFocus)]
     OmniJs --> OF
 
@@ -252,18 +458,18 @@ The full layered diagram with the in-memory test adapter, queues, and circuit br
 
 ## Status and roadmap
 
-Design is **complete** (SPEC + DESIGN + 13 ADRs + domain reference). Implementation proceeds across six milestones:
+All six milestones are implemented. The server is feature-complete and pre-release (pending v1.0.0 tag):
 
-| Phase | Milestone                                           | Ships                                                                   |
-| ----- | --------------------------------------------------- | ----------------------------------------------------------------------- |
-| M0    | **Foundation + both transports**                    | adapter seam, JXA + OmniJS, pool/queue, cache, errors, lifecycle        |
-| M1    | **Core task & project surface + pagination**        | 25+ tools covering daily CRUD                                           |
-| M2    | **Metadata + perspectives (OmniJS-enabled)**        | tags, folders, forecast, search, built-in and custom perspectives       |
-| M3    | **Advanced**                                        | repetition rules, rich-text notes, review, batch, transport text        |
-| M4    | **Long tail**                                       | attachments, taskpaper/opml, sync, plug-in invocation, opt-in raw scripts |
-| M5    | **Polish & release**                                | loop detection, `internal_status`, E2E tests, CI, docs, `npx` distribution |
+| Phase | Milestone | Status |
+|---|---|---|
+| M0 | Foundation + both transports | ✅ Done |
+| M1 | Core task & project surface | ✅ Done |
+| M2 | Metadata + perspectives (OmniJS) | ✅ Done |
+| M3 | Advanced (repeat, notes, review, batch, DSL) | ✅ Done |
+| M4 | Long tail (attachments, OPML, sync, plug-ins, raw scripts) | ✅ Done |
+| M5 | Polish & release (observability, E2E, CI, docs, npm) | 🔄 In progress |
 
-Track live progress on the [**GitHub Project board**](https://github.com/users/torsday/projects/4). The backlog, dependencies, and work order live entirely in [GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues) — pick anything with `Status = Ready`.
+Track live progress on the [**GitHub Project board**](https://github.com/users/torsday/projects/4). The remaining work before v1.0.0 is tracked in [GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues).
 
 ## Install
 
@@ -289,23 +495,23 @@ omnifocus-mcp
 
 On first run, macOS asks permission for Claude to automate OmniFocus. Click **OK**. If you denied it by mistake: **System Settings → Privacy & Security → Automation → [app] → OmniFocus** ✓. See the [troubleshooting guide](./docs/troubleshooting.md) and the per-client guides in [`docs/clients/`](./docs/clients/) for step-by-step recovery.
 
-### Environment variables
+## Environment variables
 
-| Variable                        | What                                                | Default |
-| ------------------------------- | --------------------------------------------------- | ------- |
-| `OMNIFOCUS_LOG_LEVEL`           | `trace`\|`debug`\|`info`\|`warn`\|`error`            | `info`  |
-| `OMNIFOCUS_CACHE_TTL_MS`        | Read-cache TTL                                      | `30000` |
-| `OMNIFOCUS_READ_POOL_SIZE`      | Concurrent `osascript` processes for reads          | `2`     |
-| `OMNIFOCUS_WRITE_QUEUE_CAP`     | Max pending writes before `QueueFull`               | `50`    |
-| `OMNIFOCUS_JXA_TIMEOUT_MS`      | Per-call JXA timeout                                | `30000` |
-| `OMNIFOCUS_OMNIJS_TIMEOUT_MS`   | Per-call OmniJS timeout                             | `45000` |
-| `OMNIFOCUS_ATTACHMENT_PATHS`    | `$HOME`-rooted allowlist, colon-separated           | `$HOME` |
-| `OMNIFOCUS_MAX_ATTACHMENT_MB`   | Max attachment size                                 | `100`   |
-| `OMNIFOCUS_TOOL_RATE_LIMIT`     | Per-tool rate limit `N/SECONDS`                     | `120/60`|
-| `OMNIFOCUS_ALLOW_RAW_SCRIPT`    | Register `run_jxa_script` / `run_omnijs_script`     | `unset` |
-| `OMNIFOCUS_INTEGRATION`         | Enable integration test suite                       | `unset` |
+| Variable | What | Default |
+|---|---|---|
+| `OMNIFOCUS_LOG_LEVEL` | `trace`\|`debug`\|`info`\|`warn`\|`error` — logs go to stderr | `info` |
+| `OMNIFOCUS_CACHE_TTL_MS` | Read-cache TTL in milliseconds | `30000` |
+| `OMNIFOCUS_READ_POOL_SIZE` | Concurrent `osascript` processes for reads | `2` |
+| `OMNIFOCUS_WRITE_QUEUE_CAP` | Max pending writes before `QueueFull` error | `50` |
+| `OMNIFOCUS_JXA_TIMEOUT_MS` | Per-call JXA hard timeout in milliseconds | `30000` |
+| `OMNIFOCUS_OMNIJS_TIMEOUT_MS` | Per-call OmniJS hard timeout in milliseconds | `45000` |
+| `OMNIFOCUS_ATTACHMENT_PATHS` | Colon-separated allowlist of absolute path prefixes for attachment ops | `$HOME` |
+| `OMNIFOCUS_MAX_ATTACHMENT_MB` | Maximum attachment file size in MB (0 = no cap) | `100` |
+| `OMNIFOCUS_TOOL_RATE_LIMIT` | Per-tool rate limit in `N/SECONDS` format | `120/60` |
+| `OMNIFOCUS_ALLOW_RAW_SCRIPT` | Set to `1` to register `run_jxa_script` / `run_omnijs_script` | unset |
+| `OMNIFOCUS_INTEGRATION` | Set to `1` to enable the integration test suite | unset |
 
-Full table with descriptions and override semantics: [`DESIGN.md §22`](./DESIGN.md#22-configuration--environment).
+Full table with override semantics: [`DESIGN.md §22`](./DESIGN.md#22-configuration--environment).
 
 ### Running integration tests
 
@@ -325,6 +531,72 @@ OMNIFOCUS_INTEGRATION=1 pnpm test:integration
 
 The seed script creates a set of tagged `mcp-fixture:` items (folders, projects, tasks, tags) that integration tests rely on. Re-running the script without `--clean` skips items that already exist.
 
+---
+
+## Troubleshooting
+
+### OmniFocus is not running
+
+**Error:** `OF_NOT_RUNNING` — OmniFocus must be open for most operations.
+
+**Fix:** Launch OmniFocus manually, or call `app_launch` to open it via MCP.
+
+---
+
+### macOS Automation permission denied
+
+**Symptom:** Every tool call returns `PermissionDenied` / `OF_PERMISSION_DENIED`. This happens when the shell process running omnifocus-mcp was denied Automation access to OmniFocus.
+
+**Fix:**
+1. Open **System Settings → Privacy & Security → Automation**.
+2. Find the app running the MCP server (Terminal, Claude Desktop, or the shell used by your CI runner).
+3. Enable the **OmniFocus** checkbox.
+4. Restart omnifocus-mcp.
+
+You can verify permission is granted with:
+```bash
+bash scripts/check-automation-permission.sh
+```
+
+---
+
+### First-call timeout / slow startup
+
+JXA starts an `osascript` subprocess on each call. The first call after a system sleep or a fresh OmniFocus launch can take 5–15 seconds while the database loads. This is normal.
+
+If calls consistently time out, increase the timeout:
+```bash
+OMNIFOCUS_JXA_TIMEOUT_MS=60000 omnifocus-mcp
+```
+
+---
+
+### `run_jxa_script` / `run_omnijs_script` not available
+
+**Error:** `ValidationError: run_jxa_script is not available in this adapter configuration`
+
+**Fix:** The raw-script tools are off by default. Start the server with:
+```bash
+OMNIFOCUS_ALLOW_RAW_SCRIPT=1 omnifocus-mcp
+```
+
+See [`docs/adr/0004-raw-script-escape-hatch.md`](./docs/adr/0004-raw-script-escape-hatch.md) for the security rationale.
+
+---
+
+### Stale data after a write
+
+Writes are saved locally and show up immediately in subsequent tool calls. However, changes don't reach other devices until iCloud sync runs. Call `sync_trigger` after bulk mutations or when cross-device visibility matters.
+
+---
+
+### More help
+
+- [`docs/troubleshooting.md`](./docs/troubleshooting.md) — expanded troubleshooting guide
+- [`docs/clients/`](./docs/clients/) — per-client setup (Claude Desktop, Claude Code, generic stdio)
+
+---
+
 ## Client setup guides
 
 Step-by-step setup, environment variable reference, macOS Automation permission walkthrough, and troubleshooting for each client target:
@@ -339,9 +611,10 @@ Step-by-step setup, environment variable reference, macOS Automation permission 
 
 - **[`SPEC.md`](./SPEC.md)** — functional scope and non-functional requirements; resolved v1 decisions
 - **[`DESIGN.md`](./DESIGN.md)** — 28-section architecture; options evaluated; R/S/M assessment; example tool implementation
-- **[GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues)** + **[Project #4](https://github.com/users/torsday/projects/4)** — live backlog, dependencies, and status across M0–M5 milestones
+- **[`docs/security.md`](./docs/security.md)** — attack surface, mitigations, and test coverage
+- **[GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues)** + **[Project #4](https://github.com/users/torsday/projects/4)** — live backlog, dependencies, and status
 - **[`docs/domain-reference.md`](./docs/domain-reference.md)** — OmniFocus glossary, canonical schemas, lossiness matrix for export/import
-- **[`docs/adr/`](./docs/adr/)** — 13 Architecture Decision Records covering every load-bearing choice:
+- **[`docs/adr/`](./docs/adr/)** — Architecture Decision Records covering every load-bearing choice:
 
 | # | Decision |
 |---|---|
