@@ -18,7 +18,7 @@ import { type CursorPayload, decodeCursor, encodeCursor } from "./cursor.js";
 // ---------------------------------------------------------------------------
 
 /** Generate a valid filterHash (64-char hex, as SHA-256 produces). */
-const filterHashArb = fc.hexaString({ minLength: 64, maxLength: 64 });
+const filterHashArb = fc.stringMatching(/^[0-9a-f]{64}$/);
 
 /** Generate a CursorPayload with arbitrary string id, sort value, and filterHash. */
 const cursorPayloadArb = fc.record<CursorPayload>({
