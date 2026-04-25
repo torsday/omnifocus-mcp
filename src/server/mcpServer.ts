@@ -25,6 +25,9 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { wrapWithConcurrency } from "../adapter/concurrent.js";
+import { ReadPool } from "../concurrency/ReadPool.js";
+import { WriteQueue } from "../concurrency/WriteQueue.js";
 import { parseConfig, redactConfig } from "../config/env.js";
 import { logger } from "../logging/logger.js";
 import { LoopDetector } from "../loopDetector/LoopDetector.js";
@@ -183,9 +186,27 @@ export async function startServer(): Promise<void> {
   const transport = new StdioServerTransport();
 
   // Compose the live adapter chain (JxaTransport + OmniJsTransport →
-  // TransportRouter) and the full service bundle. Cache wrapping at the
-  // adapter layer (#22) arrives in a follow-up.
-  const adapter = composeAdapter(config);
+  // TransportRouter) and front it with the concurrency primitives from
+  // ADR-0009 / DESIGN §16: a ReadPool for non-mutating JXA reads, a
+  // single-slot WriteQueue for JXA mutations, and a separate single-slot
+  // queue for OmniJS calls. Every adapter call from this point on goes
+  // through one of those three gates — `wrapWithConcurrency` decides per
+  // method (#376). Each queue is registered with the shutdown controller
+  // so SIGINT/SIGTERM drain in-flight calls before exit (DESIGN §17).
+  const router = composeAdapter(config);
+  const readPool = new ReadPool({ size: config.OMNIFOCUS_READ_POOL_SIZE, name: "jxa-read" });
+  const jxaWriteQueue = new WriteQueue({
+    cap: config.OMNIFOCUS_WRITE_QUEUE_CAP,
+    name: "jxa-write",
+  });
+  const omniJsQueue = new WriteQueue({
+    cap: config.OMNIFOCUS_WRITE_QUEUE_CAP,
+    name: "omnijs",
+  });
+  shutdownController.registerQueue(readPool);
+  shutdownController.registerQueue(jxaWriteQueue);
+  shutdownController.registerQueue(omniJsQueue);
+  const adapter = wrapWithConcurrency(router, { readPool, jxaWriteQueue, omniJsQueue });
   const services = composeServices(adapter, config);
 
   // Register internal_status tool.
