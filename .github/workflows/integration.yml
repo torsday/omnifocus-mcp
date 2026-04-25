@@ -78,6 +78,12 @@ jobs:
           fi
           echo "OmniFocus is running — proceeding with integration tests."
 
+      - name: Check macOS Automation permission
+        # Detects error -1743 ("Not authorized to send Apple events") before
+        # the test suite runs so failures surface a clear diagnostic rather
+        # than a generic "JXA script returned empty stdout" error.
+        run: bash scripts/check-automation-permission.sh
+
       - name: Run integration tests
         env:
           OMNIFOCUS_INTEGRATION: "1"
