@@ -12,7 +12,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { ProjectId, TaskId } from "../../domain/ids.js";
-import { ScriptError } from "../../errors/index.js";
+import { NotFound, ScriptError } from "../../errors/index.js";
 import { JxaTransport } from "./JxaTransport.js";
 import type { ScriptSpawner, SpawnResult } from "./scriptRunner.js";
 
@@ -126,9 +126,9 @@ describe("JxaTransport — getTask", () => {
     expect(arg.id).toBe("task_aaa");
   });
 
-  it("surfaces ScriptError on not-found", async () => {
+  it("surfaces NotFound on not-found", async () => {
     const t = new JxaTransport({ spawner: spawnerFailing("task not found") });
-    await expect(t.getTask("task_missing" as TaskId)).rejects.toBeInstanceOf(ScriptError);
+    await expect(t.getTask("task_missing" as TaskId)).rejects.toBeInstanceOf(NotFound);
   });
 });
 
@@ -250,9 +250,9 @@ describe("JxaTransport — uncompleteTask", () => {
     await expect(t.uncompleteTask("task_aaa" as TaskId)).resolves.toBeUndefined();
   });
 
-  it("surfaces ScriptError on not-found", async () => {
+  it("surfaces NotFound on not-found", async () => {
     const t = new JxaTransport({ spawner: spawnerFailing("task not found") });
-    await expect(t.uncompleteTask("task_missing" as TaskId)).rejects.toBeInstanceOf(ScriptError);
+    await expect(t.uncompleteTask("task_missing" as TaskId)).rejects.toBeInstanceOf(NotFound);
   });
 });
 
@@ -288,9 +288,9 @@ describe("JxaTransport — undropTask", () => {
     await expect(t.undropTask("task_aaa" as TaskId)).resolves.toBeUndefined();
   });
 
-  it("surfaces ScriptError on not-found", async () => {
+  it("surfaces NotFound on not-found", async () => {
     const t = new JxaTransport({ spawner: spawnerFailing("task not found") });
-    await expect(t.undropTask("task_missing" as TaskId)).rejects.toBeInstanceOf(ScriptError);
+    await expect(t.undropTask("task_missing" as TaskId)).rejects.toBeInstanceOf(NotFound);
   });
 });
 
@@ -304,9 +304,9 @@ describe("JxaTransport — deleteTask", () => {
     await expect(t.deleteTask("task_aaa" as TaskId)).resolves.toBeUndefined();
   });
 
-  it("surfaces ScriptError on not-found", async () => {
+  it("surfaces NotFound on not-found", async () => {
     const t = new JxaTransport({ spawner: spawnerFailing("task not found") });
-    await expect(t.deleteTask("task_missing" as TaskId)).rejects.toBeInstanceOf(ScriptError);
+    await expect(t.deleteTask("task_missing" as TaskId)).rejects.toBeInstanceOf(NotFound);
   });
 });
 

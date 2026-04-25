@@ -26,11 +26,14 @@
 
 import { execFile } from "node:child_process";
 import {
+  ConflictError,
+  NotFound,
   OmniFocusNotRunning,
   PermissionDenied,
   ScriptError,
   Timeout,
   TransportUnavailable,
+  ValidationError,
 } from "../../errors/index.js";
 import { emitTransportCall } from "../../logging/transportCall.js";
 
@@ -250,6 +253,42 @@ function classifyJxaStderr(stderr: string, scriptName?: string): Error | null {
     /not allowed assistive access/i.test(stderr)
   ) {
     return new PermissionDenied({
+      details: {
+        transport: "jxa",
+        stderr: truncate(stderr, 512),
+        ...(scriptName !== undefined ? { scriptName } : {}),
+      },
+    });
+  }
+
+  // "X not found: <id>" / "OF_NOT_FOUND: ..." → NotFound.
+  // Covers: `Task not found: abc`, `Project not found: xyz`,
+  //         `Folder not found: ...`, `Tag not found: ...`, `Parent X not found: ...`,
+  //         `OF_NOT_FOUND: parent task abc` (batch scripts).
+  if (/\bnot found\b/i.test(stderr) || /^OF_NOT_FOUND\b/m.test(stderr)) {
+    return new NotFound(stderr, {
+      details: {
+        transport: "jxa",
+        stderr: truncate(stderr, 512),
+        ...(scriptName !== undefined ? { scriptName } : {}),
+      },
+    });
+  }
+
+  // "OF_VALIDATION: ..." / "is required" / empty-name guards → ValidationError.
+  if (/^OF_VALIDATION\b/m.test(stderr) || /\bis required\b/i.test(stderr)) {
+    return new ValidationError(stderr, {
+      details: {
+        transport: "jxa",
+        stderr: truncate(stderr, 512),
+        ...(scriptName !== undefined ? { scriptName } : {}),
+      },
+    });
+  }
+
+  // "OF_CONFLICT: ..." → ConflictError.
+  if (/^OF_CONFLICT\b/m.test(stderr)) {
+    return new ConflictError(stderr, {
       details: {
         transport: "jxa",
         stderr: truncate(stderr, 512),
