@@ -18,8 +18,8 @@ import { handleTaskReorder, taskReorderInputSchema } from "./reorder.js";
 
 function recordScopes(cache: OmniFocusLruCache): InvalidationScope[] {
   const scopes: InvalidationScope[] = [];
-  cache.on("cache.invalidated", (e: { scope: InvalidationScope }) => {
-    scopes.push(e.scope);
+  cache.on("cache.invalidated", (e: { scopes: InvalidationScope[] }) => {
+    scopes.push(...e.scopes);
   });
   return scopes;
 }

@@ -105,22 +105,52 @@ describe("OmniFocusLruCache", () => {
       expect(cache.has("search:def456")).toBe(false);
     });
 
-    it("emits cache.invalidated event with scope and keysRemoved", () => {
+    it("emits cache.invalidated event with typed payload when keys are removed", () => {
       const cache = new OmniFocusLruCache();
       cache.set("task:abc:list", "v1");
       cache.set("task:abc:detail", "v2");
       const handler = vi.fn();
       cache.on("cache.invalidated", handler);
       cache.invalidate("task:abc");
-      expect(handler).toHaveBeenCalledWith({ scope: "task:abc", keysRemoved: 2 });
+      expect(handler).toHaveBeenCalledOnce();
+      expect(handler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "cache.invalidated",
+          scopes: ["task:abc"],
+          evicted: 2,
+        }),
+      );
     });
 
-    it("reports keysRemoved: 0 when no keys match", () => {
+    it("emits with evicted:0 when no keys match (no-op invalidation)", () => {
       const cache = new OmniFocusLruCache();
       const handler = vi.fn();
       cache.on("cache.invalidated", handler);
       cache.invalidate("task:nonexistent");
-      expect(handler).toHaveBeenCalledWith({ scope: "task:nonexistent", keysRemoved: 0 });
+      expect(handler).toHaveBeenCalledOnce();
+      expect(handler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "cache.invalidated",
+          scopes: ["task:nonexistent"],
+          evicted: 0,
+        }),
+      );
+    });
+
+    it("includes correlationId in the payload when inside a correlation scope", async () => {
+      const { withCorrelationId } = await import("../logging/correlation.js");
+      const cache = new OmniFocusLruCache();
+      cache.set("task:xyz:list", "v1");
+      const handler = vi.fn();
+      cache.on("cache.invalidated", handler);
+      withCorrelationId(() => {
+        cache.invalidate("task:xyz");
+      }, "test-corr-id-123");
+      expect(handler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          correlationId: "test-corr-id-123",
+        }),
+      );
     });
   });
 
