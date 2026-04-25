@@ -116,6 +116,7 @@ import { registerTaskListTool } from "../tools/task/list.js";
 import { registerTaskMoveTool } from "../tools/task/move.js";
 import { registerTaskParseTransportTextTool } from "../tools/task/parseTransportText.js";
 import { registerTaskReorderTool } from "../tools/task/reorder.js";
+import { registerTaskSearchTool } from "../tools/task/search.js";
 import { registerTaskSetRepetitionTool } from "../tools/task/setRepetition.js";
 import { registerTaskUncompleteTool } from "../tools/task/uncomplete.js";
 import { registerTaskUndropTool } from "../tools/task/undrop.js";
@@ -311,6 +312,7 @@ export async function startServer(): Promise<void> {
   registerTaskGetTool(server, taskServiceCtx);
   registerTaskListTool(server, taskServiceCtx);
   registerTaskFindByNameTool(server, taskAdapterCtx);
+  registerTaskSearchTool(server, taskAdapterCtx);
   registerTaskGetManyTool(server, taskAdapterCtx);
   registerTaskParseTransportTextTool(server, { makeMeta });
   registerTaskBatchCompleteTool(server, taskMutationCtx);

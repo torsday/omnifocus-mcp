@@ -82,6 +82,7 @@ import taskGetManyScript from "../../scripts/jxa/task_get_many.js";
 import taskListScript from "../../scripts/jxa/task_list.js";
 import taskMoveScript from "../../scripts/jxa/task_move.js";
 import taskReorderScript from "../../scripts/jxa/task_reorder.js";
+import taskSearchScript from "../../scripts/jxa/task_search.js";
 import taskUncompleteScript from "../../scripts/jxa/task_uncomplete.js";
 import taskUndropScript from "../../scripts/jxa/task_undrop.js";
 import taskUpdateScript from "../../scripts/jxa/task_update.js";
@@ -97,6 +98,7 @@ import type {
   RemoveAttachmentInput,
   SaveAttachmentInput,
   SaveAttachmentResult,
+  SearchFilter,
   SyncStatus,
   TaskFilter,
   TaskPosition,
@@ -651,10 +653,20 @@ export class JxaTransport implements OmniFocusAdapter {
 
   // -- Search ---------------------------------------------------------------
 
-  async searchTasks(
-    _filter: import("../OmniFocusAdapter.js").SearchFilter,
-  ): Promise<import("../../domain/task.js").Task[]> {
-    return notYetWired("searchTasks");
+  async searchTasks(filter: SearchFilter): Promise<Task[]> {
+    const result = await runJxaScript<{ tasks: Task[] }>(
+      taskSearchScript,
+      {
+        q: filter.q,
+        scope: filter.scope ?? "all",
+        projectId: filter.projectId ?? null,
+        tagIds: filter.tagIds ?? null,
+        flagged: filter.flagged ?? null,
+        completed: filter.completed ?? "exclude",
+      },
+      { ...this.runOpts, scriptName: "task_search" },
+    );
+    return result.tasks.map((t) => ({ ...t, id: TaskIdCtor.of(t.id) }));
   }
 
   async getForecast(

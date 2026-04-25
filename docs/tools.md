@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 49 tools registered.
+> Auto-generated from source. 50 tools registered.
 
 ## Table of contents
 
@@ -53,6 +53,7 @@
 - [task_move](#task_move)
 - [task_parse_transport_text](#task_parse_transport_text)
 - [task_reorder](#task_reorder)
+- [task_search](#task_search)
 - [task_set_repetition](#task_set_repetition)
 - [task_update](#task_update)
 
@@ -1875,6 +1876,44 @@ _No parameters._
 ```json
 {
   "toolName": "task_reorder",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_search
+
+Search OmniFocus tasks by keyword. Scans task names and/or notes (controlled by scope) for a case-insensitive substring match. Optionally narrow results by projectId, tagIds (task must carry ALL listed tags), flagged state, and completion state. Returns the full Task domain shape — same as task_list — so no follow-up read is needed. Returns tasks[]; safe to call repeatedly; no side effects.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `q` | string | Yes | Search query. Case-insensitive substring match applied to the fields in scope. |
+| `scope` | one of: name | note | all | No | 'name' = search task name only; 'note' = search note only; 'all' = both (default). |
+| `projectId` | string | No | Restrict search to tasks within this project. |
+| `tagIds` | string[] | No | Restrict to tasks carrying ALL of these tag IDs. |
+| `flagged` | boolean | No | true = flagged tasks only; false = unflagged only; omit = all. |
+| `completed` | one of: any | only | exclude | No | 'exclude' = active tasks only (default); 'only' = completed tasks only; 'any' = both. |
+
+### Example call
+
+```json
+{
+  "toolName": "task_search",
   "arguments": {}
 }
 ```

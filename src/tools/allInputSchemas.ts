@@ -47,6 +47,7 @@ import { taskFindByNameInputSchema } from "./task/findByName.js";
 import { taskGetInputSchema } from "./task/get.js";
 import { taskGetManyInputSchema } from "./task/getMany.js";
 import { taskListInputSchema } from "./task/list.js";
+import { taskSearchInputSchema } from "./task/search.js";
 import { taskSetRepetitionInputSchema } from "./task/setRepetition.js";
 // task_update uses the base schema (ZodObject) — the exported schema is ZodEffects
 import { taskUpdateInputBaseSchema } from "./task/update.js";
@@ -87,6 +88,7 @@ export const ALL_INPUT_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   task_get: taskGetInputSchema,
   task_get_many: taskGetManyInputSchema,
   task_list: taskListInputSchema,
+  task_search: taskSearchInputSchema,
   task_set_repetition: taskSetRepetitionInputSchema,
   task_update: taskUpdateInputBaseSchema,
 };
