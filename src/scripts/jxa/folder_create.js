@@ -36,6 +36,10 @@ function run(argv) {
     };
   }
 
+  if (!args.name || args.name.trim() === "") {
+    throw new Error("ValidationError: name is required and cannot be empty");
+  }
+
   let newFolder;
   if (args.parentId) {
     const allFolders = ofApp.defaultDocument.flattenedFolders();

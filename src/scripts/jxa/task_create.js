@@ -151,6 +151,13 @@ function run(argv) {
     };
   }
 
+  if (!args.name || args.name.trim() === "") {
+    throw new Error("ValidationError: name is required and cannot be empty");
+  }
+  if (args.projectId != null && args.parentId != null) {
+    throw new Error("ValidationError: projectId and parentId are mutually exclusive");
+  }
+
   const props = { name: args.name };
   if (args.note != null) props.note = args.note;
   if (args.flagged != null) props.flagged = args.flagged;

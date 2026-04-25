@@ -148,6 +148,10 @@ function run(argv) {
     };
   }
 
+  if (!args.name || args.name.trim() === "") {
+    throw new Error("ValidationError: name is required and cannot be empty");
+  }
+
   const props = { name: args.name };
   if (args.note != null) props.note = args.note;
   if (args.deferDate != null) props.deferDate = new Date(args.deferDate);

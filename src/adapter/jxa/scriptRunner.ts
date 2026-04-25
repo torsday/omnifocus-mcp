@@ -275,8 +275,12 @@ function classifyJxaStderr(stderr: string, scriptName?: string): Error | null {
     });
   }
 
-  // "OF_VALIDATION: ..." / "is required" / empty-name guards → ValidationError.
-  if (/^OF_VALIDATION\b/m.test(stderr) || /\bis required\b/i.test(stderr)) {
+  // "OF_VALIDATION: ..." / "ValidationError:" prefix / "is required" → ValidationError.
+  if (
+    /^OF_VALIDATION\b/m.test(stderr) ||
+    /\bValidationError:/m.test(stderr) ||
+    /\bis required\b/i.test(stderr)
+  ) {
     return new ValidationError(stderr, {
       details: {
         transport: "jxa",
