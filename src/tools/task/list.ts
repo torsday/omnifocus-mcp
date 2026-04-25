@@ -31,7 +31,8 @@ import { TaskSortBySchema } from "../../services/taskService.js";
 // ---------------------------------------------------------------------------
 
 export const TASK_LIST_DESCRIPTION =
-  "List tasks in OmniFocus with optional filters (project, tag, flagged, completion, due dates). " +
+  "List tasks in OmniFocus with optional filters (project, tag, inbox, flagged, completion, due dates). " +
+  "Use inbox=true to fetch unprocessed Inbox tasks. " +
   "Use this for filter-based queries across tasks. " +
   "Do NOT use for a known single task (use task_get). " +
   "For name-based lookup, prefer task_find_by_name. " +
@@ -122,6 +123,14 @@ export const taskListInputSchema = z.object({
         "today, yesterday, this-week, next-week, end-of-week, end-of-month. " +
         "Use this for incremental sync: call without updatedSince on session start, then pass the previous response timestamp on subsequent calls. " +
         "Note: deleted tasks cannot be detected — use a snapshot resource for deletion detection.",
+    ),
+  inbox: z
+    .boolean()
+    .optional()
+    .describe(
+      "true = Inbox tasks only (no project assignment). " +
+        "Cannot be combined with projectId or parentId. " +
+        "Use this to surface unprocessed captures without knowing their IDs.",
     ),
   cursor: z
     .string()

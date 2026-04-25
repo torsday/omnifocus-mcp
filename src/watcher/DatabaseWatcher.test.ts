@@ -263,7 +263,7 @@ describe("DatabaseWatcher — Swift fast path", () => {
     ts = "2026-04-25T17:00:00.000Z",
   ) {
     const line = JSON.stringify({ event: "change", paths, ts });
-    proc.stdout.write(line + "\n");
+    proc.stdout.write(`${line}\n`);
   }
 
   it("spawns the binary with the db path as argument", () => {

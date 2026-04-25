@@ -34,6 +34,8 @@ export interface TaskFilter {
   deferredBefore?: string;
   /** ISO-8601-with-offset string; matches tasks deferred strictly after */
   deferredAfter?: string;
+  /** When true, restrict to the OmniFocus Inbox (tasks not assigned to any project). */
+  inbox?: boolean;
 }
 
 export interface CreateTaskInput {

@@ -154,7 +154,10 @@ function run(argv) {
   }
 
   let tasks;
-  if (args.projectId) {
+  if (args.inbox) {
+    // inboxTasks() returns only tasks with no project assignment — exactly the Inbox scope.
+    tasks = ofApp.defaultDocument.inboxTasks();
+  } else if (args.projectId) {
     try {
       tasks = ofApp.defaultDocument.flattenedProjects.byId(args.projectId).flattenedTasks();
     } catch (_e) {

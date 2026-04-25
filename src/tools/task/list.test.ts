@@ -148,3 +148,33 @@ describe("handleTaskList — envelope", () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Inbox filter
+// ---------------------------------------------------------------------------
+
+describe("handleTaskList — inbox filter", () => {
+  it("returns only inbox tasks (no project) when inbox=true", async () => {
+    const { ctx, adapter } = makeCtx();
+    // createProject returns a ProjectId (not a Project object).
+    const projId = await adapter.createProject({ name: "P" });
+    await adapter.createTask({ name: "inbox-task" });
+    await adapter.createTask({ name: "project-task", projectId: projId });
+
+    const result = await handleTaskList({ inbox: true }, ctx);
+    expect(result.data.tasks).toHaveLength(1);
+    expect(result.data.tasks[0]?.name).toBe("inbox-task");
+  });
+
+  it("inbox=true acts as a valid filter (no unbounded-query error)", async () => {
+    const { ctx } = makeCtx();
+    await expect(handleTaskList({ inbox: true }, ctx)).resolves.toBeDefined();
+  });
+
+  it("rejects inbox=true combined with projectId", async () => {
+    const { ctx } = makeCtx();
+    await expect(
+      handleTaskList({ inbox: true, projectId: "proj_000001" as never }, ctx),
+    ).rejects.toMatchObject({ code: "OF_VALIDATION" });
+  });
+});
