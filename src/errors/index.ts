@@ -40,7 +40,9 @@ export type ErrorCode =
   // Lifecycle — stop and reconnect
   | "OF_SHUTTING_DOWN"
   // Protocol guard — stray write to stdout (MCP transport channel)
-  | "OF_STRAY_STDOUT";
+  | "OF_STRAY_STDOUT"
+  // Agent loop guard — same tool+args called too many times in a window
+  | "OF_LOOP_DETECTED";
 
 /**
  * Machine-readable remediation class. Agents switch on this to decide what
@@ -313,5 +315,33 @@ export class ServerShuttingDown extends OmniFocusError {
       suggestion: "Reconnect to a fresh server instance.",
       ...options,
     });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Agent loop guard
+// ---------------------------------------------------------------------------
+
+/**
+ * Thrown when the same `(tool, args)` combination has been called too many
+ * times within the detection window (DESIGN §6.11 — error threshold).
+ *
+ * The remediation class is `input` because the agent should change its
+ * behaviour (act on the previous result, not repeat the same call) before
+ * retrying.
+ */
+export class LoopDetected extends OmniFocusError {
+  constructor(toolName: string, count: number, windowSeconds: number, options: ErrorOptions = {}) {
+    super(
+      "OF_LOOP_DETECTED",
+      `Tool "${toolName}" has been called ${count} time(s) with identical arguments within ${windowSeconds}s. The agent appears to be stuck.`,
+      {
+        remediationClass: "input",
+        suggestion:
+          "Act on the result of the previous call before repeating this tool. If you need the same data again, verify the previous response was consumed.",
+        details: { tool: toolName, count, windowSeconds },
+        ...options,
+      },
+    );
   }
 }

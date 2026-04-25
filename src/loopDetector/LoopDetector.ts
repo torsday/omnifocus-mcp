@@ -17,15 +17,32 @@
 import { createHash } from "node:crypto";
 import type { Warning } from "../envelope/index.js";
 
+/**
+ * Result from `LoopDetector.record()`.
+ *
+ * - `"warn"` — call count just crossed `threshold`; append to `meta.warnings`.
+ * - `"error"` — call count crossed `errorThreshold`; caller should throw.
+ */
+export type LoopDetectorResult =
+  | { level: "warn"; warning: Warning }
+  | { level: "error"; warning: Warning }
+  | undefined;
+
 export interface LoopDetectorConfig {
   /** Number of identical calls before the warning fires. Default 5. */
   threshold: number;
+  /**
+   * Number of identical calls before a hard `OF_LOOP_DETECTED` error is
+   * thrown (via `withLoopDetection`). Must be ≥ `threshold`. Default 10.
+   */
+  errorThreshold: number;
   /** Sliding window in seconds. Default 60. */
   windowSeconds: number;
 }
 
 const DEFAULT_CONFIG: LoopDetectorConfig = {
   threshold: 5,
+  errorThreshold: 10,
   windowSeconds: 60,
 };
 
@@ -51,14 +68,16 @@ export class LoopDetector {
   }
 
   /**
-   * Record an invocation and return a warning if the threshold is met.
+   * Record an invocation and return a result describing what action to take.
+   *
+   * - Returns `undefined` when below the warn threshold.
+   * - Returns `{ level: "warn", warning }` when count is in `[threshold, errorThreshold)`.
+   * - Returns `{ level: "error", warning }` when count reaches `errorThreshold`.
    *
    * @param toolName - MCP tool name (e.g. `"task_list"`)
    * @param args - Raw input arguments passed to the tool
-   * @returns A `WARN_LOOP_DETECTED` `Warning` when the threshold is reached,
-   *          or `undefined` otherwise.
    */
-  record(toolName: string, args: unknown): Warning | undefined {
+  record(toolName: string, args: unknown): LoopDetectorResult {
     const key = buildCallKey(toolName, args);
     const now = Date.now();
     const cutoff = now - this.config.windowSeconds * 1000;
@@ -67,17 +86,20 @@ export class LoopDetector {
     timestamps.push(now);
 
     const count = timestamps.length;
-    if (count >= this.config.threshold) {
-      return {
-        code: "WARN_LOOP_DETECTED",
-        message: `Tool "${toolName}" has been called ${count} time(s) with identical arguments within ${this.config.windowSeconds}s.`,
-        suggestion:
-          "The agent may be stuck in a loop. Verify that the previous response was acted on before repeating this call.",
-        details: { tool: toolName, count, windowSeconds: this.config.windowSeconds },
-      };
-    }
+    if (count < this.config.threshold) return undefined;
 
-    return undefined;
+    const warning: Warning = {
+      code: "WARN_LOOP_DETECTED",
+      message: `Tool "${toolName}" has been called ${count} time(s) with identical arguments within ${this.config.windowSeconds}s.`,
+      suggestion:
+        "The agent may be stuck in a loop. Verify that the previous response was acted on before repeating this call.",
+      details: { tool: toolName, count, windowSeconds: this.config.windowSeconds },
+    };
+
+    if (count >= this.config.errorThreshold) {
+      return { level: "error", warning };
+    }
+    return { level: "warn", warning };
   }
 
   /**

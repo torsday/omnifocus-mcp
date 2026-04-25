@@ -15,6 +15,10 @@ import { ok } from "../envelope/index.js";
 import { buildCallKey, LoopDetector } from "./LoopDetector.js";
 import { withLoopDetection } from "./withLoopDetection.js";
 
+vi.mock("../logging/logger.js", () => ({
+  logger: { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn(), fatal: vi.fn() },
+}));
+
 // ---------------------------------------------------------------------------
 // Test helpers
 // ---------------------------------------------------------------------------
@@ -43,22 +47,32 @@ describe("LoopDetector", () => {
     }
   });
 
-  it("returns WARN_LOOP_DETECTED on the 5th identical call", () => {
-    const detector = new LoopDetector({ threshold: 5, windowSeconds: 60 });
+  it("returns level:warn with WARN_LOOP_DETECTED on the 5th identical call", () => {
+    const detector = new LoopDetector({ threshold: 5, errorThreshold: 10, windowSeconds: 60 });
     const args = { projectId: "abc" };
     for (let i = 0; i < 4; i++) detector.record("task_list", args);
-    const warning = detector.record("task_list", args);
-    expect(warning).toBeDefined();
-    expect(warning?.code).toBe("WARN_LOOP_DETECTED");
-    expect(warning?.details).toMatchObject({ tool: "task_list", count: 5 });
+    const result = detector.record("task_list", args);
+    expect(result).toBeDefined();
+    expect(result?.level).toBe("warn");
+    expect(result?.warning.code).toBe("WARN_LOOP_DETECTED");
+    expect(result?.warning.details).toMatchObject({ tool: "task_list", count: 5 });
   });
 
-  it("continues to return the warning on subsequent identical calls", () => {
-    const detector = new LoopDetector({ threshold: 5, windowSeconds: 60 });
+  it("continues to return level:warn on calls between threshold and errorThreshold", () => {
+    const detector = new LoopDetector({ threshold: 5, errorThreshold: 10, windowSeconds: 60 });
     const args = { projectId: "abc" };
     for (let i = 0; i < 5; i++) detector.record("task_list", args);
-    expect(detector.record("task_list", args)?.code).toBe("WARN_LOOP_DETECTED");
-    expect(detector.record("task_list", args)?.details?.count).toBe(7);
+    expect(detector.record("task_list", args)?.level).toBe("warn");
+    expect(detector.record("task_list", args)?.warning.details?.count).toBe(7);
+  });
+
+  it("returns level:error once errorThreshold is reached", () => {
+    const detector = new LoopDetector({ threshold: 5, errorThreshold: 10, windowSeconds: 60 });
+    const args = { projectId: "abc" };
+    for (let i = 0; i < 9; i++) detector.record("task_list", args);
+    const result = detector.record("task_list", args);
+    expect(result?.level).toBe("error");
+    expect(result?.warning.details?.count).toBe(10);
   });
 
   it("different args for the same tool never trigger the warning", () => {
@@ -102,11 +116,11 @@ describe("LoopDetector", () => {
   });
 
   it("respects a custom threshold", () => {
-    const detector = new LoopDetector({ threshold: 3, windowSeconds: 60 });
+    const detector = new LoopDetector({ threshold: 3, errorThreshold: 10, windowSeconds: 60 });
     const args = {};
     detector.record("sync_status", args);
     detector.record("sync_status", args);
-    expect(detector.record("sync_status", args)?.code).toBe("WARN_LOOP_DETECTED");
+    expect(detector.record("sync_status", args)?.warning.code).toBe("WARN_LOOP_DETECTED");
   });
 });
 
@@ -132,14 +146,14 @@ describe("buildCallKey", () => {
 
 describe("withLoopDetection", () => {
   it("is transparent when no loop is detected (returns handler result unchanged)", async () => {
-    const detector = new LoopDetector({ threshold: 5, windowSeconds: 60 });
+    const detector = new LoopDetector({ threshold: 5, errorThreshold: 10, windowSeconds: 60 });
     const result = await withLoopDetection("task_list", {}, detector, makeHandler({ tasks: [] }));
     expect(result.data).toEqual({ tasks: [] });
     expect(result.meta.warnings).toBeUndefined();
   });
 
   it("appends WARN_LOOP_DETECTED to meta.warnings after threshold", async () => {
-    const detector = new LoopDetector({ threshold: 5, windowSeconds: 60 });
+    const detector = new LoopDetector({ threshold: 5, errorThreshold: 10, windowSeconds: 60 });
     const args = { flagged: true };
     for (let i = 0; i < 4; i++) {
       await withLoopDetection("task_list", args, detector, makeHandler({ tasks: [] }));
@@ -149,8 +163,19 @@ describe("withLoopDetection", () => {
     expect(result.meta.warnings?.[0]?.code).toBe("WARN_LOOP_DETECTED");
   });
 
+  it("throws LoopDetected (OF_LOOP_DETECTED) once errorThreshold is reached", async () => {
+    const detector = new LoopDetector({ threshold: 5, errorThreshold: 10, windowSeconds: 60 });
+    const args = { id: "stuck" };
+    for (let i = 0; i < 9; i++) {
+      detector.record("task_get", args); // record without running handler
+    }
+    await expect(
+      withLoopDetection("task_get", args, detector, makeHandler({ id: "x" })),
+    ).rejects.toMatchObject({ code: "OF_LOOP_DETECTED" });
+  });
+
   it("preserves existing warnings when appending loop warning", async () => {
-    const detector = new LoopDetector({ threshold: 5, windowSeconds: 60 });
+    const detector = new LoopDetector({ threshold: 5, errorThreshold: 10, windowSeconds: 60 });
     const args = {};
     const existingWarning = {
       code: "WARN_SYNC_PENDING" as const,
@@ -168,7 +193,7 @@ describe("withLoopDetection", () => {
   });
 
   it("does not mutate the original meta.warnings array", async () => {
-    const detector = new LoopDetector({ threshold: 5, windowSeconds: 60 });
+    const detector = new LoopDetector({ threshold: 5, errorThreshold: 10, windowSeconds: 60 });
     const args = {};
     const original = [{ code: "WARN_SYNC_PENDING" as const, message: "x" }];
     const handlerWithWarning = () =>
