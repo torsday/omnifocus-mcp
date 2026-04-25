@@ -20,6 +20,7 @@ function makeConfig(overrides: Partial<Config> = {}): Config {
     OMNIFOCUS_LOG_LEVEL: "info",
     OMNIFOCUS_INTEGRATION: false,
     OMNIFOCUS_E2E: false,
+    OMNIFOCUS_E2E_USE_MEMORY: false,
     OMNIFOCUS_ALLOW_RAW_SCRIPT: false,
     OMNIFOCUS_CACHE_TTL_MS: 30_000,
     OMNIFOCUS_CACHE_CAPACITY: 256,
