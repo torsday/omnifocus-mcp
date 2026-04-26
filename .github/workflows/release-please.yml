@@ -26,6 +26,10 @@ name: release-please
 on:
   push:
     branches: [main]
+  # Manual trigger so the workflow can be re-run after a config change
+  # (e.g. fixing the "Allow GitHub Actions to create and approve pull
+  # requests" repo setting) without requiring a fresh push to main.
+  workflow_dispatch: {}
 
 permissions:
   contents: read
