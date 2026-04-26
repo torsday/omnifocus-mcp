@@ -54,6 +54,8 @@ import folderUpdateScript from "../../scripts/jxa/folder_update.js";
 import forecastGetScript from "../../scripts/jxa/forecast_get.js";
 import perspectiveEvaluateScript from "../../scripts/jxa/perspective_evaluate.js";
 import perspectiveListScript from "../../scripts/jxa/perspective_list.js";
+import projectBatchCompleteScript from "../../scripts/jxa/project_batch_complete.js";
+import projectBatchDropScript from "../../scripts/jxa/project_batch_drop.js";
 import projectCompleteScript from "../../scripts/jxa/project_complete.js";
 import projectCreateScript from "../../scripts/jxa/project_create.js";
 import projectDeleteScript from "../../scripts/jxa/project_delete.js";
@@ -534,6 +536,40 @@ export class JxaTransport implements OmniFocusAdapter {
       { id },
       { ...this.runOpts, scriptName: "project_drop" },
     );
+  }
+
+  async batchCompleteProjects(
+    items: Array<{ id: ProjectId }>,
+  ): Promise<import("../../domain/batch.js").BatchOutcome<ProjectId>> {
+    const raw = await runJxaScript<{
+      succeeded: Array<{ index: number; value: string }>;
+      failed: Array<{ index: number; errorCode: string; message: string }>;
+    }>(
+      projectBatchCompleteScript,
+      { items: items.map((it) => ({ id: it.id })) },
+      { ...this.runOpts, scriptName: "project_batch_complete" },
+    );
+    return {
+      succeeded: raw.succeeded.map((s) => ({ index: s.index, value: ProjectIdCtor.of(s.value) })),
+      failed: raw.failed,
+    };
+  }
+
+  async batchDropProjects(
+    items: Array<{ id: ProjectId }>,
+  ): Promise<import("../../domain/batch.js").BatchOutcome<ProjectId>> {
+    const raw = await runJxaScript<{
+      succeeded: Array<{ index: number; value: string }>;
+      failed: Array<{ index: number; errorCode: string; message: string }>;
+    }>(
+      projectBatchDropScript,
+      { items: items.map((it) => ({ id: it.id })) },
+      { ...this.runOpts, scriptName: "project_batch_drop" },
+    );
+    return {
+      succeeded: raw.succeeded.map((s) => ({ index: s.index, value: ProjectIdCtor.of(s.value) })),
+      failed: raw.failed,
+    };
   }
 
   async moveProject(id: ProjectId, destination: { folderId: FolderId | null }): Promise<void> {

@@ -24,6 +24,8 @@ import { INTERNAL_STATUS_DESCRIPTION } from "./observability/internalStatus.js";
 import { PERSPECTIVE_EVALUATE_DESCRIPTION } from "./perspective/evaluate.js";
 import { PERSPECTIVE_LIST_DESCRIPTION } from "./perspective/list.js";
 import { PLUGIN_INVOKE_DESCRIPTION } from "./plugin/invoke.js";
+import { PROJECT_BATCH_COMPLETE_DESCRIPTION } from "./project/batchComplete.js";
+import { PROJECT_BATCH_DROP_DESCRIPTION } from "./project/batchDrop.js";
 import { PROJECT_COMPLETE_DESCRIPTION } from "./project/complete.js";
 import { PROJECT_CREATE_DESCRIPTION } from "./project/create.js";
 import { PROJECT_DELETE_DESCRIPTION } from "./project/delete.js";
@@ -105,6 +107,8 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   perspective_evaluate: PERSPECTIVE_EVALUATE_DESCRIPTION,
   perspective_list: PERSPECTIVE_LIST_DESCRIPTION,
   plugin_invoke: PLUGIN_INVOKE_DESCRIPTION,
+  project_batch_complete: PROJECT_BATCH_COMPLETE_DESCRIPTION,
+  project_batch_drop: PROJECT_BATCH_DROP_DESCRIPTION,
   project_complete: PROJECT_COMPLETE_DESCRIPTION,
   project_create: PROJECT_CREATE_DESCRIPTION,
   project_delete: PROJECT_DELETE_DESCRIPTION,

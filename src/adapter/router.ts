@@ -116,7 +116,9 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   createProject: "jxa",
   updateProject: "jxa",
   completeProject: "jxa",
+  batchCompleteProjects: "jxa",
   dropProject: "jxa",
+  batchDropProjects: "jxa",
   moveProject: "jxa",
   deleteProject: "jxa",
   markProjectReviewed: "jxa",
@@ -330,6 +332,16 @@ export class TransportRouter implements OmniFocusAdapter {
   }
   dropProject(id: ProjectId, at?: Date): Promise<void> {
     return this.pick("dropProject").dropProject(id, at);
+  }
+  batchCompleteProjects(
+    items: Array<{ id: ProjectId }>,
+  ): Promise<import("../domain/batch.js").BatchOutcome<ProjectId>> {
+    return this.pick("batchCompleteProjects").batchCompleteProjects(items);
+  }
+  batchDropProjects(
+    items: Array<{ id: ProjectId }>,
+  ): Promise<import("../domain/batch.js").BatchOutcome<ProjectId>> {
+    return this.pick("batchDropProjects").batchDropProjects(items);
   }
   moveProject(id: ProjectId, destination: { folderId: FolderId | null }): Promise<void> {
     return this.pick("moveProject").moveProject(id, destination);
