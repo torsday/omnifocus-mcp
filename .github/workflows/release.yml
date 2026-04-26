@@ -14,13 +14,14 @@ name: Release
 #
 # Authentication
 # --------------
-# v1.0.0 (the first publish) uses a granular access token in NPM_TOKEN
-# because npm Trusted Publishing cannot be configured for a package that
-# does not yet exist on the registry. Once v1.0.0 is live, set up Trusted
-# Publishing at https://www.npmjs.com/package/@torsday/omnifocus-mcp/access
-# (org `torsday`, repo `omnifocus-mcp`, workflow filename `release.yml`),
-# then drop both `NODE_AUTH_TOKEN` and the secret. `id-token: write` is
-# already granted below for OIDC; `--provenance` continues to work either way.
+# Uses npm Trusted Publishing (OIDC). No token needed — `pnpm publish`
+# detects the OIDC environment via `id-token: write` (granted below) and
+# exchanges the GitHub Actions OIDC token for a short-lived npm scope
+# at publish time. Configure / verify the trusted publisher at:
+#   https://www.npmjs.com/package/@torsday/omnifocus-mcp/access
+# (org `torsday`, repo `omnifocus-mcp`, workflow filename `release.yml`,
+# environment blank). Bootstrap `NPM_TOKEN` was used for v1.0.0 only and
+# should be revoked once OIDC is verified working on a subsequent release.
 on:
   push:
     tags:
@@ -79,10 +80,10 @@ jobs:
       - name: Publish to npm
         # --provenance writes a Sigstore attestation linking this published
         # tarball to this workflow run. Requires `id-token: write` (granted
-        # above) and a public repo (we are public).
+        # above) and a public repo (we are public). With Trusted Publishing
+        # configured on npm, no NODE_AUTH_TOKEN is needed — the npm CLI
+        # auto-detects the OIDC environment.
         run: pnpm publish --access public --no-git-checks --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
