@@ -20,8 +20,9 @@ name: Release
 # at publish time. Configure / verify the trusted publisher at:
 #   https://www.npmjs.com/package/@torsday/omnifocus-mcp/access
 # (org `torsday`, repo `omnifocus-mcp`, workflow filename `release.yml`,
-# environment blank). Bootstrap `NPM_TOKEN` was used for v1.0.0 only and
-# should be revoked once OIDC is verified working on a subsequent release.
+# environment blank). v1.0.1 was the first release verified end-to-end
+# under OIDC; the bootstrap `NPM_TOKEN` secret used for v1.0.0 has been
+# revoked (#428).
 on:
   push:
     tags:
