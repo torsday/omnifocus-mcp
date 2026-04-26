@@ -8,6 +8,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 See [GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues) and [Project #4](https://github.com/users/torsday/projects/4) for the live backlog and status.
 
+### Added
+
+- **`import_opml`** — MCP tool that completes the OPML round-trip with `export_opml`. Server-side parser in `src/services/export/opmlParser.ts` (no new deps; lightweight stack-based tokeniser tuned to the format `export_opml` produces). `ExportService.importOpml()` resolves projects by OF ID first and falls back to name match; unmatched projects land in inbox; `destinationProjectId` overrides routing. Lossiness is documented: due/defer/flagged are preserved; tags, notes, attachments, and repetition rules are dropped (not encoded in standard OPML). ([#377](https://github.com/torsday/omnifocus-mcp/issues/377))
+
+- **`task_batch_delete` / `task_batch_drop`** — batch mutation tools mirroring `task_batch_complete`. One JXA round-trip removes or cancels a list of tasks. Validation is atomic; execution is best-effort with per-index `{succeeded, failed}` in the response. Both invalidate the read cache and set `meta.syncPending` on success. ([#401](https://github.com/torsday/omnifocus-mcp/issues/401))
+
+- **`project_get_many` / `tag_get_many`** — batch read tools mirroring `task_get_many`. One JXA round-trip hydrates up to 100 IDs; results preserve input order, missing IDs are omitted and surfaced via `meta.warnings` with `WARN_IDS_NOT_FOUND`. Wired through the adapter interface, `InMemoryAdapter`, `JxaTransport`, `OmniJsTransport`, and `TransportRouter`. ([#399](https://github.com/torsday/omnifocus-mcp/issues/399))
+
+- **`forecast_get` ergonomic interface** — `date` (ISO-8601 or relative shortcut) and `days` (1–7) parameters as a cleaner alternative to raw `from`/`to` ranges. When `days > 1`, the response includes a `byDate[]` array grouping `dueToday` tasks by calendar day (`YYYY-MM-DD`). Mutual exclusivity between `date`/`days` and `from`/`to` is validated and rejected with `ValidationError`. ([#398](https://github.com/torsday/omnifocus-mcp/issues/398))
+
+- **`task_search` cursor pagination** — `limit` (1..500, default 100) and opaque `cursor` parameters routed through `SearchService`'s stable-sort pagination (same primitive `search_query` already used). The tool's context now threads `searchService` instead of the raw adapter. ([#397](https://github.com/torsday/omnifocus-mcp/issues/397))
+
+- **`task_search` filter expansion** — `q` is now optional so the tool can serve tag-only / project-only / date-range queries without a keyword. Three new filters added: `available` (active reachable tasks only), `dueBefore` and `dueAfter` (ISO-8601 or relative shortcut date bounds).
+
+- **`task_list` inbox filter** — `inbox: true` surfaces tasks with no project assignment via OmniFocus's `inboxTasks()` collection in JXA and `projectId === null` in `InMemoryAdapter`. Mutually exclusive with `projectId` and `parentId` (rejected with `ValidationError` when combined). ([#400](https://github.com/torsday/omnifocus-mcp/issues/400))
+
+- **`omnifocus://snapshot` syncStatus** — the snapshot resource payload now includes `lastSyncAt` (ISO-8601 with offset, or `null` if never synced) and `inFlight` (boolean) sourced from `getLastSync()`. Agents can detect stale data at session start without a separate `sync_status` round-trip. ([#402](https://github.com/torsday/omnifocus-mcp/issues/402))
+
+- **Live database watcher with targeted invalidation** — a native Swift `FSEventStream` binary (`tools/watcher/omnifocus-watcher.swift`, ~70–90 LOC) streams JSON change events for every `.ofocus` write. `DatabaseWatcher` spawns the binary with a `fs.watch` fallback when it's absent or crashing. Each change resolves to a `ChangeContext{source, detectedAt, changedPaths}` callback; `mcpServer.ts` issues targeted `cache.invalidate('task:id')` per changed object instead of clearing the whole cache, and emits per-object `sendResourceUpdated({uri: 'omnifocus://task/id'})` plus aggregate URIs. New `getChangesSince()` adapter method backed by `changes_since.js` (JXA) returns `{tasks, projects}` for objects with `modificationDate >= sinceIso`. Build via `pnpm build:watcher` (current arch) or `pnpm build:watcher:all` (universal); the binary is gitignored and distributed via npm optional packages.
+
+### Changed
+
+- **`task_delete` / `task_batch_delete` require `confirm: true`** — input schemas now include `confirm: z.literal(true)`, rejecting any call where the field is absent or `false` before any adapter or JXA call runs. Tool descriptions surface the requirement with a `REQUIRED` prefix so agents notice it. Closes a class of accidental-permanent-deletion bugs noted in #413. ([#413](https://github.com/torsday/omnifocus-mcp/issues/413))
+
+- **`LoopDetector` dual-threshold behaviour** — adds an `errorThreshold` (default 10 calls / 60s) on top of the existing warning threshold (5 calls / 60s). Past the warn threshold, `record()` returns `level: "warn"` and the middleware appends `WARN_LOOP_DETECTED` to `meta.warnings` (existing behaviour). Past the error threshold, `record()` returns `level: "error"` and the middleware throws `LoopDetected` (`OF_LOOP_DETECTED`) before the handler runs — blocking a stuck agent rather than just advising it. Exports the new `LoopDetected` class and `OF_LOOP_DETECTED` code. ([#379](https://github.com/torsday/omnifocus-mcp/issues/379))
+
+- **Tool registry completed** — `allDescriptions.ts` and `allInputSchemas.ts` previously covered 50 of 73 registered tools; the remaining 23 (export/import_taskpaper, perspective_*, project_* CRUD, review_*, run_*_script, task_complete/create/drop/uncomplete/undrop) now have entries. `docs/tools.md` regenerated to cover all 73 tools. Also clears 7 description-shape lint violations under DESIGN §6.8.
+
+- **README overhaul** — adds a "why" section, documents the four MCP workflow prompts, and replaces the stale tool table with an accurate one. Aligns the public landing page with the post-v1.0.0 surface.
+
+- **`@biomejs/biome` 1.9.4 → 2.4.13** — schema migration: `files.ignore` → `files.includes` with negation patterns; `organizeImports` moved to `assist.actions.source.organizeImports`; `noConsoleLog` renamed to `noConsole` (now bans all `console.*` to match the pino-only logging intent). `noRestrictedImports` graduated from nursery to style. `scripts/` override allows `console.*` for CLI scripts; test override sets `noTemplateCurlyInString: off` (cache key patterns like `'project:${id}'` are intentional string literals). One real bug surfaced and fixed: `useIterableCallbackReturn` in `findByName.ts` (`filter` callback missing default false). ([#384](https://github.com/torsday/omnifocus-mcp/issues/384))
+
+- **`fast-check` 3.23.2 → 4.7.0** — `fc.hexaString()` (removed in 4.x) replaced with `fc.stringMatching(/^[0-9a-f]{64}$/)` in `cursor.property.test.ts`. `fc.date` arbitraries in `dates.test.ts` gain a `.filter(d => !isNaN(d.getTime()))` because 4.x can produce `Invalid Date` values even with explicit min/max bounds; the filter ensures `toISOString()` never throws `RangeError` inside a property body. ([#385](https://github.com/torsday/omnifocus-mcp/issues/385))
+
 ---
 
 ## [1.0.0] — 2026-04-25
