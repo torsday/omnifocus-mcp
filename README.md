@@ -13,6 +13,7 @@
 
 - [Why this exists](#why-this-exists)
 - [Quick start](#quick-start)
+- [Security & trust](#security--trust)
 - [Example interactions](#example-interactions)
 - [Prompts](#prompts)
 - [If you are an AI agent](#if-you-are-an-ai-agent)
@@ -179,6 +180,76 @@ The server is built to a single-user local-first standard: no network surface, n
 4. **Verify** — ask your assistant: *"Use the internal_status tool and tell me what it returns."*
 
 Detailed per-client guides: [`docs/clients/`](./docs/clients/)
+
+---
+
+## Security & trust
+
+`omnifocus-mcp` is a **local-only** Node.js process that drives a **local** OmniFocus app via Apple's `osascript` runtime. Installing this package does not introduce cloud connectivity, telemetry, or network egress that wasn't already on your machine.
+
+### Data flow
+
+```
+OmniFocus DB (local) ─→ JXA / OmniJS via osascript (local) ─→ MCP server (local stdio)
+                                                                    │
+                                                                    ↓
+                                                       MCP client (local)
+                                                                    │
+                                                                    ↓
+                                                  LLM provider (only if your client uses one)
+```
+
+The LLM hop at the bottom is **your client's** choice, not this package's. If you run a local-only client (or a client configured to use a local model), nothing in this stack reaches the network.
+
+### Hard guarantees
+
+Each guarantee is enforced by code, not by promise. Click through to verify.
+
+- **No network I/O at the source level** — a custom lint rule (`no-network-import`) bans `import` of `node:http`, `node:https`, `node-fetch`, `axios`, `undici`, and `cross-fetch`. CI fails on any new import that would enable network calls. See [`src/linting/customRules.ts` Rule 4](./src/linting/customRules.ts).
+- **No stdout writes outside the MCP framing path** — `installStdoutGuard()` proxies `process.stdout.write` at server boot and rejects any write that wouldn't corrupt MCP's JSON-RPC stream. The contract is pinned by [`src/server/stdoutGuard.test.ts`](./src/server/stdoutGuard.test.ts).
+- **No telemetry / analytics** — production [`dependencies` in `package.json`](./package.json) are six packages: `@modelcontextprotocol/sdk`, `lru-cache`, `pino`, `ulid`, `zod`, `zod-to-json-schema`. No analytics SDK; nothing phones home.
+- **No `postinstall` / `preinstall` scripts** — `package.json` ships with one lifecycle script (`prepublishOnly`) and one dev hook (`prepare` for git hooks). Neither runs when a downstream consumer installs the package.
+- **Config secrets redacted from logs** — the boot-time `server.started` event runs config through [`redactConfig`](./src/config/env.ts) before logging; path-shaped values are sha256-hashed (12-char prefix) so even local stderr doesn't leak attachment-path layout.
+- **Attachment paths are allowlist-bounded** — every attachment operation passes through [`assertAttachmentPath`](./src/attachment/assertAttachmentPath.ts), which resolves symlinks *before* checking against `OMNIFOCUS_ATTACHMENT_PATHS` (default: `$HOME`) to defeat symlink-escape, and hard-blocks `/System`, `/Library`, and their `/private/*` mirrors regardless of the allowlist.
+
+### Opt-in escape hatch
+
+There is exactly one feature that's gated behind an environment variable because enabling it broadens the threat surface:
+
+- **`OMNIFOCUS_ALLOW_RAW_SCRIPT=1`** — exposes `run_jxa_script` and `run_omnijs_script`, which run arbitrary JXA / OmniJS supplied by the agent. Off by default. When enabled, every invocation emits a `raw_script.invoked` audit event at `info` level (regardless of `OMNIFOCUS_LOG_LEVEL`) including the full script body and tool name. See [ADR-0004](./docs/adr/0004-raw-script-escape-hatch.md) for the rationale.
+
+### Verify it yourself
+
+Three recipes that take seconds; you don't have to take this README's word for any of the above.
+
+1. **Audit the source.** The repo at [github.com/torsday/omnifocus-mcp](https://github.com/torsday/omnifocus-mcp) is the canonical source. The published artifact is built from a tagged commit (`v1.0.0`); compare `dist/index.js` against the build output of that tag.
+2. **Verify the published artifact's provenance.** npm publishes attestations via [Sigstore](https://www.sigstore.dev/):
+   ```bash
+   npm view @torsday/omnifocus-mcp dist.attestations
+   ```
+   The `provenance` URL points to the GitHub Actions run that built the artifact, signed with the workflow's OIDC identity.
+3. **Inspect what's actually in the tarball.** It should be five files — no more, no less, and no install scripts:
+   ```bash
+   curl -sL "$(npm view @torsday/omnifocus-mcp dist.tarball)" | tar -tzvf -
+   ```
+   Expected output (file count = 5):
+   ```
+   package/LICENSE
+   package/dist/index.js
+   package/package.json
+   package/CHANGELOG.md
+   package/README.md
+   ```
+
+### Out of scope
+
+The threat model deliberately excludes anything outside this codebase: vulnerabilities in OmniFocus itself, Apple's JXA / OmniJS / `osascript` runtimes, transitive npm-dependency CVEs (track and patch via `npm audit` / Dependabot, but not part of this project's guarantees), and any attacker with root-equivalent local access (who could replace `osascript`, the MCP server binary, or your shell). See [SECURITY.md § Scope](./SECURITY.md#scope).
+
+### Reference docs
+
+- [`SECURITY.md`](./SECURITY.md) — vulnerability reporting, scope
+- [`DESIGN.md` § 18 Security posture](./DESIGN.md#18-security-posture) — full threat model
+- [ADR-0004](./docs/adr/0004-raw-script-escape-hatch.md) — raw-script gating decision
 
 ---
 
