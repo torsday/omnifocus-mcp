@@ -9,6 +9,8 @@ name: Integration Tests
 #   and running. Contributors without access to this runner can execute the
 #   integration tests locally: OMNIFOCUS_INTEGRATION=1 pnpm test:integration
 #
+#   Runner setup (auto-start, Automation permission, label): docs/runner-setup.md
+#
 # Graceful degradation:
 #   GitHub skips jobs whose runner label has no registered runner in the
 #   Actions runner pool. When no self-hosted runner is available the workflow

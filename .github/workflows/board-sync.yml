@@ -33,18 +33,24 @@ jobs:
     # Fork-PR guard: skip when the PR comes from a fork — fork code cannot
     # execute on the self-hosted runner. (Fork PRs also wouldn't have access to
     # PROJECT_TOKEN by default, so blocking here is both security and correctness.)
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macos]
     steps:
-      - name: Skip if no token
-        if: env.GH_TOKEN == ''
+      - name: Check token
+        id: token
         run: |
-          echo "::warning::PROJECT_TOKEN not set — skipping board sync. Add a PAT with Projects read/write to enable."
-          exit 0
+          if [ -n "$GH_TOKEN" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::PROJECT_TOKEN not set — skipping board sync. Add a PAT with Projects read/write to enable."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/checkout@v6
+        if: steps.token.outputs.ok == 'true'
 
       - name: Load project constants
+        if: steps.token.outputs.ok == 'true'
         run: |
           if [ ! -f scripts/_project-constants.sh ]; then
             echo "::warning::scripts/_project-constants.sh not found (gitignored; must be present on the runner). Skipping board sync."
@@ -61,6 +67,7 @@ jobs:
 
       - name: Extract linked issue numbers from PR body
         id: linked
+        if: steps.token.outputs.ok == 'true'
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
@@ -76,9 +83,10 @@ jobs:
         # Only flip on non-draft opens, reopens, or draft→ready transitions.
         # Draft PRs stay on whatever status they had (typically In Progress).
         if: >-
+          steps.token.outputs.ok == 'true' && (
           (github.event.action == 'opened' && github.event.pull_request.draft == false) ||
           (github.event.action == 'reopened' && github.event.pull_request.draft == false) ||
-          github.event.action == 'ready_for_review'
+          github.event.action == 'ready_for_review')
         env:
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
@@ -96,7 +104,7 @@ jobs:
           done
 
       - name: PR merged → flip linked issues to Done + strip label
-        if: github.event.action == 'closed' && github.event.pull_request.merged == true
+        if: steps.token.outputs.ok == 'true' && github.event.action == 'closed' && github.event.pull_request.merged == true
         env:
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
@@ -119,15 +127,21 @@ jobs:
     if: github.event_name == 'issues' && github.event.action == 'closed'
     runs-on: [self-hosted, macos]
     steps:
-      - name: Skip if no token
-        if: env.GH_TOKEN == ''
+      - name: Check token
+        id: token
         run: |
-          echo "::warning::PROJECT_TOKEN not set — skipping board sync."
-          exit 0
+          if [ -n "$GH_TOKEN" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::PROJECT_TOKEN not set — skipping board sync."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/checkout@v6
+        if: steps.token.outputs.ok == 'true'
 
       - name: Load project constants
+        if: steps.token.outputs.ok == 'true'
         run: |
           if [ ! -f scripts/_project-constants.sh ]; then
             echo "::warning::scripts/_project-constants.sh not found (gitignored; must be present on the runner). Skipping board sync."
@@ -142,6 +156,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Flip closed issue to Done + strip label
+        if: steps.token.outputs.ok == 'true'
         env:
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
