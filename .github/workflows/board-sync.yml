@@ -46,6 +46,10 @@ jobs:
 
       - name: Load project constants
         run: |
+          if [ ! -f scripts/_project-constants.sh ]; then
+            echo "::warning::scripts/_project-constants.sh not found (gitignored; must be present on the runner). Skipping board sync."
+            exit 0
+          fi
           # shellcheck source=../../scripts/_project-constants.sh
           source scripts/_project-constants.sh
           {
@@ -125,6 +129,10 @@ jobs:
 
       - name: Load project constants
         run: |
+          if [ ! -f scripts/_project-constants.sh ]; then
+            echo "::warning::scripts/_project-constants.sh not found (gitignored; must be present on the runner). Skipping board sync."
+            exit 0
+          fi
           # shellcheck source=../../scripts/_project-constants.sh
           source scripts/_project-constants.sh
           {
