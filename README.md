@@ -53,7 +53,29 @@ The server is built to a single-user local-first standard: no network surface, n
    npm install -g @torsday/omnifocus-mcp
    ```
 
-2. **Connect your MCP client** — the server speaks the standard MCP stdio protocol. For Claude Desktop, add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+2. **Configure your MCP client.** Every client uses the same `command` + `args` + `env` shape — only the file path and serialization (JSON vs TOML) differ. The universal shape:
+
+   ```text
+   command: omnifocus-mcp
+   args:    (none)
+   env:     OMNIFOCUS_LOG_LEVEL=info   # optional; "debug" is verbose
+   ```
+
+   Find your client below. Order is alphabetical; no client is recommended over another.
+
+   <details>
+   <summary><strong>Claude Code</strong> (CLI; no file edit)</summary>
+
+   ```bash
+   claude mcp add omnifocus omnifocus-mcp
+   ```
+
+   Detailed guide: [`docs/clients/claude-code.md`](./docs/clients/claude-code.md)
+   </details>
+
+   <details>
+   <summary><strong>Claude Desktop</strong> — <code>~/Library/Application Support/Claude/claude_desktop_config.json</code> (JSON)</summary>
+
    ```json
    {
      "mcpServers": {
@@ -65,7 +87,92 @@ The server is built to a single-user local-first standard: no network surface, n
      }
    }
    ```
-   Any MCP client that supports stdio transport (Claude Desktop, Claude Code, Cursor, Windsurf, etc.) uses the same `command` / `args` / `env` shape.
+
+   Detailed guide: [`docs/clients/claude-desktop.md`](./docs/clients/claude-desktop.md)
+   </details>
+
+   <details>
+   <summary><strong>Cline</strong> (VS Code extension) — extension settings (JSON)</summary>
+
+   In VS Code, open the Cline extension's MCP settings panel and add:
+
+   ```json
+   {
+     "mcpServers": {
+       "omnifocus": {
+         "command": "omnifocus-mcp",
+         "args": [],
+         "env": { "OMNIFOCUS_LOG_LEVEL": "info" }
+       }
+     }
+   }
+   ```
+
+   Cline's settings UI may surface the same fields as labelled inputs rather than raw JSON; the values are identical. Verify the panel location against the current Cline docs.
+   </details>
+
+   <details>
+   <summary><strong>OpenAI Codex CLI</strong> — <code>~/.codex/config.toml</code> (TOML)</summary>
+
+   ```toml
+   [mcp_servers.omnifocus]
+   command = "omnifocus-mcp"
+   args = []
+   env = { OMNIFOCUS_LOG_LEVEL = "info" }
+   ```
+
+   Detailed guide: [`docs/clients/codex.md`](./docs/clients/codex.md)
+   </details>
+
+   <details>
+   <summary><strong>Cursor</strong> — <code>~/.cursor/mcp.json</code> (JSON)</summary>
+
+   ```json
+   {
+     "mcpServers": {
+       "omnifocus": {
+         "command": "omnifocus-mcp",
+         "args": [],
+         "env": { "OMNIFOCUS_LOG_LEVEL": "info" }
+       }
+     }
+   }
+   ```
+
+   Verify the path against the current Cursor docs — recent versions also accept project-scoped `.cursor/mcp.json` at the repo root.
+   </details>
+
+   <details>
+   <summary><strong>Windsurf</strong> — <code>~/.codeium/windsurf/mcp_config.json</code> (JSON)</summary>
+
+   ```json
+   {
+     "mcpServers": {
+       "omnifocus": {
+         "command": "omnifocus-mcp",
+         "args": [],
+         "env": { "OMNIFOCUS_LOG_LEVEL": "info" }
+       }
+     }
+   }
+   ```
+
+   Verify the path against the current Windsurf docs — Codeium occasionally relocates config under `~/.codeium/`.
+   </details>
+
+   <details>
+   <summary><strong>Generic stdio client</strong> (anything else that speaks MCP/stdio)</summary>
+
+   Use your client's MCP config form. The shape is:
+
+   ```text
+   command: "omnifocus-mcp"
+   args:    []
+   env:     { "OMNIFOCUS_LOG_LEVEL": "info" }
+   ```
+
+   Detailed guide: [`docs/clients/generic-stdio.md`](./docs/clients/generic-stdio.md)
+   </details>
 
 3. **Grant macOS Automation permission** on first use — the app running the MCP server will prompt to control OmniFocus; click **OK**. If denied by mistake: **System Settings → Privacy & Security → Automation → [app] → OmniFocus** ✓
 
@@ -117,7 +224,7 @@ The assistant calls `task_list` with `{ "available": true, "limit": 20 }` and re
 
 ## Prompts
 
-`omnifocus-mcp` ships four **MCP prompt templates** — structured workflows you can invoke by name from any MCP client that supports prompts (e.g. Claude Desktop's prompt picker, or any client that surfaces `prompts/list`).
+`omnifocus-mcp` ships four **MCP prompt templates** — structured workflows you can invoke by name from any MCP client that surfaces `prompts/list` (most clients with a prompt picker UI).
 
 ### `daily-review` — triage your day
 
@@ -681,8 +788,9 @@ Writes are saved locally and show up immediately in subsequent tool calls. Chang
 
 | Client | Guide |
 |---|---|
-| Claude Desktop | [`docs/clients/claude-desktop.md`](./docs/clients/claude-desktop.md) |
 | Claude Code (CLI) | [`docs/clients/claude-code.md`](./docs/clients/claude-code.md) |
+| Claude Desktop | [`docs/clients/claude-desktop.md`](./docs/clients/claude-desktop.md) |
+| OpenAI Codex CLI | [`docs/clients/codex.md`](./docs/clients/codex.md) |
 | Generic stdio client | [`docs/clients/generic-stdio.md`](./docs/clients/generic-stdio.md) |
 
 ---
