@@ -33,14 +33,10 @@ jobs:
     # Fork-PR guard: skip when the PR comes from a fork — fork code cannot
     # execute on the self-hosted runner. (Fork PRs also wouldn't have access to
     # PROJECT_TOKEN by default, so blocking here is both security and correctness.)
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    # Also skip when PROJECT_TOKEN is absent (no unauthenticated API calls).
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && env.GH_TOKEN != '' }}
     runs-on: [self-hosted, macos]
     steps:
-      - name: Skip if no token
-        if: env.GH_TOKEN == ''
-        run: |
-          echo "::warning::PROJECT_TOKEN not set — skipping board sync. Add a PAT with Projects read/write to enable."
-          exit 0
 
       - uses: actions/checkout@v6
 
@@ -112,14 +108,9 @@ jobs:
           done
 
   issue-closed:
-    if: github.event_name == 'issues' && github.event.action == 'closed'
+    if: github.event_name == 'issues' && github.event.action == 'closed' && env.GH_TOKEN != ''
     runs-on: [self-hosted, macos]
     steps:
-      - name: Skip if no token
-        if: env.GH_TOKEN == ''
-        run: |
-          echo "::warning::PROJECT_TOKEN not set — skipping board sync."
-          exit 0
 
       - uses: actions/checkout@v6
 
