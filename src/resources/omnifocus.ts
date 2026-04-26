@@ -66,6 +66,9 @@ export const REVIEW_DUE_URI = "omnifocus://review-due";
 export const PROJECT_URI_TEMPLATE = "omnifocus://project/{id}";
 export const TAG_URI_TEMPLATE = "omnifocus://tag/{id}";
 export const PERSPECTIVE_URI_TEMPLATE = "omnifocus://perspective/{id}";
+export const TASKS_INBOX_URI = "omnifocus://tasks/inbox";
+export const TASKS_BY_PROJECT_URI_TEMPLATE = "omnifocus://tasks/project/{projectId}";
+export const TASKS_BY_TAG_URI_TEMPLATE = "omnifocus://tasks/tag/{tagId}";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -316,6 +319,59 @@ export function registerOmniFocusResources(server: McpServer, deps: OmniFocusRes
         perspectiveId: id,
         tasks: result.tasks,
       });
+    },
+  );
+
+  // ── omnifocus://tasks/inbox ──────────────────────────────────────────────
+  server.registerResource(
+    "omnifocus-tasks-inbox",
+    TASKS_INBOX_URI,
+    {
+      description:
+        "Inbox tasks as Task[]. Alias for omnifocus://inbox using the unified tasks namespace. " +
+        "Returns incomplete tasks not assigned to any project or parent task.",
+      mimeType: "application/json",
+    },
+    async () => {
+      const tasks = await adapter.listTasks({ completed: false });
+      const inbox = tasks.filter((t) => t.projectId === null && t.parentId === null);
+      return jsonContents(TASKS_INBOX_URI, inbox);
+    },
+  );
+
+  // ── omnifocus://tasks/project/{projectId} ─────────────────────────────────
+  server.registerResource(
+    "omnifocus-tasks-by-project",
+    new ResourceTemplate(TASKS_BY_PROJECT_URI_TEMPLATE, { list: undefined }),
+    {
+      description:
+        "Active tasks in a project as Task[]. " +
+        "Get the project ID from project_list or project_get. " +
+        "Returns incomplete tasks whose projectId matches the given ID.",
+      mimeType: "application/json",
+    },
+    async (_uri, variables) => {
+      const projectId = ProjectId.of((variables as { projectId: string }).projectId);
+      const tasks = await adapter.listTasks({ projectId, completed: false });
+      return jsonContents(`omnifocus://tasks/project/${projectId}`, tasks);
+    },
+  );
+
+  // ── omnifocus://tasks/tag/{tagId} ─────────────────────────────────────────
+  server.registerResource(
+    "omnifocus-tasks-by-tag",
+    new ResourceTemplate(TASKS_BY_TAG_URI_TEMPLATE, { list: undefined }),
+    {
+      description:
+        "Active tasks with a specific tag as Task[]. " +
+        "Get the tag ID from tag_list or tag_get. " +
+        "Returns incomplete tasks that carry the given tag.",
+      mimeType: "application/json",
+    },
+    async (_uri, variables) => {
+      const tagId = TagId.of((variables as { tagId: string }).tagId);
+      const tasks = await adapter.listTasks({ tagId, completed: false });
+      return jsonContents(`omnifocus://tasks/tag/${tagId}`, tasks);
     },
   );
 }
