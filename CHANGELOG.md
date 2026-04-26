@@ -4,6 +4,22 @@ All notable changes to `@torsday/omnifocus-mcp` will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [ADR-0011](./docs/adr/0011-versioning-and-stability.md) for the explicit definition of breaking vs additive changes in this project.
 
+## [1.0.1](https://github.com/torsday/omnifocus-mcp/compare/v1.0.0...v1.0.1) (2026-04-26)
+
+
+### Fixed
+
+* **ci:** allow periods inside PR-title subjects ([6170320](https://github.com/torsday/omnifocus-mcp/commit/6170320ea72bfb0e71444d1685e29a02d47eec3d))
+
+
+### Documentation
+
+* post-1.0 audit — refresh stale 'in preparation' framing ([369d828](https://github.com/torsday/omnifocus-mcp/commit/369d828a40227498ae8a6d1bff69c14bf13fcd50))
+* **readme:** add CI status badge for main branch ([#438](https://github.com/torsday/omnifocus-mcp/issues/438)) ([f9576ec](https://github.com/torsday/omnifocus-mcp/commit/f9576ecbea3e897ecd075fc5939277e90b8b4bd3))
+* **readme:** add Security & trust section ([0c7aac3](https://github.com/torsday/omnifocus-mcp/commit/0c7aac3f55172467123edf5c9c545ab7ca1df822))
+* **readme:** make Quick Start agent-agnostic ([982c4ac](https://github.com/torsday/omnifocus-mcp/commit/982c4ace406989a88457341b071071a01f39d738))
+* **runner:** add runner-setup guide for macos-omnifocus auto-start ([#443](https://github.com/torsday/omnifocus-mcp/issues/443)) ([8a6273d](https://github.com/torsday/omnifocus-mcp/commit/8a6273dee7fb8862aa2963f6b48a3e31c7485824))
+
 ## [Unreleased]
 
 _Nothing yet — see [GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues) and [Project #4](https://github.com/users/torsday/projects/4) for the live backlog and status._
