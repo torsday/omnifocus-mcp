@@ -316,6 +316,10 @@ export interface OmniFocusAdapter {
    */
   batchDropTasks(items: Array<{ id: TaskId }>): Promise<BatchOutcome<TaskId>>;
   /**
+   * Restores each dropped task to active status; per-item failures are reported in `failed[]`.
+   */
+  batchUndropTasks(items: Array<{ id: TaskId }>): Promise<BatchOutcome<TaskId>>;
+  /**
    * Duplicate a task. Editable fields (name, note, noteHtml, dates, flagged,
    * tags, estimatedMinutes, repetition, sequential, completedByChildren) copy
    * over; system fields (id, createdAt, modifiedAt, completedAt, droppedAt)

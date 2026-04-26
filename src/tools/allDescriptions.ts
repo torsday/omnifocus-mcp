@@ -29,6 +29,7 @@ import { PROJECT_CREATE_DESCRIPTION } from "./project/create.js";
 import { PROJECT_DELETE_DESCRIPTION } from "./project/delete.js";
 import { PROJECT_DROP_DESCRIPTION } from "./project/drop.js";
 import { PROJECT_GET_DESCRIPTION } from "./project/get.js";
+import { PROJECT_GET_MANY_DESCRIPTION } from "./project/getMany.js";
 import { PROJECT_LIST_DESCRIPTION } from "./project/list.js";
 import { PROJECT_MOVE_DESCRIPTION } from "./project/move.js";
 import { PROJECT_UPDATE_DESCRIPTION } from "./project/update.js";
@@ -45,6 +46,7 @@ import { TAG_CREATE_DESCRIPTION } from "./tag/create.js";
 import { TAG_DELETE_DESCRIPTION } from "./tag/delete.js";
 import { TAG_GET_DESCRIPTION } from "./tag/get.js";
 import { TAG_GET_LOCATION_DESCRIPTION } from "./tag/getLocation.js";
+import { TAG_GET_MANY_DESCRIPTION } from "./tag/getMany.js";
 import { TAG_LIST_DESCRIPTION } from "./tag/list.js";
 import { TAG_MOVE_DESCRIPTION } from "./tag/move.js";
 import { TAG_SET_ALLOWS_NEXT_ACTION_DESCRIPTION } from "./tag/setAllowsNextAction.js";
@@ -53,6 +55,9 @@ import { TAG_SET_STATUS_DESCRIPTION } from "./tag/setStatus.js";
 import { TAG_UPDATE_DESCRIPTION } from "./tag/update.js";
 import { TASK_BATCH_COMPLETE_DESCRIPTION } from "./task/batchComplete.js";
 import { TASK_BATCH_CREATE_DESCRIPTION } from "./task/batchCreate.js";
+import { TASK_BATCH_DELETE_DESCRIPTION } from "./task/batchDelete.js";
+import { TASK_BATCH_DROP_DESCRIPTION } from "./task/batchDrop.js";
+import { TASK_BATCH_UNDROP_DESCRIPTION } from "./task/batchUndrop.js";
 import { TASK_BATCH_UPDATE_DESCRIPTION } from "./task/batchUpdate.js";
 import { TASK_CLEAR_REPETITION_DESCRIPTION } from "./task/clearRepetition.js";
 import { TASK_COMPLETE_DESCRIPTION } from "./task/complete.js";
@@ -104,6 +109,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   project_delete: PROJECT_DELETE_DESCRIPTION,
   project_drop: PROJECT_DROP_DESCRIPTION,
   project_get: PROJECT_GET_DESCRIPTION,
+  project_get_many: PROJECT_GET_MANY_DESCRIPTION,
   project_list: PROJECT_LIST_DESCRIPTION,
   project_mark_reviewed: PROJECT_MARK_REVIEWED_DESCRIPTION,
   project_move: PROJECT_MOVE_DESCRIPTION,
@@ -119,6 +125,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   tag_create: TAG_CREATE_DESCRIPTION,
   tag_delete: TAG_DELETE_DESCRIPTION,
   tag_get: TAG_GET_DESCRIPTION,
+  tag_get_many: TAG_GET_MANY_DESCRIPTION,
   tag_get_location: TAG_GET_LOCATION_DESCRIPTION,
   tag_list: TAG_LIST_DESCRIPTION,
   tag_move: TAG_MOVE_DESCRIPTION,
@@ -127,11 +134,14 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   tag_set_status: TAG_SET_STATUS_DESCRIPTION,
   tag_update: TAG_UPDATE_DESCRIPTION,
   task_batch_complete: TASK_BATCH_COMPLETE_DESCRIPTION,
+  task_batch_create: TASK_BATCH_CREATE_DESCRIPTION,
+  task_batch_delete: TASK_BATCH_DELETE_DESCRIPTION,
+  task_batch_drop: TASK_BATCH_DROP_DESCRIPTION,
+  task_batch_undrop: TASK_BATCH_UNDROP_DESCRIPTION,
+  task_batch_update: TASK_BATCH_UPDATE_DESCRIPTION,
   task_complete: TASK_COMPLETE_DESCRIPTION,
   task_create: TASK_CREATE_DESCRIPTION,
   task_drop: TASK_DROP_DESCRIPTION,
-  task_batch_create: TASK_BATCH_CREATE_DESCRIPTION,
-  task_batch_update: TASK_BATCH_UPDATE_DESCRIPTION,
   task_clear_repetition: TASK_CLEAR_REPETITION_DESCRIPTION,
   task_delete: TASK_DELETE_DESCRIPTION,
   task_duplicate: TASK_DUPLICATE_DESCRIPTION,
