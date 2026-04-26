@@ -626,7 +626,7 @@ The full layered diagram with queues, circuit breakers, and the test adapter liv
 
 ## Status and roadmap
 
-All six milestones shipped. v1.0.0 is in preparation for npm release — see the [unreleased section of the CHANGELOG](./CHANGELOG.md#unreleased) for what's queued.
+v1.0.0 is [published on npm](https://www.npmjs.com/package/@torsday/omnifocus-mcp). The phase table below records the milestone work that landed; the live backlog and future enhancements track on the [Project board](https://github.com/users/torsday/projects/4), and the [unreleased section of the CHANGELOG](./CHANGELOG.md#unreleased) lists what's already merged toward the next release.
 
 | Phase | Milestone | Status |
 |---|---|---|

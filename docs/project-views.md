@@ -7,9 +7,8 @@
 The repo's bootstrap already created:
 
 - Six custom fields: **Status**, **Phase**, **Priority**, **Size**, **Risk** (+ GitHub's built-in Labels, Milestone, Repository)
-- **Status** option set expanded to: `Ready` · `Todo` · `In Progress` · `In Review` · `Blocked` · `Done`
-- 94 issues populated with Phase / Priority / Size / Risk field values derived from labels
-- Current distribution: **7 Done · 26 Ready · 61 Todo** (shift as work ships)
+- **Status** option set: `Backlog` · `Up Next` · `In Progress` · `In Review` · `On Hold` · `Done` (forward flow: `Backlog → Up Next → In Progress → In Review → Done`; `On Hold` is a side-track reachable from any non-terminal column with a comment giving the reason)
+- Issues populated with Phase / Priority / Size / Risk field values derived from labels
 
 The project ships with a single default **View 1** (table layout). None of the views below are created yet — Projects v2's GraphQL API has no `createProjectV2View` mutation, so they must be added in the web UI. Follow the steps below once; they persist.
 
@@ -29,10 +28,10 @@ All that remains is laying out the views below.
 2. Open the view's **Layout** picker (top-right, next to the filter bar) → switch from **Table** to **Board**
 3. Group by: **Status**
 4. Visible fields (click "Fields" → toggle): `Title`, `Labels`, `Priority`, `Size`, `Phase`, `Risk`, `Milestone`
-5. Sort by: `Priority` ascending, then `Phase` ascending (so P0 M0 items bubble to the top of the `Ready` column)
+5. Sort by: `Priority` ascending, then `Phase` ascending (so P0 items bubble to the top of the `Up Next` column)
 6. Save changes to the view
 
-Six status columns appear: `Ready` (pick from here) → `Todo` (queued behind dependencies) → `In Progress` → `In Review` → `Blocked` → `Done`. The `Ready` column should currently show ~26 items; `/ship-next` automatically flips them through `In Progress` → `In Review` → `Done`.
+Six status columns appear: `Backlog` (raw / untriaged) → `Up Next` (`/ship-next` picks from here) → `In Progress` → `In Review` → `Done`, with `On Hold` as a side-track for items deferred or blocked on external dependencies. `/ship-next` automatically flips items through `In Progress` → `In Review` → `Done`.
 
 After this, `https://github.com/users/torsday/projects/4/views/1` will load as a board.
 

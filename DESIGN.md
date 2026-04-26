@@ -1,7 +1,7 @@
 # Design: omnifocus-mcp
 
-**Status:** v1 Draft — design-complete, implementation-ready
-**Date:** 2026-04-19
+**Status:** v1.0 — implemented and shipped 2026-04-25
+**Date:** 2026-04-19 (initial); shipped 2026-04-25
 **Evaluates:** `SPEC.md`
 
 A design document in the `systems_design.md` tradition: surfaces options, names tradeoffs, commits a recommendation, and flags what's being cut. Load-bearing decisions are recorded as ADRs under `docs/adr/`.
