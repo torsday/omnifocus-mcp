@@ -56,7 +56,7 @@ jobs:
           ref: ${{ github.event.inputs.ref || github.sha }}
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
 
       - name: Set up Node ${{ matrix.node-version }}
         uses: actions/setup-node@v6
