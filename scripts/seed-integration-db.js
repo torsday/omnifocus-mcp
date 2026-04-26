@@ -16,7 +16,7 @@
 // Then run the integration suite:
 //   OMNIFOCUS_INTEGRATION=1 pnpm test:integration
 
-const { spawnSync } = require("node:child_process");
+import { spawnSync } from "node:child_process";
 
 // ---------------------------------------------------------------------------
 // Helpers
