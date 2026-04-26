@@ -223,7 +223,7 @@ There is exactly one feature that's gated behind an environment variable because
 
 Three recipes that take seconds; you don't have to take this README's word for any of the above.
 
-1. **Audit the source.** The repo at [github.com/torsday/omnifocus-mcp](https://github.com/torsday/omnifocus-mcp) is the canonical source. The published artifact is built from a tagged commit (`v1.0.0`); compare `dist/index.js` against the build output of that tag.
+1. **Audit the source.** The repo at [github.com/torsday/omnifocus-mcp](https://github.com/torsday/omnifocus-mcp) is the canonical source. Each published artifact is built from its own tagged commit (`v<version>`); compare `dist/index.js` against the build output of the tag matching the version you installed.
 2. **Verify the published artifact's provenance.** npm publishes attestations via [Sigstore](https://www.sigstore.dev/):
    ```bash
    npm view @torsday/omnifocus-mcp dist.attestations
@@ -698,7 +698,7 @@ The full layered diagram with queues, circuit breakers, and the test adapter liv
 
 ## Status and roadmap
 
-v1.0.0 is [published on npm](https://www.npmjs.com/package/@torsday/omnifocus-mcp). The phase table below records the milestone work that landed; the live backlog and future enhancements track on the [Project board](https://github.com/users/torsday/projects/4), and the [unreleased section of the CHANGELOG](./CHANGELOG.md#unreleased) lists what's already merged toward the next release.
+The package is [published on npm](https://www.npmjs.com/package/@torsday/omnifocus-mcp); see the [latest release](https://github.com/torsday/omnifocus-mcp/releases/latest) for the current version and notes. The phase table below records the milestone work that shipped in v1.0.0; the live backlog and future enhancements track on the [Project board](https://github.com/users/torsday/projects/4), and the [unreleased section of the CHANGELOG](./CHANGELOG.md#unreleased) lists what's already merged toward the next release.
 
 | Phase | Milestone | Status |
 |---|---|---|
