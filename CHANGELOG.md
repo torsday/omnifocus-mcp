@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [1.0.2](https://github.com/torsday/omnifocus-mcp/compare/v1.0.1...v1.0.2) (2026-04-26)
 
-**Summary** — One contributor-facing fix; otherwise an internal-infrastructure release validating the post-v1.0.1 release flow under the new release-please + OIDC + PAT identity. **Bytes on the wire are identical to v1.0.1**: the published bundle, tool surface, tool descriptions, and runtime behaviour are unchanged. Consumers running `npx -y @torsday/omnifocus-mcp` see no difference. Internal-only commits (release-please workflow tuning, CI hygiene, doc spikes) are intentionally hidden from this CHANGELOG by `release-please-config.json` and are not enumerated below.
+**Summary** — One contributor-facing fix and one architectural-decision spike note; otherwise an internal-infrastructure release validating the post-v1.0.1 release flow under the new release-please + OIDC + PAT identity. **Bytes on the wire are identical to v1.0.1**: the published bundle, tool surface, tool descriptions, and runtime behaviour are unchanged. Consumers running `npx -y @torsday/omnifocus-mcp` see no difference. Internal-only commits (CI hygiene, release-please workflow tuning, comment-block cleanups) are intentionally hidden from this CHANGELOG by `release-please-config.json` and are not enumerated below.
 
 ### Fixed
 
@@ -15,7 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Documentation
 
-* **spike:** [#432](https://github.com/torsday/omnifocus-mcp/issues/432) — don't automate CHANGELOG polish, manual stays canonical ([24c35c9](https://github.com/torsday/omnifocus-mcp/commit/24c35c95c59ce5d3590b2256aede288876bf1140))
+- **Tier-3 CHANGELOG-action spike resolved — don't automate** — `docs/spikes/2026-04-tier-3-changelog-action.md` records the decision: stick with the existing manual `/release-notes` polish flow rather than building a GitHub Action that auto-polishes the Release PR via the Anthropic API. Three structural reasons in the note: ~10 min/release × ~6 releases/year is roughly 1 hour/year of polish work — automation that adds operational surface (new repo secret, rotation burden, API outage as a release-block failure mode) to save 1 hour/year is the wrong trade; the skip-the-polish decision (chore-only releases need no polish) requires maintainer judgment that an action can't make; and with a Closed contributing stance there are no future maintainers to onboard. Empirical anchor: v1.0.1's polish — the first release under release-please — showed substantial quality delta from auto-draft to polished prose at acceptable manual cost. ([#432](https://github.com/torsday/omnifocus-mcp/issues/432))
 
 ## [1.0.1](https://github.com/torsday/omnifocus-mcp/compare/v1.0.0...v1.0.1) (2026-04-26)
 
