@@ -1,0 +1,91 @@
+name: Release
+
+# Triggers on semver tag push (e.g. v0.1.0).
+#
+# Runner choice
+# -------------
+# CI runs on a self-hosted macOS runner (free, no billing). This release
+# job intentionally runs on `ubuntu-latest` (GitHub-hosted) because npm's
+# `--provenance` flag rejects publishes from self-hosted runners with a
+# `422 Unprocessable Entity — Unsupported GitHub Actions runner environment`
+# error. Releases are infrequent so the GitHub Actions minutes are
+# negligible, and the supply-chain attestation lands in the public
+# Sigstore transparency log.
+#
+# Authentication
+# --------------
+# v1.0.0 (the first publish) uses a granular access token in NPM_TOKEN
+# because npm Trusted Publishing cannot be configured for a package that
+# does not yet exist on the registry. Once v1.0.0 is live, set up Trusted
+# Publishing at https://www.npmjs.com/package/@torsday/omnifocus-mcp/access
+# (org `torsday`, repo `omnifocus-mcp`, workflow filename `release.yml`),
+# then drop both `NODE_AUTH_TOKEN` and the secret. `id-token: write` is
+# already granted below for OIDC; `--provenance` continues to work either way.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+# Read-only by default. The release job below grants the writes it needs
+# (contents: write for the GitHub Release, id-token: write for npm provenance).
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest   # required by `pnpm publish --provenance` (see header)
+    permissions:
+      contents: write   # needed to create a GitHub Release
+      id-token: write   # needed for npm provenance (and future OIDC publish)
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # full history for release note generation
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      # Full pre-publish gate (mirrors CI on Node 24)
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+
+      - name: Bundle-size budget (< 500 KB per DESIGN §20)
+        run: bash scripts/check-bundle-size.sh
+
+      # Extract release notes from CHANGELOG.md before publishing so a
+      # missing section fails the run before npm publish — easier to
+      # recover from than a published-but-undocumented version.
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NOTES=$(bash scripts/extract-changelog-section.sh "$VERSION")
+          {
+            echo "notes<<EOF_NOTES_$$"
+            printf '%s\n' "$NOTES"
+            echo "EOF_NOTES_$$"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish to npm
+        # --provenance writes a Sigstore attestation linking this published
+        # tarball to this workflow run. Requires `id-token: write` (granted
+        # above) and a public repo (we are public).
+        run: pnpm publish --access public --no-git-checks --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          body: ${{ steps.notes.outputs.notes }}
+          make_latest: true

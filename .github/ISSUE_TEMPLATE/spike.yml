@@ -1,0 +1,34 @@
+name: Spike
+description: Time-boxed research whose output is a decision, not code
+title: "[spike] <question to answer>"
+labels: ["type: spike"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question to answer
+      description: One specific decision this spike produces — not a general investigation.
+      placeholder: "Can we reliably invoke OmniJS via URL scheme and retrieve structured results via a filesystem callback?"
+    validations:
+      required: true
+  - type: input
+    id: timebox
+    attributes:
+      label: Time box
+      description: Hours or days; stop investigating when this is up.
+      placeholder: "1 day"
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Expected output
+      description: A written decision. Usually a spike note under `docs/spikes/` and/or an ADR update.
+      placeholder: "docs/spikes/2026-04-omnijs-spike.md with p50/p95 latency, failure modes, and a go/no-go decision"
+    validations:
+      required: true
+  - type: textarea
+    id: success-criteria
+    attributes:
+      label: Success criteria
+      description: What does "done" look like?

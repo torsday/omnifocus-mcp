@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Design documents
+    url: https://github.com/torsday/omnifocus-mcp#design-documents
+    about: Before filing, check SPEC.md, DESIGN.md, and the ADRs. Most questions are answered there.
+  - name: Project backlog
+    url: https://github.com/users/torsday/projects/4
+    about: Live Kanban, Roadmap, Priority, Risk, and Domain views of the work.

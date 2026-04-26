@@ -1,0 +1,47 @@
+name: Epic
+description: Parent issue tracking a multi-issue feature area
+title: "<area name — e.g. 'Tag management' or 'Perspective CRUD'>"
+labels: ["type: epic"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Epics are parent trackers for feature areas too large for a single issue. They do not get implemented directly — the child issues are the unit of work. Epics are **exempt** from the `model:` label rule because they aren't picked up by `/ship-next` directly; only their children are. Check off child tasks as they close to track progress.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What this epic delivers, in one paragraph. What the system or user can do when it's done.
+      placeholder: |
+        Complete CRUD + query surface for tags, covering create/update/delete, location binding, hierarchy, and listing with status/due-date/forecast filters. When this epic ships, every SPEC.md §4 tag requirement is backed by an MCP tool.
+    validations:
+      required: true
+  - type: textarea
+    id: tasks
+    attributes:
+      label: Tasks
+      description: Child issues, as a GitHub-tracked task list. Link by #number; GitHub auto-updates the progress bar as children close.
+      placeholder: |
+        - [ ] Implement `create_tag` (#NN)
+        - [ ] Implement `update_tag` (#NN)
+        - [ ] Implement `delete_tag` (#NN)
+        - [ ] Implement `set_tag_location` (#NN)
+        - [ ] Implement `list_tags` with filters (#NN)
+    validations:
+      required: true
+  - type: textarea
+    id: success
+    attributes:
+      label: Success Criteria
+      description: Epic-level outcomes. These are coarser than child-issue acceptance criteria — "what becomes true when all children ship."
+      placeholder: |
+        - [ ] Every SPEC.md §4 tag requirement has a corresponding shipping MCP tool
+        - [ ] Integration coverage for tag mutation ≥ 90% (per coverage script)
+        - [ ] ADR-NNNN accepted for any design decisions surfaced during implementation
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Design links, constraints, cross-cutting concerns.

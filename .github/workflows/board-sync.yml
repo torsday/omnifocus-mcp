@@ -1,0 +1,148 @@
+# Board-state sync for the user-owned Projects v2 board `torsday/projects/4`.
+#
+# Requires a repo secret `PROJECT_TOKEN` — a fine-grained PAT with:
+#   - User permission "Projects: Read and write"
+#   - Repository permission "Issues: Read and write"
+# GITHUB_TOKEN can't write to user-owned projects; the PAT is required.
+#
+# Field/option IDs are sourced from `scripts/_project-constants.sh` at job start
+# (single source of truth — see that file for rediscovery commands if the project
+# is ever recreated).
+
+name: Board sync
+
+on:
+  pull_request:
+    # `ready_for_review` fires when a draft flips to ready — that's the right
+    # moment to move linked issues to "In Review". Raw `opened`/`reopened` on
+    # a draft is premature; the job below guards with draft == false.
+    types: [opened, reopened, ready_for_review, closed]
+  issues:
+    types: [closed, reopened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+env:
+  GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+
+jobs:
+  pr:
+    if: github.event_name == 'pull_request'
+    runs-on: [self-hosted, macos]
+    steps:
+      - name: Skip if no token
+        if: env.GH_TOKEN == ''
+        run: |
+          echo "::warning::PROJECT_TOKEN not set — skipping board sync. Add a PAT with Projects read/write to enable."
+          exit 0
+
+      - uses: actions/checkout@v6
+
+      - name: Load project constants
+        run: |
+          # shellcheck source=../../scripts/_project-constants.sh
+          source scripts/_project-constants.sh
+          {
+            echo "PROJECT_ID=$PROJECT_ID"
+            echo "STATUS_FIELD=$F_STATUS"
+            echo "OPT_IN_REVIEW=$STATUS_IN_REVIEW"
+            echo "OPT_DONE=$STATUS_DONE"
+          } >> "$GITHUB_ENV"
+
+      - name: Extract linked issue numbers from PR body
+        id: linked
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          nums=$(printf '%s' "$PR_BODY" \
+            | grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#[0-9]+' \
+            | grep -oE '[0-9]+' \
+            | sort -u \
+            | tr '\n' ' ')
+          echo "nums=$nums" >> "$GITHUB_OUTPUT"
+          echo "Linked issues: ${nums:-<none>}"
+
+      - name: PR opened (ready) → flip linked issues to In Review
+        # Only flip on non-draft opens, reopens, or draft→ready transitions.
+        # Draft PRs stay on whatever status they had (typically In Progress).
+        if: >-
+          (github.event.action == 'opened' && github.event.pull_request.draft == false) ||
+          (github.event.action == 'reopened' && github.event.pull_request.draft == false) ||
+          github.event.action == 'ready_for_review'
+        env:
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          NUMS: ${{ steps.linked.outputs.nums }}
+        run: |
+          # shellcheck disable=SC2016  # $o/$r/$n are GraphQL variables, not shell expansions
+          for n in $NUMS; do
+            item=$(gh api graphql \
+              -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){issue(number:$n){projectItems(first:10){nodes{id project{id}}}}}}' \
+              -F o="$OWNER" -F r="$REPO" -F n="$n" \
+              --jq ".data.repository.issue.projectItems.nodes[] | select(.project.id==\"$PROJECT_ID\") | .id" || true)
+            [ -z "$item" ] && { echo "#$n not on project — skip"; continue; }
+            gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"$PROJECT_ID\",itemId:\"$item\",fieldId:\"$STATUS_FIELD\",value:{singleSelectOptionId:\"$OPT_IN_REVIEW\"}}){projectV2Item{id}}}" >/dev/null
+            echo "#$n → In Review"
+          done
+
+      - name: PR merged → flip linked issues to Done + strip label
+        if: github.event.action == 'closed' && github.event.pull_request.merged == true
+        env:
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          NUMS: ${{ steps.linked.outputs.nums }}
+        run: |
+          # shellcheck disable=SC2016  # $o/$r/$n are GraphQL variables, not shell expansions
+          for n in $NUMS; do
+            item=$(gh api graphql \
+              -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){issue(number:$n){projectItems(first:10){nodes{id project{id}}}}}}' \
+              -F o="$OWNER" -F r="$REPO" -F n="$n" \
+              --jq ".data.repository.issue.projectItems.nodes[] | select(.project.id==\"$PROJECT_ID\") | .id" || true)
+            if [ -n "$item" ]; then
+              gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"$PROJECT_ID\",itemId:\"$item\",fieldId:\"$STATUS_FIELD\",value:{singleSelectOptionId:\"$OPT_DONE\"}}){projectV2Item{id}}}" >/dev/null
+              echo "#$n → Done"
+            fi
+            gh issue edit "$n" --remove-label "status: in-progress" 2>/dev/null || true
+          done
+
+  issue-closed:
+    if: github.event_name == 'issues' && github.event.action == 'closed'
+    runs-on: [self-hosted, macos]
+    steps:
+      - name: Skip if no token
+        if: env.GH_TOKEN == ''
+        run: |
+          echo "::warning::PROJECT_TOKEN not set — skipping board sync."
+          exit 0
+
+      - uses: actions/checkout@v6
+
+      - name: Load project constants
+        run: |
+          # shellcheck source=../../scripts/_project-constants.sh
+          source scripts/_project-constants.sh
+          {
+            echo "PROJECT_ID=$PROJECT_ID"
+            echo "STATUS_FIELD=$F_STATUS"
+            echo "OPT_DONE=$STATUS_DONE"
+          } >> "$GITHUB_ENV"
+
+      - name: Flip closed issue to Done + strip label
+        env:
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          N: ${{ github.event.issue.number }}
+        run: |
+          # shellcheck disable=SC2016  # $o/$r/$n are GraphQL variables, not shell expansions
+          item=$(gh api graphql \
+            -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){issue(number:$n){projectItems(first:10){nodes{id project{id}}}}}}' \
+            -F o="$OWNER" -F r="$REPO" -F n="$N" \
+            --jq ".data.repository.issue.projectItems.nodes[] | select(.project.id==\"$PROJECT_ID\") | .id" || true)
+          if [ -n "$item" ]; then
+            gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"$PROJECT_ID\",itemId:\"$item\",fieldId:\"$STATUS_FIELD\",value:{singleSelectOptionId:\"$OPT_DONE\"}}){projectV2Item{id}}}" >/dev/null
+            echo "#$N → Done"
+          fi
+          gh issue edit "$N" --remove-label "status: in-progress" 2>/dev/null || true

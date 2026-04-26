@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2034
+# ^ vars here are consumed by sourcing scripts; shellcheck can't see that.
+# =============================================================================
+# _project-constants.sh — single source of truth for project #4 IDs
+# =============================================================================
+# Sourced by scripts/file-issue.sh, scripts/populate-project.sh,
+# scripts/set-ready-status.sh, scripts/verify-constants.sh, and by
+# .github/workflows/board-sync.yml (via a checkout + source step). The leading
+# underscore marks this as a library, not a script you'd invoke directly.
+#
+# Drift check: scripts/verify-constants.sh re-queries the GraphQL API and
+# diffs the live project against the values below. Run it in CI to catch
+# silent drift when someone renames a field/option in the Projects UI.
+#
+# To rediscover IDs after a project recreation:
+#
+#   gh api graphql -f query='query {
+#     user(login: "YOUR_GITHUB_USERNAME") {
+#       projectV2(number: YOUR_PROJECT_NUMBER) {
+#         id
+#         fields(first: 20) {
+#           nodes {
+#             ... on ProjectV2SingleSelectField {
+#               id name options { id name }
+#             }
+#           }
+#         }
+#       }
+#     }
+#   }'
+# =============================================================================
+
+# Owner / repo / project
+# Replace these with your own values (run the discovery query above to find them).
+OWNER="YOUR_GITHUB_USERNAME"
+REPO="YOUR_GITHUB_USERNAME/omnifocus-mcp"
+PROJECT_NUM=YOUR_PROJECT_NUMBER
+PROJECT_ID="YOUR_PROJECT_NODE_ID"          # e.g. PVT_kwHO...
+
+# Field IDs  (from the discovery query above — "id" on each ProjectV2SingleSelectField)
+F_STATUS="YOUR_STATUS_FIELD_ID"
+F_PHASE="YOUR_PHASE_FIELD_ID"
+F_PRIORITY="YOUR_PRIORITY_FIELD_ID"
+F_SIZE="YOUR_SIZE_FIELD_ID"
+F_RISK="YOUR_RISK_FIELD_ID"
+
+# Status option IDs  (from the discovery query above — "options[].id" on the Status field)
+STATUS_BACKLOG="YOUR_BACKLOG_OPTION_ID"
+STATUS_UP_NEXT="YOUR_UP_NEXT_OPTION_ID"
+STATUS_IN_PROGRESS="YOUR_IN_PROGRESS_OPTION_ID"
+STATUS_IN_REVIEW="YOUR_IN_REVIEW_OPTION_ID"
+STATUS_ON_HOLD="YOUR_ON_HOLD_OPTION_ID"
+STATUS_DONE="YOUR_DONE_OPTION_ID"
+
+# Phase option IDs  (options[].id on the Phase field)
+O_PHASE_M0="YOUR_PHASE_M0_OPTION_ID"
+O_PHASE_M1="YOUR_PHASE_M1_OPTION_ID"
+O_PHASE_M2="YOUR_PHASE_M2_OPTION_ID"
+O_PHASE_M3="YOUR_PHASE_M3_OPTION_ID"
+O_PHASE_M4="YOUR_PHASE_M4_OPTION_ID"
+O_PHASE_M5="YOUR_PHASE_M5_OPTION_ID"
+
+# Priority option IDs  (options[].id on the Priority field)
+O_P0="YOUR_P0_OPTION_ID"
+O_P1="YOUR_P1_OPTION_ID"
+O_P2="YOUR_P2_OPTION_ID"
+O_P3="YOUR_P3_OPTION_ID"
+
+# Size option IDs  (options[].id on the Size field)
+O_SIZE_XS="YOUR_SIZE_XS_OPTION_ID"
+O_SIZE_S="YOUR_SIZE_S_OPTION_ID"
+O_SIZE_M="YOUR_SIZE_M_OPTION_ID"
+O_SIZE_L="YOUR_SIZE_L_OPTION_ID"
+O_SIZE_XL="YOUR_SIZE_XL_OPTION_ID"
+
+# Risk option IDs  (options[].id on the Risk field)
+O_RISK_HIGH="YOUR_RISK_HIGH_OPTION_ID"
+O_RISK_MED="YOUR_RISK_MED_OPTION_ID"
+O_RISK_LOW="YOUR_RISK_LOW_OPTION_ID"

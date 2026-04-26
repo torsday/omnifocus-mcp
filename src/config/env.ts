@@ -1,0 +1,151 @@
+/**
+ * Environment-variable configuration for omnifocus-mcp.
+ *
+ * All env vars are parsed and validated once at startup. Invalid values exit
+ * the process immediately with a readable message on stderr rather than
+ * failing at first tool call — see DESIGN §22.
+ *
+ * Path-shaped values (`OMNIFOCUS_ATTACHMENT_PATHS`) are logged as hashes to
+ * avoid leaking directory structure in operator logs — see DESIGN §17.
+ *
+ * @see DESIGN.md §22 — configuration & environment
+ */
+
+import { createHash } from "node:crypto";
+import { homedir } from "node:os";
+import { z } from "zod";
+
+// ---------------------------------------------------------------------------
+// Rate-limit schema — parses "N/SECONDS" format
+// ---------------------------------------------------------------------------
+
+const rateLimitSchema = z
+  .string()
+  .regex(/^\d+\/\d+$/, 'must be "N/SECONDS" format, e.g. "120/60"')
+  .transform((s) => {
+    const [limit, windowSeconds] = s.split("/").map(Number);
+    return { limit: limit as number, windowSeconds: windowSeconds as number };
+  });
+
+// ---------------------------------------------------------------------------
+// Full config schema
+// ---------------------------------------------------------------------------
+
+const envSchema = z.object({
+  OMNIFOCUS_LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error"]).default("info"),
+  OMNIFOCUS_INTEGRATION: z
+    .string()
+    .prefault("")
+    .transform((v) => v === "1"),
+  OMNIFOCUS_E2E: z
+    .string()
+    .prefault("")
+    .transform((v) => v === "1"),
+  // ADR-0014 — E2E harness flag. When set, `composeAdapter` returns a
+  // TransportRouter backed by the in-memory adapter so the spawned-server
+  // E2E suite can invoke every registered tool deterministically without
+  // macOS Automation permission. Production callers never set this.
+  OMNIFOCUS_E2E_USE_MEMORY: z
+    .string()
+    .prefault("")
+    .transform((v) => v === "1"),
+  OMNIFOCUS_ALLOW_RAW_SCRIPT: z
+    .string()
+    .prefault("")
+    .transform((v) => v === "1"),
+  OMNIFOCUS_CACHE_TTL_MS: z.coerce.number().int().positive().default(30000),
+  OMNIFOCUS_CACHE_CAPACITY: z.coerce.number().int().positive().default(256),
+  OMNIFOCUS_READ_POOL_SIZE: z.coerce.number().int().min(1).max(8).default(2),
+  OMNIFOCUS_WRITE_QUEUE_CAP: z.coerce.number().int().positive().default(50),
+  OMNIFOCUS_JXA_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
+  OMNIFOCUS_OMNIJS_TIMEOUT_MS: z.coerce.number().int().positive().default(45000),
+  OMNIFOCUS_ATTACHMENT_PATHS: z
+    .string()
+    .prefault(homedir())
+    .transform((v) => v.split(":").filter(Boolean)),
+  OMNIFOCUS_MAX_ATTACHMENT_MB: z.coerce.number().int().positive().default(100),
+  OMNIFOCUS_TOOL_RATE_LIMIT: rateLimitSchema.prefault("120/60"),
+});
+
+// ---------------------------------------------------------------------------
+// Exported config type
+// ---------------------------------------------------------------------------
+
+export type Config = z.output<typeof envSchema>;
+
+// ---------------------------------------------------------------------------
+// Parsing
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse and validate all OMNIFOCUS_* env vars from `processEnv`.
+ *
+ * On validation failure, writes a human-readable message to `stderr` and
+ * exits the process with code 1. Caller may override both for testing.
+ */
+export function parseConfig(
+  processEnv: NodeJS.ProcessEnv = process.env,
+  onError: (message: string) => never = (msg) => {
+    process.stderr.write(`[omnifocus-mcp] Config error: ${msg}\n`);
+    process.exit(1);
+  },
+): Config {
+  const result = envSchema.safeParse({
+    OMNIFOCUS_LOG_LEVEL: processEnv.OMNIFOCUS_LOG_LEVEL,
+    OMNIFOCUS_INTEGRATION: processEnv.OMNIFOCUS_INTEGRATION,
+    OMNIFOCUS_E2E: processEnv.OMNIFOCUS_E2E,
+    OMNIFOCUS_E2E_USE_MEMORY: processEnv.OMNIFOCUS_E2E_USE_MEMORY,
+    OMNIFOCUS_ALLOW_RAW_SCRIPT: processEnv.OMNIFOCUS_ALLOW_RAW_SCRIPT,
+    OMNIFOCUS_CACHE_TTL_MS: processEnv.OMNIFOCUS_CACHE_TTL_MS,
+    OMNIFOCUS_CACHE_CAPACITY: processEnv.OMNIFOCUS_CACHE_CAPACITY,
+    OMNIFOCUS_READ_POOL_SIZE: processEnv.OMNIFOCUS_READ_POOL_SIZE,
+    OMNIFOCUS_WRITE_QUEUE_CAP: processEnv.OMNIFOCUS_WRITE_QUEUE_CAP,
+    OMNIFOCUS_JXA_TIMEOUT_MS: processEnv.OMNIFOCUS_JXA_TIMEOUT_MS,
+    OMNIFOCUS_OMNIJS_TIMEOUT_MS: processEnv.OMNIFOCUS_OMNIJS_TIMEOUT_MS,
+    OMNIFOCUS_ATTACHMENT_PATHS: processEnv.OMNIFOCUS_ATTACHMENT_PATHS,
+    OMNIFOCUS_MAX_ATTACHMENT_MB: processEnv.OMNIFOCUS_MAX_ATTACHMENT_MB,
+    OMNIFOCUS_TOOL_RATE_LIMIT: processEnv.OMNIFOCUS_TOOL_RATE_LIMIT,
+  });
+
+  if (!result.success) {
+    const lines = result.error.issues.map((e) => `  ${e.path.join(".")}: ${e.message}`);
+    return onError(
+      `Invalid environment configuration:\n${lines.join("\n")}\nSee DESIGN §22 for allowed values.`,
+    );
+  }
+
+  return result.data;
+}
+
+// ---------------------------------------------------------------------------
+// Redacted summary for the server.started event log
+// ---------------------------------------------------------------------------
+
+/** Hash a string value for safe inclusion in logs. */
+function hashValue(value: string): string {
+  return createHash("sha256").update(value).digest("hex").slice(0, 12);
+}
+
+/**
+ * Return a redacted view of the config safe to emit in structured logs.
+ * Path-shaped values are replaced with a short hash.
+ */
+export function redactConfig(config: Config): Record<string, unknown> {
+  return {
+    OMNIFOCUS_LOG_LEVEL: config.OMNIFOCUS_LOG_LEVEL,
+    OMNIFOCUS_INTEGRATION: config.OMNIFOCUS_INTEGRATION,
+    OMNIFOCUS_E2E: config.OMNIFOCUS_E2E,
+    OMNIFOCUS_E2E_USE_MEMORY: config.OMNIFOCUS_E2E_USE_MEMORY,
+    OMNIFOCUS_ALLOW_RAW_SCRIPT: config.OMNIFOCUS_ALLOW_RAW_SCRIPT,
+    OMNIFOCUS_CACHE_TTL_MS: config.OMNIFOCUS_CACHE_TTL_MS,
+    OMNIFOCUS_CACHE_CAPACITY: config.OMNIFOCUS_CACHE_CAPACITY,
+    OMNIFOCUS_READ_POOL_SIZE: config.OMNIFOCUS_READ_POOL_SIZE,
+    OMNIFOCUS_WRITE_QUEUE_CAP: config.OMNIFOCUS_WRITE_QUEUE_CAP,
+    OMNIFOCUS_JXA_TIMEOUT_MS: config.OMNIFOCUS_JXA_TIMEOUT_MS,
+    OMNIFOCUS_OMNIJS_TIMEOUT_MS: config.OMNIFOCUS_OMNIJS_TIMEOUT_MS,
+    // Path-shaped — hash each entry to avoid leaking directory structure
+    OMNIFOCUS_ATTACHMENT_PATHS: config.OMNIFOCUS_ATTACHMENT_PATHS.map(hashValue),
+    OMNIFOCUS_MAX_ATTACHMENT_MB: config.OMNIFOCUS_MAX_ATTACHMENT_MB,
+    OMNIFOCUS_TOOL_RATE_LIMIT: config.OMNIFOCUS_TOOL_RATE_LIMIT,
+  };
+}

@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Read-only by default — this workflow just runs typecheck/lint/test/build.
+# Any future job that needs to write should grant write at the job level.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: [self-hosted, macos]
+    strategy:
+      matrix:
+        node-version: [24]
+    name: build (Node ${{ matrix.node-version }})
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - run: pnpm lint
+
+      - run: pnpm test
+
+      - run: pnpm build
+
+      - name: Bundle-size budget (< 500 KB per DESIGN §20)
+        run: bash scripts/check-bundle-size.sh

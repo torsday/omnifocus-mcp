@@ -1,0 +1,49 @@
+# Validate that the PR title follows Conventional Commits.
+#
+# Replaces the previous `amannn/action-semantic-pull-request` Docker action
+# with a small bash check so this job can run on the self-hosted macOS
+# runner — no GitHub-hosted billing, no Linux dependency. The validation
+# rules are identical to the action's previous configuration.
+
+name: PR title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  lint:
+    # Dependabot titles "chore(deps): Bump X from Y to Z" — don't fight the bot.
+    if: github.actor != 'dependabot[bot]'
+    runs-on: [self-hosted, macos]
+    env:
+      PR_TITLE: ${{ github.event.pull_request.title }}
+    steps:
+      - name: Check Conventional Commits format
+        run: |
+          # Allowed type vocabulary (must match AGENTS.md / commit conventions).
+          types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|spike|infra'
+          # Pattern: type(scope)?: subject — scope optional, subject must
+          # start lowercase and not end with a period or whitespace.
+          pattern="^(${types})(\([^)]+\))?!?: [a-z][^.]*[^. ]\$"
+
+          if [[ "$PR_TITLE" =~ $pattern ]]; then
+            echo "ok: $PR_TITLE"
+          else
+            cat <<EOF >&2
+          PR title does not match Conventional Commits format.
+
+            got:      "$PR_TITLE"
+            expected: type(scope)?: lowercase subject (no trailing period)
+            types:    ${types//|/, }
+
+          Examples:
+            feat(server): add per-tool middleware
+            fix(jxa): handle empty stdout
+            docs(adr): record E2E harness strategy
+          EOF
+            exit 1
+          fi

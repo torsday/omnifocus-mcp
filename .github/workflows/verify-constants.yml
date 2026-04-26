@@ -1,0 +1,49 @@
+# Drift check for scripts/_project-constants.sh against the live Projects v2 state.
+#
+# Fires on:
+#   - PRs touching the constants file (catch stale values before merge)
+#   - Weekly schedule (catch UI-side drift: someone renames a Status option
+#     in the Projects UI → GitHub mints a new ID → constants go stale with
+#     no commit to trigger a PR-level check)
+#   - workflow_dispatch (manual)
+#
+# Needs PROJECT_TOKEN — GITHUB_TOKEN can't read user-owned Projects v2.
+# Skips gracefully (warn, not fail) when the token isn't available, e.g. on
+# PRs opened from forks where secrets are withheld.
+
+name: Verify project constants
+
+on:
+  pull_request:
+    paths:
+      - "scripts/_project-constants.sh"
+      - "scripts/verify-constants.sh"
+      - ".github/workflows/verify-constants.yml"
+  schedule:
+    # Weekly, Mondays 10:23 UTC. Drift is low-frequency; no need for nightly.
+    - cron: "23 10 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: [self-hosted, macos]
+    env:
+      GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+    steps:
+      - name: Skip if no token (fork PR)
+        if: env.GH_TOKEN == ''
+        run: |
+          echo "::warning::PROJECT_TOKEN not available — skipping verify-constants. \
+          Merges from forks don't get secrets; constants drift is checked on the \
+          weekly schedule + any first-party PR touching the file."
+          exit 0
+
+      - uses: actions/checkout@v6
+        if: env.GH_TOKEN != ''
+
+      - name: Run verify-constants.sh
+        if: env.GH_TOKEN != ''
+        run: scripts/verify-constants.sh
