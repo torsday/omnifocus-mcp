@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 79 tools registered.
+> Auto-generated from source. 81 tools registered.
 
 ## Table of contents
 
@@ -31,6 +31,8 @@
 - [perspective_evaluate](#perspective_evaluate)
 - [perspective_list](#perspective_list)
 - [plugin_invoke](#plugin_invoke)
+- [project_batch_complete](#project_batch_complete)
+- [project_batch_drop](#project_batch_drop)
 - [project_complete](#project_complete)
 - [project_create](#project_create)
 - [project_delete](#project_delete)
@@ -985,6 +987,68 @@ _No parameters._
 ```json
 {
   "toolName": "plugin_invoke",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## project_batch_complete
+
+Mark many OmniFocus projects as completed in a single JXA round trip. Completed projects are hidden from active views and closed to new task entry. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each completion succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated project_complete calls whenever completing more than one project. Each item is { id }. Returns { completed: [{index, value: projectId}], failed: [{index, errorCode, message}] }. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "project_batch_complete",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## project_batch_drop
+
+Cancel (drop) many OmniFocus projects in a single JXA round trip. Dropped projects remain in OmniFocus but are treated as cancelled/inactive — they do not appear in active project lists. Use project_delete for permanent removal. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each drop succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated project_drop calls whenever dropping more than one project. Each item is { id }. Returns { dropped: [{index, value: projectId}], failed: [{index, errorCode, message}] }. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "project_batch_drop",
   "arguments": {}
 }
 ```

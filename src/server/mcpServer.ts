@@ -77,6 +77,8 @@ import { registerInternalStatusTool } from "../tools/observability/internalStatu
 import { registerPerspectiveEvaluateTool } from "../tools/perspective/evaluate.js";
 import { registerPerspectiveListTool } from "../tools/perspective/list.js";
 import { registerPluginInvokeTool } from "../tools/plugin/invoke.js";
+import { registerProjectBatchCompleteTool } from "../tools/project/batchComplete.js";
+import { registerProjectBatchDropTool } from "../tools/project/batchDrop.js";
 import { registerProjectCompleteTool } from "../tools/project/complete.js";
 import { registerProjectCreateTool } from "../tools/project/create.js";
 import { registerProjectDeleteTool } from "../tools/project/delete.js";
@@ -322,6 +324,8 @@ export async function startServer(): Promise<void> {
     cache: services.cache,
   };
   const projectAdapterCtx = { adapter, makeMeta, cache: services.cache };
+  registerProjectBatchCompleteTool(server, projectAdapterCtx);
+  registerProjectBatchDropTool(server, projectAdapterCtx);
   registerProjectCompleteTool(server, projectServiceCtx);
   registerProjectCreateTool(server, projectAdapterCtx);
   registerProjectDeleteTool(server, projectAdapterCtx);

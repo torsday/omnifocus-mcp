@@ -371,6 +371,12 @@ export interface OmniFocusAdapter {
   updateProject(id: ProjectId, patch: UpdateProjectInput): Promise<void>;
   completeProject(id: ProjectId, at?: Date): Promise<void>;
   dropProject(id: ProjectId, at?: Date): Promise<void>;
+  /** Best-effort batch complete. One transport round-trip per batch. Marks each project
+   *  complete; per-item failures are reported in `failed[]`. */
+  batchCompleteProjects(items: Array<{ id: ProjectId }>): Promise<BatchOutcome<ProjectId>>;
+  /** Best-effort batch drop. One transport round-trip per batch. Marks each project
+   *  dropped; per-item failures are reported in `failed[]`. */
+  batchDropProjects(items: Array<{ id: ProjectId }>): Promise<BatchOutcome<ProjectId>>;
   moveProject(id: ProjectId, destination: { folderId: FolderId | null }): Promise<void>;
   /** Hard delete — irreversible; distinct from drop. */
   deleteProject(id: ProjectId): Promise<void>;

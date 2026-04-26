@@ -273,6 +273,16 @@ export class OmniJsTransport implements OmniFocusAdapter {
   async dropProject(_id: ProjectId, _at?: Date): Promise<void> {
     return notYetWired("dropProject");
   }
+  async batchCompleteProjects(
+    _items: Array<{ id: ProjectId }>,
+  ): Promise<import("../../domain/batch.js").BatchOutcome<ProjectId>> {
+    return notYetWired("batchCompleteProjects");
+  }
+  async batchDropProjects(
+    _items: Array<{ id: ProjectId }>,
+  ): Promise<import("../../domain/batch.js").BatchOutcome<ProjectId>> {
+    return notYetWired("batchDropProjects");
+  }
   async moveProject(_id: ProjectId, _destination: { folderId: FolderId | null }): Promise<void> {
     return notYetWired("moveProject");
   }
