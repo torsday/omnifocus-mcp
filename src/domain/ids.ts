@@ -12,12 +12,14 @@
  * MCP wire boundary they flatten to plain strings; the branding is a TS-only
  * guarantee with zero runtime cost.
  *
- * The conservative runtime shape check (`^[A-Za-z0-9_-]{3,64}$`) is
+ * The conservative runtime shape check (`^[A-Za-z0-9._-]{3,64}$`) is
  * deliberately lenient — OmniFocus persistent IDs in the wild are typically
  * ~11 alphanumeric characters (e.g. `gHqVKr3xAWo`), but we also accept
- * underscores and hyphens and a wider length band to tolerate future
- * changes without a breaking update. A stricter check belongs in the
- * adapter layer if OF ever commits to a specific format.
+ * underscores, hyphens, and dots and a wider length band to tolerate future
+ * changes without a breaking update. The dot is required because OmniFocus
+ * surfaces repeating-task instance IDs as `<parentId>.<integer>` (e.g.
+ * `kyenmzWH4Mh.44`); see #497. A stricter check belongs in the adapter
+ * layer if OF ever commits to a specific format.
  *
  * @see DESIGN.md §13 — ID strategy
  * @see docs/adr/0008-ids-branded-opaque-strings.md — decision record
@@ -46,10 +48,15 @@ export type AttachmentId = string & { readonly __brand: "AttachmentId" };
 
 /**
  * Conservative shape OmniFocus persistent IDs must match: 3–64 characters of
- * alphanumerics, underscores, or hyphens. Tolerant enough to survive OF's
- * internal evolution; strict enough to reject obvious non-IDs.
+ * alphanumerics, underscores, hyphens, or dots. Tolerant enough to survive
+ * OF's internal evolution; strict enough to reject obvious non-IDs.
+ *
+ * The dot is required for OmniFocus repeating-task instance IDs, which take
+ * the form `<parentId>.<integer>` (e.g. `kyenmzWH4Mh.44`). Excluding `.`
+ * caused every read tool that round-trips IDs through `TaskIdCtor.of()` to
+ * fail when a project contained ≥1 repeating task — see #497.
  */
-export const OMNIFOCUS_ID_PATTERN = /^[A-Za-z0-9_-]{3,64}$/;
+export const OMNIFOCUS_ID_PATTERN = /^[A-Za-z0-9._-]{3,64}$/;
 
 /** True if the input looks like an OmniFocus ID. Kind-agnostic. */
 export function isOmniFocusId(value: unknown): value is string {

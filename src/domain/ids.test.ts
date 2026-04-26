@@ -20,13 +20,22 @@ describe("isOmniFocusId", () => {
     expect(isOmniFocusId("id-with-dashes")).toBe(true);
   });
 
+  // Regression — #497. OmniFocus repeating-task instances surface IDs of the
+  // form `<parentId>.<integer>`. Rejecting them caused every list/search tool
+  // to fail on projects containing ≥1 repeating task because TaskIdCtor.of()
+  // is called on every task ID coming back from JXA.
+  it("we accept dotted IDs from repeating-task instances (#497)", () => {
+    expect(isOmniFocusId("kyenmzWH4Mh.44")).toBe(true);
+    expect(isOmniFocusId("kyenmzWH4Mh.45")).toBe(true);
+    expect(isOmniFocusId("bkx69sdOkbd.0")).toBe(true);
+  });
+
   it("we reject everything that isn't a plausible ID", () => {
     expect(isOmniFocusId("")).toBe(false);
     expect(isOmniFocusId("ab")).toBe(false); // too short
     expect(isOmniFocusId("a".repeat(65))).toBe(false); // too long
     expect(isOmniFocusId("has spaces")).toBe(false);
     expect(isOmniFocusId("has/slashes")).toBe(false);
-    expect(isOmniFocusId("has.dots")).toBe(false);
     expect(isOmniFocusId("emoji🎉here")).toBe(false);
     expect(isOmniFocusId(null)).toBe(false);
     expect(isOmniFocusId(undefined)).toBe(false);
@@ -125,7 +134,7 @@ describe("property — strings with forbidden characters always reject", () => {
   it("IdConstructors.is returns false whenever the input contains an out-of-range character", () => {
     fc.assert(
       fc.property(
-        fc.string({ minLength: 1 }).filter((s) => /[^A-Za-z0-9_-]/.test(s)),
+        fc.string({ minLength: 1 }).filter((s) => /[^A-Za-z0-9._-]/.test(s)),
         (raw) => {
           expect(isOmniFocusId(raw)).toBe(false);
           for (const ctor of Object.values(IdConstructors)) {

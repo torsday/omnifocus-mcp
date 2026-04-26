@@ -149,7 +149,7 @@ export class InMemoryAdapter implements OmniFocusAdapter {
 
   private nextId<B extends string>(prefix: string, ctor: { of(s: string): B }): B {
     this.idCounter += 1;
-    // Pad to keep IDs sortable; pattern still matches ^[A-Za-z0-9_-]{3,64}$.
+    // Pad to keep IDs sortable; pattern still matches ^[A-Za-z0-9._-]{3,64}$.
     return ctor.of(`${prefix}_${this.idCounter.toString().padStart(6, "0")}`);
   }
 
