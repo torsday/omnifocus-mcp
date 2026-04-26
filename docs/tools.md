@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 73 tools registered.
+> Auto-generated from source. 78 tools registered.
 
 ## Table of contents
 
@@ -36,6 +36,7 @@
 - [project_delete](#project_delete)
 - [project_drop](#project_drop)
 - [project_get](#project_get)
+- [project_get_many](#project_get_many)
 - [project_list](#project_list)
 - [project_mark_reviewed](#project_mark_reviewed)
 - [project_move](#project_move)
@@ -52,6 +53,7 @@
 - [tag_delete](#tag_delete)
 - [tag_get](#tag_get)
 - [tag_get_location](#tag_get_location)
+- [tag_get_many](#tag_get_many)
 - [tag_list](#tag_list)
 - [tag_move](#tag_move)
 - [tag_set_allows_next_action](#tag_set_allows_next_action)
@@ -60,6 +62,9 @@
 - [tag_update](#tag_update)
 - [task_batch_complete](#task_batch_complete)
 - [task_batch_create](#task_batch_create)
+- [task_batch_delete](#task_batch_delete)
+- [task_batch_drop](#task_batch_drop)
+- [task_batch_undrop](#task_batch_undrop)
 - [task_batch_update](#task_batch_update)
 - [task_clear_repetition](#task_clear_repetition)
 - [task_complete](#task_complete)
@@ -1182,6 +1187,37 @@ Fetch a single OmniFocus project by persistent ID. Do NOT use for queries across
 ```
 ---
 
+## project_get_many
+
+Fetch up to 100 projects by persistent ID in a single OmniFocus round-trip. Use when you have a set of project IDs and need full project objects for all of them. Do NOT use for a single ID — use project_get instead. Returns Project[] in input order. Missing IDs are omitted and appear in meta.warnings. Read-only; safe to retry.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "project_get_many",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
 ## project_list
 
 List projects in OmniFocus with optional filters. Use for queries across projects. Do NOT use for a known single project (use project_get). Filters: folderId, status, flagged, reviewDueBefore. Returns projects[] with pagination; safe to call repeatedly; no side effects.
@@ -1782,6 +1818,37 @@ Get the geographic location trigger currently set on a tag, or null if none. Do 
 ```
 ---
 
+## tag_get_many
+
+Fetch up to 100 tags by persistent ID in a single OmniFocus round-trip. Use when you have a set of tag IDs and need full tag objects for all of them. Do NOT use for a single ID — use tag_get instead. Returns Tag[] in input order. Missing IDs are omitted and appear in meta.warnings. Read-only; safe to retry.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "tag_get_many",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
 ## tag_list
 
 List all tags in OmniFocus, optionally filtered by parent tag or status. Do not use to fetch a single tag by ID; prefer tag_get instead. Returns a flat array — use parentId to walk the hierarchy one level at a time. Safe to call repeatedly; no side effects.
@@ -2092,6 +2159,99 @@ _No parameters._
 ```json
 {
   "toolName": "task_batch_create",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_batch_delete
+
+Permanently delete many OmniFocus tasks in a single JXA round trip. IRREVERSIBLE — deleted tasks cannot be recovered. REQUIRED: pass confirm=true at the top level to acknowledge this action is irreversible; the entire batch is rejected without it. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each deletion succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_delete calls whenever deleting more than one task. Each item is { id }. Returns { deleted: [{index, value: taskId}], failed: [{index, errorCode, message}] }. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_batch_delete",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_batch_drop
+
+Cancel (drop) many OmniFocus tasks in a single JXA round trip. Dropped tasks remain in OmniFocus but are treated as cancelled/inactive — they do not appear in active task lists. Use task_batch_delete for permanent removal. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each drop succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_drop calls whenever dropping more than one task. Each item is { id }. Returns { dropped: [{index, value: taskId}], failed: [{index, errorCode, message}] }. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_batch_drop",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_batch_undrop
+
+Restore (undrop) many cancelled OmniFocus tasks in a single JXA round trip. Undropped tasks are returned to active status and will reappear in active task lists. Use task_batch_drop to cancel tasks. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each undrop succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_undrop calls whenever undropping more than one task. Each item is { id }. Returns { undropped: [{index, value: taskId}], failed: [{index, errorCode, message}] }. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_batch_undrop",
   "arguments": {}
 }
 ```

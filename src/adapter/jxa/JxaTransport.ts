@@ -77,6 +77,7 @@ import taskBatchCompleteScript from "../../scripts/jxa/task_batch_complete.js";
 import taskBatchCreateScript from "../../scripts/jxa/task_batch_create.js";
 import taskBatchDeleteScript from "../../scripts/jxa/task_batch_delete.js";
 import taskBatchDropScript from "../../scripts/jxa/task_batch_drop.js";
+import taskBatchUndropScript from "../../scripts/jxa/task_batch_undrop.js";
 import taskBatchUpdateScript from "../../scripts/jxa/task_batch_update.js";
 import taskCompleteScript from "../../scripts/jxa/task_complete.js";
 import taskCreateScript from "../../scripts/jxa/task_create.js";
@@ -408,6 +409,23 @@ export class JxaTransport implements OmniFocusAdapter {
       taskBatchDropScript,
       { items: items.map((it) => ({ id: it.id })) },
       { ...this.runOpts, scriptName: "task_batch_drop" },
+    );
+    return {
+      succeeded: raw.succeeded.map((s) => ({ index: s.index, value: TaskIdCtor.of(s.value) })),
+      failed: raw.failed,
+    };
+  }
+
+  async batchUndropTasks(
+    items: Array<{ id: TaskId }>,
+  ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
+    const raw = await runJxaScript<{
+      succeeded: Array<{ index: number; value: string }>;
+      failed: Array<{ index: number; errorCode: string; message: string }>;
+    }>(
+      taskBatchUndropScript,
+      { items: items.map((it) => ({ id: it.id })) },
+      { ...this.runOpts, scriptName: "task_batch_undrop" },
     );
     return {
       succeeded: raw.succeeded.map((s) => ({ index: s.index, value: TaskIdCtor.of(s.value) })),
