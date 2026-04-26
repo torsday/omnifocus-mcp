@@ -46,6 +46,19 @@ jobs:
       pull-requests: write  # open / update the Release PR
 
     steps:
+      - name: TEMP debug — which token did the fallback resolve to?
+        env:
+          T1: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          T2: ${{ secrets.GITHUB_TOKEN }}
+          PAT_PRESENT: ${{ secrets.RELEASE_PLEASE_TOKEN != '' }}
+        run: |
+          echo "secrets.RELEASE_PLEASE_TOKEN != '' is: $PAT_PRESENT"
+          if [ "$T1" = "$T2" ]; then
+            echo "Fallback path: GITHUB_TOKEN (RELEASE_PLEASE_TOKEN was empty/missing)"
+          else
+            echo "Fallback path: RELEASE_PLEASE_TOKEN (PAT distinct from GITHUB_TOKEN)"
+          fi
+
       - uses: googleapis/release-please-action@v4
         with:
           # release-type / package config live in release-please-config.json so
