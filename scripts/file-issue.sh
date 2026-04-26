@@ -14,7 +14,7 @@
 #   --type        feature|bug|chore|refactor|perf|docs|test|infra|spike|epic
 #   --priority    P0|P1|P2|P3
 #   --size        XS|S|M|L|XL
-#   --phase       M0|M1|M2|M3|M4|M5
+#   --phase       M0|M1|M2|M3|M4|M5|v1
 #   --domain      "<comma-separated list>"        — e.g. "task,tag"
 #   --model       opus|sonnet
 #
@@ -99,7 +99,7 @@ done
 case "$TYPE"     in feature|bug|chore|refactor|perf|docs|test|infra|spike|epic) ;; *) die "--type invalid: $TYPE" ;; esac
 case "$PRIORITY" in P0|P1|P2|P3) ;;                          *) die "--priority invalid: $PRIORITY" ;; esac
 case "$SIZE"     in XS|S|M|L|XL) ;;                          *) die "--size invalid: $SIZE" ;; esac
-case "$PHASE"    in M0|M1|M2|M3|M4|M5) ;;                    *) die "--phase invalid: $PHASE" ;; esac
+case "$PHASE"    in M0|M1|M2|M3|M4|M5|v1) ;;                 *) die "--phase invalid: $PHASE" ;; esac
 case "$MODEL"    in opus|sonnet) ;;                          *) die "--model invalid: $MODEL" ;; esac
 if [ -n "$RISK" ]; then
   case "$RISK" in high|medium) ;; *) die "--risk invalid: $RISK (use high|medium or omit)" ;; esac
@@ -126,6 +126,7 @@ phase_label_for() {
     M3) echo "phase: M3 advanced" ;;
     M4) echo "phase: M4 long-tail" ;;
     M5) echo "phase: M5 polish" ;;
+    v1) echo "phase: v1" ;;
   esac
 }
 
@@ -137,6 +138,7 @@ milestone_for() {
     M3) echo "M3 Advanced" ;;
     M4) echo "M4 Long tail" ;;
     M5) echo "M5 Polish" ;;
+    v1) echo "v1 maintenance" ;;
   esac
 }
 
@@ -223,6 +225,7 @@ case "$PHASE" in
   M3) PHASE_OPT="$O_PHASE_M3" ;;
   M4) PHASE_OPT="$O_PHASE_M4" ;;
   M5) PHASE_OPT="$O_PHASE_M5" ;;
+  v1) PHASE_OPT="$O_PHASE_V1" ;;
 esac
 case "$PRIORITY" in
   P0) PRI_OPT="$O_P0" ;;

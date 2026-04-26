@@ -20,7 +20,6 @@
 
 set -euo pipefail
 
-OMNIFOCUS_BUNDLE="com.omnigroup.OmniFocus4"
 TEST_SCRIPT='Application("OmniFocus").name()'
 
 # Run a minimal JXA script that requires Automation access to OmniFocus.
