@@ -1,7 +1,7 @@
 # Spec: omnifocus-mcp
 
-**Status:** Draft — assumptions flagged for review
-**Date:** 2026-04-19
+**Status:** v1.0 — locked; reflects shipped surface as of 2026-04-25. Future scope changes go through ADRs under `docs/adr/`, not edits to this file.
+**Date:** 2026-04-19 (initial); locked 2026-04-25
 
 ## Summary
 
