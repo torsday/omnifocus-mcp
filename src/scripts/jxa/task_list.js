@@ -125,6 +125,22 @@ function run(argv) {
       blocked = task.blocked();
     } catch (_e) {}
 
+    // See #498 — JXA reports creationDate/modificationDate as truthy
+    // functions even on tasks where invocation throws "Can't get object."
+    // The call must be guarded, not just the property reference.
+    let createdAt;
+    try {
+      createdAt = task.creationDate().toISOString();
+    } catch (_e) {
+      createdAt = new Date().toISOString();
+    }
+    let modifiedAt;
+    try {
+      modifiedAt = task.modificationDate().toISOString();
+    } catch (_e) {
+      modifiedAt = new Date().toISOString();
+    }
+
     return {
       id: task.id(),
       name: task.name(),
@@ -146,10 +162,8 @@ function run(argv) {
       sequential: sequential,
       completedByChildren: completedByChildren,
       repetition: buildRepetition(task),
-      createdAt: task.creationDate ? task.creationDate().toISOString() : new Date().toISOString(),
-      modifiedAt: task.modificationDate
-        ? task.modificationDate().toISOString()
-        : new Date().toISOString(),
+      createdAt: createdAt,
+      modifiedAt: modifiedAt,
     };
   }
 

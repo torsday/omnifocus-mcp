@@ -139,10 +139,11 @@ function run(argv) {
       droppedAt: status === "dropped" ? completedAt : null,
       taskCount: taskCount,
       completedTaskCount: completedTaskCount,
-      createdAt: proj.creationDate ? proj.creationDate().toISOString() : new Date().toISOString(),
-      modifiedAt: proj.modificationDate
-        ? proj.modificationDate().toISOString()
-        : new Date().toISOString(),
+      // Guard against "Can't get object." thrown when invoking these — see #498.
+
+      createdAt: (function () { try { return proj.creationDate().toISOString(); } catch (_e) { return new Date().toISOString(); } })(),
+
+      modifiedAt: (function () { try { return proj.modificationDate().toISOString(); } catch (_e) { return new Date().toISOString(); } })(),
     };
   }
 

@@ -41,18 +41,43 @@ function run(argv) {
     } catch (_e) {}
     const status = rawStatus === "on hold" ? "on-hold" : rawStatus;
 
+    // creationDate/modificationDate are present as functions on every Tag, but
+    // invoking them throws "Can't get object." for tags that lack the
+    // timestamp in the document — see #498. Truthiness on the property
+    // reference is not enough; we have to guard the call.
+    let createdAt;
+    try {
+      createdAt = tag.creationDate().toISOString();
+    } catch (_e) {
+      createdAt = new Date().toISOString();
+    }
+    let modifiedAt;
+    try {
+      modifiedAt = tag.modificationDate().toISOString();
+    } catch (_e) {
+      modifiedAt = new Date().toISOString();
+    }
+
+    let allowsNextAction = false;
+    try {
+      allowsNextAction = tag.allowsNextAction();
+    } catch (_e) {}
+
+    let taskCount = 0;
+    try {
+      taskCount = tag.tasks().length;
+    } catch (_e) {}
+
     return {
       id: tag.id(),
       name: tag.name(),
       parentId: parentId,
       status: status,
       location: location,
-      allowsNextAction: tag.allowsNextAction ? tag.allowsNextAction() : false,
-      taskCount: tag.tasks ? tag.tasks().length : 0,
-      createdAt: tag.creationDate ? tag.creationDate().toISOString() : new Date().toISOString(),
-      modifiedAt: tag.modificationDate
-        ? tag.modificationDate().toISOString()
-        : new Date().toISOString(),
+      allowsNextAction: allowsNextAction,
+      taskCount: taskCount,
+      createdAt: createdAt,
+      modifiedAt: modifiedAt,
     };
   }
 

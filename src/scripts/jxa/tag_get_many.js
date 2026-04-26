@@ -49,10 +49,11 @@ function run(argv) {
       location: location,
       allowsNextAction: tag.allowsNextAction ? tag.allowsNextAction() : false,
       taskCount: tag.tasks ? tag.tasks().length : 0,
-      createdAt: tag.creationDate ? tag.creationDate().toISOString() : new Date().toISOString(),
-      modifiedAt: tag.modificationDate
-        ? tag.modificationDate().toISOString()
-        : new Date().toISOString(),
+      // Guard against "Can't get object." thrown when invoking these — see #498.
+
+      createdAt: (function () { try { return tag.creationDate().toISOString(); } catch (_e) { return new Date().toISOString(); } })(),
+
+      modifiedAt: (function () { try { return tag.modificationDate().toISOString(); } catch (_e) { return new Date().toISOString(); } })(),
     };
   }
 

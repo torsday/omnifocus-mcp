@@ -145,10 +145,11 @@ function run(argv) {
       sequential: sequential,
       completedByChildren: completedByChildren,
       repetition: buildRepetition(task),
-      createdAt: task.creationDate ? task.creationDate().toISOString() : new Date().toISOString(),
-      modifiedAt: task.modificationDate
-        ? task.modificationDate().toISOString()
-        : new Date().toISOString(),
+      // Guard against "Can't get object." thrown when invoking these — see #498.
+
+      createdAt: (function () { try { return task.creationDate().toISOString(); } catch (_e) { return new Date().toISOString(); } })(),
+
+      modifiedAt: (function () { try { return task.modificationDate().toISOString(); } catch (_e) { return new Date().toISOString(); } })(),
     };
   }
 
