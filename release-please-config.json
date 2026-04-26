@@ -1,0 +1,38 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "include-component-in-tag": false,
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": false,
+  "draft": false,
+  "prerelease": false,
+  "skip-github-release": false,
+  "packages": {
+    ".": {
+      "package-name": "@torsday/omnifocus-mcp",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": []
+    }
+  },
+  "changelog-sections": [
+    { "type": "feat", "section": "Added", "hidden": false },
+    { "type": "fix", "section": "Fixed", "hidden": false },
+    { "type": "perf", "section": "Performance", "hidden": false },
+    { "type": "revert", "section": "Reverted", "hidden": false },
+    { "type": "refactor", "section": "Changed", "hidden": false },
+    { "type": "docs", "section": "Documentation", "hidden": false },
+    { "type": "test", "section": "Tests", "hidden": true },
+    { "type": "build", "section": "Build", "hidden": true },
+    { "type": "ci", "section": "CI", "hidden": true },
+    { "type": "chore", "section": "Chore", "hidden": true },
+    { "type": "infra", "section": "Infra", "hidden": true },
+    { "type": "spike", "section": "Spike", "hidden": true }
+  ],
+  "_comment": [
+    "Conventional Commits drive section grouping. The visible sections (feat/fix/perf/revert/refactor/docs)",
+    "match the user-facing taxonomy in the existing v1.0.0 CHANGELOG block; chores / tests / CI / build /",
+    "infra / spikes are hidden by default so they don't pad the user-facing release notes.",
+    "release-please publishes nothing on its own — `release.yml` (tag-triggered) handles npm publish via",
+    "OIDC. Merging the Release PR creates the tag; release.yml reacts. Two-stage on purpose."
+  ]
+}
