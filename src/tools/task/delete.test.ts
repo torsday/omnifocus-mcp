@@ -61,16 +61,25 @@ function makeCtx() {
 
 describe("task_delete — input schema", () => {
   it("requires id", () => {
-    expect(() => taskDeleteInputSchema.parse({})).toThrow();
+    expect(() => taskDeleteInputSchema.parse({ confirm: true })).toThrow();
   });
 
-  it("accepts a valid task ID", () => {
-    const parsed = taskDeleteInputSchema.parse({ id: "task_000001" });
+  it("rejects when confirm is absent", () => {
+    expect(() => taskDeleteInputSchema.parse({ id: "task_000001" })).toThrow();
+  });
+
+  it("rejects when confirm is false", () => {
+    expect(() => taskDeleteInputSchema.parse({ confirm: false, id: "task_000001" })).toThrow();
+  });
+
+  it("accepts a valid task ID with confirm=true", () => {
+    const parsed = taskDeleteInputSchema.parse({ confirm: true, id: "task_000001" });
     expect(parsed.id).toBe("task_000001");
   });
 
   it("accepts optional safety fields", () => {
     const parsed = taskDeleteInputSchema.parse({
+      confirm: true,
       id: "task_000001",
       expectedModifiedAt: "2026-01-01T00:00:00Z",
       dry_run: true,
@@ -82,12 +91,18 @@ describe("task_delete — input schema", () => {
   });
 
   it("rejects an empty idempotency_key", () => {
-    expect(() => taskDeleteInputSchema.parse({ id: "task_000001", idempotency_key: "" })).toThrow();
+    expect(() =>
+      taskDeleteInputSchema.parse({ confirm: true, id: "task_000001", idempotency_key: "" }),
+    ).toThrow();
   });
 
   it("rejects an idempotency_key > 128 chars", () => {
     expect(() =>
-      taskDeleteInputSchema.parse({ id: "task_000001", idempotency_key: "x".repeat(129) }),
+      taskDeleteInputSchema.parse({
+        confirm: true,
+        id: "task_000001",
+        idempotency_key: "x".repeat(129),
+      }),
     ).toThrow();
   });
 });
@@ -101,7 +116,7 @@ describe("task_delete — handler", () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "To delete" });
 
-    const envelope = assertOk(await handleTaskDelete({ id }, ctx));
+    const envelope = assertOk(await handleTaskDelete({ confirm: true, id }, ctx));
 
     expect(envelope.data.deleted).toBe(true);
     expect(envelope.data.id).toBe(id);
@@ -110,14 +125,14 @@ describe("task_delete — handler", () => {
   it("sets meta.syncPending = true on deletion", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "T" });
-    const envelope = assertOk(await handleTaskDelete({ id }, ctx));
+    const envelope = assertOk(await handleTaskDelete({ confirm: true, id }, ctx));
     expect(envelope.meta.syncPending).toBe(true);
   });
 
   it("removes the task from the adapter", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "T" });
-    await handleTaskDelete({ id }, ctx);
+    await handleTaskDelete({ confirm: true, id }, ctx);
 
     // getTask should throw NotFound
     await expect(adapter.getTask(id)).rejects.toThrow();
@@ -126,22 +141,25 @@ describe("task_delete — handler", () => {
   it("throws NotFound for unknown task ID", async () => {
     const { ctx } = makeCtx();
     await expect(
-      handleTaskDelete({ id: "task_999999" as import("../../domain/ids.js").TaskId }, ctx),
+      handleTaskDelete(
+        { confirm: true, id: "task_999999" as import("../../domain/ids.js").TaskId },
+        ctx,
+      ),
     ).rejects.toThrow();
   });
 
   it("double-delete raises NotFound (not silent)", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "T" });
-    await handleTaskDelete({ id }, ctx);
-    await expect(handleTaskDelete({ id }, ctx)).rejects.toThrow();
+    await handleTaskDelete({ confirm: true, id }, ctx);
+    await expect(handleTaskDelete({ confirm: true, id }, ctx)).rejects.toThrow();
   });
 
   it("deleting one task does not affect sibling tasks", async () => {
     const { ctx, adapter } = makeCtx();
     const idA = await adapter.createTask({ name: "A" });
     const idB = await adapter.createTask({ name: "B" });
-    await handleTaskDelete({ id: idA }, ctx);
+    await handleTaskDelete({ confirm: true, id: idA }, ctx);
     const remaining = await adapter.listTasks({});
     expect(remaining.some((t) => t.id === idB)).toBe(true);
     expect(remaining.some((t) => t.id === idA)).toBe(false);
@@ -160,7 +178,7 @@ describe("task_delete — cache invalidation", () => {
     const projectId = await adapter.createProject({ name: "P" });
     const id = await adapter.createTask({ name: "T", projectId });
 
-    await handleTaskDelete({ id }, { ...base, cache });
+    await handleTaskDelete({ confirm: true, id }, { ...base, cache });
 
     expect(scopes).toEqual([
       `task:${id}`,
@@ -177,7 +195,7 @@ describe("task_delete — cache invalidation", () => {
     const scopes = recordScopes(cache);
     const id = await adapter.createTask({ name: "Inbox" });
 
-    await handleTaskDelete({ id }, { ...base, cache });
+    await handleTaskDelete({ confirm: true, id }, { ...base, cache });
 
     expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*"]);
   });
@@ -188,7 +206,7 @@ describe("task_delete — cache invalidation", () => {
     const scopes = recordScopes(cache);
     await expect(
       handleTaskDelete(
-        { id: "task_999999" as import("../../domain/ids.js").TaskId },
+        { confirm: true, id: "task_999999" as import("../../domain/ids.js").TaskId },
         { ...base, cache },
       ),
     ).rejects.toThrow();
@@ -201,7 +219,7 @@ describe("task_delete — cache invalidation", () => {
     const scopes = recordScopes(cache);
     const id = await adapter.createTask({ name: "T" });
 
-    await handleTaskDelete({ id, dry_run: true }, { ...base, cache });
+    await handleTaskDelete({ confirm: true, id, dry_run: true }, { ...base, cache });
 
     expect(scopes).toEqual([]);
   });
@@ -217,7 +235,7 @@ describe("task_delete — expectedModifiedAt guard", () => {
     const id = await adapter.createTask({ name: "T" });
     const task = await adapter.getTask(id);
     const envelope = assertOk(
-      await handleTaskDelete({ id, expectedModifiedAt: task.modifiedAt }, ctx),
+      await handleTaskDelete({ confirm: true, id, expectedModifiedAt: task.modifiedAt }, ctx),
     );
     expect(envelope.data.deleted).toBe(true);
   });
@@ -226,7 +244,7 @@ describe("task_delete — expectedModifiedAt guard", () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "T" });
     await expect(
-      handleTaskDelete({ id, expectedModifiedAt: "2020-01-01T00:00:00Z" }, ctx),
+      handleTaskDelete({ confirm: true, id, expectedModifiedAt: "2020-01-01T00:00:00Z" }, ctx),
     ).rejects.toMatchObject({ code: "OF_CONFLICT" });
   });
 
@@ -234,7 +252,7 @@ describe("task_delete — expectedModifiedAt guard", () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "T" });
     await expect(
-      handleTaskDelete({ id, expectedModifiedAt: "2020-01-01T00:00:00Z" }, ctx),
+      handleTaskDelete({ confirm: true, id, expectedModifiedAt: "2020-01-01T00:00:00Z" }, ctx),
     ).rejects.toThrow();
     // Still retrievable
     const still = await adapter.getTask(id);
@@ -245,7 +263,7 @@ describe("task_delete — expectedModifiedAt guard", () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "T" });
     await expect(
-      handleTaskDelete({ id, expectedModifiedAt: "not-a-timestamp" }, ctx),
+      handleTaskDelete({ confirm: true, id, expectedModifiedAt: "not-a-timestamp" }, ctx),
     ).rejects.toMatchObject({ code: "OF_VALIDATION" });
   });
 });
@@ -259,7 +277,7 @@ describe("task_delete — dry_run", () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "T" });
 
-    const envelope = assertOk(await handleTaskDelete({ id, dry_run: true }, ctx));
+    const envelope = assertOk(await handleTaskDelete({ confirm: true, id, dry_run: true }, ctx));
 
     expect(envelope.data.deleted).toBe(true);
     expect(envelope.data.id).toBe(id);
@@ -275,7 +293,10 @@ describe("task_delete — dry_run", () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "T" });
     await expect(
-      handleTaskDelete({ id, dry_run: true, expectedModifiedAt: "2020-01-01T00:00:00Z" }, ctx),
+      handleTaskDelete(
+        { confirm: true, id, dry_run: true, expectedModifiedAt: "2020-01-01T00:00:00Z" },
+        ctx,
+      ),
     ).rejects.toMatchObject({ code: "OF_CONFLICT" });
   });
 
@@ -284,6 +305,7 @@ describe("task_delete — dry_run", () => {
     await expect(
       handleTaskDelete(
         {
+          confirm: true,
           id: "task_999999" as import("../../domain/ids.js").TaskId,
           dry_run: true,
         },
@@ -302,13 +324,17 @@ describe("task_delete — idempotency_key", () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "T" });
 
-    const first = assertOk(await handleTaskDelete({ id, idempotency_key: "k-1" }, ctx));
+    const first = assertOk(
+      await handleTaskDelete({ confirm: true, id, idempotency_key: "k-1" }, ctx),
+    );
     expect(first.data.deleted).toBe(true);
     expect(first.meta.idempotentReplay).toBeUndefined();
 
     // Second call with the same key — task is already gone, but the replay
     // returns the stored success envelope instead of re-raising NotFound.
-    const second = assertOk(await handleTaskDelete({ id, idempotency_key: "k-1" }, ctx));
+    const second = assertOk(
+      await handleTaskDelete({ confirm: true, id, idempotency_key: "k-1" }, ctx),
+    );
     expect(second.data.deleted).toBe(true);
     expect(second.data.id).toBe(id);
     expect(second.meta.idempotentReplay).toBe(true);
@@ -319,8 +345,8 @@ describe("task_delete — idempotency_key", () => {
     const idA = await adapter.createTask({ name: "A" });
     const idB = await adapter.createTask({ name: "B" });
 
-    await handleTaskDelete({ id: idA, idempotency_key: "a" }, ctx);
-    await handleTaskDelete({ id: idB, idempotency_key: "b" }, ctx);
+    await handleTaskDelete({ confirm: true, id: idA, idempotency_key: "a" }, ctx);
+    await handleTaskDelete({ confirm: true, id: idB, idempotency_key: "b" }, ctx);
 
     await expect(adapter.getTask(idA)).rejects.toThrow();
     await expect(adapter.getTask(idB)).rejects.toThrow();
@@ -330,8 +356,8 @@ describe("task_delete — idempotency_key", () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "T" });
 
-    await handleTaskDelete({ id }, ctx);
-    await expect(handleTaskDelete({ id }, ctx)).rejects.toThrow();
+    await handleTaskDelete({ confirm: true, id }, ctx);
+    await expect(handleTaskDelete({ confirm: true, id }, ctx)).rejects.toThrow();
   });
 });
 
@@ -345,7 +371,7 @@ describe("task_delete — dry_run + idempotency_key composition", () => {
     const id = await adapter.createTask({ name: "T" });
 
     const first = assertOk(
-      await handleTaskDelete({ id, dry_run: true, idempotency_key: "k-dry" }, ctx),
+      await handleTaskDelete({ confirm: true, id, dry_run: true, idempotency_key: "k-dry" }, ctx),
     );
     expect(first.meta.dryRun).toBe(true);
     expect(first.meta.syncPending).toBe(false);
@@ -357,7 +383,7 @@ describe("task_delete — dry_run + idempotency_key composition", () => {
     // caller flipped dry_run off — the stored envelope wins under the idempotency
     // contract (same key → same outcome).
     const second = assertOk(
-      await handleTaskDelete({ id, dry_run: false, idempotency_key: "k-dry" }, ctx),
+      await handleTaskDelete({ confirm: true, id, dry_run: false, idempotency_key: "k-dry" }, ctx),
     );
     expect(second.meta.dryRun).toBe(true);
     expect(second.meta.idempotentReplay).toBe(true);

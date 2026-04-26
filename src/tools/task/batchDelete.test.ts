@@ -29,16 +29,29 @@ function makeCtx() {
 
 describe("task_batch_delete — input schema", () => {
   it("rejects empty items array", () => {
-    expect(() => taskBatchDeleteInputSchema.parse({ items: [] })).toThrow();
+    expect(() => taskBatchDeleteInputSchema.parse({ confirm: true, items: [] })).toThrow();
   });
 
-  it("accepts a valid single item", () => {
-    const result = taskBatchDeleteInputSchema.parse({ items: [{ id: "abc" }] });
+  it("rejects when confirm is absent", () => {
+    expect(() => taskBatchDeleteInputSchema.parse({ items: [{ id: "abc" }] })).toThrow();
+  });
+
+  it("rejects when confirm is false", () => {
+    expect(() =>
+      taskBatchDeleteInputSchema.parse({ confirm: false, items: [{ id: "abc" }] }),
+    ).toThrow();
+  });
+
+  it("accepts a valid single item with confirm=true", () => {
+    const result = taskBatchDeleteInputSchema.parse({ confirm: true, items: [{ id: "abc" }] });
     expect(result.items).toHaveLength(1);
   });
 
   it("accepts multiple items", () => {
-    const result = taskBatchDeleteInputSchema.parse({ items: [{ id: "abc" }, { id: "def" }] });
+    const result = taskBatchDeleteInputSchema.parse({
+      confirm: true,
+      items: [{ id: "abc" }, { id: "def" }],
+    });
     expect(result.items).toHaveLength(2);
   });
 });
@@ -53,7 +66,10 @@ describe("task_batch_delete — handler", () => {
     const id1 = await adapter.createTask({ name: "Task A" });
     const id2 = await adapter.createTask({ name: "Task B" });
 
-    const result = await handleTaskBatchDelete({ items: [{ id: id1 }, { id: id2 }] }, ctx);
+    const result = await handleTaskBatchDelete(
+      { confirm: true, items: [{ id: id1 }, { id: id2 }] },
+      ctx,
+    );
 
     expect(result.data.deleted).toHaveLength(2);
     expect(result.data.failed).toHaveLength(0);
@@ -67,7 +83,10 @@ describe("task_batch_delete — handler", () => {
     const id1 = await adapter.createTask({ name: "Real Task" });
     const missing = "nonexistent-id" as typeof id1;
 
-    const result = await handleTaskBatchDelete({ items: [{ id: id1 }, { id: missing }] }, ctx);
+    const result = await handleTaskBatchDelete(
+      { confirm: true, items: [{ id: id1 }, { id: missing }] },
+      ctx,
+    );
 
     expect(result.data.deleted).toHaveLength(1);
     expect(result.data.deleted[0]?.index).toBe(0);
@@ -79,7 +98,7 @@ describe("task_batch_delete — handler", () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "To Delete" });
 
-    const result = await handleTaskBatchDelete({ items: [{ id }] }, ctx);
+    const result = await handleTaskBatchDelete({ confirm: true, items: [{ id }] }, ctx);
 
     expect(result.meta.syncPending).toBe(true);
   });
@@ -87,7 +106,10 @@ describe("task_batch_delete — handler", () => {
   it("sets syncPending=false in meta when all items fail", async () => {
     const { ctx } = makeCtx();
 
-    const result = await handleTaskBatchDelete({ items: [{ id: "no-such-id" as never }] }, ctx);
+    const result = await handleTaskBatchDelete(
+      { confirm: true, items: [{ id: "no-such-id" as never }] },
+      ctx,
+    );
 
     expect(result.data.deleted).toHaveLength(0);
     expect(result.data.failed).toHaveLength(1);
@@ -100,7 +122,7 @@ describe("task_batch_delete — handler", () => {
     const id2 = await adapter.createTask({ name: "T2" });
 
     const result = await handleTaskBatchDelete(
-      { items: [{ id: id0 }, { id: "missing" as typeof id0 }, { id: id2 }] },
+      { confirm: true, items: [{ id: id0 }, { id: "missing" as typeof id0 }, { id: id2 }] },
       ctx,
     );
 
