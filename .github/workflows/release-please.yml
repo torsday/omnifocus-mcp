@@ -53,4 +53,16 @@ jobs:
           # per package path; release-please rewrites it on each release.
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Use a maintainer PAT / GitHub App token when present, falling
+          # back to GITHUB_TOKEN otherwise. The fallback is wired so the
+          # workflow keeps working before the secret is created (today)
+          # and immediately starts triggering downstream workflows the
+          # moment the secret is added (no follow-up PR needed). See
+          # #447 for the rationale: GITHUB_TOKEN-authored events don't
+          # trigger other workflows by GitHub's recursive-runs safety
+          # rule, so release-please's Release PR doesn't fire CI and
+          # release-please's tag doesn't fire release.yml. A PAT or
+          # App token bypasses that — its commits + tags trigger
+          # downstream workflows normally. Add the secret at:
+          # https://github.com/torsday/omnifocus-mcp/settings/secrets/actions
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
