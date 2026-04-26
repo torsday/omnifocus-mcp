@@ -568,7 +568,7 @@ Rename a folder (partial patch — only supplied fields are changed). To move a 
 
 ## forecast_get
 
-Get forecast-view tasks from OmniFocus grouped by category: overdue, dueToday, deferredToday, flagged. Use this for 'what's on my plate today' queries. Do NOT use to list all tasks across all projects; prefer task_list instead. from/to default to today (ISO-8601 date strings). All include flags default to true; set to false to omit a category. Returns { overdue[], dueToday[], deferredToday[], flagged[] }. Safe to call repeatedly; no side effects.
+Get forecast-view tasks from OmniFocus grouped by category: overdue, dueToday, deferredToday, flagged. Use this for 'what's on my plate today' or multi-day planning queries. Do NOT use to list all tasks across all projects; prefer task_list instead. Supply date (ISO-8601 or shortcut like 'today', 'tomorrow') and days (1–7) for the ergonomic interface, or use from/to for exact ISO-8601 ranges. All include flags default to true; set to false to omit a category. When days > 1, response also includes byDate[] grouping tasks per calendar day. Returns { overdue[], dueToday[], deferredToday[], flagged[], byDate? }; safe to call repeatedly; no side effects.
 
 ### Input
 
@@ -2259,12 +2259,13 @@ Create a new task in OmniFocus — in the inbox, inside a project, or as a subta
 
 ## task_delete
 
-Permanently delete an OmniFocus task. IRREVERSIBLE — uses OmniFocus deleteObject; there is no undo. Prefer task_drop when you want a recoverable status change. Only use task_delete when the agent has explicit user intent to permanently remove the task. Safety controls: set dry_run=true to preview without mutating; pass expectedModifiedAt (from a recent task_get) to reject the call if the task changed since you read it; pass idempotency_key to coalesce retries so the same delete is only performed once. Returns { deleted: true, id } on success. Side effects: removes the task from OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the deletion to appear on other devices.
+Permanently delete an OmniFocus task. IRREVERSIBLE — uses OmniFocus deleteObject; there is no undo. Prefer task_drop when you want a recoverable status change. Only use task_delete when the agent has explicit user intent to permanently remove the task. REQUIRED: pass confirm=true to acknowledge this action is irreversible; the call is rejected without it. Safety controls: set dry_run=true to preview without mutating; pass expectedModifiedAt (from a recent task_get) to reject the call if the task changed since you read it; pass idempotency_key to coalesce retries so the same delete is only performed once. Returns { deleted: true, id } on success. Side effects: removes the task from OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the deletion to appear on other devices.
 
 ### Input
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `confirm` | literal: true | Yes | Explicit acknowledgement that this deletion is permanent and irreversible. Must be exactly true. The call is rejected if this field is absent or false. |
 | `id` | string | Yes | Persistent ID of the task to delete. Get from task_list or search_query. Verify you have the correct ID before calling — this action is irreversible. |
 | `expectedModifiedAt` | string | No | Optimistic-concurrency guard: ISO-8601 timestamp from a recent task_get. If the task's current modifiedAt differs, the call fails with OF_CONFLICT and no delete is performed. Omit to skip the check. |
 | `dry_run` | boolean | No | When true, validates input and returns a preview envelope with meta.dryRun = true; no adapter call is made and no mutation occurs. |

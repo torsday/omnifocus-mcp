@@ -18,6 +18,7 @@ import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 export const TASK_BATCH_DELETE_DESCRIPTION =
   "Permanently delete many OmniFocus tasks in a single JXA round trip. " +
   "IRREVERSIBLE — deleted tasks cannot be recovered. " +
+  "REQUIRED: pass confirm=true at the top level to acknowledge this action is irreversible; the entire batch is rejected without it. " +
   "Validation is atomic: if any input fails schema, the whole batch is rejected " +
   "before any mutation. Execution is best-effort: each deletion succeeds or fails " +
   "independently, and the response reports per-index outcomes. " +
@@ -32,6 +33,12 @@ const singleItemSchema = z.object({
 });
 
 export const taskBatchDeleteInputSchema = z.object({
+  confirm: z
+    .literal(true)
+    .describe(
+      "Explicit acknowledgement that all deletions are permanent and irreversible. " +
+        "Must be exactly true. The entire batch is rejected if this field is absent or false.",
+    ),
   items: z
     .array(singleItemSchema)
     .min(1)

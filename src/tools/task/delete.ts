@@ -40,6 +40,7 @@ export const TASK_DELETE_DESCRIPTION =
   "IRREVERSIBLE — uses OmniFocus deleteObject; there is no undo. " +
   "Prefer task_drop when you want a recoverable status change. " +
   "Only use task_delete when the agent has explicit user intent to permanently remove the task. " +
+  "REQUIRED: pass confirm=true to acknowledge this action is irreversible; the call is rejected without it. " +
   "Safety controls: set dry_run=true to preview without mutating; pass expectedModifiedAt " +
   "(from a recent task_get) to reject the call if the task changed since you read it; " +
   "pass idempotency_key to coalesce retries so the same delete is only performed once. " +
@@ -52,6 +53,12 @@ export const TASK_DELETE_DESCRIPTION =
 // ---------------------------------------------------------------------------
 
 export const taskDeleteInputSchema = z.object({
+  confirm: z
+    .literal(true)
+    .describe(
+      "Explicit acknowledgement that this deletion is permanent and irreversible. " +
+        "Must be exactly true. The call is rejected if this field is absent or false.",
+    ),
   id: TaskId.schema.describe(
     "Persistent ID of the task to delete. Get from task_list or search_query. " +
       "Verify you have the correct ID before calling — this action is irreversible.",
