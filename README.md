@@ -1,6 +1,7 @@
 # omnifocus-mcp
 
 [![npm version](https://img.shields.io/npm/v/@torsday/omnifocus-mcp.svg?label=npm)](https://www.npmjs.com/package/@torsday/omnifocus-mcp)
+[![CI](https://github.com/torsday/omnifocus-mcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/torsday/omnifocus-mcp/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node: 24+](https://img.shields.io/badge/node-24%2B-brightgreen)](./package.json)
 [![Platform: macOS 13+](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)](https://www.apple.com/macos/)
