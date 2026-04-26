@@ -89,6 +89,18 @@ jobs:
         # than a generic "JXA script returned empty stdout" error.
         run: bash scripts/check-automation-permission.sh
 
+      - name: Seed integration fixtures
+        # The integration suite operates on `mcp-fixture:`-prefixed
+        # folders, projects, tasks, and tags. The seed script is
+        # idempotent — it removes any existing fixtures with that prefix
+        # before re-creating the canonical set, so re-running it across
+        # runs (or partial runs, after a previous failure) leaves the
+        # database in the same known-good state every time. Without
+        # this step the integration suite hits ~23 failures of the form
+        # `expected '<id>' to be null` and `Hook timed out in 30000ms`
+        # — symptoms of tests asserting against missing or stale fixtures.
+        run: node scripts/seed-integration-db.js
+
       - name: Run integration tests
         env:
           OMNIFOCUS_INTEGRATION: "1"

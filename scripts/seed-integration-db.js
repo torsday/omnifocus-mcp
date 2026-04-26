@@ -1,4 +1,20 @@
 #!/usr/bin/env node
+// Seed the integration-test fixtures into a live OmniFocus database.
+//
+// **Idempotent.** Every call removes any existing entities with the
+// `mcp-fixture:` prefix before re-creating the canonical set, so it is
+// safe to re-run across CI invocations and after partial / failed runs
+// without accumulating stale state. `integration.yml` invokes it before
+// every test run for this reason.
+//
+// Production OmniFocus data is untouched: only `mcp-fixture:`-prefixed
+// objects are touched. Pass `--clean` to delete fixtures without
+// re-creating them (used by interactive cleanup).
+//
+// Run locally with:
+//   node scripts/seed-integration-db.js
+// Then run the integration suite:
+//   OMNIFOCUS_INTEGRATION=1 pnpm test:integration
 
 const { spawnSync } = require("node:child_process");
 
