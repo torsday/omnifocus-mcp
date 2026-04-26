@@ -110,6 +110,7 @@ import { registerTaskBatchCompleteTool } from "../tools/task/batchComplete.js";
 import { registerTaskBatchCreateTool } from "../tools/task/batchCreate.js";
 import { registerTaskBatchDeleteTool } from "../tools/task/batchDelete.js";
 import { registerTaskBatchDropTool } from "../tools/task/batchDrop.js";
+import { registerTaskBatchUncompleteTool } from "../tools/task/batchUncomplete.js";
 import { registerTaskBatchUndropTool } from "../tools/task/batchUndrop.js";
 import { registerTaskBatchUpdateTool } from "../tools/task/batchUpdate.js";
 import { registerTaskClearRepetitionTool } from "../tools/task/clearRepetition.js";
@@ -351,6 +352,7 @@ export async function startServer(): Promise<void> {
   registerTaskBatchCreateTool(server, taskMutationCtx);
   registerTaskBatchDeleteTool(server, taskMutationCtx);
   registerTaskBatchDropTool(server, taskMutationCtx);
+  registerTaskBatchUncompleteTool(server, taskMutationCtx);
   registerTaskBatchUndropTool(server, taskMutationCtx);
   registerTaskBatchUpdateTool(server, taskMutationCtx);
   registerTaskClearRepetitionTool(server, taskMutationCtx);

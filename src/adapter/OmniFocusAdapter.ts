@@ -306,6 +306,11 @@ export interface OmniFocusAdapter {
    */
   batchCompleteTasks(items: Array<{ id: TaskId; at?: Date }>): Promise<BatchOutcome<TaskId>>;
   /**
+   * Best-effort batch uncomplete. One transport round-trip per batch. Restores
+   * each completed task to incomplete; per-item failures are reported in `failed[]`.
+   */
+  batchUncompleteTasks(items: Array<{ id: TaskId }>): Promise<BatchOutcome<TaskId>>;
+  /**
    * Best-effort batch delete. One transport round-trip per batch. Permanently
    * removes each task; per-item failures are reported in `failed[]`.
    */

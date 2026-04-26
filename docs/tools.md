@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 78 tools registered.
+> Auto-generated from source. 79 tools registered.
 
 ## Table of contents
 
@@ -64,6 +64,7 @@
 - [task_batch_create](#task_batch_create)
 - [task_batch_delete](#task_batch_delete)
 - [task_batch_drop](#task_batch_drop)
+- [task_batch_uncomplete](#task_batch_uncomplete)
 - [task_batch_undrop](#task_batch_undrop)
 - [task_batch_update](#task_batch_update)
 - [task_clear_repetition](#task_clear_repetition)
@@ -2221,6 +2222,37 @@ _No parameters._
 ```json
 {
   "toolName": "task_batch_drop",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_batch_uncomplete
+
+Mark many OmniFocus tasks as incomplete in a single JXA round trip. Reverses a previous completion — useful when a task was completed by mistake or needs to be re-done. Uncompleted tasks return to active status. Use task_batch_complete to mark tasks as completed. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each uncomplete succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_uncomplete calls whenever uncompleting more than one task. Each item is { id }. Returns { uncompleted: [{index, value: taskId}], failed: [{index, errorCode, message}] }. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_batch_uncomplete",
   "arguments": {}
 }
 ```
