@@ -17,7 +17,9 @@ permissions:
 jobs:
   lint:
     # Dependabot titles "chore(deps): Bump X from Y to Z" — don't fight the bot.
-    if: github.actor != 'dependabot[bot]'
+    # Fork-PR guard: skip when the PR comes from a fork — fork code cannot
+    # execute on the self-hosted runner.
+    if: ${{ github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: [self-hosted, macos]
     env:
       PR_TITLE: ${{ github.event.pull_request.title }}

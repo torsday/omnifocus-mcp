@@ -30,7 +30,10 @@ env:
 
 jobs:
   pr:
-    if: github.event_name == 'pull_request'
+    # Fork-PR guard: skip when the PR comes from a fork — fork code cannot
+    # execute on the self-hosted runner. (Fork PRs also wouldn't have access to
+    # PROJECT_TOKEN by default, so blocking here is both security and correctness.)
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: [self-hosted, macos]
     steps:
       - name: Skip if no token

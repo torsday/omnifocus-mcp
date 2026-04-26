@@ -18,7 +18,9 @@ jobs:
   require-issue-link:
     runs-on: [self-hosted, macos]
     # Waiver: add the `no-issue` label to skip this check.
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-issue') }}
+    # Fork-PR guard: skip when the PR comes from a fork — fork code cannot
+    # execute on the self-hosted runner.
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-issue') && github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Require Closes/Fixes/Resolves #N in PR body
         env:
