@@ -30,7 +30,11 @@ jobs:
           types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|spike|infra'
           # Pattern: type(scope)?: subject — scope optional, subject must
           # start lowercase and not end with a period or whitespace.
-          pattern="^(${types})(\([^)]+\))?!?: [a-z][^.]*[^. ]\$"
+          # Periods *inside* the subject are fine (e.g. release-please's
+          # "chore(main): release 1.0.1" needs a version number); only the
+          # trailing character is constrained. Single-character subjects are
+          # tolerated by collapsing to `[a-z][^. ]?$` via `.*`.
+          pattern="^(${types})(\([^)]+\))?!?: [a-z].*[^. ]\$"
 
           if [[ "$PR_TITLE" =~ $pattern ]]; then
             echo "ok: $PR_TITLE"
