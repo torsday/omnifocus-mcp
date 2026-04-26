@@ -57,6 +57,7 @@ import { TASK_BATCH_COMPLETE_DESCRIPTION } from "./task/batchComplete.js";
 import { TASK_BATCH_CREATE_DESCRIPTION } from "./task/batchCreate.js";
 import { TASK_BATCH_DELETE_DESCRIPTION } from "./task/batchDelete.js";
 import { TASK_BATCH_DROP_DESCRIPTION } from "./task/batchDrop.js";
+import { TASK_BATCH_UNCOMPLETE_DESCRIPTION } from "./task/batchUncomplete.js";
 import { TASK_BATCH_UNDROP_DESCRIPTION } from "./task/batchUndrop.js";
 import { TASK_BATCH_UPDATE_DESCRIPTION } from "./task/batchUpdate.js";
 import { TASK_CLEAR_REPETITION_DESCRIPTION } from "./task/clearRepetition.js";
@@ -137,6 +138,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   task_batch_create: TASK_BATCH_CREATE_DESCRIPTION,
   task_batch_delete: TASK_BATCH_DELETE_DESCRIPTION,
   task_batch_drop: TASK_BATCH_DROP_DESCRIPTION,
+  task_batch_uncomplete: TASK_BATCH_UNCOMPLETE_DESCRIPTION,
   task_batch_undrop: TASK_BATCH_UNDROP_DESCRIPTION,
   task_batch_update: TASK_BATCH_UPDATE_DESCRIPTION,
   task_complete: TASK_COMPLETE_DESCRIPTION,

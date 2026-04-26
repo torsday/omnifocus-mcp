@@ -1,0 +1,6 @@
+/**
+ * Type shim for `task_batch_uncomplete.js`.
+ * @see src/scripts/jxa/sync_trigger.d.ts — canonical pattern
+ */
+declare const source: string;
+export default source;
