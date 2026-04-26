@@ -50,19 +50,29 @@ export async function fetchProjectTaskTree(
 /**
  * Partition a flat task list into root tasks and a `parentId → children` map.
  *
- * Root tasks are those with `parentId === null` (directly under their project
- * or inbox). The map indexes children by their stringified parent ID, so
- * recursive renderers can look up a given task's children in O(1).
+ * A task is a root when its `parentId` is absent from the task set — either
+ * because `parentId` is `null` (inbox tasks) or because the parent ID belongs
+ * to a project rather than another task in the list (OmniFocus top-level
+ * tasks carry `parentId === projectId`).
+ *
+ * Using set membership instead of a null-check makes this robust to both the
+ * in-memory fixture shape (`parentId: null`) and real OmniFocus data
+ * (`parentId: "<projectId>"`).
+ *
+ * The map indexes children by their stringified parent ID so recursive
+ * renderers can look up a given task's children in O(1).
  */
 export function partitionTasksByParent(tasks: Task[]): {
   rootTasks: Task[];
   byParent: Map<string, Task[]>;
 } {
+  const taskIds = new Set(tasks.map((t) => String(t.id)));
   const rootTasks: Task[] = [];
   const byParent = new Map<string, Task[]>();
 
   for (const task of tasks) {
-    if (task.parentId === null) {
+    const isRoot = task.parentId === null || !taskIds.has(String(task.parentId));
+    if (isRoot) {
       rootTasks.push(task);
     } else {
       const key = String(task.parentId);
