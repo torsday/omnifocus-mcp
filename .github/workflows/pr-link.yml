@@ -17,10 +17,20 @@ permissions:
 jobs:
   require-issue-link:
     runs-on: [self-hosted, macos]
-    # Waiver: add the `no-issue` label to skip this check.
-    # Fork-PR guard: skip when the PR comes from a fork — fork code cannot
-    # execute on the self-hosted runner.
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-issue') && github.event.pull_request.head.repo.full_name == github.repository }}
+    # Waivers (any one match → skip):
+    #   1. `no-issue` label on the PR — explicit waiver for pure-infra PRs.
+    #   2. Fork-PR guard — fork code cannot execute on the self-hosted runner.
+    #   3. release-please bot PRs — head branch matches `release-please--*`.
+    #      These are auto-generated; the body is a CHANGELOG draft and never
+    #      carries closing keywords. The PR-↔-issue audit trail is preserved
+    #      via the individual feature/fix PRs that landed on main since the
+    #      last release; this Release PR is just the version-bump rollup.
+    #   4. Dependabot PRs — auto-generated; no tracker counterpart.
+    if: >-
+      ${{ !contains(github.event.pull_request.labels.*.name, 'no-issue')
+       && github.event.pull_request.head.repo.full_name == github.repository
+       && !startsWith(github.event.pull_request.head.ref, 'release-please--')
+       && github.event.pull_request.user.login != 'dependabot[bot]' }}
     steps:
       - name: Require Closes/Fixes/Resolves #N in PR body
         env:
