@@ -6,10 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [1.0.2](https://github.com/torsday/omnifocus-mcp/compare/v1.0.1...v1.0.2) (2026-04-26)
 
+**Summary** — One contributor-facing fix; otherwise an internal-infrastructure release validating the post-v1.0.1 release flow under the new release-please + OIDC + PAT identity. **Bytes on the wire are identical to v1.0.1**: the published bundle, tool surface, tool descriptions, and runtime behaviour are unchanged. Consumers running `npx -y @torsday/omnifocus-mcp` see no difference. Internal-only commits (release-please workflow tuning, CI hygiene, doc spikes) are intentionally hidden from this CHANGELOG by `release-please-config.json` and are not enumerated below.
 
 ### Fixed
 
-* **ci:** convert seed-integration-db.js to ESM ([bab66ff](https://github.com/torsday/omnifocus-mcp/commit/bab66ffed37d2bb90d3e8ea19b496e471935dbf1))
+- **`scripts/seed-integration-db.js` runs under ESM** — `package.json` declares `"type": "module"`, so every `.js` file is interpreted as ESM by Node. The seed script was the lone holdout still using CommonJS `require()` and threw `ReferenceError: require is not defined in ES module scope` at the first line of execution. One-line conversion: `const { spawnSync } = require("node:child_process")` → `import { spawnSync } from "node:child_process"`. Affects only contributors running `pnpm test:integration` locally or the `integration.yml` workflow on `mac-local`; the published package's runtime is unchanged. ([#448](https://github.com/torsday/omnifocus-mcp/issues/448))
 
 
 ### Documentation
