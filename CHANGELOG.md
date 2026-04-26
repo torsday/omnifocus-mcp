@@ -4,6 +4,18 @@ All notable changes to `@torsday/omnifocus-mcp` will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [ADR-0011](./docs/adr/0011-versioning-and-stability.md) for the explicit definition of breaking vs additive changes in this project.
 
+## [1.0.2](https://github.com/torsday/omnifocus-mcp/compare/v1.0.1...v1.0.2) (2026-04-26)
+
+
+### Fixed
+
+* **ci:** convert seed-integration-db.js to ESM ([bab66ff](https://github.com/torsday/omnifocus-mcp/commit/bab66ffed37d2bb90d3e8ea19b496e471935dbf1))
+
+
+### Documentation
+
+* **spike:** [#432](https://github.com/torsday/omnifocus-mcp/issues/432) — don't automate CHANGELOG polish, manual stays canonical ([24c35c9](https://github.com/torsday/omnifocus-mcp/commit/24c35c95c59ce5d3590b2256aede288876bf1140))
+
 ## [1.0.1](https://github.com/torsday/omnifocus-mcp/compare/v1.0.0...v1.0.1) (2026-04-26)
 
 **Summary** — Documentation polish pass. The README, SPEC, DESIGN, and `docs/project-views.md` are now aligned with the post-v1.0.0 reality of the project (public, shipped, npm-published) rather than the pre-1.0 framing they carried at v1.0.0's tag. Quick Start is restructured so every supported MCP client — not only Claude Desktop — gets equal-footing setup instructions; a new agent-readable Security & trust section surfaces the existing threat-model guarantees with file-level enforcement references. No behavioural or API changes: bytes on the wire, tool surface, and tool descriptions are identical to v1.0.0.
