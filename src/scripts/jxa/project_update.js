@@ -144,9 +144,21 @@ function run(argv) {
       completedTaskCount: completedTaskCount,
       // Guard against "Can't get object." thrown when invoking these — see #498.
 
-      createdAt: (function () { try { return proj.creationDate().toISOString(); } catch (_e) { return new Date().toISOString(); } })(),
+      createdAt: (() => {
+        try {
+          return proj.creationDate().toISOString();
+        } catch (_e) {
+          return new Date().toISOString();
+        }
+      })(),
 
-      modifiedAt: (function () { try { return proj.modificationDate().toISOString(); } catch (_e) { return new Date().toISOString(); } })(),
+      modifiedAt: (() => {
+        try {
+          return proj.modificationDate().toISOString();
+        } catch (_e) {
+          return new Date().toISOString();
+        }
+      })(),
     };
   }
 

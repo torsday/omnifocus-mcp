@@ -51,9 +51,21 @@ function run(argv) {
       taskCount: tag.tasks ? tag.tasks().length : 0,
       // Guard against "Can't get object." thrown when invoking these — see #498.
 
-      createdAt: (function () { try { return tag.creationDate().toISOString(); } catch (_e) { return new Date().toISOString(); } })(),
+      createdAt: (() => {
+        try {
+          return tag.creationDate().toISOString();
+        } catch (_e) {
+          return new Date().toISOString();
+        }
+      })(),
 
-      modifiedAt: (function () { try { return tag.modificationDate().toISOString(); } catch (_e) { return new Date().toISOString(); } })(),
+      modifiedAt: (() => {
+        try {
+          return tag.modificationDate().toISOString();
+        } catch (_e) {
+          return new Date().toISOString();
+        }
+      })(),
     };
   }
 

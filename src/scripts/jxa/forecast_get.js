@@ -150,9 +150,21 @@ function run(argv) {
       repetition: buildRepetition(task),
       // Guard against "Can't get object." thrown when invoking these — see #498.
 
-      createdAt: (function () { try { return task.creationDate().toISOString(); } catch (_e) { return new Date().toISOString(); } })(),
+      createdAt: (() => {
+        try {
+          return task.creationDate().toISOString();
+        } catch (_e) {
+          return new Date().toISOString();
+        }
+      })(),
 
-      modifiedAt: (function () { try { return task.modificationDate().toISOString(); } catch (_e) { return new Date().toISOString(); } })(),
+      modifiedAt: (() => {
+        try {
+          return task.modificationDate().toISOString();
+        } catch (_e) {
+          return new Date().toISOString();
+        }
+      })(),
     };
   }
 
