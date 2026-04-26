@@ -1,0 +1,52 @@
+# release-please — automated version bump + CHANGELOG draft.
+#
+# Reads Conventional Commits since the last `v*` tag and maintains an open
+# Release PR that bumps `package.json` + `.release-please-manifest.json` and
+# drafts the next `## [Unreleased]` block in `CHANGELOG.md`. Merging the
+# Release PR creates the `v<version>` tag; `release.yml` reacts to that tag
+# and handles the npm publish (via OIDC) and the GitHub Release.
+#
+# Two-stage on purpose. release-please does NOT publish — `release.yml`
+# already publishes via npm Trusted Publishing (OIDC) and would race with
+# release-please's own publish path. Keep `skip-github-release: false` and
+# `npm` publish disabled on this side; let `release.yml` own the publish.
+#
+# Runner choice: self-hosted, macos. `googleapis/release-please-action` is
+# a JavaScript (Node) action — it runs anywhere Node runs, including the
+# macOS self-hosted runner. No Docker dependency, no Linux requirement.
+# This workflow obeys the `scripts/verify-no-hosted-runners.sh` guard.
+#
+# Polish loop: when release-please opens or updates the Release PR, run
+# `/release-notes` against the diff to rewrite the auto-generated entries
+# as user-facing narrative; commit the polished version into the Release
+# PR; then merge. Automation is the floor; the human polish is the ceiling.
+
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    # Skip on PRs from forks; secrets are not available there. (Defensive —
+    # this workflow only triggers on push to main, which forks can't do
+    # directly, but the guard is consistent with other workflows.)
+    if: github.repository == 'torsday/omnifocus-mcp'
+    runs-on: [self-hosted, macos]
+    permissions:
+      contents: write       # create commits + branches for the Release PR
+      pull-requests: write  # open / update the Release PR
+
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          # release-type / package config live in release-please-config.json so
+          # the action stays a thin wrapper. Manifest pins the current version
+          # per package path; release-please rewrites it on each release.
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          token: ${{ secrets.GITHUB_TOKEN }}
