@@ -27,7 +27,6 @@
  * @see src/adapter/omnijs/scriptRunner.ts
  */
 
-import { join } from "node:path";
 import type { Folder } from "../../domain/folder.js";
 import type { FolderId, ProjectId, TagId, TaskId } from "../../domain/ids.js";
 import { TagId as TagIdCtor, TaskId as TaskIdCtor } from "../../domain/ids.js";
@@ -42,6 +41,13 @@ import {
   type TaskBatchMoveScriptResult,
   type TaskMoveScriptResult,
 } from "../../scripts/contracts.js";
+import forecastGetTagScript from "../../scripts/omnijs/forecast_get_tag.js";
+import forecastSetTagScript from "../../scripts/omnijs/forecast_set_tag.js";
+import perspectiveEvaluateScript from "../../scripts/omnijs/perspective_evaluate.js";
+import pluginInvokeScript from "../../scripts/omnijs/plugin_invoke.js";
+import taskBatchMoveScript from "../../scripts/omnijs/task_batch_move.js";
+import taskMoveScript from "../../scripts/omnijs/task_move.js";
+import taskReorderScript from "../../scripts/omnijs/task_reorder.js";
 import type {
   CreateFolderInput,
   CreateProjectInput,
@@ -140,9 +146,7 @@ export class OmniJsTransport implements OmniFocusAdapter {
     // JXA's task.move() fails with error 9 ("Replacement not supported") in
     // OmniFocus 4.x. Database.moveTasks() in OmniJS performs genuine reparenting
     // while preserving the task's persistent ID — hence this routes to OmniJS.
-    const script = await import("node:fs/promises").then((fs) =>
-      fs.readFile(join(import.meta.dirname, "../../scripts/omnijs/task_move.js"), "utf8"),
-    );
+    const script = taskMoveScript;
     const result = await runOmniJsScript<TaskMoveScriptResult>(
       script,
       {
@@ -166,9 +170,7 @@ export class OmniJsTransport implements OmniFocusAdapter {
   async batchMoveTasks(
     items: Array<{ id: TaskId; destination: { projectId?: ProjectId; parentId?: TaskId } }>,
   ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
-    const script = await import("node:fs/promises").then((fs) =>
-      fs.readFile(join(import.meta.dirname, "../../scripts/omnijs/task_batch_move.js"), "utf8"),
-    );
+    const script = taskBatchMoveScript;
     const raw = await runOmniJsScript<TaskBatchMoveScriptResult>(
       script,
       {
@@ -188,9 +190,7 @@ export class OmniJsTransport implements OmniFocusAdapter {
     return mapBatchScriptResult(raw, TaskIdCtor.of);
   }
   async reorderTask(id: TaskId, position: TaskPosition): Promise<void> {
-    const script = await import("node:fs/promises").then((fs) =>
-      fs.readFile(join(import.meta.dirname, "../../scripts/omnijs/task_reorder.js"), "utf8"),
-    );
+    const script = taskReorderScript;
 
     let payload: {
       id: TaskId;
@@ -393,9 +393,7 @@ export class OmniJsTransport implements OmniFocusAdapter {
   }
 
   async getForecastTag(): Promise<{ tagId: TagId | null }> {
-    const script = await import("node:fs/promises").then((fs) =>
-      fs.readFile(join(import.meta.dirname, "../../scripts/omnijs/forecast_get_tag.js"), "utf8"),
-    );
+    const script = forecastGetTagScript;
     const result = await runOmniJsScript<
       { tagId: string | null } | { error: { code: string; message: string } }
     >(script, {}, { ...this.runOpts, scriptName: "forecast_get_tag" });
@@ -410,9 +408,7 @@ export class OmniJsTransport implements OmniFocusAdapter {
   }
 
   async setForecastTag(tagId: TagId | null): Promise<{ tagId: TagId | null }> {
-    const script = await import("node:fs/promises").then((fs) =>
-      fs.readFile(join(import.meta.dirname, "../../scripts/omnijs/forecast_set_tag.js"), "utf8"),
-    );
+    const script = forecastSetTagScript;
     const result = await runOmniJsScript<
       { tagId: string | null } | { error: { code: string; message: string } }
     >(script, { tagId }, { ...this.runOpts, scriptName: "forecast_set_tag" });
@@ -482,9 +478,7 @@ export class OmniJsTransport implements OmniFocusAdapter {
   // -- Plug-in invocation (wired) -------------------------------------------
 
   async pluginInvoke(input: PluginInvokeInput): Promise<PluginInvokeResult> {
-    const script = await import("node:fs/promises").then((fs) =>
-      fs.readFile(join(import.meta.dirname, "../../scripts/omnijs/plugin_invoke.js"), "utf8"),
-    );
+    const script = pluginInvokeScript;
     return runOmniJsScript<PluginInvokeResult>(
       script,
       { identifier: input.identifier, arg: input.arg ?? null },
@@ -508,12 +502,7 @@ export class OmniJsTransport implements OmniFocusAdapter {
   async evaluateCustomPerspective(
     identifier: string,
   ): Promise<import("../../domain/task.js").Task[]> {
-    const script = await import("node:fs/promises").then((fs) =>
-      fs.readFile(
-        join(import.meta.dirname, "../../scripts/omnijs/perspective_evaluate.js"),
-        "utf8",
-      ),
-    );
+    const script = perspectiveEvaluateScript;
     const result = await runOmniJsScript<PerspectiveEvaluateScriptResult>(
       script,
       { identifier },
