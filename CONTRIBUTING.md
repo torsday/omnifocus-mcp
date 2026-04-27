@@ -27,6 +27,46 @@ Inherited from [`coding.md`](https://github.com/torsday/llm_prompts/blob/main/co
 - Every public method has a docblock with `@param` / `@returns` / `@throws`
 - **Don't restate the tool count in prose.** Living docs describe the shape of the tool surface (domains, verbs, patterns), not the integer count. The live count lives at `omnifocus://capabilities` and `internal_status` at runtime, plus `docs/tools.md` (auto-generated). See DESIGN.md §6.8.1 — `scripts/verify-no-tool-counts.sh` enforces this in CI.
 
+## Tool descriptions and NL quality
+
+Every MCP tool description, input schema, and validation error gets read by an agent and decides whether the agent's first attempt at a call lands. The full rubric is [`docs/nl-quality-standards.md`](./docs/nl-quality-standards.md) — five levers (schema descriptions, worked examples, forgiving aliases, round-trip readability, fail-with-help errors). Use the checklist at the bottom of that doc at PR review time.
+
+### Tool description template
+
+New tool descriptions follow the four-section shape (`DESIGN.md §6.8`, enforced by `descriptionShape.ts`) plus a worked example. Keep the description concatenated as a single string constant — concise, readable, scannable:
+
+```typescript
+export const NOUN_VERB_DESCRIPTION =
+  // What it does — opening sentence, present tense.
+  "<One-sentence summary of the tool's purpose>. " +
+  // When NOT to use — disambiguates from sibling tools.
+  "Do NOT use for <out-of-scope case> — prefer <other_tool> instead. " +
+  // Returns — names the shape so the agent can plan its next call.
+  "Returns <data shape, including pagination if applicable>. " +
+  // Side effects — read-only / mutates / triggers a sync / safe to retry.
+  "<Read-only; safe to retry> | <Mutates; triggers a sync; idempotent on `clientToken`>. " +
+  // Worked example — one representative call.
+  'Example: { "<field>": "<value>" }';
+```
+
+Every Zod input field carries a `.describe(...)` of one sentence under ~120 chars, naming what the field controls and where to obtain a valid value when relevant.
+
+### Validation errors
+
+Tool handlers that validate input through Zod catch `ZodError` at the boundary and rewrite it via [`zodToActionable`](./src/errors/zodToActionable.ts) so each failure carries `{ field, sent, expected, examples? }`. Don't let raw Zod messages reach the client — the agent has to translate "expected int, received number" before it can fix the call, and the translation step is where loops happen.
+
+```typescript
+import { ValidationError } from "../../errors/index.js";
+import { zodToActionable } from "../../errors/zodToActionable.js";
+
+const parsed = inputSchema.safeParse(rawInput);
+if (!parsed.success) {
+  throw new ValidationError("Invalid <tool_name> input", {
+    details: { failures: zodToActionable(parsed.error, rawInput) },
+  });
+}
+```
+
 ## Workflow
 
 1. **Understand the task.** Open the issue, read the linked DESIGN / SPEC / ADR section.
@@ -58,7 +98,8 @@ Inherited from [`coding.md`](https://github.com/torsday/llm_prompts/blob/main/co
 - [ ] Integration tests pass (if adapter changes)
 - [ ] No stdout output (check via integration test)
 - [ ] Response envelope + typed error used
-- [ ] Tool description matches the what/when-not/returns/side-effects shape
+- [ ] Tool description matches the what/when-not/returns/side-effects shape and ends with an `Example:` line ([NL-quality rubric](./docs/nl-quality-standards.md))
+- [ ] Validation errors use `zodToActionable` so failures carry `{ field, sent, expected }`
 - [ ] No user content (task names, notes, tags) interpolated into metadata fields (`suggestion`, `message`, `warnings`)
 ```
 
