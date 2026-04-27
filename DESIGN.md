@@ -488,6 +488,7 @@ Each phase ends with a working, integration-tested system valuable on its own. T
 - `docs/adr/0013-tool-response-envelope.md` — uniform response envelope as public contract
 - `docs/adr/0014-e2e-harness-strategy.md` — in-memory adapter switch for E2E
 - `docs/adr/0015-nl-excellence-response-envelope.md` — clarification kind, hints, echo-back summary
+- `docs/adr/0017-mutation-testing-release-gate.md` — Stryker mutation testing as release-time hard gate
 - [GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues) + [Project #4](https://github.com/users/torsday/projects/4) — live backlog derived from this design
 
 ---
@@ -800,6 +801,10 @@ Tests that need these behaviors run only against the `JxaTransport` / `OmniJsTra
 ### Coverage target
 
 Not a percentage. The target is: **every error path in every service method is exercised**, and **every script has at least one integration test**. If a service has untested error paths, it blocks the milestone.
+
+### Test fidelity (mutation testing)
+
+Coverage is not enforced because it's gameable. Test *fidelity* is enforced at release time via Stryker mutation testing on a curated allowlist of high-value paths (`src/domain/`, `src/errors/`, `src/middleware/`, `src/server/`, tool input-validation schemas). The gate runs in `release.yml` between the bundle-size budget and the npm publish step; thresholds are calibrated to `baseline − 5` so the gate enforces non-regression. See [ADR-0017](./docs/adr/0017-mutation-testing-release-gate.md).
 
 ---
 
