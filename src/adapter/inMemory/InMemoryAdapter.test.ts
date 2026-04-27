@@ -307,6 +307,73 @@ describe("InMemoryAdapter — Folders", () => {
   });
 });
 
+describe("InMemoryAdapter — floating timezone flags", () => {
+  it("createTask round-trips deferDateFloating and dueDateFloating", async () => {
+    const a = makeAdapter();
+    const id = await a.createTask({
+      name: "floating task",
+      deferDate: "2026-06-01T09:00:00+00:00",
+      deferDateFloating: true,
+      dueDate: "2026-06-30T17:00:00+00:00",
+      dueDateFloating: true,
+    });
+    const task = await a.getTask(id);
+    expect(task.deferDateFloating).toBe(true);
+    expect(task.dueDateFloating).toBe(true);
+  });
+
+  it("createTask omits floating flags when not supplied", async () => {
+    const a = makeAdapter();
+    const id = await a.createTask({ name: "fixed task", dueDate: "2026-06-30T17:00:00+00:00" });
+    const task = await a.getTask(id);
+    expect(task.deferDateFloating).toBeUndefined();
+    expect(task.dueDateFloating).toBeUndefined();
+  });
+
+  it("updateTask sets floating flags when true", async () => {
+    const a = makeAdapter();
+    const id = await a.createTask({ name: "t", dueDate: "2026-06-30T17:00:00+00:00" });
+    await a.updateTask(id, { dueDateFloating: true });
+    expect((await a.getTask(id)).dueDateFloating).toBe(true);
+  });
+
+  it("updateTask clears floating flags when false", async () => {
+    const a = makeAdapter();
+    const id = await a.createTask({
+      name: "t",
+      dueDate: "2026-06-30T17:00:00+00:00",
+      dueDateFloating: true,
+    });
+    await a.updateTask(id, { dueDateFloating: false });
+    expect((await a.getTask(id)).dueDateFloating).toBeUndefined();
+  });
+
+  it("createProject round-trips deferDateFloating and dueDateFloating", async () => {
+    const a = makeAdapter();
+    const id = await a.createProject({
+      name: "floating project",
+      deferDate: "2026-06-01T09:00:00+00:00",
+      deferDateFloating: true,
+      dueDate: "2026-06-30T17:00:00+00:00",
+      dueDateFloating: true,
+    });
+    const project = await a.getProject(id);
+    expect(project.deferDateFloating).toBe(true);
+    expect(project.dueDateFloating).toBe(true);
+  });
+
+  it("updateProject clears floating flags when false", async () => {
+    const a = makeAdapter();
+    const id = await a.createProject({
+      name: "p",
+      dueDate: "2026-06-30T17:00:00+00:00",
+      dueDateFloating: true,
+    });
+    await a.updateProject(id, { dueDateFloating: false });
+    expect((await a.getProject(id)).dueDateFloating).toBeUndefined();
+  });
+});
+
 describe("InMemoryAdapter — Sync", () => {
   it("syncTrigger sets lastSyncAt to the current clock", async () => {
     const a = makeAdapter();

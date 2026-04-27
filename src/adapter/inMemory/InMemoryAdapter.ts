@@ -212,7 +212,9 @@ export class InMemoryAdapter implements OmniFocusAdapter {
       parentId: input.parentId ?? null,
       tagIds: [...(input.tagIds ?? [])],
       deferDate: (input.deferDate ?? null) as Task["deferDate"],
+      ...(input.deferDateFloating ? { deferDateFloating: true } : {}),
       dueDate: (input.dueDate ?? null) as Task["dueDate"],
+      ...(input.dueDateFloating ? { dueDateFloating: true } : {}),
       estimatedMinutes: input.estimatedMinutes ?? null,
       flagged: input.flagged ?? false,
       completed: false,
@@ -248,14 +250,16 @@ export class InMemoryAdapter implements OmniFocusAdapter {
         }
       }
     }
-    const updated: Task = {
+    const updated = {
       ...task,
       ...(patch.name !== undefined ? { name: patch.name } : {}),
       ...(patch.note !== undefined ? { note: patch.note } : {}),
       ...(patch.noteHtml !== undefined ? { noteHtml: patch.noteHtml } : {}),
       ...(patch.flagged !== undefined ? { flagged: patch.flagged } : {}),
       ...(patch.deferDate !== undefined ? { deferDate: patch.deferDate as Task["deferDate"] } : {}),
+      ...(patch.deferDateFloating === true ? { deferDateFloating: true as const } : {}),
       ...(patch.dueDate !== undefined ? { dueDate: patch.dueDate as Task["dueDate"] } : {}),
+      ...(patch.dueDateFloating === true ? { dueDateFloating: true as const } : {}),
       ...(patch.estimatedMinutes !== undefined ? { estimatedMinutes: patch.estimatedMinutes } : {}),
       ...(patch.tagIds !== undefined ? { tagIds: [...patch.tagIds] } : {}),
       ...(patch.sequential !== undefined ? { sequential: patch.sequential } : {}),
@@ -264,7 +268,9 @@ export class InMemoryAdapter implements OmniFocusAdapter {
         : {}),
       ...(patch.repetition !== undefined ? { repetition: patch.repetition } : {}),
       modifiedAt: isoOf(this.now()) as Task["modifiedAt"],
-    };
+    } as Task;
+    if (patch.deferDateFloating === false) delete (updated as Partial<Task>).deferDateFloating;
+    if (patch.dueDateFloating === false) delete (updated as Partial<Task>).dueDateFloating;
     this.tasks.set(id, updated);
   }
 
@@ -724,7 +730,9 @@ export class InMemoryAdapter implements OmniFocusAdapter {
       status: input.status ?? "active",
       completionCriterion: input.completionCriterion ?? "parallel",
       deferDate: (input.deferDate ?? null) as Project["deferDate"],
+      ...(input.deferDateFloating ? { deferDateFloating: true } : {}),
       dueDate: (input.dueDate ?? null) as Project["dueDate"],
+      ...(input.dueDateFloating ? { dueDateFloating: true } : {}),
       estimatedMinutes: input.estimatedMinutes ?? null,
       flagged: input.flagged ?? false,
       reviewIntervalDays: input.reviewIntervalDays ?? null,
@@ -749,7 +757,7 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     if (patch.name !== undefined && patch.name.trim() === "") {
       throw new ValidationError("Project name must be non-empty", { details: { field: "name" } });
     }
-    const updated: Project = {
+    const updated = {
       ...project,
       ...(patch.name !== undefined ? { name: patch.name } : {}),
       ...(patch.note !== undefined ? { note: patch.note } : {}),
@@ -761,7 +769,9 @@ export class InMemoryAdapter implements OmniFocusAdapter {
       ...(patch.deferDate !== undefined
         ? { deferDate: patch.deferDate as Project["deferDate"] }
         : {}),
+      ...(patch.deferDateFloating === true ? { deferDateFloating: true as const } : {}),
       ...(patch.dueDate !== undefined ? { dueDate: patch.dueDate as Project["dueDate"] } : {}),
+      ...(patch.dueDateFloating === true ? { dueDateFloating: true as const } : {}),
       ...(patch.estimatedMinutes !== undefined ? { estimatedMinutes: patch.estimatedMinutes } : {}),
       ...(patch.flagged !== undefined ? { flagged: patch.flagged } : {}),
       ...(patch.tagIds !== undefined ? { tagIds: [...patch.tagIds] } : {}),
@@ -769,7 +779,9 @@ export class InMemoryAdapter implements OmniFocusAdapter {
         ? { reviewIntervalDays: patch.reviewIntervalDays }
         : {}),
       modifiedAt: isoOf(this.now()) as Project["modifiedAt"],
-    };
+    } as Project;
+    if (patch.deferDateFloating === false) delete (updated as Partial<Project>).deferDateFloating;
+    if (patch.dueDateFloating === false) delete (updated as Partial<Project>).dueDateFloating;
     this.projects.set(id, updated);
   }
 

@@ -73,11 +73,19 @@ export const projectUpdateInputSchema = z.object({
     .nullable()
     .optional()
     .describe("ISO-8601 defer date with UTC offset. Pass null to clear."),
+  deferDateFloating: z
+    .boolean()
+    .optional()
+    .describe("When true, the defer time is floating (follows the user across time zones)."),
   dueDate: z
     .string()
     .nullable()
     .optional()
     .describe("ISO-8601 due date with UTC offset. Pass null to clear."),
+  dueDateFloating: z
+    .boolean()
+    .optional()
+    .describe("When true, the due time is floating (follows the user across time zones)."),
   estimatedMinutes: z
     .number()
     .int()
@@ -185,7 +193,9 @@ export async function handleProjectUpdate(
         completionCriterion: rest.completionCriterion,
       }),
       ...(rest.deferDate !== undefined && { deferDate: rest.deferDate }),
+      ...(rest.deferDateFloating !== undefined && { deferDateFloating: rest.deferDateFloating }),
       ...(rest.dueDate !== undefined && { dueDate: rest.dueDate }),
+      ...(rest.dueDateFloating !== undefined && { dueDateFloating: rest.dueDateFloating }),
       ...(rest.estimatedMinutes !== undefined && { estimatedMinutes: rest.estimatedMinutes }),
       ...(rest.flagged !== undefined && { flagged: rest.flagged }),
       ...(rest.tagIds !== undefined && { tagIds: rest.tagIds }),

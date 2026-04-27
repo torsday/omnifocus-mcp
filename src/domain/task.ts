@@ -67,7 +67,18 @@ export interface Task {
   tagIds: TagId[];
 
   deferDate: IsoDateString | null;
+  /**
+   * When true, the defer time follows the user across time zones rather than
+   * being re-interpreted as a fixed UTC instant. Omitted from responses when
+   * false to keep payloads lean. See DESIGN.md §14 — floating time zones.
+   *
+   * Note: the JXA transport always returns false (JXA exposes only a
+   * document-level default, not per-task floating-TZ state).
+   */
+  deferDateFloating?: boolean;
   dueDate: IsoDateString | null;
+  /** Same semantics as deferDateFloating but for the due date. */
+  dueDateFloating?: boolean;
   estimatedMinutes: number | null;
 
   flagged: boolean;
@@ -143,7 +154,9 @@ export const TaskSchema: z.ZodType<Task> = z.object({
   tagIds: z.array(TagIdCtor.schema),
 
   deferDate: isoDateString().nullable(),
+  deferDateFloating: z.boolean().optional(),
   dueDate: isoDateString().nullable(),
+  dueDateFloating: z.boolean().optional(),
   estimatedMinutes: z.number().int().min(1).nullable(),
 
   flagged: z.boolean(),
