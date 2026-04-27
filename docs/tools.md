@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 98 tools registered.
+> Auto-generated from source. 99 tools registered.
 
 ## Table of contents
 
@@ -81,6 +81,7 @@
 - [task_clear_alarms](#task_clear_alarms)
 - [task_clear_repetition](#task_clear_repetition)
 - [task_complete](#task_complete)
+- [task_convert_to_project](#task_convert_to_project)
 - [task_create](#task_create)
 - [task_delete](#task_delete)
 - [task_drop](#task_drop)
@@ -2782,6 +2783,37 @@ Complete an OmniFocus task — marks it done with a completion timestamp. Accept
 ```json
 {
   "toolName": "task_complete",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_convert_to_project
+
+Promote an OmniFocus task to a first-class project via OmniJS Database.convertTasksToProjects(). The task's persistent identifier is preserved on the resulting project — agents can continue using the same ID as a project ID after conversion. Subtasks, notes, tags, and dates are carried over by OmniFocus automatically. Use this when a task has grown in scope and needs its own review interval, subtask hierarchy, or project-level metadata. Do NOT use on tasks already in a project — use task_move instead for reparenting; use project_create when starting from scratch. Returns { converted: true, projectId, taskId } on success. Side effects: removes the task from the task list and adds a project; sets meta.syncPending = true.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_convert_to_project",
   "arguments": {}
 }
 ```
