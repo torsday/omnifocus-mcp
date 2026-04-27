@@ -25,6 +25,7 @@ export const DAILY_REVIEW_PROMPT = "daily-review";
 export const WEEKLY_REVIEW_PROMPT = "weekly-review";
 export const CAPTURE_MEETING_PROMPT = "capture-meeting";
 export const PROJECT_PLANNING_PROMPT = "project-planning";
+export const INBOX_TRIAGE_PROMPT = "inbox-triage";
 
 // ---------------------------------------------------------------------------
 // Message builders (pure functions — testable in isolation)
@@ -169,6 +170,65 @@ ${folderLine}
 ${brief}`;
 }
 
+/**
+ * Build the `inbox-triage` message.
+ *
+ * Instructs the agent to read the inbox, propose a structured assignment
+ * (project + tags + dates + flag) for every task in one pass, present the
+ * proposals to the user as a table, and on user confirm fire
+ * `task_batch_assign`. The prompt explicitly does NOT auto-confirm — the
+ * user's approval is the gating step.
+ */
+export function buildInboxTriageMessage(): string {
+  return `You are running an inbox-triage pass on OmniFocus. The goal is to clear the
+inbox in one user confirmation, not ten clicks. Follow these steps in order:
+
+1. **Load the inbox** — read \`omnifocus://inbox\`. If it is empty, report
+   "Inbox empty — nothing to triage" and stop.
+
+2. **Load context** for routing decisions (one-time read; cache the results
+   in your working memory for this run):
+   - \`omnifocus://capabilities\` — server feature flags
+   - \`project_list\` — the agent should know what projects exist before
+     proposing routes
+   - \`tag_list\` — same, for tag IDs
+
+3. **Propose an assignment for every inbox task.** For each task, derive:
+   - \`projectId\` — required; pick the most-likely existing project from
+     step 2's listing. If no project fits well, surface that in the table
+     (see step 4) and ask the user where it should go.
+   - \`addTagIds\` / \`removeTagIds\` — optional; suggest tags only when
+     the task name strongly implies them.
+   - \`deferDate\` / \`dueDate\` — optional; only if the task name carries
+     temporal intent ("by Friday", "next sprint", "after the offsite").
+   - \`flagged\` — optional; \`true\` only for items that should be on
+     today's plate.
+
+4. **Present the proposals as a structured table** — one row per inbox task,
+   columns: task name, proposed project, tags (added / removed), defer, due,
+   flagged, and a one-sentence rationale. Format consistently. Do NOT
+   collapse multiple tasks into a single row.
+
+5. **Wait for user confirmation.** Do NOT auto-fire \`task_batch_assign\`.
+   The user reviews the table and may:
+   - approve the whole batch — proceed to step 6
+   - approve with edits ("change task 3's project to X, drop the tag on
+     task 5") — apply the edits to your proposal set, re-render the table,
+     and ask again
+   - reject specific items ("skip task 2, the rest look good") — drop those
+     from the assignment list before proceeding
+
+6. **Fire \`task_batch_assign\`** with the confirmed
+   \`{ assignments: [...] }\` array. The tool returns
+   \`{ assigned, failed }\` — both arrays carry the original-input index, so
+   you can map results back to the table you presented.
+
+7. **Report** — summarise: how many tasks landed in which projects, how
+   many failed and why (the \`failed[].errorCode\` is prefixed \`move:\` or
+   \`update:\` to indicate which phase failed). If any failed, ask the user
+   whether to retry, skip, or hand off.`;
+}
+
 // ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
@@ -265,6 +325,23 @@ export function registerOmniFocusPrompts(server: McpServer): void {
           },
         },
       ],
+    }),
+  );
+
+  // ── inbox-triage ──────────────────────────────────────────────────────────
+  server.registerPrompt(
+    INBOX_TRIAGE_PROMPT,
+    {
+      description:
+        "Triage the OmniFocus inbox in one user confirmation. The agent reads the inbox, " +
+        "proposes a structured assignment per task (project, tags, defer/due, flagged), " +
+        "presents the proposals as a table, and on user approval fires task_batch_assign. " +
+        "Does NOT auto-confirm — the user's approval is the gating step. " +
+        "No parameters required.",
+      argsSchema: {},
+    },
+    async () => ({
+      messages: [{ role: "user", content: { type: "text", text: buildInboxTriageMessage() } }],
     }),
   );
 }

@@ -3,12 +3,12 @@
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
  * API from @modelcontextprotocol/sdk. Currently registers `internal_status`,
- * the four OmniFocus workflow prompts, the thirteen MCP resources, and 71 domain
+ * the five OmniFocus workflow prompts, the thirteen MCP resources, and 72 domain
  * tools across folder, tag, note, search, forecast, perspective, plugin,
  * sync, review, export, app, project, task, repetition, and attachment surfaces.
  * Two additional raw-script escape-hatch tools (`run_jxa_script`,
  * `run_omnijs_script`) register only when `OMNIFOCUS_ALLOW_RAW_SCRIPT=1`
- * (ADR-0004), bringing the wired surface to 73. Every registered tool is
+ * (ADR-0004), bringing the wired surface to 74. Every registered tool is
  * wrapped in `assertNotShuttingDown → withCircuitBreaker → withRateLimitMeta
  * → withLoopDetection` via `installToolMiddleware` (#291), which runs once
  * before any `register*Tool` helper.
@@ -119,6 +119,7 @@ import { registerTagSetAllowsNextActionTool } from "../tools/tag/setAllowsNextAc
 import { registerTagSetLocationTool } from "../tools/tag/setLocation.js";
 import { registerTagSetStatusTool } from "../tools/tag/setStatus.js";
 import { registerTagUpdateTool } from "../tools/tag/update.js";
+import { registerTaskBatchAssignTool } from "../tools/task/batchAssign.js";
 import { registerTaskBatchCompleteTool } from "../tools/task/batchComplete.js";
 import { registerTaskBatchCreateTool } from "../tools/task/batchCreate.js";
 import { registerTaskBatchDeleteTool } from "../tools/task/batchDelete.js";
@@ -396,6 +397,7 @@ export async function startServer(): Promise<void> {
   registerTaskGetManyTool(server, taskAdapterCtx);
   registerTaskParseTransportTextTool(server, { makeMeta });
   registerRepetitionFromProseTool(server, { makeMeta });
+  registerTaskBatchAssignTool(server, taskMutationCtx);
   registerTaskBatchCompleteTool(server, taskMutationCtx);
   registerTaskBatchCreateTool(server, taskMutationCtx);
   registerTaskBatchDeleteTool(server, taskMutationCtx);
