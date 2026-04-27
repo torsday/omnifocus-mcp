@@ -134,6 +134,7 @@ import { registerTaskBatchUpdateTool } from "../tools/task/batchUpdate.js";
 import { registerTaskClearAlarmsTool } from "../tools/task/clearAlarms.js";
 import { registerTaskClearRepetitionTool } from "../tools/task/clearRepetition.js";
 import { registerTaskCompleteTool } from "../tools/task/complete.js";
+import { registerTaskConvertToProjectTool } from "../tools/task/convertToProject.js";
 import { registerTaskCreateTool } from "../tools/task/create.js";
 import { registerTaskDeleteTool } from "../tools/task/delete.js";
 import { registerTaskDropTool } from "../tools/task/drop.js";
@@ -426,6 +427,7 @@ export async function startServer(): Promise<void> {
   registerTaskDropTool(server, taskMutationCtx);
   registerTaskDuplicateTool(server, taskMutationCtx);
   registerTaskExtractFromNoteTool(server, taskMutationCtx);
+  registerTaskConvertToProjectTool(server, taskMutationCtx);
   registerTaskMoveTool(server, taskMutationCtx);
   registerTaskReorderTool(server, taskMutationCtx);
   registerTaskSetAlarmsTool(server, taskMutationCtx);

@@ -50,6 +50,7 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     undropTask: record("undropTask"),
     deleteTask: record("deleteTask"),
     moveTask: record("moveTask"),
+    convertTaskToProject: record("convertTaskToProject"),
     batchMoveTasks: record("batchMoveTasks"),
     reorderTask: record("reorderTask"),
     duplicateTask: record("duplicateTask"),
@@ -137,6 +138,7 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
     undropTask: () => r.undropTask(T_ID),
     deleteTask: () => r.deleteTask(T_ID),
     moveTask: () => r.moveTask(T_ID, { projectId: P_ID }),
+    convertTaskToProject: () => r.convertTaskToProject(T_ID, {}),
     batchMoveTasks: () => r.batchMoveTasks([{ id: T_ID, destination: { projectId: P_ID } }]),
     reorderTask: () => r.reorderTask(T_ID, { at: "end", in: { projectId: P_ID } }),
     duplicateTask: () => r.duplicateTask(T_ID, { recursive: false }),
@@ -287,6 +289,7 @@ describe("TransportRouter — table integrity", () => {
     expect(omniJsRoutes).toEqual([
       "batchMoveTasks", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works
       "clearTaskAlarms", // Task.notifications mutation is OmniJS-only (#461)
+      "convertTaskToProject", // OmniJS-only: Database.convertTasksToProjects()
       "evaluateCustomPerspective",
       "getForecastTag", // Database.forecastTag is OmniJS-only (#465)
       "moveTask", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works

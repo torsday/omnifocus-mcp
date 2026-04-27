@@ -292,6 +292,15 @@ export interface OmniFocusAdapter {
   deleteTask(id: TaskId): Promise<void>;
   moveTask(id: TaskId, destination: { projectId?: ProjectId; parentId?: TaskId }): Promise<void>;
   /**
+   * Promote a task to a project via OmniJS `Database.convertTasksToProjects()`.
+   * The task's persistent identifier is preserved on the resulting project.
+   * Returns the project ID (equal to the original task ID's primary key).
+   */
+  convertTaskToProject(
+    id: TaskId,
+    opts: { folderId?: FolderId; position?: "beginning" | "ending" },
+  ): Promise<ProjectId>;
+  /**
    * Best-effort batch move. One transport round-trip per batch. Moves each task
    * to the specified destination; per-item failures are reported in `failed[]`.
    * Routes through OmniJS (not JXA) due to the JXA task.move() bug in OF 4.x.

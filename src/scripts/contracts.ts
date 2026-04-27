@@ -108,6 +108,11 @@ export type TaskMoveScriptResult = { id: string } | ScriptErrorEnvelope<"NOT_FOU
 /** Result type for `task_batch_move.js`. */
 export type TaskBatchMoveScriptResult = RawBatchScriptResult | ScriptErrorEnvelope;
 
+/** Result type for `task_convert_to_project.js`. */
+export type TaskConvertToProjectScriptResult =
+  | { projectId: string }
+  | ScriptErrorEnvelope<"NOT_FOUND" | "VALIDATION" | "CONVERSION_FAILED">;
+
 /** Result type for `perspective_evaluate.js`. */
 export type PerspectiveEvaluateScriptResult =
   | { tasks: Task[] }

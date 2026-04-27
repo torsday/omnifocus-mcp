@@ -317,6 +317,17 @@ export class JxaTransport implements OmniFocusAdapter {
     );
   }
 
+  async convertTaskToProject(
+    _id: TaskId,
+    _opts: { folderId?: import("../../domain/ids.js").FolderId; position?: "beginning" | "ending" },
+  ): Promise<ProjectId> {
+    // convertTaskToProject uses Database.convertTasksToProjects() — OmniJS-only API.
+    throw new ScriptError(
+      "convertTaskToProject routes to OmniJsTransport — JXA transport unavailable",
+      { details: { transport: "jxa", reason: "routes-to-omnijs", method: "convertTaskToProject" } },
+    );
+  }
+
   async batchMoveTasks(
     _items: Array<{ id: TaskId; destination: { projectId?: ProjectId; parentId?: TaskId } }>,
   ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
