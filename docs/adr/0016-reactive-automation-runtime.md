@@ -111,6 +111,38 @@ matches the project's stated security posture (see #422 / SECURITY.md).
 Worth revisiting later, but rejected for the v2 timeframe — owning the
 runtime means owning the trust story.
 
+### 5. Use Claude Code (or another LLM CLI) as the always-on runtime
+
+A natural question: if Claude Code can already work autonomously through
+tickets via `/ship-next` loops, can it also *be* the always-on rules
+engine? **No, for three structural reasons:**
+
+- **The LLM is request-response, not event-driven.** The Anthropic API
+  (and OpenAI, and any other) responds to requests; it does not subscribe
+  to event streams. The FSEventStream watcher *is* event-driven, but
+  something on the Mac has to *call* the API when an event arrives.
+- **LLM CLIs are session-bound, not daemon-mode.** Claude Code, Codex
+  CLI, Cursor, and the rest run for the duration of a terminal session.
+  Closing the terminal terminates the loop. There is no `--daemon` flag
+  that survives logout. launchd needs to own that lifecycle.
+- **No tool use without an MCP client process.** Claude does not talk to
+  OmniFocus directly — it talks through the v1 MCP server, which runs as
+  an stdio child of an MCP client. Without a long-lived process owning
+  that pipe, there is no way for Claude to act on events.
+
+A user could pseudo-implement this with `/loop 30s reactive-rules-check`
+in Claude Code, but that is **polling instead of event-driven** (worse
+latency, more wasted API calls), **bound to the user's session**, and
+billed for every poll regardless of whether anything actually changed.
+Wrong shape.
+
+The runtime in option 3 is "the missing piece between the watcher and
+Claude" — a small, purpose-built daemon that owns the always-on
+lifecycle, listens to the watcher, and invokes Claude (or any LLM) via
+API when rules match. Most of the runtime is mechanical (debouncer, rule
+matcher, audit log writer); the "thinking" part is delegated to Claude
+through the API and is just one of several components.
+
 ## Decision
 
 Adopt **option 3** as the v2 direction, scoped to a future milestone (M6).
@@ -443,6 +475,51 @@ bump on the runtime; removing capabilities is a major.
 A `js:` block that times out, exceeds memory, or throws logs
 `js.escape.aborted` in the audit log and falls through as a non-match —
 never blocks the runtime, never crashes other rules.
+
+#### 9. Implementation language — TypeScript on Node.js (decided)
+
+The runtime targets TypeScript on Node.js, matching v1's stack. Four
+options considered:
+
+1. **TypeScript / Node.js (decided).** Same stack as v1, so the
+   maintainer's primary expertise transfers directly; `isolated-vm`
+   (sub-decision #8) is a Node.js native module with no peer in other
+   languages at the same security-audit and maintenance bar; the
+   Anthropic SDK is canonical in Node.js (`@anthropic-ai/sdk`); the
+   runtime can directly import v1's domain types, error taxonomy, and
+   envelope shape — eliminating duplication risk. YAML parsing, JSON
+   Lines, file-watching, and child-process spawning are all trivial.
+2. **Swift.** Familiar (we already ship a Swift binary for the
+   FSEventStream watcher) and has first-class Keychain + launchd
+   integration. **Rejected:** no mature sandboxed-JS solution
+   (`JavaScriptCore` exists but doesn't match `isolated-vm`'s isolation
+   guarantees); the community Anthropic Swift SDK lags the Node SDK by
+   months on each protocol revision; can't share types with v1's TS.
+3. **Go.** Single static-binary distribution would simplify install (no
+   Node runtime needed on the user's Mac). **Rejected:** the Anthropic
+   Go SDK lags; `v8go` is the closest `isolated-vm` equivalent but
+   isn't security-audited at the same bar and has had quiet
+   maintenance windows; no type sharing with v1; introduces a third
+   language for the maintainer to context-switch into.
+4. **Rust.** All Go's pros plus deeper safety guarantees and `rusty_v8`
+   for sandboxing. **Rejected:** steepest learning curve; the
+   Anthropic Rust SDK is community-maintained; iteration speed
+   (compile times) hurts a phase-1-through-6 trajectory where the
+   maintainer is learning while building.
+
+The choice is largely **determined by sub-decision #8**: once the design
+commits to a sandboxed JS escape hatch with `isolated-vm`, the host
+language follows. The runtime's hot path (LLM call ~3.5 s + JXA write
+~50 ms) is bottlenecked by network and OS — not by CPU or memory — so
+the usual "Node is heavy for daemons" objection doesn't apply at
+single-user scale. Node startup cost (~200 ms) is irrelevant for a
+process that wakes on FSEvents debounced by 30 s.
+
+**Distribution:** the runtime ships as a separate npm package
+(`@torsday/omnifocus-mcp-runtime` or similar) with a `bin` entry. Users
+install with `npx -y` or `npm i -g`, same model as v1. Requires Node ≥ 22
+on the user's Mac, installable via Homebrew / asdf / nvm / fnm — same
+prerequisite as v1.
 
 ### Concrete rule examples (illustrative, not exhaustive)
 
