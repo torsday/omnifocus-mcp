@@ -19,6 +19,7 @@ import type { CreateProjectInput, OmniFocusAdapter } from "../../adapter/OmniFoc
 import { type InvalidatingCache, invalidateProjectMutation } from "../../cache/invalidation.js";
 import { finaliseHints, reviewIntervalHint } from "../../domain/hints.js";
 import { FolderId, TagId } from "../../domain/ids.js";
+import { summaryProjectCreate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import {
   idempotencyStore as defaultIdempotencyStore,
@@ -173,7 +174,7 @@ export async function handleProjectCreate(
     );
     return ok(
       { created: true as const, id },
-      ctx.makeMeta({ syncPending: true }),
+      ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryProjectCreate(input.name) }),
       undefined,
       hints,
     );

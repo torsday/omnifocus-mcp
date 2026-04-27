@@ -7,6 +7,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ProjectId as ProjectIdCtor } from "../../domain/ids.js";
+import { summaryReviewSetInterval } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { ReviewService } from "../../services/reviewService.js";
 
@@ -51,7 +52,10 @@ export async function handleReviewSetInterval(
   ctx: ReviewSetIntervalContext,
 ) {
   await ctx.reviewService.setInterval(ProjectIdCtor.of(input.id), input.days);
-  return ok({ id: input.id }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { id: input.id },
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryReviewSetInterval(input.days) }),
+  );
 }
 
 // ---------------------------------------------------------------------------

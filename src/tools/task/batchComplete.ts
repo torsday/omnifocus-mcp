@@ -12,6 +12,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { TaskId } from "../../domain/ids.js";
+import { summaryBatchComplete } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 export const TASK_BATCH_COMPLETE_DESCRIPTION =
@@ -73,7 +74,10 @@ export async function handleTaskBatchComplete(
 
   return ok(
     { completed: outcome.succeeded, failed: outcome.failed },
-    ctx.makeMeta({ syncPending: outcome.succeeded.length > 0 }),
+    ctx.makeMeta({
+      syncPending: outcome.succeeded.length > 0,
+      humanReadableSummary: summaryBatchComplete(outcome.succeeded.length),
+    }),
   );
 }
 

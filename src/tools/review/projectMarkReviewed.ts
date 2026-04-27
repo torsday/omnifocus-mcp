@@ -8,6 +8,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ProjectId as ProjectIdCtor } from "../../domain/ids.js";
+import { summaryReviewMarkReviewed } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { ReviewService } from "../../services/reviewService.js";
 
@@ -46,7 +47,10 @@ export async function handleProjectMarkReviewed(
   ctx: ProjectMarkReviewedContext,
 ) {
   await ctx.reviewService.markReviewed(ProjectIdCtor.of(input.id));
-  return ok({ id: input.id }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { id: input.id },
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryReviewMarkReviewed() }),
+  );
 }
 
 // ---------------------------------------------------------------------------

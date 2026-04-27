@@ -23,6 +23,7 @@ import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { TaskId } from "../../domain/ids.js";
 import { TaskAlarmSchema } from "../../domain/task.js";
+import { summaryTaskSetAlarms } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import { ValidationError } from "../../errors/index.js";
 
@@ -104,7 +105,10 @@ export async function handleTaskSetAlarms(input: TaskSetAlarmsInput, ctx: TaskSe
   if (ctx.cache !== undefined) {
     invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: updated.projectId });
   }
-  const meta = ctx.makeMeta({ syncPending: true });
+  const meta = ctx.makeMeta({
+    syncPending: true,
+    humanReadableSummary: summaryTaskSetAlarms(task.name, input.alarms.length),
+  });
   return ok({ task: updated }, meta);
 }
 

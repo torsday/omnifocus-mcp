@@ -181,6 +181,15 @@ export interface ResponseMeta {
    * @see DESIGN.md §31 — dry-run mode
    */
   dryRun?: boolean;
+  /**
+   * Server-generated one-liner summarizing what just happened. English; ≤ 140 chars;
+   * past tense, active voice ("Created…", "Updated…"). Present on every write tool;
+   * absent on reads. Deterministic and template-based — no model calls.
+   * Agents may display it verbatim but MUST NOT parse it for state; `data` is authoritative.
+   *
+   * @see ADR-0015 §3 — humanReadableSummary spec
+   */
+  humanReadableSummary?: string;
 }
 
 /**

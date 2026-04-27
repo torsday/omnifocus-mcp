@@ -13,6 +13,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { TaskId } from "../../domain/ids.js";
+import { summaryBatchUncomplete } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 export const TASK_BATCH_UNCOMPLETE_DESCRIPTION =
@@ -65,7 +66,10 @@ export async function handleTaskBatchUncomplete(
 
   return ok(
     { uncompleted: outcome.succeeded, failed: outcome.failed },
-    ctx.makeMeta({ syncPending: outcome.succeeded.length > 0 }),
+    ctx.makeMeta({
+      syncPending: outcome.succeeded.length > 0,
+      humanReadableSummary: summaryBatchUncomplete(outcome.succeeded.length),
+    }),
   );
 }
 

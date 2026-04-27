@@ -12,6 +12,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { FolderId } from "../../domain/ids.js";
+import { summaryFolderDeleteById } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { FolderService } from "../../services/folderService.js";
 
@@ -42,7 +43,10 @@ export interface FolderDeleteContext {
 
 export async function handleFolderDelete(input: FolderDeleteToolInput, ctx: FolderDeleteContext) {
   await ctx.folderService.delete(input.id, input.cascade ?? false);
-  return ok({ deleted: true, id: input.id }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { deleted: true, id: input.id },
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryFolderDeleteById() }),
+  );
 }
 
 export function registerFolderDeleteTool(server: McpServer, ctx: FolderDeleteContext) {

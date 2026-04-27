@@ -12,6 +12,7 @@ import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { finaliseHints, projectEmptyHint } from "../../domain/hints.js";
 import { TaskId } from "../../domain/ids.js";
+import { summaryTaskComplete } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 // ---------------------------------------------------------------------------
@@ -81,7 +82,7 @@ export async function handleTaskComplete(input: TaskCompleteToolInput, ctx: Task
 
   return ok(
     { done: true as const, id: input.id },
-    ctx.makeMeta({ syncPending: true }),
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryTaskComplete(task.name) }),
     undefined,
     hints,
   );

@@ -15,6 +15,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { isoDateString } from "../../domain/dates.js";
 import { ProjectId as ProjectIdCtor } from "../../domain/ids.js";
+import { summaryReviewSetNextReviewDate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { ReviewService } from "../../services/reviewService.js";
 
@@ -56,7 +57,13 @@ export async function handleProjectSetNextReviewDate(
     ProjectIdCtor.of(input.projectId),
     input.nextReviewDate,
   );
-  return ok({ id: input.projectId }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { id: input.projectId },
+    ctx.makeMeta({
+      syncPending: true,
+      humanReadableSummary: summaryReviewSetNextReviewDate(input.nextReviewDate),
+    }),
+  );
 }
 
 export function registerProjectSetNextReviewDateTool(

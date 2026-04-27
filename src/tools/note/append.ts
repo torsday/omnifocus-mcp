@@ -20,6 +20,7 @@ import {
   invalidateTaskMutation,
 } from "../../cache/invalidation.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
+import { summaryNoteAppendById } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 // ---------------------------------------------------------------------------
@@ -97,7 +98,10 @@ export async function handleNoteAppend(input: NoteAppendToolInput, ctx: NoteAppe
     }
   }
 
-  return ok({ updated: true as const, id: input.id }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { updated: true as const, id: input.id },
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryNoteAppendById("task") }),
+  );
 }
 
 // ---------------------------------------------------------------------------

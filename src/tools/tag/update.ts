@@ -8,6 +8,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { TagId } from "../../domain/ids.js";
+import { summaryTagUpdate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TagService } from "../../services/tagService.js";
 
@@ -52,7 +53,10 @@ export async function handleTagUpdate(input: TagUpdateToolInput, ctx: TagUpdateC
     ...(patch.allowsNextAction !== undefined ? { allowsNextAction: patch.allowsNextAction } : {}),
   });
   const { tag } = await ctx.tagService.get(id);
-  return ok({ tag }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { tag },
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryTagUpdate(tag.name) }),
+  );
 }
 
 export function registerTagUpdateTool(server: McpServer, ctx: TagUpdateContext) {

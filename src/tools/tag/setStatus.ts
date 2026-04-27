@@ -8,6 +8,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { TagId } from "../../domain/ids.js";
+import { summaryTagUpdate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TagService } from "../../services/tagService.js";
 
@@ -37,7 +38,10 @@ export interface TagSetStatusContext {
 export async function handleTagSetStatus(input: TagSetStatusToolInput, ctx: TagSetStatusContext) {
   await ctx.tagService.setStatus(input.id, input.status);
   const { tag } = await ctx.tagService.get(input.id);
-  return ok({ tag }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { tag },
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryTagUpdate(tag.name) }),
+  );
 }
 
 export function registerTagSetStatusTool(server: McpServer, ctx: TagSetStatusContext) {

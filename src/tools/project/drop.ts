@@ -9,6 +9,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { type InvalidatingCache, invalidateProjectMutation } from "../../cache/invalidation.js";
 import { ProjectId } from "../../domain/ids.js";
+import { summaryProjectDropById } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { ProjectService } from "../../services/projectService.js";
 
@@ -48,7 +49,10 @@ export async function handleProjectDrop(input: ProjectDropToolInput, ctx: Projec
   if (ctx.cache !== undefined) {
     invalidateProjectMutation(ctx.cache, { projectId: input.id });
   }
-  return ok({ dropped: true as const, id: input.id }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { dropped: true as const, id: input.id },
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryProjectDropById() }),
+  );
 }
 
 // ---------------------------------------------------------------------------

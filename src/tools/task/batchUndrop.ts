@@ -13,6 +13,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { TaskId } from "../../domain/ids.js";
+import { summaryBatchUndrop } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 export const TASK_BATCH_UNDROP_DESCRIPTION =
@@ -64,7 +65,10 @@ export async function handleTaskBatchUndrop(
 
   return ok(
     { undropped: outcome.succeeded, failed: outcome.failed },
-    ctx.makeMeta({ syncPending: outcome.succeeded.length > 0 }),
+    ctx.makeMeta({
+      syncPending: outcome.succeeded.length > 0,
+      humanReadableSummary: summaryBatchUndrop(outcome.succeeded.length),
+    }),
   );
 }
 

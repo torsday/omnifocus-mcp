@@ -8,6 +8,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { TagId } from "../../domain/ids.js";
+import { summaryTagCreate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TagService } from "../../services/tagService.js";
 
@@ -51,7 +52,10 @@ export async function handleTagCreate(input: TagCreateToolInput, ctx: TagCreateC
     ...(input.allowsNextAction !== undefined ? { allowsNextAction: input.allowsNextAction } : {}),
   });
   const { tag } = await ctx.tagService.get(createResult.id);
-  const meta = ctx.makeMeta({ syncPending: true });
+  const meta = ctx.makeMeta({
+    syncPending: true,
+    humanReadableSummary: summaryTagCreate(input.name),
+  });
   return ok({ tag }, meta);
 }
 

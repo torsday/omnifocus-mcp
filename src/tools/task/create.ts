@@ -25,6 +25,7 @@ import {
   repeatHintForName,
 } from "../../domain/hints.js";
 import { ProjectId, TagId, TaskId } from "../../domain/ids.js";
+import { summaryTaskCreate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import {
   idempotencyStore as defaultIdempotencyStore,
@@ -200,7 +201,12 @@ export async function handleTaskCreate(input: TaskCreateToolInput, ctx: TaskCrea
     }
 
     const hints = finaliseHints(rawHints.filter((h): h is NonNullable<typeof h> => h != null));
-    return ok({ id }, ctx.makeMeta({ syncPending: true }), undefined, hints);
+    return ok(
+      { id },
+      ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryTaskCreate(input.name) }),
+      undefined,
+      hints,
+    );
   });
 }
 

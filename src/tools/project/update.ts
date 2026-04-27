@@ -22,6 +22,7 @@ import type { OmniFocusAdapter, UpdateProjectInput } from "../../adapter/OmniFoc
 import { type InvalidatingCache, invalidateProjectMutation } from "../../cache/invalidation.js";
 import type { ProjectId as ProjectIdType } from "../../domain/ids.js";
 import { ProjectId, TagId } from "../../domain/ids.js";
+import { summaryProjectUpdate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, type ToolEnvelope, toolResponse } from "../../envelope/index.js";
 import { assertNotModifiedSince } from "../../server/assertNotModifiedSince.js";
 import { dryRunGuard } from "../../server/dryRunGuard.js";
@@ -212,7 +213,13 @@ export async function handleProjectUpdate(
       if (ctx.cache !== undefined) {
         invalidateProjectMutation(ctx.cache, { projectId: id });
       }
-      return ok({ updated: true as const, id }, ctx.makeMeta({ syncPending: true }));
+      return ok(
+        { updated: true as const, id },
+        ctx.makeMeta({
+          syncPending: true,
+          humanReadableSummary: summaryProjectUpdate(project.name),
+        }),
+      );
     };
 
     return dryRunGuard(input.dry_run, preview, live);

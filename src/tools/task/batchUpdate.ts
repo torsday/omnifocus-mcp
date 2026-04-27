@@ -14,6 +14,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter, UpdateTaskInput } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { TagId, TaskId } from "../../domain/ids.js";
+import { summaryBatchUpdate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 export const TASK_BATCH_UPDATE_DESCRIPTION =
@@ -90,7 +91,10 @@ export async function handleTaskBatchUpdate(
 
   return ok(
     { updated: outcome.succeeded, failed: outcome.failed },
-    ctx.makeMeta({ syncPending: outcome.succeeded.length > 0 }),
+    ctx.makeMeta({
+      syncPending: outcome.succeeded.length > 0,
+      humanReadableSummary: summaryBatchUpdate(outcome.succeeded.length),
+    }),
   );
 }
 

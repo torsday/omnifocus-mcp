@@ -98,7 +98,10 @@ export async function handleRunOmniJsScript(
   );
 
   const result = await ctx.adapter.runOmniJsScript(input.script, input.arg);
-  return ok({ result }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { result },
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: "Ran OmniJS script." }),
+  );
 }
 
 // ---------------------------------------------------------------------------

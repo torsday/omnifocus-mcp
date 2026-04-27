@@ -8,6 +8,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { TagId } from "../../domain/ids.js";
+import { summaryTagMove } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TagService } from "../../services/tagService.js";
 
@@ -38,7 +39,10 @@ export interface TagMoveContext {
 export async function handleTagMove(input: TagMoveToolInput, ctx: TagMoveContext) {
   await ctx.tagService.move(input.id, input.parentId);
   const { tag } = await ctx.tagService.get(input.id);
-  return ok({ tag }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { tag },
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryTagMove(tag.name, "root") }),
+  );
 }
 
 export function registerTagMoveTool(server: McpServer, ctx: TagMoveContext) {

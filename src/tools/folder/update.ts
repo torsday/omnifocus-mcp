@@ -8,6 +8,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { FolderId } from "../../domain/ids.js";
+import { summaryFolderUpdate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { FolderService } from "../../services/folderService.js";
 
@@ -36,7 +37,10 @@ export async function handleFolderUpdate(input: FolderUpdateToolInput, ctx: Fold
     ...(patch.name !== undefined ? { name: patch.name } : {}),
   });
   const { folder } = await ctx.folderService.get(id);
-  return ok({ folder }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { folder },
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryFolderUpdate(folder.name) }),
+  );
 }
 
 export function registerFolderUpdateTool(server: McpServer, ctx: FolderUpdateContext) {
