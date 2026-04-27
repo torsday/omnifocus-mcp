@@ -112,9 +112,9 @@ function makeHarness() {
 // ---------------------------------------------------------------------------
 
 describe("registerOmniFocusResources — registration", () => {
-  it("registers exactly 14 resources", () => {
+  it("registers exactly 15 resources", () => {
     const { registered } = makeHarness();
-    expect(registered).toHaveLength(14);
+    expect(registered).toHaveLength(15);
   });
 
   it("registers omnifocus-snapshot with the correct URI", () => {
