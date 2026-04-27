@@ -1138,6 +1138,7 @@ MCP resources are a distinct primitive from tools: read-only, enumerable via `re
 | `omnifocus://perspective/{id}` | Perspective evaluation result (built-in or custom)                                            | 30s LRU  |
 | `omnifocus://intents`          | Curated routing table mapping human-style user phrases to canonical tool/prompt/resource sequences (NL excellence layer — see below) | 24h |
 | `omnifocus://stats`            | Server-side aggregate counts: tasks, projects, inbox, tags, sync — for "how is my system doing?" queries without listing every record client-side | 60s |
+| `omnifocus://project-health{?staleDays}` | Triage list of active projects flagged by ≥1 health-warning condition with granular signals — list-form sibling of `stats.projects.stalled_count` | 60s |
 
 ### Semantics
 
@@ -1168,7 +1169,7 @@ This resource also doubles as the discoverability surface: when a future agent a
 2. ≥ **14 days** since the latest task activity in the project — `max(task.modifiedAt)` over the project's tasks, or the project's own `modifiedAt` if it has no tasks
 3. No defer date in the future (a deferred-into-the-future project is deliberately paused, not stalled)
 
-Single source of truth lives in `src/resources/stats.ts → isProjectStalled`. Future resources or tools using "stalled" semantics MUST reuse that predicate; do not redefine.
+Single source of truth lives in `src/domain/health.ts → isProjectStalled`. Future resources or tools using "stalled" semantics MUST reuse that predicate; do not redefine.
 
 ---
 

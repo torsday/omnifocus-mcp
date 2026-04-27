@@ -150,6 +150,7 @@ describe("registerOmniFocusResources — registration", () => {
       "omnifocus-burndown",
       "omnifocus-intents",
       "omnifocus-stats",
+      "omnifocus-project-health",
     ];
     for (const name of expected) {
       expect(names, `expected ${name} to be registered`).toContain(name);

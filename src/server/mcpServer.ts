@@ -3,7 +3,7 @@
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
  * API from @modelcontextprotocol/sdk. Currently registers `internal_status`,
- * the four OmniFocus workflow prompts, the twelve MCP resources, and 69 domain
+ * the four OmniFocus workflow prompts, the thirteen MCP resources, and 69 domain
  * tools across folder, tag, note, search, forecast, perspective, plugin,
  * sync, review, export, app, project, task, and attachment surfaces. Two
  * additional raw-script escape-hatch tools (`run_jxa_script`,
