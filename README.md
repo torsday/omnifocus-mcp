@@ -890,6 +890,8 @@ Writes are saved locally and show up immediately in subsequent tool calls. Chang
 | [0011](./docs/adr/0011-versioning-and-stability.md) | Semver with explicit contract |
 | [0012](./docs/adr/0012-distribution-npx.md) | Distribution via `npx` / npm |
 | [0013](./docs/adr/0013-tool-response-envelope.md) | Uniform response envelope |
+| [0014](./docs/adr/0014-e2e-harness-strategy.md) | In-memory adapter switch for E2E |
+| [0015](./docs/adr/0015-nl-excellence-response-envelope.md) | NL-excellence envelope: clarification, hints, summary |
 
 ---
 

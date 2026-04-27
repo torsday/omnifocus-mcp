@@ -486,6 +486,8 @@ Each phase ends with a working, integration-tested system valuable on its own. T
 - `docs/adr/0011-versioning-and-stability.md` — semver + tool contract stability
 - `docs/adr/0012-distribution-npx.md` — `npx` + published npm package
 - `docs/adr/0013-tool-response-envelope.md` — uniform response envelope as public contract
+- `docs/adr/0014-e2e-harness-strategy.md` — in-memory adapter switch for E2E
+- `docs/adr/0015-nl-excellence-response-envelope.md` — clarification kind, hints, echo-back summary
 - [GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues) + [Project #4](https://github.com/users/torsday/projects/4) — live backlog derived from this design
 
 ---
@@ -493,6 +495,8 @@ Each phase ends with a working, integration-tested system valuable on its own. T
 ## 12. Tool response envelope
 
 Every tool returns a JSON object with a uniform shape. This is the stability contract (per ADR-0011); fields can be added, never removed or renamed without a major version.
+
+> NL-excellence extensions to this envelope (additive in v1.x): a third `clarification` response kind, an optional `hints[]` array on `ok`, and a `meta.humanReadableSummary` field on writes. See [ADR-0015](./docs/adr/0015-nl-excellence-response-envelope.md).
 
 ### Success envelope
 
