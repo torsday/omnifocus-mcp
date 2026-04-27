@@ -3,12 +3,12 @@
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
  * API from @modelcontextprotocol/sdk. Currently registers `internal_status`,
- * the five OmniFocus workflow prompts, the thirteen MCP resources, and 72 domain
+ * the five OmniFocus workflow prompts, the thirteen MCP resources, and 73 domain
  * tools across folder, tag, note, search, forecast, perspective, plugin,
  * sync, review, export, app, project, task, repetition, and attachment surfaces.
  * Two additional raw-script escape-hatch tools (`run_jxa_script`,
  * `run_omnijs_script`) register only when `OMNIFOCUS_ALLOW_RAW_SCRIPT=1`
- * (ADR-0004), bringing the wired surface to 74. Every registered tool is
+ * (ADR-0004), bringing the wired surface to 75. Every registered tool is
  * wrapped in `assertNotShuttingDown → withCircuitBreaker → withRateLimitMeta
  * → withLoopDetection` via `installToolMiddleware` (#291), which runs once
  * before any `register*Tool` helper.
@@ -136,6 +136,7 @@ import { registerTaskDropTool } from "../tools/task/drop.js";
 import { registerTaskDuplicateTool } from "../tools/task/duplicate.js";
 import { registerTaskExtractFromNoteTool } from "../tools/task/extractFromNote.js";
 import { registerTaskFindByNameTool } from "../tools/task/findByName.js";
+import { registerTaskFindSimilarTool } from "../tools/task/findSimilar.js";
 import { registerTaskGetTool } from "../tools/task/get.js";
 import { registerTaskGetManyTool } from "../tools/task/getMany.js";
 import { registerTaskListTool } from "../tools/task/list.js";
@@ -393,6 +394,7 @@ export async function startServer(): Promise<void> {
   registerTaskGetTool(server, taskServiceCtx);
   registerTaskListTool(server, taskServiceCtx);
   registerTaskFindByNameTool(server, taskAdapterCtx);
+  registerTaskFindSimilarTool(server, taskAdapterCtx);
   registerTaskSearchTool(server, { searchService: services.searchService, makeMeta });
   registerTaskGetManyTool(server, taskAdapterCtx);
   registerTaskParseTransportTextTool(server, { makeMeta });

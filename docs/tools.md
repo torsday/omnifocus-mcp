@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 92 tools registered.
+> Auto-generated from source. 93 tools registered.
 
 ## Table of contents
 
@@ -84,6 +84,7 @@
 - [task_duplicate](#task_duplicate)
 - [task_extract_from_note](#task_extract_from_note)
 - [task_find_by_name](#task_find_by_name)
+- [task_find_similar](#task_find_similar)
 - [task_get](#task_get)
 - [task_get_many](#task_get_many)
 - [task_list](#task_list)
@@ -2924,6 +2925,37 @@ Find tasks in OmniFocus by name. Returns ALL matching tasks (names are not uniqu
     ],
     "total": 1
   },
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_find_similar
+
+Lexical nearest-neighbour search for de-duplicating tasks. Pass a candidate name (and optional note) and receive the top-K most-similar existing tasks ranked by a deterministic [0, 1] lexical-signal score (Jaccard token-overlap + prefix bonus + exact-name boost). Title-dominant: a perfect title match outranks a perfect note match. Use BEFORE task_create when you suspect a duplicate; the agent inspects the candidates and decides whether to create new, link to existing, or merge. Excludes completed and dropped tasks by default; opt-in via includeCompleted: true. Optional scope { projectId } or { tagId } narrows the candidate set. Returns { candidates: [{ taskId, name, score, projectId, tags }] } sorted by score descending; an empty result is { candidates: [] }, not an error. Do NOT use this tool for general full-text search — call task_search for that. Prefer this helper when the question is 'is this task already in the system?'. No model calls; no side effects. Read-only.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_find_similar",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
   "meta": {
     "requestId": "req_01ABC",
     "durationMs": 5
