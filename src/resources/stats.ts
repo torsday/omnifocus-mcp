@@ -23,7 +23,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
-import type { Project } from "../domain/project.js";
+import { isProjectStalled } from "../domain/health.js";
 import type { Task } from "../domain/task.js";
 
 // ---------------------------------------------------------------------------
@@ -32,20 +32,10 @@ import type { Task } from "../domain/task.js";
 
 export const STATS_URI = "omnifocus://stats";
 
-/**
- * A project is "stalled" when ALL of the following hold:
- *   1. status === "active"
- *   2. ≥ STALLED_DAYS days since the latest task activity in the project
- *   3. no defer date in the future (a deferred project isn't stalled —
- *      it's deliberately paused)
- *
- * "Latest task activity" = max(task.modifiedAt) over the project's tasks,
- * or the project's own modifiedAt if it has no tasks.
- *
- * Same definition is used by `omnifocus://project-health` (#468). Keep them
- * in sync — single source of truth lives here in `isProjectStalled`.
- */
-export const STALLED_DAYS = 14;
+// Stalled-project predicate and threshold live in `src/domain/health.ts` so
+// every consumer (this resource and `omnifocus://project-health`) shares one
+// canonical definition. Re-exported here for back-compat with prior callers.
+export { isProjectStalled, STALLED_DAYS } from "../domain/health.js";
 
 // ---------------------------------------------------------------------------
 // Payload
@@ -86,40 +76,6 @@ export interface StatsPayload {
     sync_age_seconds: number | null;
     last_sync_at: string | null;
   };
-}
-
-// ---------------------------------------------------------------------------
-// Stalled-project predicate (exported so #468 can share)
-// ---------------------------------------------------------------------------
-
-/**
- * Determines whether a project is stalled per the canonical definition
- * (see `STALLED_DAYS` JSDoc above).
- *
- * `latestActivityAt` is the max of all task `modifiedAt` for tasks belonging
- * to this project, or `null` if the project has no tasks (in which case the
- * caller should pass the project's own `modifiedAt`).
- */
-export function isProjectStalled(
-  project: Project,
-  latestActivityAt: string | null,
-  now: Date,
-): boolean {
-  if (project.status !== "active") return false;
-  if (project.completed || project.dropped) return false;
-
-  // Deferred-into-the-future projects are deliberately paused, not stalled.
-  if (project.deferDate) {
-    const deferAt = new Date(project.deferDate);
-    if (deferAt.getTime() > now.getTime()) return false;
-  }
-
-  const referenceIso = latestActivityAt ?? project.modifiedAt;
-  const referenceMs = new Date(referenceIso).getTime();
-  const ageMs = now.getTime() - referenceMs;
-  const ageDays = ageMs / (24 * 60 * 60 * 1000);
-
-  return ageDays >= STALLED_DAYS;
 }
 
 // ---------------------------------------------------------------------------
