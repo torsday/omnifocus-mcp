@@ -471,7 +471,7 @@ All responses have this shape:
 
 ## Tools
 
-80 tools are registered, organized by domain. See [`docs/tools.md`](./docs/tools.md) for the full auto-generated reference with input schemas, example calls, and example responses.
+Tools are organized by domain — tasks, projects, tags, folders, perspectives, forecast, review, search, notes, attachments, sync, export, and observability. See [`docs/tools.md`](./docs/tools.md) for the full auto-generated reference with the live registered count, input schemas, example calls, and example responses.
 
 ### App lifecycle
 | Tool | Description |

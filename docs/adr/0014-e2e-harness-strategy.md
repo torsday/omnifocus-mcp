@@ -7,7 +7,7 @@
 
 ## Context
 
-The E2E tier (DESIGN §19, tier 5) gates on `OMNIFOCUS_E2E=1`, spawns the bundled `dist/index.js` as a subprocess, and acts as an MCP client over stdio. Issue #80 sets the bar at "every registered tool is invoked at least once" with a valid `ToolEnvelope` response. Today the smoke test (`tests/e2e/smoke.test.ts`) only invokes a handful of pure tools (`internal_status`, `task_parse_transport_text`) plus prompt and resource listings. The remaining 65+ tools all touch the JXA / OmniJS transports through `composeAdapter(config)`, which today returns the live `TransportRouter`. Without a live OmniFocus and macOS Automation permission, those calls throw before any MCP-layer assertion can run.
+The E2E tier (DESIGN §19, tier 5) gates on `OMNIFOCUS_E2E=1`, spawns the bundled `dist/index.js` as a subprocess, and acts as an MCP client over stdio. Issue #80 sets the bar at "every registered tool is invoked at least once" with a valid `ToolEnvelope` response. Today the smoke test (`tests/e2e/smoke.test.ts`) only invokes a handful of pure tools (`internal_status`, `task_parse_transport_text`) plus prompt and resource listings. The remaining tools all touch the JXA / OmniJS transports through `composeAdapter(config)`, which today returns the live `TransportRouter`. Without a live OmniFocus and macOS Automation permission, those calls throw before any MCP-layer assertion can run.
 
 Three architectural options exist for closing the gap. Choosing one is hard to reverse — it determines harness shape, CI footprint, what bug classes we catch on every push, and how `composeAdapter` is structured.
 
@@ -33,7 +33,7 @@ Option C — error-envelope-shape-only assertions — is rejected.
 
 **Positive**
 
-- Per-tool E2E coverage runs on every push: the registration manifest (80 tools, sourced from `ALL_TOOL_DESCRIPTIONS`) cannot drift from the boot path without a test failure.
+- Per-tool E2E coverage runs on every push: the registration manifest (sourced from `ALL_TOOL_DESCRIPTIONS`) cannot drift from the boot path without a test failure.
 - Middleware composition (assertNotShuttingDown → circuit-breaker → rate-limit → loop-detection → invocation-logging) is exercised end-to-end in CI, not just in unit tests against the inner stack.
 - The `InMemoryAdapter` is preserved as a load-bearing seam — increases the value of every contract test that already targets it.
 - Cold-start budget (`< 500ms`, DESIGN §17) is meaningfully testable on every push: in-memory paths complete fast enough that a regression in startup cost surfaces at PR time, not release time.
