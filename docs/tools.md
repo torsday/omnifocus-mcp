@@ -88,6 +88,7 @@
 - [task_delete](#task_delete)
 - [task_drop](#task_drop)
 - [task_duplicate](#task_duplicate)
+- [task_extract_from_image](#task_extract_from_image)
 - [task_extract_from_note](#task_extract_from_note)
 - [task_find_by_name](#task_find_by_name)
 - [task_find_similar](#task_find_similar)
@@ -3031,6 +3032,37 @@ _No parameters._
 ```json
 {
   "toolName": "task_duplicate",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_extract_from_image
+
+Capture tasks from an image — agent does the vision work, this tool does the plumbing. Source is either a local file path (kind: 'path') or an existing OmniFocus attachment (kind: 'attachment'). The agent supplies the extraction as proposed: ProposedTask[]; the tool validates the source, creates the tasks, and optionally re-attaches the image. Two-phase contract: dryRun=true validates and echoes proposed; dryRun=false with confirmation: ProposedTask[] writes via batchCreateTasks semantics. attachSourceTo controls re-attachment: 'parent-task' creates a wrapper parent task and attaches the image there (with the proposed tasks as children), 'each-task' attaches the image to every created task (path mode only — re-attaching existing OF attachments is a v1 follow-up; use 'none' in attachment mode), 'none' skips attachment entirely. Path-mode supports PNG, JPG/JPEG, HEIC/HEIF, GIF, WEBP, and PDF (first page is the agent's responsibility for PDFs); paths must pass the attachment-path-scope guard. Do NOT use this tool when you already have structured tasks — call task_batch_create directly. Returns { phase: 'dryRun', proposed, sourceKind } or { phase: 'created', parent?, created: { taskId, name, attachedSourcePath? }[], outcome } accordingly. Side effects: dryRun=true is read-only; dryRun=false creates tasks and may add attachments. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_extract_from_image",
   "arguments": {}
 }
 ```
