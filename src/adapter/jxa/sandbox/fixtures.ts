@@ -1,0 +1,264 @@
+/**
+ * JXA sandbox fixtures — lightweight fake OF entities for unit-testing JXA
+ * script bodies without OmniFocus or osascript.
+ *
+ * Every `fake*` builder returns a plain object whose callable properties
+ * (JXA returns values via zero-arg function calls) mirror the OmniFocus
+ * JXA API surface. Optional overrides let callers supply throwing getters
+ * to probe try/catch defensiveness inside scripts.
+ *
+ * Usage:
+ *
+ * ```ts
+ * const tag = fakeTag({ name: "Work", creationDate: throwing("Can't get object.") });
+ * const result = runJxaScriptInSandbox(tagListScript, {}, { tags: [tag] });
+ * expect(result.tags[0].createdAt).toMatch(/^\d{4}-/); // fallback fired
+ * ```
+ *
+ * @see src/adapter/jxa/sandbox/index.ts — sandbox runner
+ * @see src/scripts/jxa/ — the JXA script bodies these fixtures model
+ */
+
+import { ScriptError } from "../../../errors/index.js";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Returns a zero-arg function that always returns `value`. */
+function fn<T>(value: T): () => T {
+  return () => value;
+}
+
+/**
+ * A function property that always throws, simulating OmniFocus JXA runtime
+ * errors like "Can't get object." Use this to probe try/catch defensiveness
+ * inside JXA script bodies.
+ */
+function throwing(msg = "Can't get object."): () => never {
+  return () => {
+    throw new ScriptError(msg, { details: { stderr: msg } });
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Fake entity shapes
+// ---------------------------------------------------------------------------
+
+export interface FakeTagOverrides {
+  id?: () => string;
+  name?: () => string;
+  parent?: () => unknown;
+  status?: () => string;
+  location?: () => unknown;
+  creationDate?: () => Date;
+  modificationDate?: () => Date;
+  allowsNextAction?: () => boolean;
+  tasks?: () => unknown[];
+}
+
+export interface FakeTag {
+  id: () => string;
+  name: () => string;
+  parent: () => unknown;
+  status: () => string;
+  location: () => unknown;
+  creationDate: () => Date;
+  modificationDate: () => Date;
+  allowsNextAction: () => boolean;
+  tasks: () => unknown[];
+}
+
+let _tagSeq = 0;
+
+/**
+ * Build a fake JXA Tag object.
+ *
+ * @param overrides - Per-property replacements. Pass a throwing getter to
+ *   assert that the script's try/catch path handles that property gracefully.
+ */
+export function fakeTag(
+  overrides: FakeTagOverrides & { id?: () => string; name?: () => string } = {},
+): FakeTag {
+  const id = overrides.id ?? fn(`tag_${++_tagSeq}`);
+  const name = overrides.name ?? fn(`Tag ${_tagSeq}`);
+  const now = new Date();
+  return {
+    id,
+    name,
+    parent: overrides.parent ?? throwing(),
+    status: overrides.status ?? fn("active"),
+    location: overrides.location ?? fn(null),
+    creationDate: overrides.creationDate ?? fn(now),
+    modificationDate: overrides.modificationDate ?? fn(now),
+    allowsNextAction: overrides.allowsNextAction ?? fn(false),
+    tasks: overrides.tasks ?? fn([]),
+  };
+}
+
+export interface FakeTaskOverrides {
+  id?: () => string;
+  name?: () => string;
+  containingProject?: () => unknown;
+  parentTask?: () => unknown;
+  tags?: () => unknown[];
+  deferDate?: () => Date | null;
+  dueDate?: () => Date | null;
+  completionDate?: () => Date | null;
+  dropped?: () => boolean;
+  completed?: () => boolean;
+  flagged?: () => boolean;
+  effectivelyDropped?: () => boolean;
+  blocked?: () => boolean;
+  numberOfTasks?: () => number;
+  estimatedMinutes?: () => number | null;
+  repetitionRule?: () => unknown;
+  note?: () => string;
+  creationDate?: () => Date;
+  modificationDate?: () => Date;
+  inInbox?: () => boolean;
+  sequential?: () => boolean;
+  completedByChildren?: () => boolean;
+  availabilityStatus?: () => string;
+  deferDateFloating?: () => boolean;
+  dueDateFloating?: () => boolean;
+}
+
+let _taskSeq = 0;
+
+/** Build a fake JXA Task object. */
+export function fakeTask(
+  overrides: FakeTaskOverrides & { id?: () => string; name?: () => string } = {},
+) {
+  const id = overrides.id ?? fn(`task_${++_taskSeq}`);
+  const name = overrides.name ?? fn(`Task ${_taskSeq}`);
+  const now = new Date();
+  return {
+    id,
+    name,
+    containingProject: overrides.containingProject ?? throwing(),
+    parentTask: overrides.parentTask ?? throwing(),
+    tags: overrides.tags ?? fn([]),
+    deferDate: overrides.deferDate ?? fn(null),
+    dueDate: overrides.dueDate ?? fn(null),
+    completionDate: overrides.completionDate ?? fn(null),
+    dropped: overrides.dropped ?? fn(false),
+    completed: overrides.completed ?? fn(false),
+    flagged: overrides.flagged ?? fn(false),
+    effectivelyDropped: overrides.effectivelyDropped ?? fn(false),
+    blocked: overrides.blocked ?? fn(false),
+    numberOfTasks: overrides.numberOfTasks ?? fn(0),
+    estimatedMinutes: overrides.estimatedMinutes ?? fn(null),
+    repetitionRule: overrides.repetitionRule ?? fn(null),
+    note: overrides.note ?? fn(""),
+    creationDate: overrides.creationDate ?? fn(now),
+    modificationDate: overrides.modificationDate ?? fn(now),
+    inInbox: overrides.inInbox ?? fn(false),
+    sequential: overrides.sequential ?? fn(false),
+    completedByChildren: overrides.completedByChildren ?? fn(false),
+    availabilityStatus: overrides.availabilityStatus ?? fn("available"),
+    deferDateFloating: overrides.deferDateFloating ?? fn(false),
+    dueDateFloating: overrides.dueDateFloating ?? fn(false),
+  };
+}
+
+export interface FakeProjectOverrides {
+  id?: () => string;
+  name?: () => string;
+  containingFolder?: () => unknown;
+  tasks?: () => unknown[];
+  flattenedTasks?: () => unknown[];
+  status?: () => string;
+  completionDate?: () => Date | null;
+  deferDate?: () => Date | null;
+  dueDate?: () => Date | null;
+  flagged?: () => boolean;
+  estimatedMinutes?: () => number | null;
+  numberOfTasks?: () => number;
+  numberOfAvailableTasks?: () => number;
+  completionCriterion?: () => string;
+  sequential?: () => boolean;
+  note?: () => string;
+  creationDate?: () => Date;
+  modificationDate?: () => Date;
+  reviewInterval?: () => unknown;
+  nextReviewDate?: () => Date | null;
+  effectiveStatus?: () => string;
+  lastReviewDate?: () => Date | null;
+  deferDateFloating?: () => boolean;
+  dueDateFloating?: () => boolean;
+}
+
+let _projectSeq = 0;
+
+/** Build a fake JXA Project object. */
+export function fakeProject(
+  overrides: FakeProjectOverrides & { id?: () => string; name?: () => string } = {},
+) {
+  const id = overrides.id ?? fn(`project_${++_projectSeq}`);
+  const name = overrides.name ?? fn(`Project ${_projectSeq}`);
+  const now = new Date();
+  return {
+    id,
+    name,
+    containingFolder: overrides.containingFolder ?? throwing(),
+    tasks: overrides.tasks ?? fn([]),
+    flattenedTasks: overrides.flattenedTasks ?? fn([]),
+    status: overrides.status ?? fn("active"),
+    completionDate: overrides.completionDate ?? fn(null),
+    deferDate: overrides.deferDate ?? fn(null),
+    dueDate: overrides.dueDate ?? fn(null),
+    flagged: overrides.flagged ?? fn(false),
+    estimatedMinutes: overrides.estimatedMinutes ?? fn(null),
+    numberOfTasks: overrides.numberOfTasks ?? fn(0),
+    numberOfAvailableTasks: overrides.numberOfAvailableTasks ?? fn(0),
+    completionCriterion: overrides.completionCriterion ?? fn("parallel"),
+    sequential: overrides.sequential ?? fn(false),
+    note: overrides.note ?? fn(""),
+    creationDate: overrides.creationDate ?? fn(now),
+    modificationDate: overrides.modificationDate ?? fn(now),
+    reviewInterval: overrides.reviewInterval ?? fn(null),
+    nextReviewDate: overrides.nextReviewDate ?? fn(null),
+    effectiveStatus: overrides.effectiveStatus ?? fn("active"),
+    lastReviewDate: overrides.lastReviewDate ?? fn(null),
+    deferDateFloating: overrides.deferDateFloating ?? fn(false),
+    dueDateFloating: overrides.dueDateFloating ?? fn(false),
+  };
+}
+
+export interface FakeFolderOverrides {
+  id?: () => string;
+  name?: () => string;
+  container?: () => unknown;
+  folders?: () => unknown[];
+  projects?: () => unknown[];
+  note?: () => string;
+  status?: () => string;
+  creationDate?: () => Date;
+  modificationDate?: () => Date;
+}
+
+let _folderSeq = 0;
+
+/** Build a fake JXA Folder object. */
+export function fakeFolder(
+  overrides: FakeFolderOverrides & { id?: () => string; name?: () => string } = {},
+) {
+  const id = overrides.id ?? fn(`folder_${++_folderSeq}`);
+  const name = overrides.name ?? fn(`Folder ${_folderSeq}`);
+  const now = new Date();
+  return {
+    id,
+    name,
+    container: overrides.container ?? throwing(),
+    folders: overrides.folders ?? fn([]),
+    projects: overrides.projects ?? fn([]),
+    note: overrides.note ?? fn(""),
+    status: overrides.status ?? fn("active"),
+    creationDate: overrides.creationDate ?? fn(now),
+    modificationDate: overrides.modificationDate ?? fn(now),
+  };
+}
+
+/** Expose the throwing() helper so test authors can inject faults. */
+export { throwing };
