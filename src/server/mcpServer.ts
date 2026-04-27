@@ -156,6 +156,8 @@ import { registerTaskUncompleteTool } from "../tools/task/uncomplete.js";
 import { registerTaskUndropTool } from "../tools/task/undrop.js";
 import { registerTaskUpdateTool } from "../tools/task/update.js";
 import {
+  registerAppWindowNewTabTool,
+  registerAppWindowNewTool,
   registerWindowGetStateTool,
   registerWindowSetFocusTool,
   registerWindowSetPerspectiveTool,
@@ -368,6 +370,8 @@ export async function startServer(): Promise<void> {
   registerWindowGetStateTool(server, windowCtx);
   registerWindowSetPerspectiveTool(server, windowCtx);
   registerWindowSetFocusTool(server, windowCtx);
+  registerAppWindowNewTool(server, windowCtx);
+  registerAppWindowNewTabTool(server, windowCtx);
 
   // Project tools — eight registrations split across two context shapes.
   // Service-backed handlers receive `{projectService, makeMeta, cache?}`;

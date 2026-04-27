@@ -113,6 +113,11 @@ export type TaskConvertToProjectScriptResult =
   | { projectId: string }
   | ScriptErrorEnvelope<"NOT_FOUND" | "VALIDATION" | "CONVERSION_FAILED">;
 
+/** Result type for `app_window_new.js` and `app_window_new_tab.js`. */
+export type AppWindowNewScriptResult =
+  | { perspectiveName: string | null; focusContainerIds: string[] }
+  | ScriptErrorEnvelope<"WINDOW_UNAVAILABLE" | "WINDOW_OPEN_FAILED">;
+
 /** Result type for `perspective_evaluate.js`. */
 export type PerspectiveEvaluateScriptResult =
   | { tasks: Task[] }

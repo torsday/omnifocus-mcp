@@ -39,6 +39,7 @@ import type { Tag } from "../../domain/tag.js";
 import type { Task } from "../../domain/task.js";
 import { FeatureRequiresPro, NotFound, ScriptError, ValidationError } from "../../errors/index.js";
 import {
+  type AppWindowNewScriptResult,
   isScriptError,
   mapBatchScriptResult,
   type PerspectiveEvaluateScriptResult,
@@ -46,6 +47,8 @@ import {
   type TaskConvertToProjectScriptResult,
   type TaskMoveScriptResult,
 } from "../../scripts/contracts.js";
+import appWindowNewScript from "../../scripts/omnijs/app_window_new.js";
+import appWindowNewTabScript from "../../scripts/omnijs/app_window_new_tab.js";
 import databaseRedoScript from "../../scripts/omnijs/database_redo.js";
 import databaseUndoScript from "../../scripts/omnijs/database_undo.js";
 import forecastGetTagScript from "../../scripts/omnijs/forecast_get_tag.js";
@@ -588,6 +591,46 @@ export class OmniJsTransport implements OmniFocusAdapter {
   }
   async setWindowFocus(_containerId: string | null): Promise<{ focusContainerIds: string[] }> {
     return notYetWired("setWindowFocus");
+  }
+
+  async appWindowNew(): Promise<{ perspectiveName: string | null; focusContainerIds: string[] }> {
+    const result = await runOmniJsScript<AppWindowNewScriptResult>(
+      appWindowNewScript,
+      {},
+      { ...this.runOpts, scriptName: "app_window_new" },
+    );
+    if (isScriptError(result)) {
+      throw new ScriptError(result.error.message, {
+        details: { transport: "omnijs", scriptName: "app_window_new", code: result.error.code },
+      });
+    }
+    return result;
+  }
+
+  async appWindowNewTab(): Promise<{
+    perspectiveName: string | null;
+    focusContainerIds: string[];
+  }> {
+    const result = await runOmniJsScript<AppWindowNewScriptResult>(
+      appWindowNewTabScript,
+      {},
+      { ...this.runOpts, scriptName: "app_window_new_tab" },
+    );
+    if (isScriptError(result)) {
+      if (result.error.code === "WINDOW_UNAVAILABLE") {
+        throw new ScriptError(result.error.message, {
+          details: {
+            transport: "omnijs",
+            scriptName: "app_window_new_tab",
+            code: result.error.code,
+          },
+        });
+      }
+      throw new ScriptError(result.error.message, {
+        details: { transport: "omnijs", scriptName: "app_window_new_tab", code: result.error.code },
+      });
+    }
+    return result;
   }
 
   // -- Plug-in invocation (wired) -------------------------------------------

@@ -630,6 +630,22 @@ export interface OmniFocusAdapter {
    */
   setWindowFocus(containerId: string | null): Promise<{ focusContainerIds: string[] }>;
 
+  /**
+   * Open a new OmniFocus window. Returns the new window's initial state.
+   * OmniJS-only: `document.newWindow()`.
+   *
+   * @see #527
+   */
+  appWindowNew(): Promise<{ perspectiveName: string | null; focusContainerIds: string[] }>;
+
+  /**
+   * Add a new tab to the front OmniFocus window. Returns the new tab's state.
+   * OmniJS-only: `document.newTabOnWindow(window)`.
+   *
+   * @see #527
+   */
+  appWindowNewTab(): Promise<{ perspectiveName: string | null; focusContainerIds: string[] }>;
+
   // -- Plug-in invocation ----------------------------------------------------
 
   /**

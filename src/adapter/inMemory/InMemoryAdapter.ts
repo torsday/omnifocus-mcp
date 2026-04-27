@@ -1483,6 +1483,21 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     return { focusContainerIds: [containerId] };
   }
 
+  // -- Window new / new-tab -------------------------------------------------
+
+  async appWindowNew(): Promise<{ perspectiveName: string | null; focusContainerIds: string[] }> {
+    // InMemoryAdapter has no real OF window; return a default state that
+    // satisfies the interface for unit tests.
+    return { perspectiveName: null, focusContainerIds: [] };
+  }
+
+  async appWindowNewTab(): Promise<{
+    perspectiveName: string | null;
+    focusContainerIds: string[];
+  }> {
+    return { perspectiveName: null, focusContainerIds: [] };
+  }
+
   // -- Plug-in invocation ---------------------------------------------------
   // The in-memory adapter is used exclusively for unit tests and does not
   // have access to the OmniJS plug-in runtime. Throw `NotFound` with a

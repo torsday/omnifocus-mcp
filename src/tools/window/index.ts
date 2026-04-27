@@ -1,6 +1,6 @@
 /**
  * Window-control tools — `window_get_state`, `window_set_perspective`,
- * `window_set_focus` (#466).
+ * `window_set_focus` (#466), `app_window_new`, `app_window_new_tab` (#527).
  *
  * UI-affecting; advisory. These mutate the front OmniFocus window's
  * perspective and focus container — they do NOT touch the data model and
@@ -8,6 +8,7 @@
  * agent in a headless flow doesn't accidentally fire them.
  *
  * @see #466
+ * @see #527
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -138,5 +139,74 @@ export function registerWindowSetFocusTool(server: McpServer, ctx: WindowToolCon
       inputSchema: windowSetFocusInputSchema.shape,
     },
     async (args: WindowSetFocusToolInput) => toolResponse(await handleWindowSetFocus(args, ctx)),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// app_window_new
+// ---------------------------------------------------------------------------
+
+export const APP_WINDOW_NEW_DESCRIPTION =
+  "Open a new OmniFocus window via OmniJS document.newWindow(). " +
+  "**UI-affecting tool** — only meaningful when OmniFocus is running. Headless agents should not fire this. " +
+  "Use when the user asks 'open a new window' or a flow needs a fresh, unfocused OmniFocus window. " +
+  "Do NOT use to read task or project data — prefer task_list or project_list instead. " +
+  "Takes no arguments. " +
+  "Returns { perspectiveName: string | null, focusContainerIds: string[] } describing the new window's initial state. " +
+  "Errors: WINDOW_OPEN_FAILED when the window could not be created. " +
+  "Side effects: opens a new OmniFocus window; no data caches invalidated.";
+
+export const appWindowNewInputSchema = z.object({});
+export type AppWindowNewToolInput = z.infer<typeof appWindowNewInputSchema>;
+
+export async function handleAppWindowNew(_input: AppWindowNewToolInput, ctx: WindowToolContext) {
+  const result = await ctx.adapter.appWindowNew();
+  return ok(result, ctx.makeMeta());
+}
+
+export function registerAppWindowNewTool(server: McpServer, ctx: WindowToolContext) {
+  return server.registerTool(
+    "app_window_new",
+    {
+      description: APP_WINDOW_NEW_DESCRIPTION,
+      inputSchema: appWindowNewInputSchema.shape,
+    },
+    async (args: AppWindowNewToolInput) => toolResponse(await handleAppWindowNew(args, ctx)),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// app_window_new_tab
+// ---------------------------------------------------------------------------
+
+export const APP_WINDOW_NEW_TAB_DESCRIPTION =
+  "Open a new tab on the front OmniFocus window via OmniJS document.newTabOnWindow(). " +
+  "**UI-affecting tool** — only meaningful when OmniFocus has an open window. Headless agents should not fire this. " +
+  "Use when the user asks 'open a new tab' or a flow needs an additional view in the existing window. " +
+  "Do NOT use to open a standalone window — prefer app_window_new instead. " +
+  "Takes no arguments. " +
+  "Returns { perspectiveName: string | null, focusContainerIds: string[] } describing the new tab's initial state. " +
+  "Errors: WINDOW_UNAVAILABLE when there is no open OmniFocus window; WINDOW_OPEN_FAILED when the tab could not be created. " +
+  "Side effects: opens a new tab in the front OmniFocus window; no data caches invalidated.";
+
+export const appWindowNewTabInputSchema = z.object({});
+export type AppWindowNewTabToolInput = z.infer<typeof appWindowNewTabInputSchema>;
+
+export async function handleAppWindowNewTab(
+  _input: AppWindowNewTabToolInput,
+  ctx: WindowToolContext,
+) {
+  const result = await ctx.adapter.appWindowNewTab();
+  return ok(result, ctx.makeMeta());
+}
+
+export function registerAppWindowNewTabTool(server: McpServer, ctx: WindowToolContext) {
+  return server.registerTool(
+    "app_window_new_tab",
+    {
+      description: APP_WINDOW_NEW_TAB_DESCRIPTION,
+      inputSchema: appWindowNewTabInputSchema.shape,
+    },
+    async (args: AppWindowNewTabToolInput) => toolResponse(await handleAppWindowNewTab(args, ctx)),
   );
 }
