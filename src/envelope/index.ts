@@ -16,7 +16,10 @@
  * @see docs/adr/0013-tool-response-envelope.md — public contract for this shape
  */
 
+import type { Hint } from "../domain/hints.js";
 import type { OmniFocusError, SerializedError } from "../errors/index.js";
+
+export type { Hint } from "../domain/hints.js";
 
 // ---------------------------------------------------------------------------
 // Public contract — Warning
@@ -196,6 +199,12 @@ export interface ToolSuccess<T> {
   data: T;
   meta: ResponseMeta;
   pagination?: Pagination;
+  /**
+   * Optional server-suggested follow-ups. Purely advisory — the agent is
+   * free to ignore them with zero side effects. Absent (not `[]`) when the
+   * tool has no hints to offer. See ADR-0015 and `src/domain/hints.ts`.
+   */
+  hints?: Hint[];
 }
 
 /** Failure envelope — the shape every tool returns on error. */
@@ -219,9 +228,24 @@ export type ToolEnvelope<T> = ToolSuccess<T> | ToolError;
  * @param pagination — optional pagination block for list-shaped responses
  * @returns a `ToolSuccess<T>` matching the ADR-0013 contract
  */
-export function ok<T>(data: T, meta: ResponseMeta, pagination?: Pagination): ToolSuccess<T> {
+/**
+ * Wrap a success payload in the standard envelope.
+ *
+ * @param data — tool-specific payload
+ * @param meta — request-scoped metadata from the handler harness
+ * @param pagination — optional pagination block for list-shaped responses
+ * @param hints — optional server-suggested follow-ups (see ADR-0015)
+ * @returns a `ToolSuccess<T>` matching the ADR-0013/ADR-0015 contract
+ */
+export function ok<T>(
+  data: T,
+  meta: ResponseMeta,
+  pagination?: Pagination,
+  hints?: Hint[],
+): ToolSuccess<T> {
   const envelope: ToolSuccess<T> = { data, meta };
   if (pagination !== undefined) envelope.pagination = pagination;
+  if (hints !== undefined && hints.length > 0) envelope.hints = hints;
   return envelope;
 }
 

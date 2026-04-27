@@ -5,6 +5,8 @@ import {
   ATTACHMENT_REMOVE_DESCRIPTION,
   ATTACHMENT_SAVE_TO_PATH_DESCRIPTION,
 } from "./attachment/index.js";
+import { DATABASE_REDO_DESCRIPTION } from "./database/redo.js";
+import { DATABASE_UNDO_DESCRIPTION } from "./database/undo.js";
 import { EXPORT_OPML_DESCRIPTION } from "./export/opml.js";
 import { IMPORT_OPML_DESCRIPTION } from "./export/opml_import.js";
 import { EXPORT_TASKPAPER_DESCRIPTION, IMPORT_TASKPAPER_DESCRIPTION } from "./export/taskpaper.js";
@@ -69,21 +71,26 @@ import { TASK_BATCH_MOVE_DESCRIPTION } from "./task/batchMove.js";
 import { TASK_BATCH_UNCOMPLETE_DESCRIPTION } from "./task/batchUncomplete.js";
 import { TASK_BATCH_UNDROP_DESCRIPTION } from "./task/batchUndrop.js";
 import { TASK_BATCH_UPDATE_DESCRIPTION } from "./task/batchUpdate.js";
+import { TASK_CLEAR_ALARMS_DESCRIPTION } from "./task/clearAlarms.js";
 import { TASK_CLEAR_REPETITION_DESCRIPTION } from "./task/clearRepetition.js";
 import { TASK_COMPLETE_DESCRIPTION } from "./task/complete.js";
+import { TASK_CONVERT_TO_PROJECT_DESCRIPTION } from "./task/convertToProject.js";
 import { TASK_CREATE_DESCRIPTION } from "./task/create.js";
 import { TASK_DELETE_DESCRIPTION } from "./task/delete.js";
 import { TASK_DROP_DESCRIPTION } from "./task/drop.js";
 import { TASK_DUPLICATE_DESCRIPTION } from "./task/duplicate.js";
 import { TASK_EXTRACT_FROM_NOTE_DESCRIPTION } from "./task/extractFromNote.js";
 import { TASK_FIND_BY_NAME_DESCRIPTION } from "./task/findByName.js";
+import { TASK_FIND_SIMILAR_DESCRIPTION } from "./task/findSimilar.js";
 import { TASK_GET_DESCRIPTION } from "./task/get.js";
 import { TASK_GET_MANY_DESCRIPTION } from "./task/getMany.js";
 import { TASK_LIST_DESCRIPTION } from "./task/list.js";
 import { TASK_MOVE_DESCRIPTION } from "./task/move.js";
 import { TASK_PARSE_TRANSPORT_TEXT_DESCRIPTION } from "./task/parseTransportText.js";
+import { TASK_RECLASSIFY_DESCRIPTION } from "./task/reclassify.js";
 import { TASK_REORDER_DESCRIPTION } from "./task/reorder.js";
 import { TASK_SEARCH_DESCRIPTION } from "./task/search.js";
+import { TASK_SET_ALARMS_DESCRIPTION } from "./task/setAlarms.js";
 import { TASK_SET_REPETITION_DESCRIPTION } from "./task/setRepetition.js";
 import { TASK_UNCOMPLETE_DESCRIPTION } from "./task/uncomplete.js";
 import { TASK_UNDROP_DESCRIPTION } from "./task/undrop.js";
@@ -100,6 +107,8 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   attachment_list: ATTACHMENT_LIST_DESCRIPTION,
   attachment_remove: ATTACHMENT_REMOVE_DESCRIPTION,
   attachment_save_to_path: ATTACHMENT_SAVE_TO_PATH_DESCRIPTION,
+  database_redo: DATABASE_REDO_DESCRIPTION,
+  database_undo: DATABASE_UNDO_DESCRIPTION,
   export_opml: EXPORT_OPML_DESCRIPTION,
   export_taskpaper: EXPORT_TASKPAPER_DESCRIPTION,
   forecast_get: FORECAST_GET_DESCRIPTION,
@@ -168,18 +177,23 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   task_complete: TASK_COMPLETE_DESCRIPTION,
   task_create: TASK_CREATE_DESCRIPTION,
   task_drop: TASK_DROP_DESCRIPTION,
+  task_clear_alarms: TASK_CLEAR_ALARMS_DESCRIPTION,
   task_clear_repetition: TASK_CLEAR_REPETITION_DESCRIPTION,
   task_delete: TASK_DELETE_DESCRIPTION,
   task_duplicate: TASK_DUPLICATE_DESCRIPTION,
   task_extract_from_note: TASK_EXTRACT_FROM_NOTE_DESCRIPTION,
   task_find_by_name: TASK_FIND_BY_NAME_DESCRIPTION,
+  task_find_similar: TASK_FIND_SIMILAR_DESCRIPTION,
   task_get: TASK_GET_DESCRIPTION,
   task_get_many: TASK_GET_MANY_DESCRIPTION,
   task_list: TASK_LIST_DESCRIPTION,
+  task_convert_to_project: TASK_CONVERT_TO_PROJECT_DESCRIPTION,
   task_move: TASK_MOVE_DESCRIPTION,
   task_search: TASK_SEARCH_DESCRIPTION,
   task_parse_transport_text: TASK_PARSE_TRANSPORT_TEXT_DESCRIPTION,
+  task_reclassify: TASK_RECLASSIFY_DESCRIPTION,
   task_reorder: TASK_REORDER_DESCRIPTION,
+  task_set_alarms: TASK_SET_ALARMS_DESCRIPTION,
   task_set_repetition: TASK_SET_REPETITION_DESCRIPTION,
   task_uncomplete: TASK_UNCOMPLETE_DESCRIPTION,
   task_undrop: TASK_UNDROP_DESCRIPTION,

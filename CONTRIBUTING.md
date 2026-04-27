@@ -30,7 +30,7 @@ Inherited from [`coding.md`](https://github.com/torsday/llm_prompts/blob/main/co
 ## Workflow
 
 1. **Understand the task.** Open the issue, read the linked DESIGN / SPEC / ADR section.
-2. **Work on a branch.** Never commit to `main` directly.
+2. **Work on a branch. All commits to `main` go through a PR — no exceptions.** GitHub branch protection enforces this for everyone, including administrators; a direct push is rejected at the GitHub layer.
 3. **Follow the patterns.** See [`DESIGN.md §26`](./DESIGN.md#26-example-tool--reference-implementation-for-task_list) for the reference implementation every tool follows.
 4. **Test before opening a PR.**
    - `pnpm typecheck` — zero errors

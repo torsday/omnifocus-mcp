@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 92 tools registered.
+> Auto-generated from source. 99 tools registered.
 
 ## Table of contents
 
@@ -11,6 +11,8 @@
 - [attachment_list](#attachment_list)
 - [attachment_remove](#attachment_remove)
 - [attachment_save_to_path](#attachment_save_to_path)
+- [database_redo](#database_redo)
+- [database_undo](#database_undo)
 - [export_opml](#export_opml)
 - [export_taskpaper](#export_taskpaper)
 - [folder_create](#folder_create)
@@ -76,21 +78,26 @@
 - [task_batch_uncomplete](#task_batch_uncomplete)
 - [task_batch_undrop](#task_batch_undrop)
 - [task_batch_update](#task_batch_update)
+- [task_clear_alarms](#task_clear_alarms)
 - [task_clear_repetition](#task_clear_repetition)
 - [task_complete](#task_complete)
+- [task_convert_to_project](#task_convert_to_project)
 - [task_create](#task_create)
 - [task_delete](#task_delete)
 - [task_drop](#task_drop)
 - [task_duplicate](#task_duplicate)
 - [task_extract_from_note](#task_extract_from_note)
 - [task_find_by_name](#task_find_by_name)
+- [task_find_similar](#task_find_similar)
 - [task_get](#task_get)
 - [task_get_many](#task_get_many)
 - [task_list](#task_list)
 - [task_move](#task_move)
 - [task_parse_transport_text](#task_parse_transport_text)
+- [task_reclassify](#task_reclassify)
 - [task_reorder](#task_reorder)
 - [task_search](#task_search)
+- [task_set_alarms](#task_set_alarms)
 - [task_set_repetition](#task_set_repetition)
 - [task_uncomplete](#task_uncomplete)
 - [task_undrop](#task_undrop)
@@ -253,6 +260,68 @@ Copy an attachment's content to a local file path. Do not use to list or remove 
 ```json
 {
   "toolName": "attachment_save_to_path",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## database_redo
+
+Re-apply the most recently undone mutation, identical to ⌘⇧Z in OmniFocus. Advances one entry on the document's redo stack. Any mutation between an undo and a redo invalidates the redo stack (matching UI semantics). Mandatory `confirm: true` mirrors database_undo's destructive-write pattern. Returns { redid: boolean } — true when an entry was redone, false when the stack was empty. Do NOT use this tool to re-apply a specific operation — the redo stack is opaque. Prefer database_redo only as a direct counterpart to database_undo when an undo was issued in error. Side effects: re-applies whatever entry is at the top of the document's redo stack; fully invalidates the read cache; does NOT trigger sync. Call sync_trigger when you need the change to appear on other devices.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "database_redo",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## database_undo
+
+Reverse the most recent document mutation, identical to ⌘Z in OmniFocus. Walks back one entry on the document's undo stack regardless of mutation source — an MCP undo can revert a manual UI edit if that was the most recent change. Mandatory `confirm: true` mirrors task_batch_delete's destructive-write pattern, since undo can silently revert changes the agent or another caller just made. Returns { undid: boolean } — true when an entry was undone, false when the stack was empty. Do NOT use this tool to roll back specific operations — the undo stack is opaque and you cannot inspect what would be reverted before calling. Prefer database_undo for: post-batch error recovery, retry-after-partial-failure cleanup, and integration-test teardown. Side effects: reverts whatever entry is at the top of the document's undo stack; fully invalidates the read cache (we don't know what was reverted); does NOT trigger sync. Call sync_trigger when you need the change to appear on other devices.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "database_undo",
   "arguments": {}
 }
 ```
@@ -2629,6 +2698,37 @@ _No parameters._
 ```
 ---
 
+## task_clear_alarms
+
+Remove all alarms/notifications from an OmniFocus task. After clearing, the task has no scheduled notifications. Use task_set_alarms to install a new alarm set. Returns the updated task. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_clear_alarms",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
 ## task_clear_repetition
 
 Remove the repetition rule from an OmniFocus task. After clearing, the task becomes a one-time item. Use task_set_repetition to set or change a rule. Returns the updated task with repetitionRule confirmed as null. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.
@@ -2683,6 +2783,37 @@ Complete an OmniFocus task — marks it done with a completion timestamp. Accept
 ```json
 {
   "toolName": "task_complete",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_convert_to_project
+
+Promote an OmniFocus task to a first-class project via OmniJS Database.convertTasksToProjects(). The task's persistent identifier is preserved on the resulting project — agents can continue using the same ID as a project ID after conversion. Subtasks, notes, tags, and dates are carried over by OmniFocus automatically. Use this when a task has grown in scope and needs its own review interval, subtask hierarchy, or project-level metadata. Do NOT use on tasks already in a project — use task_move instead for reparenting; use project_create when starting from scratch. Returns { converted: true, projectId, taskId } on success. Side effects: removes the task from the task list and adds a project; sets meta.syncPending = true.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_convert_to_project",
   "arguments": {}
 }
 ```
@@ -2932,6 +3063,37 @@ Find tasks in OmniFocus by name. Returns ALL matching tasks (names are not uniqu
 ```
 ---
 
+## task_find_similar
+
+Lexical nearest-neighbour search for de-duplicating tasks. Pass a candidate name (and optional note) and receive the top-K most-similar existing tasks ranked by a deterministic [0, 1] lexical-signal score (Jaccard token-overlap + prefix bonus + exact-name boost). Title-dominant: a perfect title match outranks a perfect note match. Use BEFORE task_create when you suspect a duplicate; the agent inspects the candidates and decides whether to create new, link to existing, or merge. Excludes completed and dropped tasks by default; opt-in via includeCompleted: true. Optional scope { projectId } or { tagId } narrows the candidate set. Returns { candidates: [{ taskId, name, score, projectId, tags }] } sorted by score descending; an empty result is { candidates: [] }, not an error. Do NOT use this tool for general full-text search — call task_search for that. Prefer this helper when the question is 'is this task already in the system?'. No model calls; no side effects. Read-only.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_find_similar",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
 ## task_get
 
 Fetch a single OmniFocus task by persistent ID. Use when you have a known task ID and need its full detail. Do NOT use for multiple IDs — use task_get_many instead. Returns the Task object plus its direct subtasks (when includeSubtasks=true, the default). Read-only; safe to retry.
@@ -3149,6 +3311,37 @@ _No parameters._
 ```
 ---
 
+## task_reclassify
+
+Predicate-driven bulk task reclassification with a mandatory two-phase contract. Phase 1 (dryRun: true): match tasks by predicate, return { matched, proposed: [{taskId, before, after}] } with no mutations. Phase 2 (dryRun: false): require `confirmation` echoing the matched count from the prior dry-run; mismatch fails fast. Hard cap: dryRun: false rejects > 200 matches (use task_batch_update with explicit IDs for larger sets). Predicate is a discriminated-union AST: { kind: 'title-contains', value, caseSensitive? } | { kind: 'tag', tagId } | { kind: 'project', projectId } | { kind: 'and', predicates: [] } | { kind: 'or', predicates: [] } | { kind: 'not', predicate }. Changes apply uniformly to every match: addTags, removeTags, setProject, setFlagged. Do NOT use this tool when you have explicit task IDs — call task_batch_update directly. Prefer task_reclassify whenever the targets are described by a rule rather than a list, so the dry-run diff surfaces to the user before any write. Side effects (apply phase only): writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_reclassify",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
 ## task_reorder
 
 Reorder an OmniFocus task among its siblings. OmniFocus has no numeric sibling index — position is always expressed relative to another task (before / after) or as the absolute start / end of a container. Do NOT use task_reorder to reparent a task to a different project or parent (task_move handles reparenting); prefer task_move when the task needs to change containers without caring about sibling order. Exactly one positioning form must be set: { before }, { after }, or { at, in }. Returns { reordered: true, id, position }. Side effects: changes sibling order in OmniFocus, sets meta.syncPending = true.
@@ -3205,6 +3398,37 @@ Search OmniFocus tasks by keyword and/or structured filters, with cursor paginat
 ```json
 {
   "toolName": "task_search",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_set_alarms
+
+Replace the alarm/notification set on an OmniFocus task atomically. Pass an array of alarms; this overwrites any existing alarms in full. Each alarm is one of: {kind:'due-relative', offsetSeconds:N} (positive = before due date, negative = after), {kind:'defer-relative', offsetSeconds:N} (relative to defer date), or {kind:'absolute', fireAt:ISO-8601 string}. Relative kinds require the task to already have the corresponding date set, or the call returns a VALIDATION error. Use task_clear_alarms to remove all alarms with no payload. Returns the updated task. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_set_alarms",
   "arguments": {}
 }
 ```

@@ -292,6 +292,15 @@ export interface OmniFocusAdapter {
   deleteTask(id: TaskId): Promise<void>;
   moveTask(id: TaskId, destination: { projectId?: ProjectId; parentId?: TaskId }): Promise<void>;
   /**
+   * Promote a task to a project via OmniJS `Database.convertTasksToProjects()`.
+   * The task's persistent identifier is preserved on the resulting project.
+   * Returns the project ID (equal to the original task ID's primary key).
+   */
+  convertTaskToProject(
+    id: TaskId,
+    opts: { folderId?: FolderId; position?: "beginning" | "ending" },
+  ): Promise<ProjectId>;
+  /**
    * Best-effort batch move. One transport round-trip per batch. Moves each task
    * to the specified destination; per-item failures are reported in `failed[]`.
    * Routes through OmniJS (not JXA) due to the JXA task.move() bug in OF 4.x.
@@ -469,6 +478,63 @@ export interface OmniFocusAdapter {
   /** Trigger a sync with Omni Sync; resolves once initiated (does not wait for completion). */
   syncTrigger(): Promise<SyncStatus>;
   getLastSync(): Promise<SyncStatus>;
+
+  // -- Task alarms (set/clear; read is via getTask) -------------------------
+
+  /**
+   * Replace the task's alarm/notification set with `alarms` (full-replace,
+   * not merge — atomic). Empty array clears all alarms (equivalent to
+   * `clearTaskAlarms`).
+   *
+   * Routed to `OmniJsTransport`: `Task.notifications` is a managed
+   * collection in OmniJS (`addNotification` / `removeNotification`); JXA's
+   * read works but the assignment semantics for the collection are clunky.
+   *
+   * Validation that relative alarms have a corresponding date anchor lives
+   * at the tool layer (`task_set_alarms` reads the task first); the adapter
+   * trusts its inputs.
+   *
+   * @see TaskAlarm
+   * @see #461
+   */
+  setTaskAlarms(id: TaskId, alarms: import("../domain/task.js").TaskAlarm[]): Promise<void>;
+
+  /**
+   * Remove all alarms from the task. Equivalent to `setTaskAlarms(id, [])`
+   * but exposed as a dedicated verb so the tool surface is consistent with
+   * `task_clear_repetition`.
+   *
+   * @see #461
+   */
+  clearTaskAlarms(id: TaskId): Promise<void>;
+
+  // -- Database undo/redo ----------------------------------------------------
+
+  /**
+   * Reverse the most recent document mutation, identical to ⌘Z in the
+   * OmniFocus UI. Walks back one entry on the document's undo stack.
+   *
+   * The stack is per-document and shared across MCP calls; an undo will
+   * reverse whatever the most recent mutation was, regardless of source
+   * (MCP tool, manual UI edit, sync replay).
+   *
+   * Returns `{ undid: false }` when the undo stack was empty (no-op).
+   * Throws `ScriptError` for transport-level failures.
+   *
+   * @see #526
+   */
+  undoLastMutation(): Promise<{ undid: boolean }>;
+
+  /**
+   * Re-apply the most recently undone mutation. Mirrors `undoLastMutation`.
+   *
+   * Returns `{ redid: false }` when the redo stack was empty. Any mutation
+   * between an undo and a redo invalidates the redo stack (matching UI
+   * semantics).
+   *
+   * @see #526
+   */
+  redoLastMutation(): Promise<{ redid: boolean }>;
 
   // -- Forecast --------------------------------------------------------------
   getForecast(input: ForecastInput): Promise<ForecastResult>;

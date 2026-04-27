@@ -317,6 +317,17 @@ export class JxaTransport implements OmniFocusAdapter {
     );
   }
 
+  async convertTaskToProject(
+    _id: TaskId,
+    _opts: { folderId?: import("../../domain/ids.js").FolderId; position?: "beginning" | "ending" },
+  ): Promise<ProjectId> {
+    // convertTaskToProject uses Database.convertTasksToProjects() — OmniJS-only API.
+    throw new ScriptError(
+      "convertTaskToProject routes to OmniJsTransport — JXA transport unavailable",
+      { details: { transport: "jxa", reason: "routes-to-omnijs", method: "convertTaskToProject" } },
+    );
+  }
+
   async batchMoveTasks(
     _items: Array<{ id: TaskId; destination: { projectId?: ProjectId; parentId?: TaskId } }>,
   ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
@@ -801,6 +812,37 @@ export class JxaTransport implements OmniFocusAdapter {
   ): Promise<{ tagId: import("../../domain/ids.js").TagId | null }> {
     throw new ScriptError("setForecastTag routes to OmniJsTransport — JXA transport unavailable", {
       details: { transport: "jxa", reason: "routes-to-omnijs", method: "setForecastTag" },
+    });
+  }
+
+  // -- Database undo/redo (route to OmniJS) ---------------------------------
+  // Database.undo() / Database.redo() are OmniJS-only APIs.
+  async undoLastMutation(): Promise<{ undid: boolean }> {
+    throw new ScriptError(
+      "undoLastMutation routes to OmniJsTransport — JXA transport unavailable",
+      { details: { transport: "jxa", reason: "routes-to-omnijs", method: "undoLastMutation" } },
+    );
+  }
+  async redoLastMutation(): Promise<{ redid: boolean }> {
+    throw new ScriptError(
+      "redoLastMutation routes to OmniJsTransport — JXA transport unavailable",
+      { details: { transport: "jxa", reason: "routes-to-omnijs", method: "redoLastMutation" } },
+    );
+  }
+
+  // -- Task alarms (route to OmniJS) ----------------------------------------
+  // Task.notifications collection is best-managed via OmniJS.
+  async setTaskAlarms(
+    _id: import("../../domain/ids.js").TaskId,
+    _alarms: import("../../domain/task.js").TaskAlarm[],
+  ): Promise<void> {
+    throw new ScriptError("setTaskAlarms routes to OmniJsTransport — JXA transport unavailable", {
+      details: { transport: "jxa", reason: "routes-to-omnijs", method: "setTaskAlarms" },
+    });
+  }
+  async clearTaskAlarms(_id: import("../../domain/ids.js").TaskId): Promise<void> {
+    throw new ScriptError("clearTaskAlarms routes to OmniJsTransport — JXA transport unavailable", {
+      details: { transport: "jxa", reason: "routes-to-omnijs", method: "clearTaskAlarms" },
     });
   }
 

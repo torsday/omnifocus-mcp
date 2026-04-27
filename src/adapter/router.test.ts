@@ -50,6 +50,7 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     undropTask: record("undropTask"),
     deleteTask: record("deleteTask"),
     moveTask: record("moveTask"),
+    convertTaskToProject: record("convertTaskToProject"),
     batchMoveTasks: record("batchMoveTasks"),
     reorderTask: record("reorderTask"),
     duplicateTask: record("duplicateTask"),
@@ -104,6 +105,10 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     saveAttachmentToPath: record("saveAttachmentToPath"),
     syncTrigger: record("syncTrigger"),
     getLastSync: record("getLastSync"),
+    undoLastMutation: record("undoLastMutation"),
+    redoLastMutation: record("redoLastMutation"),
+    setTaskAlarms: record("setTaskAlarms"),
+    clearTaskAlarms: record("clearTaskAlarms"),
     getChangesSince: record("getChangesSince"),
     runJxaScript: record("runJxaScript"),
     runOmniJsScript: record("runOmniJsScript"),
@@ -133,6 +138,7 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
     undropTask: () => r.undropTask(T_ID),
     deleteTask: () => r.deleteTask(T_ID),
     moveTask: () => r.moveTask(T_ID, { projectId: P_ID }),
+    convertTaskToProject: () => r.convertTaskToProject(T_ID, {}),
     batchMoveTasks: () => r.batchMoveTasks([{ id: T_ID, destination: { projectId: P_ID } }]),
     reorderTask: () => r.reorderTask(T_ID, { at: "end", in: { projectId: P_ID } }),
     duplicateTask: () => r.duplicateTask(T_ID, { recursive: false }),
@@ -189,6 +195,10 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
       r.saveAttachmentToPath({ taskId: T_ID, attachmentId: ATT_ID, destPath: "/tmp/out.txt" }),
     syncTrigger: () => r.syncTrigger(),
     getLastSync: () => r.getLastSync(),
+    undoLastMutation: () => r.undoLastMutation(),
+    redoLastMutation: () => r.redoLastMutation(),
+    setTaskAlarms: () => r.setTaskAlarms(T_ID, []),
+    clearTaskAlarms: () => r.clearTaskAlarms(T_ID),
     getChangesSince: () => r.getChangesSince("2026-01-01T00:00:00.000Z"),
     runJxaScript: () => r.runJxaScript("noop"),
     runOmniJsScript: () => r.runOmniJsScript("noop"),
@@ -278,13 +288,18 @@ describe("TransportRouter — table integrity", () => {
       .sort();
     expect(omniJsRoutes).toEqual([
       "batchMoveTasks", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works
+      "clearTaskAlarms", // Task.notifications mutation is OmniJS-only (#461)
+      "convertTaskToProject", // OmniJS-only: Database.convertTasksToProjects()
       "evaluateCustomPerspective",
       "getForecastTag", // Database.forecastTag is OmniJS-only (#465)
       "moveTask", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works
       "pluginInvoke",
+      "redoLastMutation", // Database.redo() is OmniJS-only (#526)
       "reorderTask", // JXA task.move(positioned:) → same error 9; OmniJS moveTasks + ChildInsertionLocation
       "runOmniJsScript",
       "setForecastTag", // Database.forecastTag is OmniJS-only (#465)
+      "setTaskAlarms", // Task.addNotification is OmniJS-only (#461)
+      "undoLastMutation", // Database.undo() is OmniJS-only (#526)
     ]);
   });
 });

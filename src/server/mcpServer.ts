@@ -3,12 +3,13 @@
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
  * API from @modelcontextprotocol/sdk. Currently registers `internal_status`,
- * the five OmniFocus workflow prompts, the thirteen MCP resources, and 72 domain
+ * the five OmniFocus workflow prompts, the thirteen MCP resources, and 78 domain
  * tools across folder, tag, note, search, forecast, perspective, plugin,
- * sync, review, export, app, project, task, repetition, and attachment surfaces.
- * Two additional raw-script escape-hatch tools (`run_jxa_script`,
- * `run_omnijs_script`) register only when `OMNIFOCUS_ALLOW_RAW_SCRIPT=1`
- * (ADR-0004), bringing the wired surface to 74. Every registered tool is
+ * sync, review, export, app, project, task, repetition, attachment, and
+ * database surfaces. Two additional raw-script escape-hatch tools
+ * (`run_jxa_script`, `run_omnijs_script`) register only when
+ * `OMNIFOCUS_ALLOW_RAW_SCRIPT=1` (ADR-0004), bringing the wired surface to 80.
+ * Every registered tool is
  * wrapped in `assertNotShuttingDown → withCircuitBreaker → withRateLimitMeta
  * → withLoopDetection` via `installToolMiddleware` (#291), which runs once
  * before any `register*Tool` helper.
@@ -64,6 +65,8 @@ import {
 import { ALL_TOOL_DESCRIPTIONS } from "../tools/allDescriptions.js";
 import { registerAppLaunchTool } from "../tools/app/launch.js";
 import { registerAttachmentTools } from "../tools/attachment/index.js";
+import { registerDatabaseRedoTool } from "../tools/database/redo.js";
+import { registerDatabaseUndoTool } from "../tools/database/undo.js";
 import { registerExportOpmlTool } from "../tools/export/opml.js";
 import { registerImportOpmlTool } from "../tools/export/opml_import.js";
 import { registerTaskPaperTools } from "../tools/export/taskpaper.js";
@@ -128,21 +131,26 @@ import { registerTaskBatchMoveTool } from "../tools/task/batchMove.js";
 import { registerTaskBatchUncompleteTool } from "../tools/task/batchUncomplete.js";
 import { registerTaskBatchUndropTool } from "../tools/task/batchUndrop.js";
 import { registerTaskBatchUpdateTool } from "../tools/task/batchUpdate.js";
+import { registerTaskClearAlarmsTool } from "../tools/task/clearAlarms.js";
 import { registerTaskClearRepetitionTool } from "../tools/task/clearRepetition.js";
 import { registerTaskCompleteTool } from "../tools/task/complete.js";
+import { registerTaskConvertToProjectTool } from "../tools/task/convertToProject.js";
 import { registerTaskCreateTool } from "../tools/task/create.js";
 import { registerTaskDeleteTool } from "../tools/task/delete.js";
 import { registerTaskDropTool } from "../tools/task/drop.js";
 import { registerTaskDuplicateTool } from "../tools/task/duplicate.js";
 import { registerTaskExtractFromNoteTool } from "../tools/task/extractFromNote.js";
 import { registerTaskFindByNameTool } from "../tools/task/findByName.js";
+import { registerTaskFindSimilarTool } from "../tools/task/findSimilar.js";
 import { registerTaskGetTool } from "../tools/task/get.js";
 import { registerTaskGetManyTool } from "../tools/task/getMany.js";
 import { registerTaskListTool } from "../tools/task/list.js";
 import { registerTaskMoveTool } from "../tools/task/move.js";
 import { registerTaskParseTransportTextTool } from "../tools/task/parseTransportText.js";
+import { registerTaskReclassifyTool } from "../tools/task/reclassify.js";
 import { registerTaskReorderTool } from "../tools/task/reorder.js";
 import { registerTaskSearchTool } from "../tools/task/search.js";
+import { registerTaskSetAlarmsTool } from "../tools/task/setAlarms.js";
 import { registerTaskSetRepetitionTool } from "../tools/task/setRepetition.js";
 import { registerTaskUncompleteTool } from "../tools/task/uncomplete.js";
 import { registerTaskUndropTool } from "../tools/task/undrop.js";
@@ -330,6 +338,11 @@ export async function startServer(): Promise<void> {
   registerSyncStatusTool(server, { adapter, makeMeta });
   registerSyncTriggerTool(server, { adapter, makeMeta, cache: services.cache });
 
+  // Database undo/redo — full cache flush on success since OmniFocus's
+  // undo stack is opaque (we don't know what was reverted).
+  registerDatabaseUndoTool(server, { adapter, makeMeta, cache: services.cache });
+  registerDatabaseRedoTool(server, { adapter, makeMeta, cache: services.cache });
+
   // Review tools — four `{reviewService, makeMeta}` registrations.
   // ReviewService receives the shared cache so markReviewed/setInterval
   // invalidate stale project entries (ADR-0006).
@@ -393,10 +406,12 @@ export async function startServer(): Promise<void> {
   registerTaskGetTool(server, taskServiceCtx);
   registerTaskListTool(server, taskServiceCtx);
   registerTaskFindByNameTool(server, taskAdapterCtx);
+  registerTaskFindSimilarTool(server, taskAdapterCtx);
   registerTaskSearchTool(server, { searchService: services.searchService, makeMeta });
   registerTaskGetManyTool(server, taskAdapterCtx);
   registerTaskParseTransportTextTool(server, { makeMeta });
   registerRepetitionFromProseTool(server, { makeMeta });
+  registerTaskReclassifyTool(server, taskMutationCtx);
   registerTaskBatchAssignTool(server, taskMutationCtx);
   registerTaskBatchCompleteTool(server, taskMutationCtx);
   registerTaskBatchCreateTool(server, taskMutationCtx);
@@ -406,13 +421,16 @@ export async function startServer(): Promise<void> {
   registerTaskBatchUncompleteTool(server, taskMutationCtx);
   registerTaskBatchUndropTool(server, taskMutationCtx);
   registerTaskBatchUpdateTool(server, taskMutationCtx);
+  registerTaskClearAlarmsTool(server, taskMutationCtx);
   registerTaskClearRepetitionTool(server, taskMutationCtx);
   registerTaskCompleteTool(server, taskMutationCtx);
   registerTaskDropTool(server, taskMutationCtx);
   registerTaskDuplicateTool(server, taskMutationCtx);
   registerTaskExtractFromNoteTool(server, taskMutationCtx);
+  registerTaskConvertToProjectTool(server, taskMutationCtx);
   registerTaskMoveTool(server, taskMutationCtx);
   registerTaskReorderTool(server, taskMutationCtx);
+  registerTaskSetAlarmsTool(server, taskMutationCtx);
   registerTaskSetRepetitionTool(server, taskMutationCtx);
   registerTaskUncompleteTool(server, taskMutationCtx);
   registerTaskUndropTool(server, taskMutationCtx);

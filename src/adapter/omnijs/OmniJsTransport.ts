@@ -29,7 +29,11 @@
 
 import type { Folder } from "../../domain/folder.js";
 import type { FolderId, ProjectId, TagId, TaskId } from "../../domain/ids.js";
-import { TagId as TagIdCtor, TaskId as TaskIdCtor } from "../../domain/ids.js";
+import {
+  ProjectId as ProjectIdCtor,
+  TagId as TagIdCtor,
+  TaskId as TaskIdCtor,
+} from "../../domain/ids.js";
 import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
 import type { Task } from "../../domain/task.js";
@@ -39,15 +43,21 @@ import {
   mapBatchScriptResult,
   type PerspectiveEvaluateScriptResult,
   type TaskBatchMoveScriptResult,
+  type TaskConvertToProjectScriptResult,
   type TaskMoveScriptResult,
 } from "../../scripts/contracts.js";
+import databaseRedoScript from "../../scripts/omnijs/database_redo.js";
+import databaseUndoScript from "../../scripts/omnijs/database_undo.js";
 import forecastGetTagScript from "../../scripts/omnijs/forecast_get_tag.js";
 import forecastSetTagScript from "../../scripts/omnijs/forecast_set_tag.js";
 import perspectiveEvaluateScript from "../../scripts/omnijs/perspective_evaluate.js";
 import pluginInvokeScript from "../../scripts/omnijs/plugin_invoke.js";
 import taskBatchMoveScript from "../../scripts/omnijs/task_batch_move.js";
+import taskClearAlarmsScript from "../../scripts/omnijs/task_clear_alarms.js";
+import taskConvertToProjectScript from "../../scripts/omnijs/task_convert_to_project.js";
 import taskMoveScript from "../../scripts/omnijs/task_move.js";
 import taskReorderScript from "../../scripts/omnijs/task_reorder.js";
+import taskSetAlarmsScript from "../../scripts/omnijs/task_set_alarms.js";
 import type {
   CreateFolderInput,
   CreateProjectInput,
@@ -166,6 +176,27 @@ export class OmniJsTransport implements OmniFocusAdapter {
         details: { transport: "omnijs", scriptName: "task_move" },
       });
     }
+  }
+  async convertTaskToProject(
+    id: TaskId,
+    opts: { folderId?: FolderId; position?: "beginning" | "ending" },
+  ): Promise<ProjectId> {
+    const result = await runOmniJsScript<TaskConvertToProjectScriptResult>(
+      taskConvertToProjectScript,
+      { id, folderId: opts.folderId ?? null, position: opts.position ?? "ending" },
+      { ...this.runOpts, scriptName: "task_convert_to_project" },
+    );
+    if (isScriptError(result)) {
+      if (result.error.code === "NOT_FOUND") {
+        throw new NotFound(result.error.message, {
+          details: { transport: "omnijs", scriptName: "task_convert_to_project" },
+        });
+      }
+      throw new ValidationError(result.error.message, {
+        details: { transport: "omnijs", scriptName: "task_convert_to_project" },
+      });
+    }
+    return ProjectIdCtor.of(result.projectId);
   }
   async batchMoveTasks(
     items: Array<{ id: TaskId; destination: { projectId?: ProjectId; parentId?: TaskId } }>,
@@ -425,6 +456,90 @@ export class OmniJsTransport implements OmniFocusAdapter {
     return {
       tagId: result.tagId === null ? null : TagIdCtor.of(result.tagId),
     };
+  }
+
+  // -- Database undo/redo ---------------------------------------------------
+  // Wrap Database.undo() / Database.redo() — OmniJS-only APIs.
+  async undoLastMutation(): Promise<{ undid: boolean }> {
+    const result = await runOmniJsScript<
+      { undid: boolean } | { error: { code: string; message: string } }
+    >(databaseUndoScript, {}, { ...this.runOpts, scriptName: "database_undo" });
+    if (isScriptError(result)) {
+      throw new ScriptError(result.error.message, {
+        details: { transport: "omnijs", scriptName: "database_undo", code: result.error.code },
+      });
+    }
+    return { undid: result.undid };
+  }
+
+  async redoLastMutation(): Promise<{ redid: boolean }> {
+    const result = await runOmniJsScript<
+      { redid: boolean } | { error: { code: string; message: string } }
+    >(databaseRedoScript, {}, { ...this.runOpts, scriptName: "database_redo" });
+    if (isScriptError(result)) {
+      throw new ScriptError(result.error.message, {
+        details: { transport: "omnijs", scriptName: "database_redo", code: result.error.code },
+      });
+    }
+    return { redid: result.redid };
+  }
+
+  // -- Task alarms ----------------------------------------------------------
+  // Wrap Task.notifications via OmniJS addNotification / removeFromContainer.
+  async setTaskAlarms(
+    id: TaskId,
+    alarms: import("../../domain/task.js").TaskAlarm[],
+  ): Promise<void> {
+    const result = await runOmniJsScript<
+      { ok: true } | { error: { code: string; message: string } }
+    >(
+      taskSetAlarmsScript,
+      { taskId: String(id), alarms },
+      { ...this.runOpts, scriptName: "task_set_alarms" },
+    );
+    if (isScriptError(result)) {
+      if (result.error.code === "NOT_FOUND") {
+        throw new NotFound(result.error.message, {
+          details: { transport: "omnijs", scriptName: "task_set_alarms" },
+        });
+      }
+      if (result.error.code === "VALIDATION") {
+        throw new ValidationError(result.error.message, {
+          details: { transport: "omnijs", scriptName: "task_set_alarms" },
+        });
+      }
+      throw new ScriptError(result.error.message, {
+        details: {
+          transport: "omnijs",
+          scriptName: "task_set_alarms",
+          code: result.error.code,
+        },
+      });
+    }
+  }
+
+  async clearTaskAlarms(id: TaskId): Promise<void> {
+    const result = await runOmniJsScript<
+      { ok: true } | { error: { code: string; message: string } }
+    >(
+      taskClearAlarmsScript,
+      { taskId: String(id) },
+      { ...this.runOpts, scriptName: "task_clear_alarms" },
+    );
+    if (isScriptError(result)) {
+      if (result.error.code === "NOT_FOUND") {
+        throw new NotFound(result.error.message, {
+          details: { transport: "omnijs", scriptName: "task_clear_alarms" },
+        });
+      }
+      throw new ScriptError(result.error.message, {
+        details: {
+          transport: "omnijs",
+          scriptName: "task_clear_alarms",
+          code: result.error.code,
+        },
+      });
+    }
   }
 
   // -- App lifecycle --------------------------------------------------------

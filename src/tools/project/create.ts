@@ -17,6 +17,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { CreateProjectInput, OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateProjectMutation } from "../../cache/invalidation.js";
+import { finaliseHints, reviewIntervalHint } from "../../domain/hints.js";
 import { FolderId, TagId } from "../../domain/ids.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import {
@@ -165,7 +166,17 @@ export async function handleProjectCreate(
       invalidateProjectMutation(ctx.cache, { projectId: id });
     }
 
-    return ok({ created: true as const, id }, ctx.makeMeta({ syncPending: true }));
+    const hints = finaliseHints(
+      [reviewIntervalHint(id, input.reviewIntervalDays)].filter(
+        (h): h is NonNullable<typeof h> => h != null,
+      ),
+    );
+    return ok(
+      { created: true as const, id },
+      ctx.makeMeta({ syncPending: true }),
+      undefined,
+      hints,
+    );
   });
 }
 
