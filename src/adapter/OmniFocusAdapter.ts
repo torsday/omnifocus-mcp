@@ -470,6 +470,35 @@ export interface OmniFocusAdapter {
   syncTrigger(): Promise<SyncStatus>;
   getLastSync(): Promise<SyncStatus>;
 
+  // -- Task alarms (set/clear; read is via getTask) -------------------------
+
+  /**
+   * Replace the task's alarm/notification set with `alarms` (full-replace,
+   * not merge — atomic). Empty array clears all alarms (equivalent to
+   * `clearTaskAlarms`).
+   *
+   * Routed to `OmniJsTransport`: `Task.notifications` is a managed
+   * collection in OmniJS (`addNotification` / `removeNotification`); JXA's
+   * read works but the assignment semantics for the collection are clunky.
+   *
+   * Validation that relative alarms have a corresponding date anchor lives
+   * at the tool layer (`task_set_alarms` reads the task first); the adapter
+   * trusts its inputs.
+   *
+   * @see TaskAlarm
+   * @see #461
+   */
+  setTaskAlarms(id: TaskId, alarms: import("../domain/task.js").TaskAlarm[]): Promise<void>;
+
+  /**
+   * Remove all alarms from the task. Equivalent to `setTaskAlarms(id, [])`
+   * but exposed as a dedicated verb so the tool surface is consistent with
+   * `task_clear_repetition`.
+   *
+   * @see #461
+   */
+  clearTaskAlarms(id: TaskId): Promise<void>;
+
   // -- Database undo/redo ----------------------------------------------------
 
   /**

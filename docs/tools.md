@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 96 tools registered.
+> Auto-generated from source. 98 tools registered.
 
 ## Table of contents
 
@@ -78,6 +78,7 @@
 - [task_batch_uncomplete](#task_batch_uncomplete)
 - [task_batch_undrop](#task_batch_undrop)
 - [task_batch_update](#task_batch_update)
+- [task_clear_alarms](#task_clear_alarms)
 - [task_clear_repetition](#task_clear_repetition)
 - [task_complete](#task_complete)
 - [task_create](#task_create)
@@ -95,6 +96,7 @@
 - [task_reclassify](#task_reclassify)
 - [task_reorder](#task_reorder)
 - [task_search](#task_search)
+- [task_set_alarms](#task_set_alarms)
 - [task_set_repetition](#task_set_repetition)
 - [task_uncomplete](#task_uncomplete)
 - [task_undrop](#task_undrop)
@@ -2695,6 +2697,37 @@ _No parameters._
 ```
 ---
 
+## task_clear_alarms
+
+Remove all alarms/notifications from an OmniFocus task. After clearing, the task has no scheduled notifications. Use task_set_alarms to install a new alarm set. Returns the updated task. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_clear_alarms",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
 ## task_clear_repetition
 
 Remove the repetition rule from an OmniFocus task. After clearing, the task becomes a one-time item. Use task_set_repetition to set or change a rule. Returns the updated task with repetitionRule confirmed as null. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.
@@ -3333,6 +3366,37 @@ Search OmniFocus tasks by keyword and/or structured filters, with cursor paginat
 ```json
 {
   "toolName": "task_search",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_set_alarms
+
+Replace the alarm/notification set on an OmniFocus task atomically. Pass an array of alarms; this overwrites any existing alarms in full. Each alarm is one of: {kind:'due-relative', offsetSeconds:N} (positive = before due date, negative = after), {kind:'defer-relative', offsetSeconds:N} (relative to defer date), or {kind:'absolute', fireAt:ISO-8601 string}. Relative kinds require the task to already have the corresponding date set, or the call returns a VALIDATION error. Use task_clear_alarms to remove all alarms with no payload. Returns the updated task. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_set_alarms",
   "arguments": {}
 }
 ```

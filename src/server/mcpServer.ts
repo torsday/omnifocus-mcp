@@ -3,12 +3,12 @@
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
  * API from @modelcontextprotocol/sdk. Currently registers `internal_status`,
- * the five OmniFocus workflow prompts, the thirteen MCP resources, and 76 domain
+ * the five OmniFocus workflow prompts, the thirteen MCP resources, and 78 domain
  * tools across folder, tag, note, search, forecast, perspective, plugin,
  * sync, review, export, app, project, task, repetition, attachment, and
  * database surfaces. Two additional raw-script escape-hatch tools
  * (`run_jxa_script`, `run_omnijs_script`) register only when
- * `OMNIFOCUS_ALLOW_RAW_SCRIPT=1` (ADR-0004), bringing the wired surface to 78.
+ * `OMNIFOCUS_ALLOW_RAW_SCRIPT=1` (ADR-0004), bringing the wired surface to 80.
  * Every registered tool is
  * wrapped in `assertNotShuttingDown → withCircuitBreaker → withRateLimitMeta
  * → withLoopDetection` via `installToolMiddleware` (#291), which runs once
@@ -131,6 +131,7 @@ import { registerTaskBatchMoveTool } from "../tools/task/batchMove.js";
 import { registerTaskBatchUncompleteTool } from "../tools/task/batchUncomplete.js";
 import { registerTaskBatchUndropTool } from "../tools/task/batchUndrop.js";
 import { registerTaskBatchUpdateTool } from "../tools/task/batchUpdate.js";
+import { registerTaskClearAlarmsTool } from "../tools/task/clearAlarms.js";
 import { registerTaskClearRepetitionTool } from "../tools/task/clearRepetition.js";
 import { registerTaskCompleteTool } from "../tools/task/complete.js";
 import { registerTaskCreateTool } from "../tools/task/create.js";
@@ -148,6 +149,7 @@ import { registerTaskParseTransportTextTool } from "../tools/task/parseTransport
 import { registerTaskReclassifyTool } from "../tools/task/reclassify.js";
 import { registerTaskReorderTool } from "../tools/task/reorder.js";
 import { registerTaskSearchTool } from "../tools/task/search.js";
+import { registerTaskSetAlarmsTool } from "../tools/task/setAlarms.js";
 import { registerTaskSetRepetitionTool } from "../tools/task/setRepetition.js";
 import { registerTaskUncompleteTool } from "../tools/task/uncomplete.js";
 import { registerTaskUndropTool } from "../tools/task/undrop.js";
@@ -418,6 +420,7 @@ export async function startServer(): Promise<void> {
   registerTaskBatchUncompleteTool(server, taskMutationCtx);
   registerTaskBatchUndropTool(server, taskMutationCtx);
   registerTaskBatchUpdateTool(server, taskMutationCtx);
+  registerTaskClearAlarmsTool(server, taskMutationCtx);
   registerTaskClearRepetitionTool(server, taskMutationCtx);
   registerTaskCompleteTool(server, taskMutationCtx);
   registerTaskDropTool(server, taskMutationCtx);
@@ -425,6 +428,7 @@ export async function startServer(): Promise<void> {
   registerTaskExtractFromNoteTool(server, taskMutationCtx);
   registerTaskMoveTool(server, taskMutationCtx);
   registerTaskReorderTool(server, taskMutationCtx);
+  registerTaskSetAlarmsTool(server, taskMutationCtx);
   registerTaskSetRepetitionTool(server, taskMutationCtx);
   registerTaskUncompleteTool(server, taskMutationCtx);
   registerTaskUndropTool(server, taskMutationCtx);

@@ -71,6 +71,7 @@ import { TASK_BATCH_MOVE_DESCRIPTION } from "./task/batchMove.js";
 import { TASK_BATCH_UNCOMPLETE_DESCRIPTION } from "./task/batchUncomplete.js";
 import { TASK_BATCH_UNDROP_DESCRIPTION } from "./task/batchUndrop.js";
 import { TASK_BATCH_UPDATE_DESCRIPTION } from "./task/batchUpdate.js";
+import { TASK_CLEAR_ALARMS_DESCRIPTION } from "./task/clearAlarms.js";
 import { TASK_CLEAR_REPETITION_DESCRIPTION } from "./task/clearRepetition.js";
 import { TASK_COMPLETE_DESCRIPTION } from "./task/complete.js";
 import { TASK_CREATE_DESCRIPTION } from "./task/create.js";
@@ -88,6 +89,7 @@ import { TASK_PARSE_TRANSPORT_TEXT_DESCRIPTION } from "./task/parseTransportText
 import { TASK_RECLASSIFY_DESCRIPTION } from "./task/reclassify.js";
 import { TASK_REORDER_DESCRIPTION } from "./task/reorder.js";
 import { TASK_SEARCH_DESCRIPTION } from "./task/search.js";
+import { TASK_SET_ALARMS_DESCRIPTION } from "./task/setAlarms.js";
 import { TASK_SET_REPETITION_DESCRIPTION } from "./task/setRepetition.js";
 import { TASK_UNCOMPLETE_DESCRIPTION } from "./task/uncomplete.js";
 import { TASK_UNDROP_DESCRIPTION } from "./task/undrop.js";
@@ -174,6 +176,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   task_complete: TASK_COMPLETE_DESCRIPTION,
   task_create: TASK_CREATE_DESCRIPTION,
   task_drop: TASK_DROP_DESCRIPTION,
+  task_clear_alarms: TASK_CLEAR_ALARMS_DESCRIPTION,
   task_clear_repetition: TASK_CLEAR_REPETITION_DESCRIPTION,
   task_delete: TASK_DELETE_DESCRIPTION,
   task_duplicate: TASK_DUPLICATE_DESCRIPTION,
@@ -188,6 +191,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   task_parse_transport_text: TASK_PARSE_TRANSPORT_TEXT_DESCRIPTION,
   task_reclassify: TASK_RECLASSIFY_DESCRIPTION,
   task_reorder: TASK_REORDER_DESCRIPTION,
+  task_set_alarms: TASK_SET_ALARMS_DESCRIPTION,
   task_set_repetition: TASK_SET_REPETITION_DESCRIPTION,
   task_uncomplete: TASK_UNCOMPLETE_DESCRIPTION,
   task_undrop: TASK_UNDROP_DESCRIPTION,

@@ -162,6 +162,12 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   undoLastMutation: "omnijs",
   redoLastMutation: "omnijs",
 
+  // -- Task alarms ----------------------------------------------------------
+  // Task.notifications collection is best-managed via OmniJS's
+  // addNotification / removeNotification semantics.
+  setTaskAlarms: "omnijs",
+  clearTaskAlarms: "omnijs",
+
   // -- Attachments ----------------------------------------------------------
   listAttachments: "jxa",
   addAttachment: "jxa",
@@ -476,6 +482,13 @@ export class TransportRouter implements OmniFocusAdapter {
   }
   redoLastMutation(): Promise<{ redid: boolean }> {
     return this.pick("redoLastMutation").redoLastMutation();
+  }
+
+  setTaskAlarms(id: TaskId, alarms: import("../domain/task.js").TaskAlarm[]): Promise<void> {
+    return this.pick("setTaskAlarms").setTaskAlarms(id, alarms);
+  }
+  clearTaskAlarms(id: TaskId): Promise<void> {
+    return this.pick("clearTaskAlarms").clearTaskAlarms(id);
   }
 
   // -- Attachments ----------------------------------------------------------
