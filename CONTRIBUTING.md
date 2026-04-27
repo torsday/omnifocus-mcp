@@ -62,6 +62,31 @@ Inherited from [`coding.md`](https://github.com/torsday/llm_prompts/blob/main/co
 - [ ] No user content (task names, notes, tags) interpolated into metadata fields (`suggestion`, `message`, `warnings`)
 ```
 
+## Local dev MCP — picking up changes
+
+When you run an MCP-aware client (Claude Code, etc.) configured with this
+repo's bundled binary — typically:
+
+```jsonc
+"omnifocus-dev": { "command": "node", "args": ["/path/to/omnifocus-mcp/dist/index.js"] }
+```
+
+— the client spawns a long-running Node process from `dist/index.js`. That
+process does **not** hot-reload when you edit source. Loop after every
+edit:
+
+1. `pnpm build` — refresh `dist/index.js`
+2. Restart the MCP — quit and reopen the client, or
+   `claude mcp remove omnifocus-dev && claude mcp add omnifocus-dev -- node $PWD/dist/index.js`
+
+Symptom of a stale bundle: a fix that passes `pnpm test` still misbehaves
+when called via the dev MCP. Check `internal_status.uptimeMs` against your
+last build's mtime to confirm.
+
+Use `pnpm dev` (`tsx watch`) for direct CLI iteration that does pick up
+source changes — the price is starting fresh on every save, so it's no
+substitute for a real client session.
+
 ## Self-hosted CI runner setup (macOS Automation permission)
 
 The integration test suite (`pnpm test:integration`) runs JXA scripts that send Apple Events to OmniFocus. macOS requires an explicit one-time Automation permission grant for the process that spawns `osascript`. Without it, every JXA call fails with error -1743 and the test suite reports `"JXA script returned empty stdout"` with no further context.
