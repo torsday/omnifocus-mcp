@@ -2,7 +2,11 @@
  * `PerspectiveService` — service-layer surface for perspective queries.
  *
  * Wraps `OmniFocusAdapter` and exposes `list` for the MCP tool layer.
- * Perspectives are read-only; mutations are not supported.
+ *
+ * Currently exposes read-only operations (list / get / evaluate). Custom-perspective
+ * CRUD is feasible via JXA `make({new: "perspective"})` to create the shell plus
+ * OmniJS `archivedFilterRules` / `archivedTopLevelFilterAggregation` to configure
+ * it — see #523 for the proposed `perspective_create / update / delete` tools.
  *
  * @see docs/domain-reference.md — Perspective schema
  * @see src/tools/perspective/list.ts — MCP tool
