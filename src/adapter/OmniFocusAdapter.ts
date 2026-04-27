@@ -454,6 +454,22 @@ export interface OmniFocusAdapter {
   // -- Forecast --------------------------------------------------------------
   getForecast(input: ForecastInput): Promise<ForecastResult>;
 
+  /**
+   * Read the configured forecast-tag preference. Returns `null` when no tag
+   * is set (fresh OF install or explicitly cleared). The forecast tag is the
+   * single tag whose tasks always appear on Forecast alongside dated items.
+   *
+   * @see #465
+   */
+  getForecastTag(): Promise<{ tagId: TagId | null }>;
+
+  /**
+   * Set or clear the forecast-tag preference. Pass `null` to clear.
+   *
+   * @throws NotFound — when `tagId` is supplied but no tag with that ID exists
+   */
+  setForecastTag(tagId: TagId | null): Promise<{ tagId: TagId | null }>;
+
   // -- Attachments -----------------------------------------------------------
 
   /**

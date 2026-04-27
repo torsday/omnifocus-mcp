@@ -11,6 +11,7 @@
  */
 
 import type { ForecastInput, OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
+import type { TagId } from "../domain/ids.js";
 import type { Task } from "../domain/task.js";
 
 export interface ForecastGetResult {
@@ -37,5 +38,22 @@ export class ForecastService {
   async get(input: ForecastInput): Promise<ForecastGetResult> {
     const result = await this.adapter.getForecast(input);
     return { ...result, cacheHit: false };
+  }
+
+  /**
+   * Read the forecast-tag preference. Returns `null` when no tag is configured.
+   * @see #465
+   */
+  async getForecastTag(): Promise<{ tagId: TagId | null }> {
+    return this.adapter.getForecastTag();
+  }
+
+  /**
+   * Set or clear the forecast-tag preference. Pass `null` to clear.
+   * @throws NotFound — when `tagId` is supplied but no tag with that ID exists
+   * @see #465
+   */
+  async setForecastTag(tagId: TagId | null): Promise<{ tagId: TagId | null }> {
+    return this.adapter.setForecastTag(tagId);
   }
 }

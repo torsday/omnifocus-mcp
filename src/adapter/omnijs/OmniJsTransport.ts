@@ -30,7 +30,7 @@
 import { join } from "node:path";
 import type { Folder } from "../../domain/folder.js";
 import type { FolderId, ProjectId, TagId, TaskId } from "../../domain/ids.js";
-import { TaskId as TaskIdCtor } from "../../domain/ids.js";
+import { TagId as TagIdCtor, TaskId as TaskIdCtor } from "../../domain/ids.js";
 import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
 import type { Task } from "../../domain/task.js";
@@ -384,6 +384,45 @@ export class OmniJsTransport implements OmniFocusAdapter {
     _input: import("../OmniFocusAdapter.js").ForecastInput,
   ): Promise<import("../OmniFocusAdapter.js").ForecastResult> {
     return notYetWired("getForecast");
+  }
+
+  async getForecastTag(): Promise<{ tagId: TagId | null }> {
+    const script = await import("node:fs/promises").then((fs) =>
+      fs.readFile(join(import.meta.dirname, "../../scripts/omnijs/forecast_get_tag.js"), "utf8"),
+    );
+    const result = await runOmniJsScript<
+      { tagId: string | null } | { error: { code: string; message: string } }
+    >(script, {}, { ...this.runOpts, scriptName: "forecast_get_tag" });
+    if (isScriptError(result)) {
+      throw new ScriptError(result.error.message, {
+        details: { transport: "omnijs", scriptName: "forecast_get_tag" },
+      });
+    }
+    return {
+      tagId: result.tagId === null ? null : TagIdCtor.of(result.tagId),
+    };
+  }
+
+  async setForecastTag(tagId: TagId | null): Promise<{ tagId: TagId | null }> {
+    const script = await import("node:fs/promises").then((fs) =>
+      fs.readFile(join(import.meta.dirname, "../../scripts/omnijs/forecast_set_tag.js"), "utf8"),
+    );
+    const result = await runOmniJsScript<
+      { tagId: string | null } | { error: { code: string; message: string } }
+    >(script, { tagId }, { ...this.runOpts, scriptName: "forecast_set_tag" });
+    if (isScriptError(result)) {
+      if (result.error.code === "NOT_FOUND") {
+        throw new NotFound(result.error.message, {
+          details: { transport: "omnijs", scriptName: "forecast_set_tag" },
+        });
+      }
+      throw new ValidationError(result.error.message, {
+        details: { transport: "omnijs", scriptName: "forecast_set_tag" },
+      });
+    }
+    return {
+      tagId: result.tagId === null ? null : TagIdCtor.of(result.tagId),
+    };
   }
 
   // -- App lifecycle --------------------------------------------------------
