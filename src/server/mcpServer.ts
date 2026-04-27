@@ -74,6 +74,7 @@ import { registerFolderListTool } from "../tools/folder/list.js";
 import { registerFolderMoveTool } from "../tools/folder/move.js";
 import { registerFolderUpdateTool } from "../tools/folder/update.js";
 import { registerForecastGetTool } from "../tools/forecast/get.js";
+import { registerForecastPackTool } from "../tools/forecast/pack.js";
 import { registerNoteAppendTool } from "../tools/note/append.js";
 import { registerNoteGetTool } from "../tools/note/get.js";
 import { registerNoteGetHtmlTool } from "../tools/note/get_html.js";
@@ -297,6 +298,7 @@ export async function startServer(): Promise<void> {
 
   // Forecast.
   registerForecastGetTool(server, { forecastService: services.forecastService, makeMeta });
+  registerForecastPackTool(server, { forecastService: services.forecastService, makeMeta });
 
   // Perspectives.
   const perspectiveCtx = { perspectiveService: services.perspectiveService, makeMeta };

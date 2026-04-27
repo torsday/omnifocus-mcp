@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 82 tools registered.
+> Auto-generated from source. 83 tools registered.
 
 ## Table of contents
 
@@ -20,6 +20,7 @@
 - [folder_move](#folder_move)
 - [folder_update](#folder_update)
 - [forecast_get](#forecast_get)
+- [forecast_pack](#forecast_pack)
 - [import_opml](#import_opml)
 - [import_taskpaper](#import_taskpaper)
 - [internal_status](#internal_status)
@@ -588,6 +589,37 @@ _No parameters._
 ```json
 {
   "toolName": "forecast_get",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## forecast_pack
+
+Pack today's forecast tasks into a time budget. Use when the user asks 'I have N hours; what should I do?' or wants a focused subset of forecast tasks that fit a limited window. Do NOT use for the full forecast — prefer forecast_get for that. Do NOT use to schedule work across multiple days — pass scope='next7' as a hint, but the pack is still budget-bounded; for true multi-day planning use forecast_get with days>1 and let the agent compose. Pass budgetMinutes (1–1440) and optional filter { tagIds?, scope? }; scope is 'today' (default) or 'next7'. Returns { selected[], totalMinutes, skipped[] }. selected[] are the picks in execution order (flagged first, then dueDate ascending, then stable by ID). skipped[] surfaces tasks the agent should ask the user about: { reason: 'no-estimate' } means the task has no estimatedMinutes so couldn't be packed; { reason: 'exceeds-budget' } means it would have fit individually but was bumped by earlier higher-priority picks. Read-only; no side effects; safe to retry. Pack algorithm is greedy — predictable and explainable beats optimal-by-1-minute.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "forecast_pack",
   "arguments": {}
 }
 ```
