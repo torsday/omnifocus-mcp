@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  merge_group:
 
 # Read-only by default — this workflow just runs typecheck/lint/test/build.
 # Any future job that needs to write should grant write at the job level.
