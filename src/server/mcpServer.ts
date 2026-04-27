@@ -3,12 +3,13 @@
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
  * API from @modelcontextprotocol/sdk. Currently registers `internal_status`,
- * the five OmniFocus workflow prompts, the thirteen MCP resources, and 73 domain
+ * the five OmniFocus workflow prompts, the thirteen MCP resources, and 75 domain
  * tools across folder, tag, note, search, forecast, perspective, plugin,
- * sync, review, export, app, project, task, repetition, and attachment surfaces.
- * Two additional raw-script escape-hatch tools (`run_jxa_script`,
- * `run_omnijs_script`) register only when `OMNIFOCUS_ALLOW_RAW_SCRIPT=1`
- * (ADR-0004), bringing the wired surface to 75. Every registered tool is
+ * sync, review, export, app, project, task, repetition, attachment, and
+ * database surfaces. Two additional raw-script escape-hatch tools
+ * (`run_jxa_script`, `run_omnijs_script`) register only when
+ * `OMNIFOCUS_ALLOW_RAW_SCRIPT=1` (ADR-0004), bringing the wired surface to 77.
+ * Every registered tool is
  * wrapped in `assertNotShuttingDown → withCircuitBreaker → withRateLimitMeta
  * → withLoopDetection` via `installToolMiddleware` (#291), which runs once
  * before any `register*Tool` helper.
@@ -64,6 +65,8 @@ import {
 import { ALL_TOOL_DESCRIPTIONS } from "../tools/allDescriptions.js";
 import { registerAppLaunchTool } from "../tools/app/launch.js";
 import { registerAttachmentTools } from "../tools/attachment/index.js";
+import { registerDatabaseRedoTool } from "../tools/database/redo.js";
+import { registerDatabaseUndoTool } from "../tools/database/undo.js";
 import { registerExportOpmlTool } from "../tools/export/opml.js";
 import { registerImportOpmlTool } from "../tools/export/opml_import.js";
 import { registerTaskPaperTools } from "../tools/export/taskpaper.js";
@@ -330,6 +333,11 @@ export async function startServer(): Promise<void> {
   // every cached read after a sync is kicked off (docs/cache-invalidation.md).
   registerSyncStatusTool(server, { adapter, makeMeta });
   registerSyncTriggerTool(server, { adapter, makeMeta, cache: services.cache });
+
+  // Database undo/redo — full cache flush on success since OmniFocus's
+  // undo stack is opaque (we don't know what was reverted).
+  registerDatabaseUndoTool(server, { adapter, makeMeta, cache: services.cache });
+  registerDatabaseRedoTool(server, { adapter, makeMeta, cache: services.cache });
 
   // Review tools — four `{reviewService, makeMeta}` registrations.
   // ReviewService receives the shared cache so markReviewed/setInterval

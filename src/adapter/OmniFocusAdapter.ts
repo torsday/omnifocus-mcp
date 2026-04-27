@@ -470,6 +470,34 @@ export interface OmniFocusAdapter {
   syncTrigger(): Promise<SyncStatus>;
   getLastSync(): Promise<SyncStatus>;
 
+  // -- Database undo/redo ----------------------------------------------------
+
+  /**
+   * Reverse the most recent document mutation, identical to ⌘Z in the
+   * OmniFocus UI. Walks back one entry on the document's undo stack.
+   *
+   * The stack is per-document and shared across MCP calls; an undo will
+   * reverse whatever the most recent mutation was, regardless of source
+   * (MCP tool, manual UI edit, sync replay).
+   *
+   * Returns `{ undid: false }` when the undo stack was empty (no-op).
+   * Throws `ScriptError` for transport-level failures.
+   *
+   * @see #526
+   */
+  undoLastMutation(): Promise<{ undid: boolean }>;
+
+  /**
+   * Re-apply the most recently undone mutation. Mirrors `undoLastMutation`.
+   *
+   * Returns `{ redid: false }` when the redo stack was empty. Any mutation
+   * between an undo and a redo invalidates the redo stack (matching UI
+   * semantics).
+   *
+   * @see #526
+   */
+  redoLastMutation(): Promise<{ redid: boolean }>;
+
   // -- Forecast --------------------------------------------------------------
   getForecast(input: ForecastInput): Promise<ForecastResult>;
 
