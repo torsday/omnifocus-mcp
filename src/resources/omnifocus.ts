@@ -42,6 +42,7 @@ import { registerBurndownResource } from "./burndown.js";
 import { registerIntentsResource } from "./intents.js";
 import { registerRecentActivityResource } from "./recentActivity.js";
 import { registerRetrospectiveResource } from "./retrospective.js";
+import { registerStatsResource } from "./stats.js";
 import { registerTaxonomyAuditResource } from "./taxonomyAudit.js";
 import { registerVelocityResource } from "./velocity.js";
 
@@ -49,6 +50,7 @@ export { BURNDOWN_URI_TEMPLATE } from "./burndown.js";
 export { INTENTS_URI } from "./intents.js";
 export { RECENT_ACTIVITY_URI_TEMPLATE } from "./recentActivity.js";
 export { RETROSPECTIVE_URI_TEMPLATE } from "./retrospective.js";
+export { STATS_URI } from "./stats.js";
 export { TAXONOMY_AUDIT_URI } from "./taxonomyAudit.js";
 export { VELOCITY_URI_TEMPLATE } from "./velocity.js";
 
@@ -405,4 +407,7 @@ export function registerOmniFocusResources(server: McpServer, deps: OmniFocusRes
 
   // ── omnifocus://intents ──────────────────────────────────────────────────
   registerIntentsResource(server);
+
+  // ── omnifocus://stats ────────────────────────────────────────────────────
+  registerStatsResource(server, adapter);
 }

@@ -1137,6 +1137,7 @@ MCP resources are a distinct primitive from tools: read-only, enumerable via `re
 | `omnifocus://tag/{id}`         | Single tag with its tasks                                                                     | 30s LRU  |
 | `omnifocus://perspective/{id}` | Perspective evaluation result (built-in or custom)                                            | 30s LRU  |
 | `omnifocus://intents`          | Curated routing table mapping human-style user phrases to canonical tool/prompt/resource sequences (NL excellence layer — see below) | 24h |
+| `omnifocus://stats`            | Server-side aggregate counts: tasks, projects, inbox, tags, sync — for "how is my system doing?" queries without listing every record client-side | 60s |
 
 ### Semantics
 
@@ -1158,6 +1159,16 @@ Each intent carries a canonical user phrase, a list of aliases, a one-sentence d
 The point isn't to constrain the agent — it can still call any tool directly. The point is to **make the obvious paths obvious**, so the agent's first move on common intents is right. Use as a fallback when uncertain which tool fits, not as a gatekeeper.
 
 This resource also doubles as the discoverability surface: when a future agent asks "what can this server do?", reading `omnifocus://intents` gives a coherent answer organized by intent category, not by tool name. Part of the NL-excellence epic (#491).
+
+### Stalled-project definition
+
+`omnifocus://stats.projects.stalled_count` and `omnifocus://project-health` (#468) share a single definition. A project is **stalled** when ALL of:
+
+1. `status === "active"` (and not completed or dropped)
+2. ≥ **14 days** since the latest task activity in the project — `max(task.modifiedAt)` over the project's tasks, or the project's own `modifiedAt` if it has no tasks
+3. No defer date in the future (a deferred-into-the-future project is deliberately paused, not stalled)
+
+Single source of truth lives in `src/resources/stats.ts → isProjectStalled`. Future resources or tools using "stalled" semantics MUST reuse that predicate; do not redefine.
 
 ---
 
