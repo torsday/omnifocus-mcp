@@ -3,12 +3,12 @@
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
  * API from @modelcontextprotocol/sdk. Currently registers `internal_status`,
- * the five OmniFocus workflow prompts, the thirteen MCP resources, and 78 domain
+ * the five OmniFocus workflow prompts, the thirteen MCP resources, and 79 domain
  * tools across folder, tag, note, search, forecast, perspective, plugin,
  * sync, review, export, app, project, task, repetition, attachment, and
  * database surfaces. Two additional raw-script escape-hatch tools
  * (`run_jxa_script`, `run_omnijs_script`) register only when
- * `OMNIFOCUS_ALLOW_RAW_SCRIPT=1` (ADR-0004), bringing the wired surface to 80.
+ * `OMNIFOCUS_ALLOW_RAW_SCRIPT=1` (ADR-0004), bringing the wired surface to 81.
  * Every registered tool is
  * wrapped in `assertNotShuttingDown → withCircuitBreaker → withRateLimitMeta
  * → withLoopDetection` via `installToolMiddleware` (#291), which runs once
@@ -139,6 +139,7 @@ import { registerTaskCreateTool } from "../tools/task/create.js";
 import { registerTaskDeleteTool } from "../tools/task/delete.js";
 import { registerTaskDropTool } from "../tools/task/drop.js";
 import { registerTaskDuplicateTool } from "../tools/task/duplicate.js";
+import { registerTaskExtractFromImageTool } from "../tools/task/extractFromImage.js";
 import { registerTaskExtractFromNoteTool } from "../tools/task/extractFromNote.js";
 import { registerTaskFindByNameTool } from "../tools/task/findByName.js";
 import { registerTaskFindSimilarTool } from "../tools/task/findSimilar.js";
@@ -430,6 +431,10 @@ export async function startServer(): Promise<void> {
   registerTaskCompleteTool(server, taskMutationCtx);
   registerTaskDropTool(server, taskMutationCtx);
   registerTaskDuplicateTool(server, taskMutationCtx);
+  registerTaskExtractFromImageTool(server, {
+    ...taskMutationCtx,
+    attachmentService: services.attachmentService,
+  });
   registerTaskExtractFromNoteTool(server, taskMutationCtx);
   registerTaskConvertToProjectTool(server, taskMutationCtx);
   registerTaskMoveTool(server, taskMutationCtx);

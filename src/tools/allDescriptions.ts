@@ -79,6 +79,7 @@ import { TASK_CREATE_DESCRIPTION } from "./task/create.js";
 import { TASK_DELETE_DESCRIPTION } from "./task/delete.js";
 import { TASK_DROP_DESCRIPTION } from "./task/drop.js";
 import { TASK_DUPLICATE_DESCRIPTION } from "./task/duplicate.js";
+import { TASK_EXTRACT_FROM_IMAGE_DESCRIPTION } from "./task/extractFromImage.js";
 import { TASK_EXTRACT_FROM_NOTE_DESCRIPTION } from "./task/extractFromNote.js";
 import { TASK_FIND_BY_NAME_DESCRIPTION } from "./task/findByName.js";
 import { TASK_FIND_SIMILAR_DESCRIPTION } from "./task/findSimilar.js";
@@ -183,6 +184,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   task_clear_repetition: TASK_CLEAR_REPETITION_DESCRIPTION,
   task_delete: TASK_DELETE_DESCRIPTION,
   task_duplicate: TASK_DUPLICATE_DESCRIPTION,
+  task_extract_from_image: TASK_EXTRACT_FROM_IMAGE_DESCRIPTION,
   task_extract_from_note: TASK_EXTRACT_FROM_NOTE_DESCRIPTION,
   task_find_by_name: TASK_FIND_BY_NAME_DESCRIPTION,
   task_find_similar: TASK_FIND_SIMILAR_DESCRIPTION,
