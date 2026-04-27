@@ -95,6 +95,8 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     getWindowState: record("getWindowState"),
     setWindowPerspective: record("setWindowPerspective"),
     setWindowFocus: record("setWindowFocus"),
+    appWindowNew: record("appWindowNew"),
+    appWindowNewTab: record("appWindowNewTab"),
     pluginInvoke: record("pluginInvoke"),
     listPerspectives: record("listPerspectives"),
     evaluatePerspective: record("evaluatePerspective"),
@@ -202,6 +204,8 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
     getChangesSince: () => r.getChangesSince("2026-01-01T00:00:00.000Z"),
     runJxaScript: () => r.runJxaScript("noop"),
     runOmniJsScript: () => r.runOmniJsScript("noop"),
+    appWindowNew: () => r.appWindowNew(),
+    appWindowNewTab: () => r.appWindowNewTab(),
   };
 }
 
@@ -287,6 +291,8 @@ describe("TransportRouter — table integrity", () => {
       .map(([m]) => m)
       .sort();
     expect(omniJsRoutes).toEqual([
+      "appWindowNew", // OmniJS-only: document.newWindow() (#527)
+      "appWindowNewTab", // OmniJS-only: document.newTabOnWindow() (#527)
       "batchMoveTasks", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works
       "clearTaskAlarms", // Task.notifications mutation is OmniJS-only (#461)
       "convertTaskToProject", // OmniJS-only: Database.convertTasksToProjects()

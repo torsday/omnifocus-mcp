@@ -2,11 +2,13 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 99 tools registered.
+> Auto-generated from source. 101 tools registered.
 
 ## Table of contents
 
 - [app_launch](#app_launch)
+- [app_window_new](#app_window_new)
+- [app_window_new_tab](#app_window_new_tab)
 - [attachment_add](#attachment_add)
 - [attachment_list](#attachment_list)
 - [attachment_remove](#attachment_remove)
@@ -120,6 +122,68 @@ _No parameters._
 ```json
 {
   "toolName": "app_launch",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## app_window_new
+
+Open a new OmniFocus window via OmniJS document.newWindow(). **UI-affecting tool** — only meaningful when OmniFocus is running. Headless agents should not fire this. Use when the user asks 'open a new window' or a flow needs a fresh, unfocused OmniFocus window. Do NOT use to read task or project data — prefer task_list or project_list instead. Takes no arguments. Returns { perspectiveName: string | null, focusContainerIds: string[] } describing the new window's initial state. Errors: WINDOW_OPEN_FAILED when the window could not be created. Side effects: opens a new OmniFocus window; no data caches invalidated.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "app_window_new",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## app_window_new_tab
+
+Open a new tab on the front OmniFocus window via OmniJS document.newTabOnWindow(). **UI-affecting tool** — only meaningful when OmniFocus has an open window. Headless agents should not fire this. Use when the user asks 'open a new tab' or a flow needs an additional view in the existing window. Do NOT use to open a standalone window — prefer app_window_new instead. Takes no arguments. Returns { perspectiveName: string | null, focusContainerIds: string[] } describing the new tab's initial state. Errors: WINDOW_UNAVAILABLE when there is no open OmniFocus window; WINDOW_OPEN_FAILED when the tab could not be created. Side effects: opens a new tab in the front OmniFocus window; no data caches invalidated.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "app_window_new_tab",
   "arguments": {}
 }
 ```

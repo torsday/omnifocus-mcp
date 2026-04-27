@@ -955,6 +955,21 @@ export class JxaTransport implements OmniFocusAdapter {
   // -- Plug-in invocation ---------------------------------------------------
   // Plug-in invocation requires the OmniJS runtime; JXA has no API surface
   // for Omni Automation plug-ins. TransportRouter permanently routes
+  // appWindowNew / appWindowNewTab → OmniJsTransport (document.newWindow is OmniJS-only).
+  async appWindowNew(): Promise<{ perspectiveName: string | null; focusContainerIds: string[] }> {
+    throw new ScriptError("appWindowNew routes to OmniJsTransport — JXA transport unavailable", {
+      details: { transport: "jxa", reason: "routes-to-omnijs", method: "appWindowNew" },
+    });
+  }
+  async appWindowNewTab(): Promise<{
+    perspectiveName: string | null;
+    focusContainerIds: string[];
+  }> {
+    throw new ScriptError("appWindowNewTab routes to OmniJsTransport — JXA transport unavailable", {
+      details: { transport: "jxa", reason: "routes-to-omnijs", method: "appWindowNewTab" },
+    });
+  }
+
   // pluginInvoke → OmniJsTransport (router.ts ROUTING_TABLE). This stub
   // satisfies the OmniFocusAdapter interface but should never be reached in
   // production. It throws a ScriptError (not notYetWired) so accidental

@@ -96,6 +96,8 @@ import { TASK_UNCOMPLETE_DESCRIPTION } from "./task/uncomplete.js";
 import { TASK_UNDROP_DESCRIPTION } from "./task/undrop.js";
 import { TASK_UPDATE_DESCRIPTION } from "./task/update.js";
 import {
+  APP_WINDOW_NEW_DESCRIPTION,
+  APP_WINDOW_NEW_TAB_DESCRIPTION,
   WINDOW_GET_STATE_DESCRIPTION,
   WINDOW_SET_FOCUS_DESCRIPTION,
   WINDOW_SET_PERSPECTIVE_DESCRIPTION,
@@ -198,6 +200,8 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   task_uncomplete: TASK_UNCOMPLETE_DESCRIPTION,
   task_undrop: TASK_UNDROP_DESCRIPTION,
   task_update: TASK_UPDATE_DESCRIPTION,
+  app_window_new: APP_WINDOW_NEW_DESCRIPTION,
+  app_window_new_tab: APP_WINDOW_NEW_TAB_DESCRIPTION,
   window_get_state: WINDOW_GET_STATE_DESCRIPTION,
   window_set_focus: WINDOW_SET_FOCUS_DESCRIPTION,
   window_set_perspective: WINDOW_SET_PERSPECTIVE_DESCRIPTION,
