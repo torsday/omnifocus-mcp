@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# Fail if any living doc restates the count of registered MCP tools.
+#
+# Why this exists (#478): the count drifts every release. Maintainers update
+# one doc, miss four others. The capabilities resource (`omnifocus://capabilities`)
+# and `internal_status` already report the live count at runtime — anything
+# in prose is a copy that decays.
+#
+# Policy: docs describe the *shape* of the tool surface (domains, patterns,
+# verbs), not a numeric *count*. Numbers in markdown rot; descriptions of
+# shape don't.
+#
+# Allowlist: files that legitimately carry a tool count are exempt. The
+# allowlist is small on purpose — adding to it should be deliberate.
+#
+#   - CHANGELOG.md             — historical release entries; dated snapshots
+#   - docs/tools.md            — auto-generated from source by
+#                                scripts/generate-tool-docs.ts; the count
+#                                IS the live truth, regenerated on every build
+#   - docs/validation/**       — dated audit / validation reports (point-in-time)
+#   - docs/llm-readability-review-v1.md — versioned snapshot (the `-v1` is
+#                                the tell)
+#
+# Wired into meta-lint.yml's `no-tool-counts` job so every PR that touches
+# docs catches a regression at PR time.
+#
+# Detects: integers (with optional `+`) followed by `tool` or `tools` within
+# a small word window. Examples that fail:
+#   - "80 tools"
+#   - "60+ tools"
+#   - "82 MCP tools"
+#   - "65+ tools all touch …"
+# Examples that pass (the regex requires `tool[s]?` immediately or via a
+# bounded modifier word like "MCP"):
+#   - "65 tasks" — different noun
+#   - "the project has 5 toolchains" — `toolchain`, not `tool`/`tools`
+
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+ALLOWLIST=(
+  "CHANGELOG.md"
+  "docs/tools.md"
+  "docs/llm-readability-review-v1.md"
+)
+# Directory-prefix allowlist — anything under these is exempt.
+ALLOWLIST_PREFIXES=(
+  "docs/validation/"
+)
+
+# Files to scan: every Markdown file at the repo root or under docs/, except
+# the allowlist. Globbing with bash 3.2 (macOS default), so build the list
+# explicitly rather than relying on `**`.
+files=()
+while IFS= read -r f; do
+  skip=false
+  for allowed in "${ALLOWLIST[@]}"; do
+    [ "$f" = "$allowed" ] && skip=true && break
+  done
+  if [ "$skip" = false ]; then
+    for prefix in "${ALLOWLIST_PREFIXES[@]}"; do
+      case "$f" in
+        "$prefix"*) skip=true; break ;;
+      esac
+    done
+  fi
+  $skip || files+=("$f")
+done < <(git ls-files '*.md' 'docs/**/*.md' | sort -u)
+
+# The pattern: a digit run, optional `+`, optional whitespace + a single
+# bridge word, then `tool` or `tools` as a whole word. The bridge-word slot
+# tolerates the natural prose "80 MCP tools" / "60 registered tools" without
+# opening up to "65 tasks" or "5 toolchains".
+#
+# `(MCP[[:space:]]+|registered[[:space:]]+|of[[:space:]]+)?` — small allowlist
+# of bridge words. Add others only if real doc prose surfaces them.
+PATTERN='\b[0-9]+\+?[[:space:]]+(MCP[[:space:]]+|registered[[:space:]]+|of[[:space:]]+)?tools?\b'
+
+hits=$(grep -nIE "$PATTERN" "${files[@]}" 2>/dev/null || true)
+
+# Filter: ignore matches inside fenced code blocks would be ideal but expensive
+# in pure bash. Instead, keep the regex narrow enough that real code references
+# (e.g. `tool_name: "task_list"`) don't match — they wouldn't anyway, since
+# the regex requires a number-then-tool sequence, not a name.
+
+if [ -z "$hits" ]; then
+  echo "ok: no tool-count strings in living docs"
+  exit 0
+fi
+
+cat <<EOF >&2
+Tool-count strings detected in living docs. Per #478 (the policy that
+introduced this lint), prose docs should describe the SHAPE of the tool
+surface ("comprehensive surface across tasks, projects, tags, folders,
+…"), not the COUNT. Numbers in markdown rot; the shape doesn't.
+
+The live count is in \`omnifocus://capabilities\` and \`internal_status\`
+at runtime, and \`docs/tools.md\` (auto-generated, allowlisted) carries
+it on every build.
+
+Offending lines:
+$hits
+
+To fix:
+  - Reword to a shape description, OR
+  - Remove the sentence if the count was the whole point, OR
+  - If this file is genuinely a dated snapshot that should be exempt
+    (like CHANGELOG.md or a validation report), add it to the allowlist
+    in scripts/verify-no-tool-counts.sh with a one-line rationale.
+EOF
+exit 1

@@ -9,9 +9,9 @@
 
 MCP tools are the API the LLM agent sees. Two dimensions of decision: (1) **granularity** — few broad tools vs many narrow ones — and (2) **naming** — flat, hierarchical, or namespaced.
 
-Empirically, modern agent models handle 50+ tools well if descriptions are clear and names are predictable. The failure mode of "few broad tools" is complex nested schemas the agent has to interpret; the failure mode of "many narrow tools" is name-space pollution where near-duplicates confuse the agent.
+Empirically, modern agent models handle wide tool surfaces well if descriptions are clear and names are predictable. The failure mode of "few broad tools" is complex nested schemas the agent has to interpret; the failure mode of "many narrow tools" is name-space pollution where near-duplicates confuse the agent.
 
-Full OmniFocus coverage implies ~60–70 operations. We must choose a shape before writing any tool handlers; retrofitting the shape later means renaming every tool (which is a breaking change to anyone using the MCP).
+Full OmniFocus coverage implies a sizeable verb-per-noun surface. We must choose a shape before writing any tool handlers; retrofitting the shape later means renaming every tool (which is a breaking change to anyone using the MCP).
 
 ## Decision
 

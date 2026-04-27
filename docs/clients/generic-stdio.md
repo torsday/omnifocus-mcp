@@ -103,7 +103,7 @@ Send **SIGTERM** or **SIGINT** to the process. It will:
 
 ## Verifying connectivity
 
-After connection, call `tools/list` — you should see 60+ tools. Then call `internal_status`:
+After connection, call `tools/list` — you should see the full registered tool list (live count is published at `omnifocus://capabilities`). Then call `internal_status`:
 
 ```json
 {

@@ -25,6 +25,7 @@ Inherited from [`coding.md`](https://github.com/torsday/llm_prompts/blob/main/co
 - Error messages answer: what operation, which IDs, why, what to do next
 - Goldilocks testing — enough to catch real bugs, not so many the suite is a burden
 - Every public method has a docblock with `@param` / `@returns` / `@throws`
+- **Don't restate the tool count in prose.** Living docs describe the shape of the tool surface (domains, verbs, patterns), not the integer count. The live count lives at `omnifocus://capabilities` and `internal_status` at runtime, plus `docs/tools.md` (auto-generated). See DESIGN.md §6.8.1 — `scripts/verify-no-tool-counts.sh` enforces this in CI.
 
 ## Workflow
 

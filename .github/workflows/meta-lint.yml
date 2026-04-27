@@ -21,6 +21,7 @@ on:
     paths:
       - "scripts/**"
       - ".github/workflows/**"
+      - "**/*.md"
 
 permissions:
   contents: read
@@ -68,3 +69,17 @@ jobs:
       - uses: actions/checkout@v6
       - name: Verify no GitHub-hosted runners are referenced
         run: scripts/verify-no-hosted-runners.sh
+
+  no-tool-counts:
+    # Regression guard — fails if any living doc restates the count of
+    # registered MCP tools. Per #478, prose docs describe the SHAPE of
+    # the tool surface; the COUNT lives at `omnifocus://capabilities`
+    # and `internal_status` at runtime, plus `docs/tools.md` (auto-
+    # generated, allowlisted). Every release used to touch one doc and
+    # miss four others; this guard removes the regression class.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, macos]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Verify no tool-count strings in living docs
+        run: scripts/verify-no-tool-counts.sh

@@ -101,7 +101,7 @@ We must cover the full OmniFocus feature surface (per `project_scope.md`) via MC
 | Option | Approach | Fits when | Tradeoffs |
 | ------ | -------- | --------- | --------- |
 | A. Few, powerful tools | 8–12 generic tools with wide schemas (`omnifocus_query`, `omnifocus_mutate`) | Want small tool list | Agent must understand complex nested schemas; tool descriptions become essays; error disambiguation is hard |
-| **B. Many, narrow tools with consistent verbs** | ~60–70 tools: `task_list`, `task_create`, `task_update`, …, `project_list`, … | Want LLM-friendly discoverability | Larger tool count (agents now handle 60+ fine); more handler boilerplate (mitigated by patterns) |
+| **B. Many, narrow tools with consistent verbs** | A wide surface of `<noun>_<verb>` tools: `task_list`, `task_create`, `task_update`, …, `project_list`, … | Want LLM-friendly discoverability | Larger tool surface (modern agents handle wide surfaces fine); more handler boilerplate (mitigated by patterns) |
 | C. Split across multiple MCP servers | Read-server + write-server (or per-noun servers) | Want privilege separation | User configures multiple servers; more ops surface; premature for a single-user tool |
 
 **Recommendation: Option B, with namespaced `<noun>_<verb>` naming.** Recorded as **ADR-0003**.
@@ -371,6 +371,19 @@ Side effects: Read-only. Safe to retry. Cached for 30s.
 ```
 
 The linter test (TASKS #78) asserts every tool description includes all four sections. The Success Criteria (SPEC) includes an LLM-readability review: a fresh Claude instance must pick the correct tool for 20 representative prompts without additional context.
+
+### 6.8.1 Tool-count policy (#478)
+
+Living docs describe the **shape** of the tool surface (domains, verbs, patterns), never the **count**. The capabilities resource (`omnifocus://capabilities`) and `internal_status` publish the live count at runtime; `docs/tools.md` is auto-generated from `ALL_TOOL_DESCRIPTIONS` on every build. Anything else is a copy that decays.
+
+This policy is enforced by `scripts/verify-no-tool-counts.sh`, wired into `meta-lint.yml`. The lint allowlist covers genuinely-dated artifacts:
+
+- `CHANGELOG.md` — historical release entries are point-in-time
+- `docs/tools.md` — auto-generated; the count IS the live truth, regenerated per build
+- `docs/validation/**` — dated audit / readability reports
+- `docs/llm-readability-review-v1.md` — versioned snapshot
+
+Add to the allowlist only with a one-line rationale per entry; rewording is almost always cheaper.
 
 ### 6.9 Observability
 
