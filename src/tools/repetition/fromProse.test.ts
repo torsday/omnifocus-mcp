@@ -8,7 +8,8 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import type { ResponseMeta } from "../../envelope/index.js";
+import { isClarificationNeeded, type ResponseMeta } from "../../envelope/index.js";
+import { ReplayStore } from "../../state/replayStore.js";
 
 import { handleRepetitionFromProse, registerRepetitionFromProseTool } from "./fromProse.js";
 
@@ -32,11 +33,30 @@ describe("handleRepetitionFromProse", () => {
     expect(env.data.rule).toEqual({ method: "fixed", unit: "weeks", steps: 1 });
   });
 
-  it("wraps an ambiguous parse in an ok envelope (the result is the ambiguity)", async () => {
-    const env = await handleRepetitionFromProse({ prose: "every other Tuesday" }, ctx);
-    expect("data" in env).toBe(true);
-    if (!("data" in env)) return;
-    expect(env.data.kind).toBe("ambiguous");
+  it("returns clarification-needed for an ambiguous parse", async () => {
+    const store = new ReplayStore(60_000);
+    const ctxWithStore = { makeMeta: () => META, replayStore: store };
+    const env = await handleRepetitionFromProse({ prose: "every other Tuesday" }, ctxWithStore);
+    expect(isClarificationNeeded(env)).toBe(true);
+    if (!isClarificationNeeded(env)) return;
+    expect(env.kind).toBe("clarification-needed");
+    expect(env.options).toBeDefined();
+    // biome-ignore lint/style/noNonNullAssertion: toBeDefined asserted above
+    expect(env.options!.length).toBeGreaterThan(0);
+    expect(typeof env.replayToken).toBe("string");
+  });
+
+  it("replaying an ambiguous clarification returns an ok envelope with the chosen rule", async () => {
+    const store = new ReplayStore(60_000);
+    const ctxWithStore = { makeMeta: () => META, replayStore: store };
+    const env = await handleRepetitionFromProse({ prose: "every other Tuesday" }, ctxWithStore);
+    if (!isClarificationNeeded(env)) throw new Error("expected clarification-needed");
+
+    const entry = store.consume(env.replayToken);
+    if (!entry) throw new Error("token not found");
+    const result = (await entry.callback(0)) as Record<string, unknown>;
+    expect("data" in result).toBe(true);
+    expect((result as { data: { kind: string } }).data.kind).toBe("ok");
   });
 
   it("wraps an error parse in an ok envelope (the parse error is the result, not a tool error)", async () => {

@@ -222,8 +222,65 @@ export interface ToolError {
   meta: ResponseMeta;
 }
 
-/** Either success or failure. Discriminated by presence of `data` vs `error`. */
-export type ToolEnvelope<T> = ToolSuccess<T> | ToolError;
+// ---------------------------------------------------------------------------
+// Public contract — ClarificationNeeded (ADR-0015)
+// ---------------------------------------------------------------------------
+
+/**
+ * A pre-validated, agent-renderable choice in a `clarification-needed` response.
+ *
+ * Agents MUST present all options verbatim to the user — they must never
+ * silently auto-pick option 0 without user contact (see lint guidance #489).
+ */
+export interface ClarificationOption {
+  /** Zero-based index passed as `choice` when calling `clarify`. */
+  index: number;
+  /** Human-readable label rendered verbatim to the user. */
+  label: string;
+}
+
+/**
+ * Third envelope kind — emitted when a tool cannot resolve ambiguity
+ * deterministically and needs user input before proceeding.
+ *
+ * Agent contract:
+ * 1. Render `question` and `options` to the user.
+ * 2. Call the `clarify` tool with `{ replayToken, choice }` using the index
+ *    of the option the user selected.
+ * 3. The server replays the original tool with the disambiguation applied.
+ *
+ * `partial` carries the args the user already supplied unambiguously so the
+ * agent's next call doesn't have to reconstruct them (the `clarify` tool
+ * handles reconstruction internally via the replay store).
+ *
+ * `replayToken` is opaque, expires in 5 minutes, and is single-use.
+ * Agents must NOT persist or cache tokens across sessions.
+ *
+ * @see ADR-0015 — three-kind envelope
+ * @see src/tools/clarify.ts — `clarify` dispatcher tool
+ * @see src/state/replayStore.ts — token store
+ */
+export interface ClarificationNeeded {
+  kind: "clarification-needed";
+  /** Question the agent renders verbatim to the user. */
+  question: string;
+  /**
+   * Pre-validated choices the agent renders verbatim. Absent only when the
+   * clarification is open-ended (rare — prefer options when feasible).
+   */
+  options?: ClarificationOption[];
+  /**
+   * The unambiguous args the user already supplied. Informational only —
+   * the replay store handles re-invocation.
+   */
+  partial?: Record<string, unknown>;
+  /** Opaque server-issued token. Pass to `clarify` with the chosen index. */
+  replayToken: string;
+  meta: ResponseMeta;
+}
+
+/** Either success, failure, or clarification-needed. */
+export type ToolEnvelope<T> = ToolSuccess<T> | ToolError | ClarificationNeeded;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -274,6 +331,34 @@ export function err(error: OmniFocusError, meta: ResponseMeta): ToolError {
   };
 }
 
+/**
+ * Build a `clarification-needed` envelope.
+ *
+ * @param question - Rendered verbatim to the user by the agent.
+ * @param replayToken - Opaque token from the replay store.
+ * @param meta - Request-scoped metadata (same as for `ok`).
+ * @param options - Pre-validated choices (highly recommended over open-ended).
+ * @param partial - The unambiguous args already supplied by the user.
+ * @returns A `ClarificationNeeded` envelope matching the ADR-0015 contract.
+ */
+export function clarificationNeeded(
+  question: string,
+  replayToken: string,
+  meta: ResponseMeta,
+  options?: ClarificationOption[],
+  partial?: Record<string, unknown>,
+): ClarificationNeeded {
+  const envelope: ClarificationNeeded = {
+    kind: "clarification-needed",
+    question,
+    replayToken,
+    meta,
+  };
+  if (options !== undefined && options.length > 0) envelope.options = options;
+  if (partial !== undefined && Object.keys(partial).length > 0) envelope.partial = partial;
+  return envelope;
+}
+
 /** Narrowing guard for consumers that see `ToolEnvelope<T>` and need to branch. */
 export function isSuccess<T>(envelope: ToolEnvelope<T>): envelope is ToolSuccess<T> {
   return "data" in envelope;
@@ -282,6 +367,13 @@ export function isSuccess<T>(envelope: ToolEnvelope<T>): envelope is ToolSuccess
 /** Complement of `isSuccess` for symmetry. */
 export function isError<T>(envelope: ToolEnvelope<T>): envelope is ToolError {
   return "error" in envelope;
+}
+
+/** Narrowing guard for `clarification-needed` envelopes. */
+export function isClarificationNeeded<T>(
+  envelope: ToolEnvelope<T>,
+): envelope is ClarificationNeeded {
+  return "kind" in envelope && (envelope as ClarificationNeeded).kind === "clarification-needed";
 }
 
 /**
