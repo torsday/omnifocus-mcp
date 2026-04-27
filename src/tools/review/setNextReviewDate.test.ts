@@ -1,0 +1,80 @@
+/**
+ * Unit tests for project_set_next_review_date — covers happy path, clear,
+ * past-dated values, and cache-invalidation behavior on success/failure.
+ */
+
+import { describe, expect, it, vi } from "vitest";
+import { ProjectId as ProjectIdCtor } from "../../domain/ids.js";
+import { NotFound } from "../../errors/index.js";
+import { ReviewService } from "../../services/reviewService.js";
+import { handleProjectSetNextReviewDate } from "./setNextReviewDate.js";
+
+function makeCtx(opts: { setRejects?: Error } = {}) {
+  const setProjectNextReviewDate = vi.fn();
+  if (opts.setRejects) {
+    setProjectNextReviewDate.mockRejectedValue(opts.setRejects);
+  } else {
+    setProjectNextReviewDate.mockResolvedValue(undefined);
+  }
+  const adapter = {
+    setProjectNextReviewDate,
+  } as unknown as ConstructorParameters<typeof ReviewService>[0]["adapter"];
+  const cache = { invalidate: vi.fn() };
+  return {
+    reviewService: new ReviewService({ adapter, cache }),
+    cache,
+    makeMeta: () => ({}) as never,
+    _setSpy: setProjectNextReviewDate,
+  };
+}
+
+const PROJECT = ProjectIdCtor.of("proj-abc123");
+
+describe("handleProjectSetNextReviewDate", () => {
+  it("sets a future review date and invalidates the project cache", async () => {
+    const ctx = makeCtx();
+    const env = await handleProjectSetNextReviewDate(
+      { projectId: PROJECT, nextReviewDate: "2026-12-31T00:00:00.000Z" },
+      ctx,
+    );
+    expect(env.data).toEqual({ id: PROJECT });
+    expect(ctx._setSpy).toHaveBeenCalledWith(PROJECT, "2026-12-31T00:00:00.000Z");
+    // invalidateProjectMutation issues multiple invalidations; assert at least
+    // the project namespace is hit.
+    expect(ctx.cache.invalidate).toHaveBeenCalled();
+  });
+
+  it("clears the review schedule when nextReviewDate is null", async () => {
+    const ctx = makeCtx();
+    const env = await handleProjectSetNextReviewDate(
+      { projectId: PROJECT, nextReviewDate: null },
+      ctx,
+    );
+    expect(env.data).toEqual({ id: PROJECT });
+    expect(ctx._setSpy).toHaveBeenCalledWith(PROJECT, null);
+    expect(ctx.cache.invalidate).toHaveBeenCalled();
+  });
+
+  it("accepts past-dated values (matches OmniFocus UX of immediate overdue)", async () => {
+    const ctx = makeCtx();
+    const past = "2024-01-01T00:00:00.000Z";
+    const env = await handleProjectSetNextReviewDate(
+      { projectId: PROJECT, nextReviewDate: past },
+      ctx,
+    );
+    expect(env.data).toEqual({ id: PROJECT });
+    expect(ctx._setSpy).toHaveBeenCalledWith(PROJECT, past);
+  });
+
+  it("propagates NotFound when the project does not exist", async () => {
+    const ctx = makeCtx({ setRejects: new NotFound("Project not found: proj-missing") });
+    await expect(
+      handleProjectSetNextReviewDate(
+        { projectId: ProjectIdCtor.of("proj-missing"), nextReviewDate: null },
+        ctx,
+      ),
+    ).rejects.toBeInstanceOf(NotFound);
+    // Cache must NOT be invalidated on failure
+    expect(ctx.cache.invalidate).not.toHaveBeenCalled();
+  });
+});

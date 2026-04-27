@@ -394,6 +394,15 @@ export interface OmniFocusAdapter {
   listProjectsDueForReview(): Promise<Project[]>;
   /** Set a project's review interval. days=null removes the schedule. */
   setProjectReviewInterval(id: ProjectId, days: number | null): Promise<void>;
+  /**
+   * Set a project's next review date directly — independent of the recurring
+   * interval. Pass `null` to clear (project shows up as not scheduled).
+   * Past-dated values surface the project as overdue immediately.
+   *
+   * @throws NotFound — when no project with this ID exists
+   * @see #467
+   */
+  setProjectNextReviewDate(id: ProjectId, nextReviewDate: string | null): Promise<void>;
 
   // -- Tags ------------------------------------------------------------------
 

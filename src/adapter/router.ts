@@ -125,6 +125,7 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   markProjectReviewed: "jxa",
   listProjectsDueForReview: "jxa",
   setProjectReviewInterval: "jxa",
+  setProjectNextReviewDate: "jxa",
 
   // -- Tags -----------------------------------------------------------------
   listTags: "jxa",
@@ -368,6 +369,12 @@ export class TransportRouter implements OmniFocusAdapter {
     days: number | null,
   ): Promise<void> {
     return this.pick("setProjectReviewInterval").setProjectReviewInterval(id, days);
+  }
+  setProjectNextReviewDate(
+    id: import("../domain/ids.js").ProjectId,
+    nextReviewDate: string | null,
+  ): Promise<void> {
+    return this.pick("setProjectNextReviewDate").setProjectNextReviewDate(id, nextReviewDate);
   }
 
   // -- Tags -----------------------------------------------------------------

@@ -44,6 +44,7 @@ import { REVIEW_LIST_DUE_DESCRIPTION } from "./review/listDue.js";
 import { REVIEW_MARK_REVIEWED_DESCRIPTION } from "./review/markReviewed.js";
 import { PROJECT_MARK_REVIEWED_DESCRIPTION } from "./review/projectMarkReviewed.js";
 import { REVIEW_SET_INTERVAL_DESCRIPTION } from "./review/setInterval.js";
+import { PROJECT_SET_NEXT_REVIEW_DATE_DESCRIPTION } from "./review/setNextReviewDate.js";
 import { SEARCH_QUERY_DESCRIPTION } from "./search/query.js";
 import { SYNC_STATUS_DESCRIPTION } from "./sync/status.js";
 import { SYNC_TRIGGER_DESCRIPTION } from "./sync/trigger.js";
@@ -128,6 +129,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   project_update: PROJECT_UPDATE_DESCRIPTION,
   review_list_due: REVIEW_LIST_DUE_DESCRIPTION,
   review_mark_reviewed: REVIEW_MARK_REVIEWED_DESCRIPTION,
+  project_set_next_review_date: PROJECT_SET_NEXT_REVIEW_DATE_DESCRIPTION,
   review_set_interval: REVIEW_SET_INTERVAL_DESCRIPTION,
   run_jxa_script: RUN_JXA_SCRIPT_DESCRIPTION,
   run_omnijs_script: RUN_OMNIJS_SCRIPT_DESCRIPTION,

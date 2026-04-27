@@ -103,6 +103,7 @@ import { registerReviewListDueTool } from "../tools/review/listDue.js";
 import { registerReviewMarkReviewedTool } from "../tools/review/markReviewed.js";
 import { registerProjectMarkReviewedTool } from "../tools/review/projectMarkReviewed.js";
 import { registerReviewSetIntervalTool } from "../tools/review/setInterval.js";
+import { registerProjectSetNextReviewDateTool } from "../tools/review/setNextReviewDate.js";
 import { registerSearchQueryTool } from "../tools/search/query.js";
 import { registerSyncStatusTool } from "../tools/sync/status.js";
 import { registerSyncTriggerTool } from "../tools/sync/trigger.js";
@@ -329,6 +330,7 @@ export async function startServer(): Promise<void> {
   registerReviewMarkReviewedTool(server, reviewCtx);
   registerProjectMarkReviewedTool(server, reviewCtx);
   registerReviewSetIntervalTool(server, reviewCtx);
+  registerProjectSetNextReviewDateTool(server, reviewCtx);
 
   // Export — opml + taskpaper (taskpaper helper registers both
   // export_taskpaper and import_taskpaper).

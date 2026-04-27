@@ -71,6 +71,7 @@ import projectGetManyScript from "../../scripts/jxa/project_get_many.js";
 import projectListScript from "../../scripts/jxa/project_list.js";
 import projectMarkReviewedScript from "../../scripts/jxa/project_mark_reviewed.js";
 import projectMoveScript from "../../scripts/jxa/project_move.js";
+import projectSetNextReviewDateScript from "../../scripts/jxa/project_set_next_review_date.js";
 import projectSetReviewIntervalScript from "../../scripts/jxa/project_set_review_interval.js";
 import projectUpdateScript from "../../scripts/jxa/project_update.js";
 import reviewListDueScript from "../../scripts/jxa/review_list_due.js";
@@ -577,6 +578,14 @@ export class JxaTransport implements OmniFocusAdapter {
       projectSetReviewIntervalScript,
       { id, days },
       { ...this.runOpts, scriptName: "project_set_review_interval" },
+    );
+  }
+
+  async setProjectNextReviewDate(id: ProjectId, nextReviewDate: string | null): Promise<void> {
+    await runJxaScript<{ id: string }>(
+      projectSetNextReviewDateScript,
+      { id, nextReviewDate },
+      { ...this.runOpts, scriptName: "project_set_next_review_date" },
     );
   }
 
