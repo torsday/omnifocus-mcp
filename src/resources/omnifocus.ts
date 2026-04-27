@@ -38,13 +38,17 @@ import type { ForecastService } from "../services/forecastService.js";
 import type { PerspectiveService } from "../services/perspectiveService.js";
 import type { ProjectService } from "../services/projectService.js";
 import type { ReviewService } from "../services/reviewService.js";
+import { registerBurndownResource } from "./burndown.js";
 import { registerRecentActivityResource } from "./recentActivity.js";
 import { registerRetrospectiveResource } from "./retrospective.js";
 import { registerTaxonomyAuditResource } from "./taxonomyAudit.js";
+import { registerVelocityResource } from "./velocity.js";
 
+export { BURNDOWN_URI_TEMPLATE } from "./burndown.js";
 export { RECENT_ACTIVITY_URI_TEMPLATE } from "./recentActivity.js";
 export { RETROSPECTIVE_URI_TEMPLATE } from "./retrospective.js";
 export { TAXONOMY_AUDIT_URI } from "./taxonomyAudit.js";
+export { VELOCITY_URI_TEMPLATE } from "./velocity.js";
 
 // ---------------------------------------------------------------------------
 // Dependency bundle
@@ -390,4 +394,10 @@ export function registerOmniFocusResources(server: McpServer, deps: OmniFocusRes
 
   // ── omnifocus://taxonomy-audit ────────────────────────────────────────────
   registerTaxonomyAuditResource(server, adapter);
+
+  // ── omnifocus://velocity{?weeks} ─────────────────────────────────────────
+  registerVelocityResource(server, adapter);
+
+  // ── omnifocus://burndown/{projectId} ─────────────────────────────────────
+  registerBurndownResource(server, adapter);
 }
