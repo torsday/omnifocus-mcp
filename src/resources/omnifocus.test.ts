@@ -112,9 +112,46 @@ function makeHarness() {
 // ---------------------------------------------------------------------------
 
 describe("registerOmniFocusResources — registration", () => {
-  it("registers exactly 17 resources", () => {
+  // Sanity floor only — exact count is the wrong invariant. Per #512, hard-
+  // coding the count made this assertion a coordination point: every
+  // resource-adding PR conflicted with every other one. We test that the
+  // expected resources are registered, not that the total equals N.
+  it("registers a non-empty set of resources", () => {
     const { registered } = makeHarness();
-    expect(registered).toHaveLength(17);
+    expect(registered.length).toBeGreaterThan(0);
+  });
+
+  // Per-resource named assertions cover the surface that the count assertion
+  // implicitly covered. Adding a resource adds a single it() block here, not
+  // a numeric edit — orthogonal to other PRs that add resources.
+  it("registers every resource that registerOmniFocusResources is responsible for", () => {
+    const { registered } = makeHarness();
+    const names = registered.map((r) => r.name);
+    // Every name registered by `registerOmniFocusResources`. Templates and
+    // static URIs both surface here. `omnifocus-capabilities` is registered
+    // by a separate function and is not in this set.
+    const expected = [
+      "omnifocus-snapshot",
+      "omnifocus-inbox",
+      "omnifocus-forecast-today",
+      "omnifocus-overdue",
+      "omnifocus-flagged",
+      "omnifocus-review-due",
+      "omnifocus-project",
+      "omnifocus-tag",
+      "omnifocus-perspective",
+      "omnifocus-tasks-inbox",
+      "omnifocus-tasks-by-project",
+      "omnifocus-tasks-by-tag",
+      "omnifocus-recent-activity",
+      "omnifocus-retrospective",
+      "omnifocus-taxonomy-audit",
+      "omnifocus-velocity",
+      "omnifocus-burndown",
+    ];
+    for (const name of expected) {
+      expect(names, `expected ${name} to be registered`).toContain(name);
+    }
   });
 
   it("registers omnifocus-snapshot with the correct URI", () => {
