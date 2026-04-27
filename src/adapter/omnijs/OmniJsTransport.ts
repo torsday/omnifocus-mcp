@@ -48,8 +48,10 @@ import forecastSetTagScript from "../../scripts/omnijs/forecast_set_tag.js";
 import perspectiveEvaluateScript from "../../scripts/omnijs/perspective_evaluate.js";
 import pluginInvokeScript from "../../scripts/omnijs/plugin_invoke.js";
 import taskBatchMoveScript from "../../scripts/omnijs/task_batch_move.js";
+import taskClearAlarmsScript from "../../scripts/omnijs/task_clear_alarms.js";
 import taskMoveScript from "../../scripts/omnijs/task_move.js";
 import taskReorderScript from "../../scripts/omnijs/task_reorder.js";
+import taskSetAlarmsScript from "../../scripts/omnijs/task_set_alarms.js";
 import type {
   CreateFolderInput,
   CreateProjectInput,
@@ -453,6 +455,64 @@ export class OmniJsTransport implements OmniFocusAdapter {
       });
     }
     return { redid: result.redid };
+  }
+
+  // -- Task alarms ----------------------------------------------------------
+  // Wrap Task.notifications via OmniJS addNotification / removeFromContainer.
+  async setTaskAlarms(
+    id: TaskId,
+    alarms: import("../../domain/task.js").TaskAlarm[],
+  ): Promise<void> {
+    const result = await runOmniJsScript<
+      { ok: true } | { error: { code: string; message: string } }
+    >(
+      taskSetAlarmsScript,
+      { taskId: String(id), alarms },
+      { ...this.runOpts, scriptName: "task_set_alarms" },
+    );
+    if (isScriptError(result)) {
+      if (result.error.code === "NOT_FOUND") {
+        throw new NotFound(result.error.message, {
+          details: { transport: "omnijs", scriptName: "task_set_alarms" },
+        });
+      }
+      if (result.error.code === "VALIDATION") {
+        throw new ValidationError(result.error.message, {
+          details: { transport: "omnijs", scriptName: "task_set_alarms" },
+        });
+      }
+      throw new ScriptError(result.error.message, {
+        details: {
+          transport: "omnijs",
+          scriptName: "task_set_alarms",
+          code: result.error.code,
+        },
+      });
+    }
+  }
+
+  async clearTaskAlarms(id: TaskId): Promise<void> {
+    const result = await runOmniJsScript<
+      { ok: true } | { error: { code: string; message: string } }
+    >(
+      taskClearAlarmsScript,
+      { taskId: String(id) },
+      { ...this.runOpts, scriptName: "task_clear_alarms" },
+    );
+    if (isScriptError(result)) {
+      if (result.error.code === "NOT_FOUND") {
+        throw new NotFound(result.error.message, {
+          details: { transport: "omnijs", scriptName: "task_clear_alarms" },
+        });
+      }
+      throw new ScriptError(result.error.message, {
+        details: {
+          transport: "omnijs",
+          scriptName: "task_clear_alarms",
+          code: result.error.code,
+        },
+      });
+    }
   }
 
   // -- App lifecycle --------------------------------------------------------

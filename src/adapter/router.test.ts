@@ -106,6 +106,8 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     getLastSync: record("getLastSync"),
     undoLastMutation: record("undoLastMutation"),
     redoLastMutation: record("redoLastMutation"),
+    setTaskAlarms: record("setTaskAlarms"),
+    clearTaskAlarms: record("clearTaskAlarms"),
     getChangesSince: record("getChangesSince"),
     runJxaScript: record("runJxaScript"),
     runOmniJsScript: record("runOmniJsScript"),
@@ -193,6 +195,8 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
     getLastSync: () => r.getLastSync(),
     undoLastMutation: () => r.undoLastMutation(),
     redoLastMutation: () => r.redoLastMutation(),
+    setTaskAlarms: () => r.setTaskAlarms(T_ID, []),
+    clearTaskAlarms: () => r.clearTaskAlarms(T_ID),
     getChangesSince: () => r.getChangesSince("2026-01-01T00:00:00.000Z"),
     runJxaScript: () => r.runJxaScript("noop"),
     runOmniJsScript: () => r.runOmniJsScript("noop"),
@@ -282,6 +286,7 @@ describe("TransportRouter — table integrity", () => {
       .sort();
     expect(omniJsRoutes).toEqual([
       "batchMoveTasks", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works
+      "clearTaskAlarms", // Task.notifications mutation is OmniJS-only (#461)
       "evaluateCustomPerspective",
       "getForecastTag", // Database.forecastTag is OmniJS-only (#465)
       "moveTask", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works
@@ -290,6 +295,7 @@ describe("TransportRouter — table integrity", () => {
       "reorderTask", // JXA task.move(positioned:) → same error 9; OmniJS moveTasks + ChildInsertionLocation
       "runOmniJsScript",
       "setForecastTag", // Database.forecastTag is OmniJS-only (#465)
+      "setTaskAlarms", // Task.addNotification is OmniJS-only (#461)
       "undoLastMutation", // Database.undo() is OmniJS-only (#526)
     ]);
   });

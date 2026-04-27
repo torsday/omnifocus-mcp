@@ -45,7 +45,7 @@ import {
 } from "../../domain/perspective.js";
 import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
-import type { Task } from "../../domain/task.js";
+import type { Task, TaskAlarm } from "../../domain/task.js";
 import { NotFound, ValidationError } from "../../errors/index.js";
 import type {
   AddAttachmentInput,
@@ -157,7 +157,9 @@ export class InMemoryAdapter implements OmniFocusAdapter {
   // -- Tasks ----------------------------------------------------------------
 
   async listTasks(filter: TaskFilter): Promise<Task[]> {
-    return Array.from(this.tasks.values()).filter((t) => this.matchesTask(t, filter));
+    return Array.from(this.tasks.values())
+      .filter((t) => this.matchesTask(t, filter))
+      .map((t) => this.withAlarms(t));
   }
 
   async getTask(id: TaskId): Promise<Task> {
@@ -165,11 +167,26 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     if (task === undefined) {
       throw new NotFound(`Task not found: ${id}`, { details: { resource: "task", id } });
     }
-    return task;
+    return this.withAlarms(task);
   }
 
   async getTasksMany(ids: TaskId[]): Promise<(Task | null)[]> {
-    return ids.map((id) => this.tasks.get(id) ?? null);
+    return ids.map((id) => {
+      const t = this.tasks.get(id);
+      return t === undefined ? null : this.withAlarms(t);
+    });
+  }
+
+  /**
+   * Splice stored alarms onto a task projection.
+   * Alarms live in a side-Map (rather than on Task itself) so that mutating a
+   * task's other fields doesn't disturb its notifications, mirroring how the
+   * live OmniFocus document keeps notifications as a separate collection.
+   */
+  private withAlarms(task: Task): Task {
+    const alarms = this.alarmsByTaskId.get(task.id);
+    if (alarms === undefined || alarms.length === 0) return task;
+    return { ...task, notifications: alarms.map((a) => ({ ...a })) };
   }
 
   async createTask(input: CreateTaskInput): Promise<TaskId> {
@@ -1126,6 +1143,36 @@ export class InMemoryAdapter implements OmniFocusAdapter {
 
   async getLastSync(): Promise<SyncStatus> {
     return { lastSyncAt: this.lastSyncAt, inFlight: false };
+  }
+
+  // -- Task alarms ----------------------------------------------------------
+  /**
+   * Notifications/alarms keyed by Task id. Stored in a side-Map rather than
+   * on the Task record so that other field mutations (rename, reschedule)
+   * don't touch the alarm set — matching live OmniFocus semantics where
+   * `Task.notifications` is a separately-managed collection.
+   */
+  private alarmsByTaskId = new Map<string, TaskAlarm[]>();
+
+  async setTaskAlarms(id: TaskId, alarms: TaskAlarm[]): Promise<void> {
+    if (!this.tasks.has(id)) {
+      throw new NotFound(`Task not found: ${id}`, { details: { resource: "task", id } });
+    }
+    if (alarms.length === 0) {
+      this.alarmsByTaskId.delete(id);
+      return;
+    }
+    this.alarmsByTaskId.set(
+      id,
+      alarms.map((a) => ({ ...a })),
+    );
+  }
+
+  async clearTaskAlarms(id: TaskId): Promise<void> {
+    if (!this.tasks.has(id)) {
+      throw new NotFound(`Task not found: ${id}`, { details: { resource: "task", id } });
+    }
+    this.alarmsByTaskId.delete(id);
   }
 
   // -- Database undo/redo (test stub) ---------------------------------------
