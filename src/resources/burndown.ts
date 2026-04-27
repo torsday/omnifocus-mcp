@@ -122,7 +122,7 @@ export async function buildBurndownPayload(
     return {
       error: {
         code: "NoDueDate",
-        message: `Project "${project.name}" has no due date — burndown requires a deadline.`,
+        message: `Project ${String(project.id)} has no due date — burndown requires a deadline.`,
       },
     };
   }

@@ -37,7 +37,7 @@ describe("buildBurndownPayload — errors", () => {
     expect("error" in result).toBe(true);
     if ("error" in result) {
       expect(result.error.code).toBe("NoDueDate");
-      expect(result.error.message).toContain("No Due Date");
+      expect(result.error.message).toContain("no due date");
     }
   });
 });
