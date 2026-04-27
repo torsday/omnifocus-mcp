@@ -38,6 +38,9 @@ import type { ForecastService } from "../services/forecastService.js";
 import type { PerspectiveService } from "../services/perspectiveService.js";
 import type { ProjectService } from "../services/projectService.js";
 import type { ReviewService } from "../services/reviewService.js";
+import { registerRecentActivityResource } from "./recentActivity.js";
+
+export { RECENT_ACTIVITY_URI_TEMPLATE } from "./recentActivity.js";
 
 // ---------------------------------------------------------------------------
 // Dependency bundle
@@ -374,4 +377,7 @@ export function registerOmniFocusResources(server: McpServer, deps: OmniFocusRes
       return jsonContents(`omnifocus://tasks/tag/${tagId}`, tasks);
     },
   );
+
+  // ── omnifocus://recent-activity{?hours} ───────────────────────────────────
+  registerRecentActivityResource(server, adapter);
 }
