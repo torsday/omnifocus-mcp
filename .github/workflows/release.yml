@@ -91,3 +91,16 @@ jobs:
         with:
           body: ${{ steps.notes.outputs.notes }}
           make_latest: true
+
+      - name: Update Homebrew tap formula
+        # Patches torsday/homebrew-tap/Formula/omnifocus-mcp.rb with the new
+        # version + sha256 so `brew upgrade torsday/tap/omnifocus-mcp` works
+        # immediately after the npm publish settles.
+        # Requires a PAT (HOMEBREW_TAP_TOKEN) with contents:write on the tap
+        # repo — store it in Settings → Secrets → Actions.
+        if: env.HOMEBREW_TAP_TOKEN != ''
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          bash scripts/update-homebrew-formula.sh "$VERSION"

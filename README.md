@@ -52,6 +52,10 @@ The server is built to a single-user local-first standard: no network surface, n
 
 1. **Install**
    ```bash
+   # Homebrew (no Node required)
+   brew install torsday/tap/omnifocus-mcp
+
+   # or npm
    npm install -g @torsday/omnifocus-mcp
    ```
 
@@ -715,6 +719,12 @@ Track open issues and future enhancements on the [**GitHub Project board**](http
 
 ## Install
 
+**Homebrew** (recommended for non-Node users):
+```bash
+brew install torsday/tap/omnifocus-mcp
+```
+
+**npm** (recommended if you already have Node 24+):
 ```bash
 # Global install
 npm install -g @torsday/omnifocus-mcp
