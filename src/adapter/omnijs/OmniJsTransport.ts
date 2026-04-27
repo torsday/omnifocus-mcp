@@ -29,7 +29,11 @@
 
 import type { Folder } from "../../domain/folder.js";
 import type { FolderId, ProjectId, TagId, TaskId } from "../../domain/ids.js";
-import { TagId as TagIdCtor, TaskId as TaskIdCtor } from "../../domain/ids.js";
+import {
+  ProjectId as ProjectIdCtor,
+  TagId as TagIdCtor,
+  TaskId as TaskIdCtor,
+} from "../../domain/ids.js";
 import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
 import type { Task } from "../../domain/task.js";
@@ -192,7 +196,7 @@ export class OmniJsTransport implements OmniFocusAdapter {
         details: { transport: "omnijs", scriptName: "task_convert_to_project" },
       });
     }
-    return result.projectId as ProjectId;
+    return ProjectIdCtor.of(result.projectId);
   }
   async batchMoveTasks(
     items: Array<{ id: TaskId; destination: { projectId?: ProjectId; parentId?: TaskId } }>,

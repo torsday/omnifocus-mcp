@@ -450,7 +450,7 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     opts: { folderId?: FolderId; position?: "beginning" | "ending" },
   ): Promise<ProjectId> {
     const task = await this.getTask(id);
-    const projectId = id as unknown as ProjectId;
+    const projectId = ProjectIdCtor.of(id);
 
     const now = isoOf(this.now()) as import("../../domain/project.js").Project["createdAt"];
 
