@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 91 tools registered.
+> Auto-generated from source. 92 tools registered.
 
 ## Table of contents
 
@@ -67,6 +67,7 @@
 - [tag_set_location](#tag_set_location)
 - [tag_set_status](#tag_set_status)
 - [tag_update](#tag_update)
+- [task_batch_assign](#task_batch_assign)
 - [task_batch_complete](#task_batch_complete)
 - [task_batch_create](#task_batch_create)
 - [task_batch_delete](#task_batch_delete)
@@ -2341,6 +2342,37 @@ Update mutable fields on an existing tag (partial patch). Only supplied fields a
       "name": "Errands"
     }
   },
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_batch_assign
+
+Apply inbox-triage style assignments to many tasks in one batch — move to a project, diff tags additively, set defer/due/flagged. Tighter schema than task_batch_update; designed for the inbox-triage prompt's confirm step. Each assignment is { taskId, projectId?, addTagIds?, removeTagIds?, deferDate?, dueDate?, flagged? }. Tag diffs are resolved via a pre-read of current tagIds; specifying both addTagIds and removeTagIds for the same tag is a no-op (remove wins). Atomicity: best-effort, per-item — OF has no transactional batch. An item succeeds only if both its move (if requested) AND its non-move update succeed. Failures are reported with errorCode prefixed 'move:' or 'update:'. Returns { assigned: [{index, value: taskId}], failed: [{index, errorCode, message}] }. Do NOT use this tool for full task replacement — use task_update or task_batch_update for those. Prefer task_batch_assign over a sequence of single task_update calls when you have a confirmed triage plan for multiple tasks. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_batch_assign",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
   "meta": {
     "requestId": "req_01ABC",
     "durationMs": 5

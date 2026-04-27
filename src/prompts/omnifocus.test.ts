@@ -13,10 +13,12 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildCaptureMeetingMessage,
   buildDailyReviewMessage,
+  buildInboxTriageMessage,
   buildProjectPlanningMessage,
   buildWeeklyReviewMessage,
   CAPTURE_MEETING_PROMPT,
   DAILY_REVIEW_PROMPT,
+  INBOX_TRIAGE_PROMPT,
   PROJECT_PLANNING_PROMPT,
   registerOmniFocusPrompts,
   WEEKLY_REVIEW_PROMPT,
@@ -62,18 +64,22 @@ function makeHarness() {
 // ---------------------------------------------------------------------------
 
 describe("registerOmniFocusPrompts — registration", () => {
-  it("registers exactly four prompts", () => {
+  // Per-name assertions cover the surface; we don't pin the count number
+  // because that turns every prompt-adding PR into a coordination point
+  // (per #512's pattern for resources).
+  it("registers a non-empty set of prompts", () => {
     const { registered } = makeHarness();
-    expect(registered).toHaveLength(4);
+    expect(registered.length).toBeGreaterThan(0);
   });
 
-  it("registers all four prompt names", () => {
+  it("registers every expected prompt by name", () => {
     const { registered } = makeHarness();
     const names = registered.map((r) => r.name);
     expect(names).toContain(DAILY_REVIEW_PROMPT);
     expect(names).toContain(WEEKLY_REVIEW_PROMPT);
     expect(names).toContain(CAPTURE_MEETING_PROMPT);
     expect(names).toContain(PROJECT_PLANNING_PROMPT);
+    expect(names).toContain(INBOX_TRIAGE_PROMPT);
   });
 
   it("every prompt has a non-empty description", () => {
@@ -228,5 +234,38 @@ describe("project-planning prompt", () => {
         "folder_xyz",
       ),
     ).toMatchSnapshot();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// inbox-triage
+// ---------------------------------------------------------------------------
+
+describe("inbox-triage prompt", () => {
+  it("returns a messages array with one user message", async () => {
+    const { find } = makeHarness();
+    const result = (await find(INBOX_TRIAGE_PROMPT).callback({})) as {
+      messages: Array<{ role: string; content: { type: string; text: string } }>;
+    };
+    expect(result.messages).toHaveLength(1);
+    expect(result.messages[0]?.role).toBe("user");
+    expect(result.messages[0]?.content.type).toBe("text");
+  });
+
+  it("message references the inbox resource and the batch-assign tool", () => {
+    const text = buildInboxTriageMessage();
+    expect(text).toContain("omnifocus://inbox");
+    expect(text).toContain("task_batch_assign");
+  });
+
+  it("message instructs the agent NOT to auto-confirm", () => {
+    const text = buildInboxTriageMessage();
+    // Anti-auto-confirm is the load-bearing UX guarantee.
+    expect(text.toLowerCase()).toContain("do not");
+    expect(text.toLowerCase()).toContain("confirm");
+  });
+
+  it("message text matches snapshot", () => {
+    expect(buildInboxTriageMessage()).toMatchSnapshot();
   });
 });

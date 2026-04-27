@@ -60,6 +60,7 @@ import { TAG_SET_ALLOWS_NEXT_ACTION_DESCRIPTION } from "./tag/setAllowsNextActio
 import { TAG_SET_LOCATION_DESCRIPTION } from "./tag/setLocation.js";
 import { TAG_SET_STATUS_DESCRIPTION } from "./tag/setStatus.js";
 import { TAG_UPDATE_DESCRIPTION } from "./tag/update.js";
+import { TASK_BATCH_ASSIGN_DESCRIPTION } from "./task/batchAssign.js";
 import { TASK_BATCH_COMPLETE_DESCRIPTION } from "./task/batchComplete.js";
 import { TASK_BATCH_CREATE_DESCRIPTION } from "./task/batchCreate.js";
 import { TASK_BATCH_DELETE_DESCRIPTION } from "./task/batchDelete.js";
@@ -155,6 +156,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   tag_set_location: TAG_SET_LOCATION_DESCRIPTION,
   tag_set_status: TAG_SET_STATUS_DESCRIPTION,
   tag_update: TAG_UPDATE_DESCRIPTION,
+  task_batch_assign: TASK_BATCH_ASSIGN_DESCRIPTION,
   task_batch_complete: TASK_BATCH_COMPLETE_DESCRIPTION,
   task_batch_create: TASK_BATCH_CREATE_DESCRIPTION,
   task_batch_delete: TASK_BATCH_DELETE_DESCRIPTION,
