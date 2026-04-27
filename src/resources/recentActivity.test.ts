@@ -11,7 +11,6 @@
 
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../adapter/inMemory/InMemoryAdapter.js";
-import { ProjectId as ProjId, TaskId as TskId } from "../domain/ids.js";
 import {
   buildRecentActivityPayload,
   parseHours,
@@ -22,14 +21,6 @@ import {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function hoursAgo(h: number): string {
-  return new Date(Date.now() - h * 3_600_000).toISOString();
-}
-
-function daysAgo(d: number): string {
-  return hoursAgo(d * 24);
-}
 
 // ---------------------------------------------------------------------------
 // parseHours

@@ -146,7 +146,8 @@ export async function buildRecentActivityPayload(
   const tasksCompleted = completedTasks
     .filter((t) => t.completedAt !== null)
     .map((t) => {
-      const completedAt = t.completedAt!;
+      // biome-ignore lint/style/noNonNullAssertion: filter above guarantees completedAt is set
+      const completedAt = t.completedAt as string;
       const ageMs = new Date(completedAt).getTime() - new Date(t.createdAt).getTime();
       return {
         taskId: String(t.id),
@@ -166,7 +167,8 @@ export async function buildRecentActivityPayload(
       taskId: String(t.id),
       name: t.name,
       projectId: t.projectId !== null ? String(t.projectId) : null,
-      droppedAt: t.droppedAt!,
+      // biome-ignore lint/style/noNonNullAssertion: filter above guarantees droppedAt is set
+      droppedAt: t.droppedAt as string,
     }))
     .sort((a, b) => (b.droppedAt > a.droppedAt ? 1 : b.droppedAt < a.droppedAt ? -1 : 0));
 
@@ -181,7 +183,8 @@ export async function buildRecentActivityPayload(
       taskId: String(t.id),
       name: t.name,
       projectId: t.projectId !== null ? String(t.projectId) : null,
-      deferDate: t.deferDate!,
+      // biome-ignore lint/style/noNonNullAssertion: filter above guarantees deferDate is set
+      deferDate: t.deferDate as string,
     }))
     .sort((a, b) => (b.deferDate > a.deferDate ? 1 : b.deferDate < a.deferDate ? -1 : 0));
 
