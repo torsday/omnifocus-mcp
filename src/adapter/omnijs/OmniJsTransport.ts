@@ -332,6 +332,12 @@ export class OmniJsTransport implements OmniFocusAdapter {
   ): Promise<void> {
     return notYetWired("setProjectReviewInterval");
   }
+  async setProjectNextReviewDate(
+    _id: import("../../domain/ids.js").ProjectId,
+    _nextReviewDate: string | null,
+  ): Promise<void> {
+    return notYetWired("setProjectNextReviewDate");
+  }
 
   // -- Tags -----------------------------------------------------------------
 

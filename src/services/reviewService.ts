@@ -38,4 +38,18 @@ export class ReviewService {
       invalidateProjectMutation(this.cache, { projectId: id });
     }
   }
+
+  /**
+   * Set the project's next review date directly. Pass `null` to clear.
+   * Past-dated values surface the project as overdue immediately — matches OF UX.
+   *
+   * @throws NotFound — when no project with this ID exists
+   * @see #467
+   */
+  async setNextReviewDate(id: ProjectId, nextReviewDate: string | null): Promise<void> {
+    await this.adapter.setProjectNextReviewDate(id, nextReviewDate);
+    if (this.cache !== undefined) {
+      invalidateProjectMutation(this.cache, { projectId: id });
+    }
+  }
 }

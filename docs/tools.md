@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 85 tools registered.
+> Auto-generated from source. 86 tools registered.
 
 ## Table of contents
 
@@ -45,6 +45,7 @@
 - [project_list](#project_list)
 - [project_mark_reviewed](#project_mark_reviewed)
 - [project_move](#project_move)
+- [project_set_next_review_date](#project_set_next_review_date)
 - [project_update](#project_update)
 - [review_list_due](#review_list_due)
 - [review_mark_reviewed](#review_mark_reviewed)
@@ -1467,6 +1468,37 @@ Move an OmniFocus project to a different folder. Pass folderId to move into a fo
 ```json
 {
   "toolName": "project_move",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## project_set_next_review_date
+
+Set or clear a project's next review date directly. Use when the user wants to reschedule a review independent of the recurring interval — 'push the Q3 review to next Monday' without changing the cadence. Do NOT use to mark a project as reviewed (prefer review_mark_reviewed) or to change the recurring interval (prefer review_set_interval). Pass projectId and nextReviewDate (ISO-8601 date string), or pass null for nextReviewDate to clear (project becomes 'not scheduled'). Past-dated values are accepted and surface the project as overdue immediately — matches OmniFocus's own UX. Returns { id }. Errors: NOT_FOUND when projectId does not exist. Side effects: writes to OmniFocus; invalidates project + review caches; sets syncPending = true.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "project_set_next_review_date",
   "arguments": {}
 }
 ```

@@ -880,6 +880,11 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     this.projects.set(id, { ...project, reviewIntervalDays: days });
   }
 
+  async setProjectNextReviewDate(id: ProjectId, nextReviewDate: string | null): Promise<void> {
+    const project = await this.getProject(id);
+    this.projects.set(id, { ...project, nextReviewDate });
+  }
+
   // -- Tags -----------------------------------------------------------------
 
   async listTags(filter: { parentId?: TagId; status?: Tag["status"] } = {}): Promise<Tag[]> {
