@@ -18,6 +18,12 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { CreateTaskInput, OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
+import {
+  estimateHintForDue,
+  finaliseHints,
+  inboxGrowthHint,
+  repeatHintForName,
+} from "../../domain/hints.js";
 import { ProjectId, TagId, TaskId } from "../../domain/ids.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import {
@@ -176,7 +182,25 @@ export async function handleTaskCreate(input: TaskCreateToolInput, ctx: TaskCrea
         ...(input.projectId !== undefined && { projectId: input.projectId }),
       });
     }
-    return ok({ id }, ctx.makeMeta({ syncPending: true }));
+
+    // Collect advisory hints — all are best-effort; failures are suppressed.
+    const rawHints = [
+      repeatHintForName(id, input.name),
+      estimateHintForDue(id, input.dueDate, input.estimatedMinutes),
+    ];
+
+    // Inbox-count hint: only when task lands in inbox (no project, no parent).
+    if (input.projectId === undefined && input.parentTaskId === undefined) {
+      try {
+        const inboxTasks = await ctx.adapter.listTasks({ inbox: true, completed: false });
+        rawHints.push(inboxGrowthHint(inboxTasks.length));
+      } catch {
+        // Hint fetch failure never blocks the response.
+      }
+    }
+
+    const hints = finaliseHints(rawHints.filter((h): h is NonNullable<typeof h> => h != null));
+    return ok({ id }, ctx.makeMeta({ syncPending: true }), undefined, hints);
   });
 }
 
