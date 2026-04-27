@@ -445,6 +445,46 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     this.adjustProjectCountsForTask(newProjectId, task, +1);
   }
 
+  async convertTaskToProject(
+    id: TaskId,
+    opts: { folderId?: FolderId; position?: "beginning" | "ending" },
+  ): Promise<ProjectId> {
+    const task = await this.getTask(id);
+    const projectId = id as unknown as ProjectId;
+
+    const now = isoOf(this.now()) as import("../../domain/project.js").Project["createdAt"];
+
+    this.projects.set(projectId, {
+      id: projectId,
+      name: task.name,
+      note: task.note ?? null,
+      noteHtml: null,
+      folderId: opts.folderId ?? null,
+      tagIds: task.tagIds ?? [],
+      status: "active",
+      completionCriterion: "parallel",
+      flagged: task.flagged ?? false,
+      deferDate: task.deferDate ?? null,
+      dueDate: task.dueDate ?? null,
+      estimatedMinutes: null,
+      reviewIntervalDays: null,
+      nextReviewDate: null,
+      lastReviewDate: null,
+      completed: false,
+      completedAt: null,
+      dropped: false,
+      droppedAt: null,
+      taskCount: 0,
+      completedTaskCount: 0,
+      createdAt: now,
+      modifiedAt: now,
+    });
+
+    this.tasks.delete(id);
+
+    return projectId;
+  }
+
   async batchMoveTasks(
     items: Array<{ id: TaskId; destination: { projectId?: ProjectId; parentId?: TaskId } }>,
   ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {

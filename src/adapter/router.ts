@@ -99,6 +99,7 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   undropTask: "jxa",
   deleteTask: "jxa",
   moveTask: "omnijs", // JXA task.move() → error 9 in OF 4.x; Database.moveTasks() via OmniJS works
+  convertTaskToProject: "omnijs", // OmniJS-only: Database.convertTasksToProjects()
   batchMoveTasks: "omnijs", // same JXA bug; batch variant routes through OmniJS
   reorderTask: "omnijs",
   duplicateTask: "jxa",
@@ -280,6 +281,12 @@ export class TransportRouter implements OmniFocusAdapter {
   }
   moveTask(id: TaskId, destination: { projectId?: ProjectId; parentId?: TaskId }): Promise<void> {
     return this.pick("moveTask").moveTask(id, destination);
+  }
+  convertTaskToProject(
+    id: TaskId,
+    opts: { folderId?: import("../domain/ids.js").FolderId; position?: "beginning" | "ending" },
+  ): Promise<ProjectId> {
+    return this.pick("convertTaskToProject").convertTaskToProject(id, opts);
   }
   batchMoveTasks(
     items: Array<{ id: TaskId; destination: { projectId?: ProjectId; parentId?: TaskId } }>,

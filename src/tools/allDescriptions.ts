@@ -74,6 +74,7 @@ import { TASK_BATCH_UPDATE_DESCRIPTION } from "./task/batchUpdate.js";
 import { TASK_CLEAR_ALARMS_DESCRIPTION } from "./task/clearAlarms.js";
 import { TASK_CLEAR_REPETITION_DESCRIPTION } from "./task/clearRepetition.js";
 import { TASK_COMPLETE_DESCRIPTION } from "./task/complete.js";
+import { TASK_CONVERT_TO_PROJECT_DESCRIPTION } from "./task/convertToProject.js";
 import { TASK_CREATE_DESCRIPTION } from "./task/create.js";
 import { TASK_DELETE_DESCRIPTION } from "./task/delete.js";
 import { TASK_DROP_DESCRIPTION } from "./task/drop.js";
@@ -186,6 +187,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   task_get: TASK_GET_DESCRIPTION,
   task_get_many: TASK_GET_MANY_DESCRIPTION,
   task_list: TASK_LIST_DESCRIPTION,
+  task_convert_to_project: TASK_CONVERT_TO_PROJECT_DESCRIPTION,
   task_move: TASK_MOVE_DESCRIPTION,
   task_search: TASK_SEARCH_DESCRIPTION,
   task_parse_transport_text: TASK_PARSE_TRANSPORT_TEXT_DESCRIPTION,

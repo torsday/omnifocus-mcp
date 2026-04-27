@@ -39,6 +39,7 @@ import {
   mapBatchScriptResult,
   type PerspectiveEvaluateScriptResult,
   type TaskBatchMoveScriptResult,
+  type TaskConvertToProjectScriptResult,
   type TaskMoveScriptResult,
 } from "../../scripts/contracts.js";
 import databaseRedoScript from "../../scripts/omnijs/database_redo.js";
@@ -49,6 +50,7 @@ import perspectiveEvaluateScript from "../../scripts/omnijs/perspective_evaluate
 import pluginInvokeScript from "../../scripts/omnijs/plugin_invoke.js";
 import taskBatchMoveScript from "../../scripts/omnijs/task_batch_move.js";
 import taskClearAlarmsScript from "../../scripts/omnijs/task_clear_alarms.js";
+import taskConvertToProjectScript from "../../scripts/omnijs/task_convert_to_project.js";
 import taskMoveScript from "../../scripts/omnijs/task_move.js";
 import taskReorderScript from "../../scripts/omnijs/task_reorder.js";
 import taskSetAlarmsScript from "../../scripts/omnijs/task_set_alarms.js";
@@ -170,6 +172,27 @@ export class OmniJsTransport implements OmniFocusAdapter {
         details: { transport: "omnijs", scriptName: "task_move" },
       });
     }
+  }
+  async convertTaskToProject(
+    id: TaskId,
+    opts: { folderId?: FolderId; position?: "beginning" | "ending" },
+  ): Promise<ProjectId> {
+    const result = await runOmniJsScript<TaskConvertToProjectScriptResult>(
+      taskConvertToProjectScript,
+      { id, folderId: opts.folderId ?? null, position: opts.position ?? "ending" },
+      { ...this.runOpts, scriptName: "task_convert_to_project" },
+    );
+    if (isScriptError(result)) {
+      if (result.error.code === "NOT_FOUND") {
+        throw new NotFound(result.error.message, {
+          details: { transport: "omnijs", scriptName: "task_convert_to_project" },
+        });
+      }
+      throw new ValidationError(result.error.message, {
+        details: { transport: "omnijs", scriptName: "task_convert_to_project" },
+      });
+    }
+    return result.projectId as ProjectId;
   }
   async batchMoveTasks(
     items: Array<{ id: TaskId; destination: { projectId?: ProjectId; parentId?: TaskId } }>,
