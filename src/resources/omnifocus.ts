@@ -39,8 +39,10 @@ import type { PerspectiveService } from "../services/perspectiveService.js";
 import type { ProjectService } from "../services/projectService.js";
 import type { ReviewService } from "../services/reviewService.js";
 import { registerRecentActivityResource } from "./recentActivity.js";
+import { registerTaxonomyAuditResource } from "./taxonomyAudit.js";
 
 export { RECENT_ACTIVITY_URI_TEMPLATE } from "./recentActivity.js";
+export { TAXONOMY_AUDIT_URI } from "./taxonomyAudit.js";
 
 // ---------------------------------------------------------------------------
 // Dependency bundle
@@ -380,4 +382,7 @@ export function registerOmniFocusResources(server: McpServer, deps: OmniFocusRes
 
   // ── omnifocus://recent-activity{?hours} ───────────────────────────────────
   registerRecentActivityResource(server, adapter);
+
+  // ── omnifocus://taxonomy-audit ────────────────────────────────────────────
+  registerTaxonomyAuditResource(server, adapter);
 }
