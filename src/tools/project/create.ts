@@ -21,12 +21,13 @@ import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import { finaliseHints, reviewIntervalHint } from "../../domain/hints.js";
 import { FolderId, TagId } from "../../domain/ids.js";
 import { summaryProjectCreate } from "../../domain/writeSummary.js";
-import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { clarificationNeeded, ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import {
   idempotencyStore as defaultIdempotencyStore,
   type IdempotencyStore,
   withIdempotencyKey,
 } from "../../server/idempotencyStore.js";
+import { replayStore as defaultReplayStore, type ReplayStore } from "../../state/replayStore.js";
 
 // ---------------------------------------------------------------------------
 // Tool description
@@ -131,6 +132,8 @@ export interface ProjectCreateContext {
    * Tests inject a scoped store so parallel specs do not share keys.
    */
   idempotencyStore?: IdempotencyStore;
+  /** Optional replay store override for clarification-needed flows. */
+  replayStore?: ReplayStore;
 }
 
 /**
@@ -146,8 +149,67 @@ export async function handleProjectCreate(
   input: ProjectCreateToolInput,
   ctx: ProjectCreateContext,
 ) {
-  const store = ctx.idempotencyStore ?? defaultIdempotencyStore;
+  const idempStore = ctx.idempotencyStore ?? defaultIdempotencyStore;
+  const replayStr = ctx.replayStore ?? defaultReplayStore;
 
+  // Idempotency short-circuit: if we've already processed this key, replay the
+  // stored result immediately — skip the collision guard so the same key always
+  // returns the same envelope.
+  if (input.idempotency_key !== undefined) {
+    const cached = idempStore.get(input.idempotency_key);
+    if (cached !== undefined) {
+      return _doCreate(input, ctx, idempStore);
+    }
+  }
+
+  // Name-collision guard: if projects with the same name already exist, surface
+  // clarification-needed before writing anything.
+  let existingWithName: Awaited<ReturnType<typeof ctx.adapter.listProjects>> = [];
+  try {
+    const all = await ctx.adapter.listProjects();
+    existingWithName = all.filter(
+      (p) => p.name.toLowerCase() === input.name.toLowerCase() && p.status !== "dropped",
+    );
+  } catch {
+    // Collision check failure never blocks the create — fall through.
+  }
+
+  if (existingWithName.length > 0) {
+    const meta = ctx.makeMeta();
+    // biome-ignore lint/style/noNonNullAssertion: guarded by length > 0
+    const existing = existingWithName[0]!;
+    const options = [
+      `Use existing project "${existing.name}" (id: ${existing.id})`,
+      `Create a new project with the same name`,
+    ];
+    const token = replayStr.register(options, async (choice) => {
+      if (choice === 0) {
+        // Return the existing project as if we created it (no-op with existing id).
+        return ok(
+          { created: false as const, id: existing.id, existing: true as const },
+          ctx.makeMeta(),
+        );
+      }
+      // Force-create regardless of collision.
+      return _doCreate(input, ctx, idempStore);
+    });
+    return clarificationNeeded(
+      `A project named "${input.name}" already exists. What should happen?`,
+      token,
+      meta,
+      options.map((label, index) => ({ index, label })),
+      { name: input.name },
+    );
+  }
+
+  return _doCreate(input, ctx, idempStore);
+}
+
+async function _doCreate(
+  input: ProjectCreateToolInput,
+  ctx: ProjectCreateContext,
+  store: IdempotencyStore,
+) {
   return withIdempotencyKey(store, input.idempotency_key, async () => {
     const projectInput: CreateProjectInput = {
       name: input.name,

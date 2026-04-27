@@ -62,9 +62,11 @@ import {
   SNAPSHOT_URI,
   TAG_URI_TEMPLATE,
 } from "../resources/omnifocus.js";
+import { replayStore } from "../state/replayStore.js";
 import { ALL_TOOL_DESCRIPTIONS } from "../tools/allDescriptions.js";
 import { registerAppLaunchTool } from "../tools/app/launch.js";
 import { registerAttachmentTools } from "../tools/attachment/index.js";
+import { registerClarifyTool } from "../tools/clarify.js";
 import { registerDatabaseRedoTool } from "../tools/database/redo.js";
 import { registerDatabaseUndoTool } from "../tools/database/undo.js";
 import { registerExportOpmlTool } from "../tools/export/opml.js";
@@ -446,7 +448,7 @@ export async function startServer(): Promise<void> {
   registerProjectBatchCompleteTool(server, projectAdapterCtx);
   registerProjectBatchDropTool(server, projectAdapterCtx);
   registerProjectCompleteTool(server, projectServiceCtx);
-  registerProjectCreateTool(server, projectAdapterCtx);
+  registerProjectCreateTool(server, { ...projectAdapterCtx, replayStore });
   registerProjectDeleteTool(server, projectAdapterCtx);
   registerProjectDropTool(server, projectServiceCtx);
   registerProjectGetManyTool(server, { adapter, makeMeta });
@@ -491,7 +493,8 @@ export async function startServer(): Promise<void> {
   registerTaskSearchTool(server, { searchService: services.searchService, makeMeta });
   registerTaskGetManyTool(server, taskAdapterCtx);
   registerTaskParseTransportTextTool(server, { makeMeta });
-  registerRepetitionFromProseTool(server, { makeMeta });
+  registerClarifyTool(server, { makeMeta });
+  registerRepetitionFromProseTool(server, { makeMeta, replayStore });
   registerTaskReclassifyTool(server, taskMutationCtx);
   registerTaskBatchAssignTool(server, taskMutationCtx);
   registerTaskBatchCompleteTool(server, taskMutationCtx);
@@ -504,7 +507,7 @@ export async function startServer(): Promise<void> {
   registerTaskBatchUpdateTool(server, taskMutationCtx);
   registerTaskClearAlarmsTool(server, taskMutationCtx);
   registerTaskClearRepetitionTool(server, taskMutationCtx);
-  registerTaskCompleteTool(server, taskMutationCtx);
+  registerTaskCompleteTool(server, { ...taskMutationCtx, replayStore });
   registerTaskDropTool(server, taskMutationCtx);
   registerTaskDuplicateTool(server, taskMutationCtx);
   registerTaskExtractFromImageTool(server, {

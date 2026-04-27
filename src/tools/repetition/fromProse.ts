@@ -24,7 +24,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import { parseRepetitionFromProse } from "../../domain/repetitionGrammar.js";
-import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { clarificationNeeded, ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { replayStore as defaultReplayStore, type ReplayStore } from "../../state/replayStore.js";
 
 // ---------------------------------------------------------------------------
 // Tool description
@@ -84,6 +85,7 @@ type RepetitionFromProseInput = z.infer<typeof repetitionFromProseInputSchema>;
 
 export interface RepetitionFromProseContext {
   makeMeta: () => ResponseMeta;
+  replayStore?: ReplayStore;
 }
 
 export async function handleRepetitionFromProse(
@@ -92,7 +94,33 @@ export async function handleRepetitionFromProse(
 ) {
   const result = parseRepetitionFromProse(input.prose);
   const meta = ctx.makeMeta();
-  return ok(result, meta);
+
+  if (result.kind !== "ambiguous") {
+    return ok(result, meta);
+  }
+
+  // Ambiguous parse — register a replay callback and return clarification-needed.
+  const store = ctx.replayStore ?? defaultReplayStore;
+  const labels = result.interpretations.map((i) => i.description);
+
+  const token = store.register(labels, async (choice) => {
+    // biome-ignore lint/style/noNonNullAssertion: choice is validated by ReplayStore against options.length
+    const chosen = result.interpretations[choice]!;
+    return ok(
+      { kind: "ok" as const, rule: chosen.rule, normalizedDescription: chosen.description },
+      ctx.makeMeta(),
+    );
+  });
+
+  return clarificationNeeded(
+    `"${input.prose}" matches multiple repetition patterns. Which did you mean?`,
+    token,
+    meta,
+    labels.map((label, index) => ({ index, label })),
+    input.anchor !== undefined
+      ? { prose: input.prose, anchor: input.anchor }
+      : { prose: input.prose },
+  );
 }
 
 // ---------------------------------------------------------------------------

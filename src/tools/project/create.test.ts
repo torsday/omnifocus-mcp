@@ -8,8 +8,14 @@
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.js";
-import type { ResponseMeta, ToolEnvelope, ToolSuccess } from "../../envelope/index.js";
+import {
+  isClarificationNeeded,
+  type ResponseMeta,
+  type ToolEnvelope,
+  type ToolSuccess,
+} from "../../envelope/index.js";
 import { IdempotencyStore } from "../../server/idempotencyStore.js";
+import { ReplayStore } from "../../state/replayStore.js";
 import {
   handleProjectCreate,
   PROJECT_CREATE_DESCRIPTION,
@@ -50,7 +56,13 @@ function makeCtx() {
     ...partial,
   });
   const idempotencyStore = new IdempotencyStore();
-  return { ctx: { adapter, makeMeta, idempotencyStore }, adapter, idempotencyStore };
+  const replayStore = new ReplayStore(60_000);
+  return {
+    ctx: { adapter, makeMeta, idempotencyStore, replayStore },
+    adapter,
+    idempotencyStore,
+    replayStore,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -226,12 +238,14 @@ describe("project_create — idempotency_key schema", () => {
 });
 
 describe("project_create — idempotency_key", () => {
-  it("creates once per call when no key is provided", async () => {
-    const { adapter, ctx } = makeCtx();
+  it("returns clarification-needed on name collision when no key is provided", async () => {
+    const { ctx, replayStore } = makeCtx();
     await handleProjectCreate({ name: "A" }, ctx);
-    await handleProjectCreate({ name: "A" }, ctx);
-    const projects = await adapter.listProjects();
-    expect(projects.length).toBe(2);
+    const second = await handleProjectCreate({ name: "A" }, ctx);
+    expect(isClarificationNeeded(second)).toBe(true);
+    if (!isClarificationNeeded(second)) throw new Error("expected clarification-needed");
+    expect(second.question).toContain('"A"');
+    expect(replayStore.size).toBe(1);
   });
 
   it("replays the cached envelope on repeat with same key", async () => {
@@ -244,10 +258,22 @@ describe("project_create — idempotency_key", () => {
     expect(projects.length).toBe(1);
   });
 
-  it("treats different keys as separate creates", async () => {
-    const { adapter, ctx } = makeCtx();
+  it("treats different keys as separate creates when user confirms force-create", async () => {
+    const { adapter, ctx, replayStore } = makeCtx();
     const first = assertOk(await handleProjectCreate({ name: "A", idempotency_key: "k1" }, ctx));
-    const second = assertOk(await handleProjectCreate({ name: "A", idempotency_key: "k2" }, ctx));
+
+    // Second call with different key hits collision guard → clarification-needed.
+    const clarify = await handleProjectCreate({ name: "A", idempotency_key: "k2" }, ctx);
+    expect(isClarificationNeeded(clarify)).toBe(true);
+    if (!isClarificationNeeded(clarify)) throw new Error("expected clarification-needed");
+
+    // User picks choice 1 → force-create.
+    const entry = replayStore.consume(clarify.replayToken);
+    if (!entry) throw new Error("token not found");
+    const second = assertOk(
+      (await entry.callback(1)) as ToolEnvelope<{ created: boolean; id: string }>,
+    );
+
     expect(second.data.id).not.toBe(first.data.id);
     const projects = await adapter.listProjects();
     expect(projects.length).toBe(2);

@@ -3624,7 +3624,7 @@ _No parameters._
 
 ## task_complete
 
-Complete an OmniFocus task — marks it done with a completion timestamp. Accepts an optional ISO-8601 date for the completion time; defaults to now. Idempotent: returns noChange: true if the task is already completed. Do not use to drop or delete a task. Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: sets completedAt, sets meta.syncPending = true. Example: task_complete({ id: "abc123" }) Example: task_complete({ id: "abc123", at: "2026-05-01T09:00:00Z" })
+Complete an OmniFocus task — marks it done with a completion timestamp. Accepts an optional ISO-8601 date for the completion time; defaults to now. Idempotent: returns noChange: true if the task is already completed. When the task has incomplete children, returns clarification-needed asking whether to complete children too — call the `clarify` tool with the user's choice. Do not use to drop or delete a task. Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: sets completedAt, sets meta.syncPending = true. Example: task_complete({ id: "abc123" }) Example: task_complete({ id: "abc123", at: "2026-05-01T09:00:00Z" })
 
 ### Input
 

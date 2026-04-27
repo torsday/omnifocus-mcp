@@ -1182,6 +1182,41 @@ Naming convention: `<domain>_from_prose`. Other candidates as their schemas land
 
 Pattern: agent receives prose → calls helper → presents `normalizedDescription` to user → on confirm, embeds the returned `rule` in the next write. The "ambiguous" return is not a failure — surfacing two valid readings of *"every other Tuesday"* (every-14-days vs first-and-third-weekday-of-month) is the feature. The agent picks one with the user, not by guessing.
 
+### Clarification subsystem (ADR-0015)
+
+When a tool cannot resolve ambiguity deterministically — the prose matches multiple interpretations, a name collides with an existing resource, or a mutation would affect sibling entities — it returns a **`clarification-needed`** envelope instead of guessing:
+
+```
+{
+  kind: "clarification-needed",
+  question: string,          // rendered verbatim to the user
+  options?: ClarificationOption[],  // { index, label }[] — agent renders verbatim
+  partial?: Record<string, unknown>, // already-unambiguous args (informational)
+  replayToken: string,       // opaque, single-use, 5-min TTL
+  meta: ResponseMeta
+}
+```
+
+**Rule:** *prefer this shape over guessing whenever a deterministic disambiguation is impossible.* Tools without an ambiguity surface (pure reads by ID, `internal_status`, etc.) never emit this kind — it is opt-in per tool.
+
+**Agent contract:**
+1. Receive `clarification-needed` → render `question` and `options` to the user.
+2. Agent **must not** silently auto-pick option 0 without user contact (lint guidance #489).
+3. Call `clarify({ replayToken, choice })` with the user's chosen index.
+4. Server replays the original tool with disambiguation applied; returns a normal `ok | error` envelope.
+
+**Replay store:** In-memory only (`src/state/replayStore.ts`). Tokens expire after 5 minutes and are single-use (`consume()` deletes on first lookup). Survives within a server session; not persisted across restarts — agents must not cache tokens.
+
+**Current emitting tools:**
+
+| Tool | Ambiguity surface | Options offered |
+|------|-------------------|-----------------|
+| `repetition_from_prose` | Prose matches multiple repetition patterns | One entry per interpretation's `normalizedDescription` |
+| `project_create` | Name collides with an existing active project | Use existing / Force-create |
+| `task_complete` | Parent task has incomplete children | Complete with children / Complete parent only |
+
+**Extensibility:** Any tool that would otherwise guess silently can add clarification-needed. Wire the tool's handler to `src/state/replayStore.ts`, register the callback, emit `clarificationNeeded(...)` from `src/envelope/index.ts`.
+
 ---
 
 ## 29. MCP prompts

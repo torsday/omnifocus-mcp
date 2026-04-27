@@ -2,13 +2,19 @@
  * Tests for task_complete tool.
  *
  * Covers: schema validation, successful completion, idempotency (noChange),
- * syncPending flag, and cache invalidation.
+ * syncPending flag, cache invalidation, and clarification-needed for incomplete children.
  */
 
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.js";
-import type { ResponseMeta } from "../../envelope/index.js";
+import {
+  isClarificationNeeded,
+  isSuccess,
+  type ResponseMeta,
+  type ToolEnvelope,
+} from "../../envelope/index.js";
+import { ReplayStore } from "../../state/replayStore.js";
 import { handleTaskComplete, taskCompleteInputSchema } from "./complete.js";
 
 function recordScopes(cache: OmniFocusLruCache): InvalidationScope[] {
@@ -19,7 +25,12 @@ function recordScopes(cache: OmniFocusLruCache): InvalidationScope[] {
   return scopes;
 }
 
-function makeCtx() {
+/** Cast to the wide ToolEnvelope type so isSuccess / isClarificationNeeded accept it. */
+function asEnvelope(e: unknown): ToolEnvelope<unknown> {
+  return e as ToolEnvelope<unknown>;
+}
+
+function makeCtx(replayStore?: ReplayStore) {
   let tick = 0;
   const adapter = new InMemoryAdapter({
     now: () => new Date(Date.UTC(2026, 0, 1, 0, 0, tick++)),
@@ -32,7 +43,9 @@ function makeCtx() {
     ofVersion: "test",
     ...partial,
   });
-  return { ctx: { adapter, makeMeta }, adapter };
+  const base = { adapter, makeMeta };
+  const ctx = replayStore !== undefined ? { ...base, replayStore } : base;
+  return { ctx, adapter };
 }
 
 // ---------------------------------------------------------------------------
@@ -65,16 +78,19 @@ describe("task_complete — input schema", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Handler
+// Handler — no children
 // ---------------------------------------------------------------------------
 
-describe("task_complete — handler", () => {
+describe("task_complete — handler (leaf task)", () => {
   it("returns { done: true, id } for an incomplete task", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "Test" });
-    const envelope = await handleTaskComplete({ id }, ctx);
-    expect("done" in envelope.data && envelope.data.done).toBe(true);
-    expect(envelope.data.id).toBe(id);
+    const e = asEnvelope(await handleTaskComplete({ id }, ctx));
+    expect(isSuccess(e)).toBe(true);
+    if (!isSuccess(e)) throw new Error("not success");
+    const data = e.data as { done: boolean; id: string };
+    expect(data.done).toBe(true);
+    expect(data.id).toBe(id);
   });
 
   it("sets meta.syncPending = true when completing", async () => {
@@ -88,9 +104,12 @@ describe("task_complete — handler", () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "Test" });
     await adapter.completeTask(id);
-    const envelope = await handleTaskComplete({ id }, ctx);
-    expect("noChange" in envelope.data && envelope.data.noChange).toBe(true);
-    expect(envelope.data.id).toBe(id);
+    const e = asEnvelope(await handleTaskComplete({ id }, ctx));
+    expect(isSuccess(e)).toBe(true);
+    if (!isSuccess(e)) throw new Error("not success");
+    const data = e.data as { noChange: boolean; id: string };
+    expect(data.noChange).toBe(true);
+    expect(data.id).toBe(id);
   });
 
   it("meta.syncPending is falsy when noChange", async () => {
@@ -105,6 +124,10 @@ describe("task_complete — handler", () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "Pay rent" });
     const envelope = await handleTaskComplete({ id }, ctx);
+    if (!("data" in envelope)) {
+      expect.fail("expected ok envelope (no children → no clarification)");
+      return;
+    }
     expect(envelope.data).toMatchObject({ done: true, id, name: "Pay rent" });
   });
 
@@ -113,6 +136,10 @@ describe("task_complete — handler", () => {
     const id = await adapter.createTask({ name: "Pay rent" });
     await adapter.completeTask(id);
     const envelope = await handleTaskComplete({ id }, ctx);
+    if (!("data" in envelope)) {
+      expect.fail("expected ok envelope on already-complete (no clarification)");
+      return;
+    }
     expect(envelope.data).toMatchObject({ noChange: true, id, name: "Pay rent" });
   });
 
@@ -122,6 +149,91 @@ describe("task_complete — handler", () => {
     await handleTaskComplete({ id }, ctx);
     const task = await adapter.getTask(id);
     expect(task.completed).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Handler — clarification-needed for incomplete children
+// ---------------------------------------------------------------------------
+
+describe("task_complete — clarification-needed (incomplete children)", () => {
+  it("returns clarification-needed when parent has incomplete children", async () => {
+    const store = new ReplayStore(60_000);
+    const { ctx, adapter } = makeCtx(store);
+
+    const parentId = await adapter.createTask({ name: "Parent" });
+    await adapter.createTask({ name: "Child", parentId });
+
+    const e = asEnvelope(await handleTaskComplete({ id: parentId }, ctx));
+
+    expect(isClarificationNeeded(e)).toBe(true);
+    if (!isClarificationNeeded(e)) throw new Error("expected clarification-needed");
+    expect(e.kind).toBe("clarification-needed");
+    expect(e.question).toContain("Parent");
+    expect(e.question).toContain("1 incomplete child");
+    expect(e.options).toHaveLength(2);
+    // biome-ignore lint/style/noNonNullAssertion: length asserted above
+    expect(e.options![0]?.index).toBe(0);
+    // biome-ignore lint/style/noNonNullAssertion: length asserted above
+    expect(e.options![1]?.index).toBe(1);
+    expect(typeof e.replayToken).toBe("string");
+    expect(e.partial).toMatchObject({ id: parentId });
+  });
+
+  it("choice 0: completes parent and children", async () => {
+    const store = new ReplayStore(60_000);
+    const { ctx, adapter } = makeCtx(store);
+
+    const parentId = await adapter.createTask({ name: "Parent" });
+    const childId = await adapter.createTask({ name: "Child", parentId });
+
+    const e = asEnvelope(await handleTaskComplete({ id: parentId }, ctx));
+    if (!isClarificationNeeded(e)) throw new Error("expected clarification-needed");
+
+    const entry = store.consume(e.replayToken);
+    if (!entry) throw new Error("token not found");
+    const result = asEnvelope(await entry.callback(0));
+
+    expect(isSuccess(result)).toBe(true);
+    if (!isSuccess(result)) throw new Error("not success");
+    expect((result.data as { done: boolean }).done).toBe(true);
+
+    const parent = await adapter.getTask(parentId);
+    const child = await adapter.getTask(childId);
+    expect(parent.completed).toBe(true);
+    expect(child.completed).toBe(true);
+  });
+
+  it("choice 1: completes parent only, leaves children", async () => {
+    const store = new ReplayStore(60_000);
+    const { ctx, adapter } = makeCtx(store);
+
+    const parentId = await adapter.createTask({ name: "Parent" });
+    const childId = await adapter.createTask({ name: "Child", parentId });
+
+    const e = asEnvelope(await handleTaskComplete({ id: parentId }, ctx));
+    if (!isClarificationNeeded(e)) throw new Error("expected clarification-needed");
+
+    const entry = store.consume(e.replayToken);
+    if (!entry) throw new Error("token not found");
+    await entry.callback(1);
+
+    const parent = await adapter.getTask(parentId);
+    const child = await adapter.getTask(childId);
+    expect(parent.completed).toBe(true);
+    expect(child.completed).toBe(false);
+  });
+
+  it("completes directly when no children exist", async () => {
+    const store = new ReplayStore(60_000);
+    const { ctx, adapter } = makeCtx(store);
+    const id = await adapter.createTask({ name: "Leaf" });
+
+    const e = asEnvelope(await handleTaskComplete({ id }, ctx));
+
+    expect(isSuccess(e)).toBe(true);
+    if (!isSuccess(e)) throw new Error("not success");
+    expect((e.data as { done: boolean }).done).toBe(true);
   });
 });
 
