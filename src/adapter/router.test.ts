@@ -87,6 +87,8 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     deleteFolder: record("deleteFolder"),
     searchTasks: record("searchTasks"),
     getForecast: record("getForecast"),
+    getForecastTag: record("getForecastTag"),
+    setForecastTag: record("setForecastTag"),
     appLaunch: record("appLaunch"),
     pluginInvoke: record("pluginInvoke"),
     listPerspectives: record("listPerspectives"),
@@ -165,6 +167,8 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
     searchTasks: () => r.searchTasks({ q: "x" }),
     getForecast: () =>
       r.getForecast({ from: "2026-04-23T00:00:00.000Z", to: "2026-04-23T23:59:59.999Z" }),
+    getForecastTag: () => r.getForecastTag(),
+    setForecastTag: () => r.setForecastTag(null),
     appLaunch: () => r.appLaunch(),
     pluginInvoke: () => r.pluginInvoke({ identifier: "com.example.test" }),
     listPerspectives: () => r.listPerspectives(),
@@ -267,10 +271,12 @@ describe("TransportRouter — table integrity", () => {
     expect(omniJsRoutes).toEqual([
       "batchMoveTasks", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works
       "evaluateCustomPerspective",
+      "getForecastTag", // Database.forecastTag is OmniJS-only (#465)
       "moveTask", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works
       "pluginInvoke",
       "reorderTask", // JXA task.move(positioned:) → same error 9; OmniJS moveTasks + ChildInsertionLocation
       "runOmniJsScript",
+      "setForecastTag", // Database.forecastTag is OmniJS-only (#465)
     ]);
   });
 });

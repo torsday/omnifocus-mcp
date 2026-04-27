@@ -139,6 +139,7 @@ export class InMemoryAdapter implements OmniFocusAdapter {
   private readonly attachments = new Map<string, Map<AttachmentId, Attachment>>();
 
   private lastSyncAt: string | null = null;
+  private forecastTagId: TagId | null = null;
 
   constructor(options: InMemoryAdapterOptions = {}) {
     this.now = options.now ?? (() => new Date());
@@ -1203,6 +1204,18 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     const flagged = includeFlagged ? all.filter((t) => t.flagged) : [];
 
     return { overdue, dueToday, deferredToday, flagged };
+  }
+
+  async getForecastTag(): Promise<{ tagId: TagId | null }> {
+    return { tagId: this.forecastTagId };
+  }
+
+  async setForecastTag(tagId: TagId | null): Promise<{ tagId: TagId | null }> {
+    if (tagId !== null && !this.tags.has(tagId)) {
+      throw new NotFound(`Tag not found: ${tagId}`);
+    }
+    this.forecastTagId = tagId;
+    return { tagId };
   }
 
   // -- Attachments (minimal in-memory store; real semantics in integration tier)
