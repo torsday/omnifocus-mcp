@@ -3,12 +3,12 @@
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
  * API from @modelcontextprotocol/sdk. Currently registers `internal_status`,
- * the four OmniFocus workflow prompts, the thirteen MCP resources, and 70 domain
+ * the four OmniFocus workflow prompts, the thirteen MCP resources, and 71 domain
  * tools across folder, tag, note, search, forecast, perspective, plugin,
  * sync, review, export, app, project, task, repetition, and attachment surfaces.
  * Two additional raw-script escape-hatch tools (`run_jxa_script`,
  * `run_omnijs_script`) register only when `OMNIFOCUS_ALLOW_RAW_SCRIPT=1`
- * (ADR-0004), bringing the wired surface to 72. Every registered tool is
+ * (ADR-0004), bringing the wired surface to 73. Every registered tool is
  * wrapped in `assertNotShuttingDown → withCircuitBreaker → withRateLimitMeta
  * → withLoopDetection` via `installToolMiddleware` (#291), which runs once
  * before any `register*Tool` helper.
@@ -133,6 +133,7 @@ import { registerTaskCreateTool } from "../tools/task/create.js";
 import { registerTaskDeleteTool } from "../tools/task/delete.js";
 import { registerTaskDropTool } from "../tools/task/drop.js";
 import { registerTaskDuplicateTool } from "../tools/task/duplicate.js";
+import { registerTaskExtractFromNoteTool } from "../tools/task/extractFromNote.js";
 import { registerTaskFindByNameTool } from "../tools/task/findByName.js";
 import { registerTaskGetTool } from "../tools/task/get.js";
 import { registerTaskGetManyTool } from "../tools/task/getMany.js";
@@ -407,6 +408,7 @@ export async function startServer(): Promise<void> {
   registerTaskCompleteTool(server, taskMutationCtx);
   registerTaskDropTool(server, taskMutationCtx);
   registerTaskDuplicateTool(server, taskMutationCtx);
+  registerTaskExtractFromNoteTool(server, taskMutationCtx);
   registerTaskMoveTool(server, taskMutationCtx);
   registerTaskReorderTool(server, taskMutationCtx);
   registerTaskSetRepetitionTool(server, taskMutationCtx);
