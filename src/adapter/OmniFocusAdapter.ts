@@ -50,7 +50,11 @@ export interface CreateTaskInput {
   noteHtml?: string;
   flagged?: boolean;
   deferDate?: string;
+  /** When true, the defer time follows the user across time zones. */
+  deferDateFloating?: boolean;
   dueDate?: string;
+  /** When true, the due time follows the user across time zones. */
+  dueDateFloating?: boolean;
   estimatedMinutes?: number;
   tagIds?: TagId[];
   sequential?: boolean;
@@ -63,7 +67,9 @@ export interface UpdateTaskInput {
   noteHtml?: string | null;
   flagged?: boolean;
   deferDate?: string | null;
+  deferDateFloating?: boolean;
   dueDate?: string | null;
+  dueDateFloating?: boolean;
   estimatedMinutes?: number | null;
   tagIds?: TagId[];
   sequential?: boolean;
@@ -79,7 +85,9 @@ export interface CreateProjectInput {
   status?: "active" | "on-hold";
   completionCriterion?: "parallel" | "sequential" | "singleActions";
   deferDate?: string;
+  deferDateFloating?: boolean;
   dueDate?: string;
+  dueDateFloating?: boolean;
   estimatedMinutes?: number;
   flagged?: boolean;
   tagIds?: TagId[];
@@ -93,7 +101,9 @@ export interface UpdateProjectInput {
   status?: "active" | "on-hold";
   completionCriterion?: "parallel" | "sequential" | "singleActions";
   deferDate?: string | null;
+  deferDateFloating?: boolean;
   dueDate?: string | null;
+  dueDateFloating?: boolean;
   estimatedMinutes?: number | null;
   flagged?: boolean;
   tagIds?: TagId[];

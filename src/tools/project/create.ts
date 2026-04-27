@@ -65,11 +65,19 @@ export const projectCreateInputSchema = z.object({
     .datetime({ offset: true })
     .optional()
     .describe("Defer date as ISO-8601 with UTC offset."),
+  deferDateFloating: z
+    .boolean()
+    .optional()
+    .describe("When true, the defer time is floating (follows the user across time zones)."),
   dueDate: z
     .string()
     .datetime({ offset: true })
     .optional()
     .describe("Due date as ISO-8601 with UTC offset."),
+  dueDateFloating: z
+    .boolean()
+    .optional()
+    .describe("When true, the due time is floating (follows the user across time zones)."),
   estimatedMinutes: z
     .number()
     .int()
@@ -140,7 +148,9 @@ export async function handleProjectCreate(
         completionCriterion: input.completionCriterion,
       }),
       ...(input.deferDate !== undefined && { deferDate: input.deferDate }),
+      ...(input.deferDateFloating !== undefined && { deferDateFloating: input.deferDateFloating }),
       ...(input.dueDate !== undefined && { dueDate: input.dueDate }),
+      ...(input.dueDateFloating !== undefined && { dueDateFloating: input.dueDateFloating }),
       ...(input.estimatedMinutes !== undefined && { estimatedMinutes: input.estimatedMinutes }),
       ...(input.flagged !== undefined && { flagged: input.flagged }),
       ...(input.tagIds !== undefined && { tagIds: input.tagIds }),

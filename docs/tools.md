@@ -1212,7 +1212,9 @@ Create a new OmniFocus project. Optionally place it in a folder, assign tags, se
 | `status` | one of: active | on-hold | No | Initial project status. Default: active. |
 | `completionCriterion` | one of: parallel | sequential | singleActions | No | How the project's tasks are completed: parallel (any order), sequential (in order), or singleActions. |
 | `deferDate` | string | No | Defer date as ISO-8601 with UTC offset. |
+| `deferDateFloating` | boolean | No | When true, the defer time is floating (follows the user across time zones). |
 | `dueDate` | string | No | Due date as ISO-8601 with UTC offset. |
+| `dueDateFloating` | boolean | No | When true, the due time is floating (follows the user across time zones). |
 | `estimatedMinutes` | number | No | Estimated total duration in minutes. |
 | `flagged` | boolean | No | Flag the project. |
 | `tagIds` | string[] | No | Tag IDs to apply to the project. |
@@ -1532,7 +1534,9 @@ Partially update mutable fields on an OmniFocus project. Only supplied fields ar
 | `status` | one of: active | on-hold | No | Project status. Use project_complete or project_drop to close a project. |
 | `completionCriterion` | one of: parallel | sequential | singleActions | No | How the project's tasks are completed. |
 | `deferDate` | string | null | No | ISO-8601 defer date with UTC offset. Pass null to clear. |
+| `deferDateFloating` | boolean | No | When true, the defer time is floating (follows the user across time zones). |
 | `dueDate` | string | null | No | ISO-8601 due date with UTC offset. Pass null to clear. |
+| `dueDateFloating` | boolean | No | When true, the due time is floating (follows the user across time zones). |
 | `estimatedMinutes` | number | null | No | Estimated total duration in minutes. Pass null to clear. |
 | `flagged` | boolean | No | Flag or unflag the project. |
 | `tagIds` | string[] | No | Full-replacement tag list. Replaces all existing tags. |
@@ -2643,7 +2647,9 @@ Create a new task in OmniFocus — in the inbox, inside a project, or as a subta
 | `note` | string | No | Plain-text note. |
 | `flagged` | boolean | No | Flag the task. |
 | `dueDate` | string | No | Due date as ISO-8601 with offset. |
+| `dueDateFloating` | boolean | No | When true, the due time follows the user across time zones (floating) rather than being pinned to a fixed UTC instant. Use for recurring daily tasks where '9 AM' should mean 9 AM wherever the user is. Default: false (fixed-offset). |
 | `deferDate` | string | No | Defer date as ISO-8601 with offset. |
+| `deferDateFloating` | boolean | No | When true, the defer time is floating (follows the user across time zones). |
 | `estimatedMinutes` | number | No | Estimated duration in minutes. |
 | `tagIds` | string[] | No | Tag IDs to apply. |
 | `sequential` | boolean | No | If true, subtasks must be completed in order. |
@@ -3246,7 +3252,9 @@ Partially update mutable fields on an OmniFocus task. Only supplied fields are c
 | `flagged` | boolean | No | Flag or unflag the task. Alias: setFlagged. |
 | `setFlagged` | boolean | No | Convenience alias for flagged. Use when your intent is specifically to set or clear the flag without touching other fields. |
 | `deferDate` | string | null | No | ISO-8601 defer date with UTC offset. Pass null to clear. |
+| `deferDateFloating` | boolean | No | When true, the defer time is floating (follows the user across time zones). |
 | `dueDate` | string | null | No | ISO-8601 due date with UTC offset. Pass null to clear. |
+| `dueDateFloating` | boolean | No | When true, the due time is floating (follows the user across time zones). |
 | `estimatedMinutes` | number | null | No | Estimated duration in minutes. Pass null to clear. |
 | `sequential` | boolean | No | Whether subtasks must be completed in order. |
 | `completedByChildren` | boolean | No | Whether the task completes when all children are complete. |

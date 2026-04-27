@@ -604,6 +604,29 @@ OmniFocus stores wall-clock timestamps in the user's local time zone. At the MCP
 
 Recorded as **ADR-0007**.
 
+### Floating time zones
+
+OmniFocus supports "floating" dates — times that follow the user as they travel across time zones rather than anchoring to a specific UTC moment. A 9 AM meeting set as floating reads as 9 AM in Tokyo and 9 AM in London.
+
+Each date-bearing field (`deferDate`, `dueDate`) has a companion boolean: `deferDateFloating` / `dueDateFloating`.
+
+**Representation contract:**
+- When `true`, the field is present with value `true`.
+- When `false` (or the date is not floating), the field is **omitted entirely** — not set to `false`. This keeps the domain type clean and avoids explicit-`undefined` confusion under `exactOptionalPropertyTypes`.
+
+**Transport layer (JXA):**
+- JXA cannot read per-date floating flags; the `Date` class in JXA does not expose `shouldUseFloatingTimeZone`.
+- Read operations (`getTask`, `getProject`) return `deferDateFloating` / `dueDateFloating` as `undefined` / omitted for all tasks. This is a known transport limitation, not a bug.
+- OmniJS (Omni Automation plug-in) does expose `Date.fromString(iso, floating)` and can set/read the flag, but that transport is not wired in this release.
+
+**Write operations (create/update):**
+- All MCP tools accept `deferDateFloating` and `dueDateFloating` as optional boolean inputs.
+- The InMemoryAdapter fully round-trips these flags (used for testing).
+- The JXA adapter passes the flag to the script, but the script-side support (`Date.fromString(iso, true)`) is documented as `notYetWired` pending OmniJS integration. JXA writes silently ignore the flag.
+
+**Why keep the field if JXA can't read it?**
+The schema, domain types, and tool contracts are forward-compatible. When OmniJS transport is added (or when OmniFocus exposes the flag via JXA), the field is already wired end-to-end — no breaking change required.
+
 ---
 
 ## 15. Pagination

@@ -68,11 +68,23 @@ const taskCreateInputBaseSchema = z.object({
     .datetime({ offset: true })
     .optional()
     .describe("Due date as ISO-8601 with offset."),
+  dueDateFloating: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, the due time follows the user across time zones (floating) rather than " +
+        "being pinned to a fixed UTC instant. Use for recurring daily tasks where '9 AM' " +
+        "should mean 9 AM wherever the user is. Default: false (fixed-offset).",
+    ),
   deferDate: z
     .string()
     .datetime({ offset: true })
     .optional()
     .describe("Defer date as ISO-8601 with offset."),
+  deferDateFloating: z
+    .boolean()
+    .optional()
+    .describe("When true, the defer time is floating (follows the user across time zones)."),
   estimatedMinutes: z.number().int().min(1).optional().describe("Estimated duration in minutes."),
   tagIds: z.array(TagId.schema).optional().describe("Tag IDs to apply."),
   sequential: z.boolean().optional().describe("If true, subtasks must be completed in order."),
@@ -148,7 +160,9 @@ export async function handleTaskCreate(input: TaskCreateToolInput, ctx: TaskCrea
       ...(input.note !== undefined && { note: input.note }),
       ...(input.flagged !== undefined && { flagged: input.flagged }),
       ...(input.dueDate !== undefined && { dueDate: input.dueDate }),
+      ...(input.dueDateFloating !== undefined && { dueDateFloating: input.dueDateFloating }),
       ...(input.deferDate !== undefined && { deferDate: input.deferDate }),
+      ...(input.deferDateFloating !== undefined && { deferDateFloating: input.deferDateFloating }),
       ...(input.estimatedMinutes !== undefined && { estimatedMinutes: input.estimatedMinutes }),
       ...(input.tagIds !== undefined && { tagIds: input.tagIds }),
       ...(input.sequential !== undefined && { sequential: input.sequential }),

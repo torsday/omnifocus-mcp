@@ -43,7 +43,11 @@ export interface Project {
   completionCriterion: "parallel" | "sequential" | "singleActions";
 
   deferDate: IsoDateString | null;
+  /** When true, defer time follows the user across time zones. Omitted when false. */
+  deferDateFloating?: boolean;
   dueDate: IsoDateString | null;
+  /** When true, due time follows the user across time zones. Omitted when false. */
+  dueDateFloating?: boolean;
   estimatedMinutes: number | null;
   flagged: boolean;
 
@@ -82,7 +86,9 @@ export const ProjectSchema: z.ZodType<Project> = z.object({
   completionCriterion: z.enum(["parallel", "sequential", "singleActions"]),
 
   deferDate: isoDateString().nullable(),
+  deferDateFloating: z.boolean().optional(),
   dueDate: isoDateString().nullable(),
+  dueDateFloating: z.boolean().optional(),
   estimatedMinutes: z.number().int().min(1).nullable(),
   flagged: z.boolean(),
 
