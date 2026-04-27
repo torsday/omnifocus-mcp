@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 89 tools registered.
+> Auto-generated from source. 90 tools registered.
 
 ## Table of contents
 
@@ -47,6 +47,7 @@
 - [project_move](#project_move)
 - [project_set_next_review_date](#project_set_next_review_date)
 - [project_update](#project_update)
+- [repetition_from_prose](#repetition_from_prose)
 - [review_list_due](#review_list_due)
 - [review_mark_reviewed](#review_mark_reviewed)
 - [review_set_interval](#review_set_interval)
@@ -1553,6 +1554,37 @@ Partially update mutable fields on an OmniFocus project. Only supplied fields ar
 ```json
 {
   "toolName": "project_update",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## repetition_from_prose
+
+Deterministic prose-to-RepetitionRule helper. Pass a natural-language phrase ('every Monday', 'every 3 days', 'first Tuesday of every month') and receive a structured RepetitionRule plus a normalized description to confirm with the user. Returns one of three shapes: { kind: 'ok', rule, normalizedDescription } when the prose maps to one rule; { kind: 'ambiguous', interpretations[] } when prose admits multiple valid readings (typically 2-3) — agent picks one with the user; { kind: 'error', reason, suggestion? } for no-repetition-detected or unsupported-pattern. Supported patterns: daily/weekly/monthly/yearly, every-N-days/weeks/months/years, every weekday/weekend, every {Mon|Tue|...}, nth-weekday-of-month, nth-day-of-month, completion-relative phrasing ('after I complete it'). Time-of-day and end-conditions surface in normalizedDescription only — the canonical RepetitionRule schema doesn't carry those fields. Do NOT use this tool when the agent already has a structured RepetitionRule from another source — call task_set_repetition directly instead. Prefer this helper over ad-hoc LLM translation whenever the user's repetition phrasing is the only signal. No model calls; no side effects. Use with task_set_repetition or task_create.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "repetition_from_prose",
   "arguments": {}
 }
 ```
