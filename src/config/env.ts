@@ -65,6 +65,7 @@ const envSchema = z.object({
     .transform((v) => v.split(":").filter(Boolean)),
   OMNIFOCUS_MAX_ATTACHMENT_MB: z.coerce.number().int().positive().default(100),
   OMNIFOCUS_TOOL_RATE_LIMIT: rateLimitSchema.prefault("120/60"),
+  OMNIFOCUS_WAITING_TAG_NAME: z.string().min(1).default("waiting"),
 });
 
 // ---------------------------------------------------------------------------
@@ -105,6 +106,7 @@ export function parseConfig(
     OMNIFOCUS_ATTACHMENT_PATHS: processEnv.OMNIFOCUS_ATTACHMENT_PATHS,
     OMNIFOCUS_MAX_ATTACHMENT_MB: processEnv.OMNIFOCUS_MAX_ATTACHMENT_MB,
     OMNIFOCUS_TOOL_RATE_LIMIT: processEnv.OMNIFOCUS_TOOL_RATE_LIMIT,
+    OMNIFOCUS_WAITING_TAG_NAME: processEnv.OMNIFOCUS_WAITING_TAG_NAME,
   });
 
   if (!result.success) {
@@ -147,5 +149,6 @@ export function redactConfig(config: Config): Record<string, unknown> {
     OMNIFOCUS_ATTACHMENT_PATHS: config.OMNIFOCUS_ATTACHMENT_PATHS.map(hashValue),
     OMNIFOCUS_MAX_ATTACHMENT_MB: config.OMNIFOCUS_MAX_ATTACHMENT_MB,
     OMNIFOCUS_TOOL_RATE_LIMIT: config.OMNIFOCUS_TOOL_RATE_LIMIT,
+    OMNIFOCUS_WAITING_TAG_NAME: config.OMNIFOCUS_WAITING_TAG_NAME,
   };
 }

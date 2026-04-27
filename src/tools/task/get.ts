@@ -12,6 +12,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { TaskId } from "../../domain/ids.js";
+import { parseWaitingOn } from "../../domain/waitingOn.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TaskGetInput, TaskService } from "../../services/taskService.js";
 
@@ -46,8 +47,13 @@ export interface TaskGetContext {
  */
 export async function handleTaskGet(input: TaskGetToolInput, ctx: TaskGetContext) {
   const result = await ctx.taskService.get(input as TaskGetInput);
+  const waitingOn = parseWaitingOn(result.task.note);
   return ok(
-    { task: result.task, ...(result.subtasks !== undefined && { subtasks: result.subtasks }) },
+    {
+      task: result.task,
+      ...(result.subtasks !== undefined && { subtasks: result.subtasks }),
+      ...(waitingOn !== undefined && { waitingOn }),
+    },
     ctx.makeMeta({ cacheHit: result.cacheHit }),
   );
 }

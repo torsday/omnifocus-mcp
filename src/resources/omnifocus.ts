@@ -46,6 +46,7 @@ import { registerRetrospectiveResource } from "./retrospective.js";
 import { registerStatsResource } from "./stats.js";
 import { registerTaxonomyAuditResource } from "./taxonomyAudit.js";
 import { registerVelocityResource } from "./velocity.js";
+import { registerWaitingOnResource } from "./waitingOn.js";
 
 export { BURNDOWN_URI_TEMPLATE } from "./burndown.js";
 export { INTENTS_URI } from "./intents.js";
@@ -55,6 +56,7 @@ export { RETROSPECTIVE_URI_TEMPLATE } from "./retrospective.js";
 export { STATS_URI } from "./stats.js";
 export { TAXONOMY_AUDIT_URI } from "./taxonomyAudit.js";
 export { VELOCITY_URI_TEMPLATE } from "./velocity.js";
+export { WAITING_ON_URI } from "./waitingOn.js";
 
 // ---------------------------------------------------------------------------
 // Dependency bundle
@@ -394,6 +396,9 @@ export function registerOmniFocusResources(server: McpServer, deps: OmniFocusRes
 
   // ── omnifocus://recent-activity{?hours} ───────────────────────────────────
   registerRecentActivityResource(server, adapter);
+
+  // ── omnifocus://waiting-on ────────────────────────────────────────────────
+  registerWaitingOnResource(server, adapter);
 
   // ── omnifocus://retrospective{?from,to} ──────────────────────────────────
   registerRetrospectiveResource(server, adapter);

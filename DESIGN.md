@@ -835,7 +835,7 @@ Coverage is not enforced because it's gameable. Test *fidelity* is enforced at r
 - `pnpm lint` — zero errors; biome config enforces `coding.md` standards
 - `pnpm test` — zero failures; execution < 10s
 - `pnpm build` — single-file bundle emitted to `dist/index.js`
-- Bundle size budget: < 525 KB (tsup --minify); above that blocks release. Bumped from 500 KB as the tool surface grew — per-tool string and Zod-schema overhead became the dominant bundle cost.
+- Bundle size budget: < 540 KiB (tsup --minify); above that blocks release. Bumped 500 → 525 → 540 KiB as the tool surface grew — per-tool string and Zod-schema overhead became the dominant bundle cost. The next bump should NOT be another flat increase: open a follow-up to investigate tree-shaking, code-splitting per-tool, or moving large constant strings out of the bundle.
 
 ---
 
