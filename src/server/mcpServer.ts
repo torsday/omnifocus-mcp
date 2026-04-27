@@ -3,12 +3,12 @@
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
  * API from @modelcontextprotocol/sdk. Currently registers `internal_status`,
- * the five OmniFocus workflow prompts, the thirteen MCP resources, and 75 domain
+ * the five OmniFocus workflow prompts, the thirteen MCP resources, and 76 domain
  * tools across folder, tag, note, search, forecast, perspective, plugin,
  * sync, review, export, app, project, task, repetition, attachment, and
  * database surfaces. Two additional raw-script escape-hatch tools
  * (`run_jxa_script`, `run_omnijs_script`) register only when
- * `OMNIFOCUS_ALLOW_RAW_SCRIPT=1` (ADR-0004), bringing the wired surface to 77.
+ * `OMNIFOCUS_ALLOW_RAW_SCRIPT=1` (ADR-0004), bringing the wired surface to 78.
  * Every registered tool is
  * wrapped in `assertNotShuttingDown → withCircuitBreaker → withRateLimitMeta
  * → withLoopDetection` via `installToolMiddleware` (#291), which runs once
@@ -145,6 +145,7 @@ import { registerTaskGetManyTool } from "../tools/task/getMany.js";
 import { registerTaskListTool } from "../tools/task/list.js";
 import { registerTaskMoveTool } from "../tools/task/move.js";
 import { registerTaskParseTransportTextTool } from "../tools/task/parseTransportText.js";
+import { registerTaskReclassifyTool } from "../tools/task/reclassify.js";
 import { registerTaskReorderTool } from "../tools/task/reorder.js";
 import { registerTaskSearchTool } from "../tools/task/search.js";
 import { registerTaskSetRepetitionTool } from "../tools/task/setRepetition.js";
@@ -407,6 +408,7 @@ export async function startServer(): Promise<void> {
   registerTaskGetManyTool(server, taskAdapterCtx);
   registerTaskParseTransportTextTool(server, { makeMeta });
   registerRepetitionFromProseTool(server, { makeMeta });
+  registerTaskReclassifyTool(server, taskMutationCtx);
   registerTaskBatchAssignTool(server, taskMutationCtx);
   registerTaskBatchCompleteTool(server, taskMutationCtx);
   registerTaskBatchCreateTool(server, taskMutationCtx);

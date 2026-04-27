@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 95 tools registered.
+> Auto-generated from source. 96 tools registered.
 
 ## Table of contents
 
@@ -92,6 +92,7 @@
 - [task_list](#task_list)
 - [task_move](#task_move)
 - [task_parse_transport_text](#task_parse_transport_text)
+- [task_reclassify](#task_reclassify)
 - [task_reorder](#task_reorder)
 - [task_search](#task_search)
 - [task_set_repetition](#task_set_repetition)
@@ -3227,6 +3228,37 @@ _No parameters._
 ```json
 {
   "toolName": "task_parse_transport_text",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_reclassify
+
+Predicate-driven bulk task reclassification with a mandatory two-phase contract. Phase 1 (dryRun: true): match tasks by predicate, return { matched, proposed: [{taskId, before, after}] } with no mutations. Phase 2 (dryRun: false): require `confirmation` echoing the matched count from the prior dry-run; mismatch fails fast. Hard cap: dryRun: false rejects > 200 matches (use task_batch_update with explicit IDs for larger sets). Predicate is a discriminated-union AST: { kind: 'title-contains', value, caseSensitive? } | { kind: 'tag', tagId } | { kind: 'project', projectId } | { kind: 'and', predicates: [] } | { kind: 'or', predicates: [] } | { kind: 'not', predicate }. Changes apply uniformly to every match: addTags, removeTags, setProject, setFlagged. Do NOT use this tool when you have explicit task IDs — call task_batch_update directly. Prefer task_reclassify whenever the targets are described by a rule rather than a list, so the dry-run diff surfaces to the user before any write. Side effects (apply phase only): writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_reclassify",
   "arguments": {}
 }
 ```
