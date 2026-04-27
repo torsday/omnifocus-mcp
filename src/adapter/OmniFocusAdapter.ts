@@ -529,6 +529,41 @@ export interface OmniFocusAdapter {
    */
   appLaunch(): Promise<AppLaunchResult>;
 
+  // -- Window controls (UI-affecting; advisory) ------------------------------
+  // These read or mutate the front-window's perspective and focus container.
+  // They do NOT invalidate any data caches — UI state is orthogonal to data.
+  // All three throw WindowUnavailable when OF has no front window.
+  // @see #466
+
+  /**
+   * Read the active perspective name and focus-container IDs of the front
+   * window. Returns `{ perspectiveName: null, focusContainerIds: [] }` for an
+   * unfocused window with no perspective applied.
+   *
+   * @throws WindowUnavailable — when OF has no front window
+   */
+  getWindowState(): Promise<{
+    perspectiveName: string | null;
+    focusContainerIds: string[];
+  }>;
+
+  /**
+   * Switch the front window to a named perspective (built-in or custom).
+   *
+   * @throws WindowUnavailable — when OF has no front window
+   * @throws NotFound — when no perspective with this name exists
+   */
+  setWindowPerspective(perspectiveName: string): Promise<{ perspectiveName: string }>;
+
+  /**
+   * Set or clear the front window's focus container. Pass `null` to clear.
+   * The container ID may belong to a project or a folder.
+   *
+   * @throws WindowUnavailable — when OF has no front window
+   * @throws NotFound — when no project or folder with this ID exists
+   */
+  setWindowFocus(containerId: string | null): Promise<{ focusContainerIds: string[] }>;
+
   // -- Plug-in invocation ----------------------------------------------------
 
   /**

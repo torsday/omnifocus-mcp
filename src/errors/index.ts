@@ -25,6 +25,7 @@ export type ErrorCode =
   | "OF_PERMISSION_DENIED"
   | "OF_FEATURE_REQUIRES_PRO"
   | "OF_FEATURE_REQUIRES_VERSION"
+  | "OF_WINDOW_UNAVAILABLE"
   // Input — agent should fix the input before retrying
   | "OF_VALIDATION"
   | "OF_NOT_FOUND"
@@ -286,6 +287,25 @@ export class TransportUnavailable extends OmniFocusError {
       remediationClass: "infrastructure",
       suggestion:
         "The required transport is unreachable. Verify OmniFocus is running and responsive.",
+      ...options,
+    });
+  }
+}
+
+/**
+ * Thrown when the requested window operation cannot proceed because
+ * OmniFocus has no front window (running headless / minimized to dock /
+ * window closed). UI tools should surface this so an agent doesn't crash
+ * and the user can be prompted to open or focus an OmniFocus window.
+ *
+ * @see #466
+ */
+export class WindowUnavailable extends OmniFocusError {
+  constructor(message: string, options: ErrorOptions = {}) {
+    super("OF_WINDOW_UNAVAILABLE", message, {
+      remediationClass: "environment",
+      suggestion:
+        "OmniFocus has no front window. Ask the user to open an OmniFocus window (Cmd-N or click the Dock icon) and retry.",
       ...options,
     });
   }
