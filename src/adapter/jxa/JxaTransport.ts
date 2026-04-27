@@ -804,6 +804,21 @@ export class JxaTransport implements OmniFocusAdapter {
     });
   }
 
+  // -- Database undo/redo (route to OmniJS) ---------------------------------
+  // Database.undo() / Database.redo() are OmniJS-only APIs.
+  async undoLastMutation(): Promise<{ undid: boolean }> {
+    throw new ScriptError(
+      "undoLastMutation routes to OmniJsTransport — JXA transport unavailable",
+      { details: { transport: "jxa", reason: "routes-to-omnijs", method: "undoLastMutation" } },
+    );
+  }
+  async redoLastMutation(): Promise<{ redid: boolean }> {
+    throw new ScriptError(
+      "redoLastMutation routes to OmniJsTransport — JXA transport unavailable",
+      { details: { transport: "jxa", reason: "routes-to-omnijs", method: "redoLastMutation" } },
+    );
+  }
+
   // -- Attachments (wired) --------------------------------------------------
 
   async listAttachments(input: ListAttachmentsInput): Promise<Attachment[]> {

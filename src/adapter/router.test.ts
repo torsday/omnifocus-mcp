@@ -104,6 +104,8 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     saveAttachmentToPath: record("saveAttachmentToPath"),
     syncTrigger: record("syncTrigger"),
     getLastSync: record("getLastSync"),
+    undoLastMutation: record("undoLastMutation"),
+    redoLastMutation: record("redoLastMutation"),
     getChangesSince: record("getChangesSince"),
     runJxaScript: record("runJxaScript"),
     runOmniJsScript: record("runOmniJsScript"),
@@ -189,6 +191,8 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
       r.saveAttachmentToPath({ taskId: T_ID, attachmentId: ATT_ID, destPath: "/tmp/out.txt" }),
     syncTrigger: () => r.syncTrigger(),
     getLastSync: () => r.getLastSync(),
+    undoLastMutation: () => r.undoLastMutation(),
+    redoLastMutation: () => r.redoLastMutation(),
     getChangesSince: () => r.getChangesSince("2026-01-01T00:00:00.000Z"),
     runJxaScript: () => r.runJxaScript("noop"),
     runOmniJsScript: () => r.runOmniJsScript("noop"),
@@ -282,9 +286,11 @@ describe("TransportRouter — table integrity", () => {
       "getForecastTag", // Database.forecastTag is OmniJS-only (#465)
       "moveTask", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works
       "pluginInvoke",
+      "redoLastMutation", // Database.redo() is OmniJS-only (#526)
       "reorderTask", // JXA task.move(positioned:) → same error 9; OmniJS moveTasks + ChildInsertionLocation
       "runOmniJsScript",
       "setForecastTag", // Database.forecastTag is OmniJS-only (#465)
+      "undoLastMutation", // Database.undo() is OmniJS-only (#526)
     ]);
   });
 });

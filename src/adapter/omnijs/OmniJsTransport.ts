@@ -41,6 +41,8 @@ import {
   type TaskBatchMoveScriptResult,
   type TaskMoveScriptResult,
 } from "../../scripts/contracts.js";
+import databaseRedoScript from "../../scripts/omnijs/database_redo.js";
+import databaseUndoScript from "../../scripts/omnijs/database_undo.js";
 import forecastGetTagScript from "../../scripts/omnijs/forecast_get_tag.js";
 import forecastSetTagScript from "../../scripts/omnijs/forecast_set_tag.js";
 import perspectiveEvaluateScript from "../../scripts/omnijs/perspective_evaluate.js";
@@ -425,6 +427,32 @@ export class OmniJsTransport implements OmniFocusAdapter {
     return {
       tagId: result.tagId === null ? null : TagIdCtor.of(result.tagId),
     };
+  }
+
+  // -- Database undo/redo ---------------------------------------------------
+  // Wrap Database.undo() / Database.redo() — OmniJS-only APIs.
+  async undoLastMutation(): Promise<{ undid: boolean }> {
+    const result = await runOmniJsScript<
+      { undid: boolean } | { error: { code: string; message: string } }
+    >(databaseUndoScript, {}, { ...this.runOpts, scriptName: "database_undo" });
+    if (isScriptError(result)) {
+      throw new ScriptError(result.error.message, {
+        details: { transport: "omnijs", scriptName: "database_undo", code: result.error.code },
+      });
+    }
+    return { undid: result.undid };
+  }
+
+  async redoLastMutation(): Promise<{ redid: boolean }> {
+    const result = await runOmniJsScript<
+      { redid: boolean } | { error: { code: string; message: string } }
+    >(databaseRedoScript, {}, { ...this.runOpts, scriptName: "database_redo" });
+    if (isScriptError(result)) {
+      throw new ScriptError(result.error.message, {
+        details: { transport: "omnijs", scriptName: "database_redo", code: result.error.code },
+      });
+    }
+    return { redid: result.redid };
   }
 
   // -- App lifecycle --------------------------------------------------------

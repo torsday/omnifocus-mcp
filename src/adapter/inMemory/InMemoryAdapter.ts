@@ -1128,6 +1128,30 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     return { lastSyncAt: this.lastSyncAt, inFlight: false };
   }
 
+  // -- Database undo/redo (test stub) ---------------------------------------
+  // The in-memory adapter doesn't model OmniFocus's full undo stack — it
+  // tracks a simple count so tests can assert that a tool round-trip reaches
+  // the adapter. Real undo/redo semantics live in `OmniJsTransport` against
+  // a live OmniFocus document.
+  /** @internal — visible for tests */
+  undoStackDepth = 0;
+  /** @internal — visible for tests */
+  redoStackDepth = 0;
+
+  async undoLastMutation(): Promise<{ undid: boolean }> {
+    if (this.undoStackDepth === 0) return { undid: false };
+    this.undoStackDepth -= 1;
+    this.redoStackDepth += 1;
+    return { undid: true };
+  }
+
+  async redoLastMutation(): Promise<{ redid: boolean }> {
+    if (this.redoStackDepth === 0) return { redid: false };
+    this.redoStackDepth -= 1;
+    this.undoStackDepth += 1;
+    return { redid: true };
+  }
+
   // -- Perspectives (in-memory returns the built-in set) --------------------
 
   async listPerspectives(): Promise<Perspective[]> {

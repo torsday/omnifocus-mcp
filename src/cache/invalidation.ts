@@ -126,3 +126,16 @@ export function invalidateFolderMutation(
 export function invalidateOnSync(cache: ClearableCache): void {
   cache.clear();
 }
+
+/**
+ * Invalidation on `database_undo` / `database_redo` — undo and redo can
+ * revert/replay arbitrary mutations from the document's undo stack
+ * (including ones from outside the MCP, like manual UI edits). We don't
+ * know what was reverted, so every cached read is potentially stale.
+ * Clear the whole cache. Same semantics as `invalidateOnSync`.
+ *
+ * @see #526
+ */
+export function invalidateOnUndoRedo(cache: ClearableCache): void {
+  cache.clear();
+}

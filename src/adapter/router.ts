@@ -157,6 +157,11 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   syncTrigger: "jxa",
   getLastSync: "jxa",
 
+  // -- Database undo/redo ---------------------------------------------------
+  // Database.undo() / Database.redo() are OmniJS-only.
+  undoLastMutation: "omnijs",
+  redoLastMutation: "omnijs",
+
   // -- Attachments ----------------------------------------------------------
   listAttachments: "jxa",
   addAttachment: "jxa",
@@ -464,6 +469,13 @@ export class TransportRouter implements OmniFocusAdapter {
   }
   getLastSync(): Promise<SyncStatus> {
     return this.pick("getLastSync").getLastSync();
+  }
+
+  undoLastMutation(): Promise<{ undid: boolean }> {
+    return this.pick("undoLastMutation").undoLastMutation();
+  }
+  redoLastMutation(): Promise<{ redid: boolean }> {
+    return this.pick("redoLastMutation").redoLastMutation();
   }
 
   // -- Attachments ----------------------------------------------------------

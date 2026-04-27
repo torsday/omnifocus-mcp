@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 93 tools registered.
+> Auto-generated from source. 95 tools registered.
 
 ## Table of contents
 
@@ -11,6 +11,8 @@
 - [attachment_list](#attachment_list)
 - [attachment_remove](#attachment_remove)
 - [attachment_save_to_path](#attachment_save_to_path)
+- [database_redo](#database_redo)
+- [database_undo](#database_undo)
 - [export_opml](#export_opml)
 - [export_taskpaper](#export_taskpaper)
 - [folder_create](#folder_create)
@@ -254,6 +256,68 @@ Copy an attachment's content to a local file path. Do not use to list or remove 
 ```json
 {
   "toolName": "attachment_save_to_path",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## database_redo
+
+Re-apply the most recently undone mutation, identical to ⌘⇧Z in OmniFocus. Advances one entry on the document's redo stack. Any mutation between an undo and a redo invalidates the redo stack (matching UI semantics). Mandatory `confirm: true` mirrors database_undo's destructive-write pattern. Returns { redid: boolean } — true when an entry was redone, false when the stack was empty. Do NOT use this tool to re-apply a specific operation — the redo stack is opaque. Prefer database_redo only as a direct counterpart to database_undo when an undo was issued in error. Side effects: re-applies whatever entry is at the top of the document's redo stack; fully invalidates the read cache; does NOT trigger sync. Call sync_trigger when you need the change to appear on other devices.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "database_redo",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## database_undo
+
+Reverse the most recent document mutation, identical to ⌘Z in OmniFocus. Walks back one entry on the document's undo stack regardless of mutation source — an MCP undo can revert a manual UI edit if that was the most recent change. Mandatory `confirm: true` mirrors task_batch_delete's destructive-write pattern, since undo can silently revert changes the agent or another caller just made. Returns { undid: boolean } — true when an entry was undone, false when the stack was empty. Do NOT use this tool to roll back specific operations — the undo stack is opaque and you cannot inspect what would be reverted before calling. Prefer database_undo for: post-batch error recovery, retry-after-partial-failure cleanup, and integration-test teardown. Side effects: reverts whatever entry is at the top of the document's undo stack; fully invalidates the read cache (we don't know what was reverted); does NOT trigger sync. Call sync_trigger when you need the change to appear on other devices.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "database_undo",
   "arguments": {}
 }
 ```

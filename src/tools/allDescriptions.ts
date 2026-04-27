@@ -5,6 +5,8 @@ import {
   ATTACHMENT_REMOVE_DESCRIPTION,
   ATTACHMENT_SAVE_TO_PATH_DESCRIPTION,
 } from "./attachment/index.js";
+import { DATABASE_REDO_DESCRIPTION } from "./database/redo.js";
+import { DATABASE_UNDO_DESCRIPTION } from "./database/undo.js";
 import { EXPORT_OPML_DESCRIPTION } from "./export/opml.js";
 import { IMPORT_OPML_DESCRIPTION } from "./export/opml_import.js";
 import { EXPORT_TASKPAPER_DESCRIPTION, IMPORT_TASKPAPER_DESCRIPTION } from "./export/taskpaper.js";
@@ -101,6 +103,8 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   attachment_list: ATTACHMENT_LIST_DESCRIPTION,
   attachment_remove: ATTACHMENT_REMOVE_DESCRIPTION,
   attachment_save_to_path: ATTACHMENT_SAVE_TO_PATH_DESCRIPTION,
+  database_redo: DATABASE_REDO_DESCRIPTION,
+  database_undo: DATABASE_UNDO_DESCRIPTION,
   export_opml: EXPORT_OPML_DESCRIPTION,
   export_taskpaper: EXPORT_TASKPAPER_DESCRIPTION,
   forecast_get: FORECAST_GET_DESCRIPTION,
