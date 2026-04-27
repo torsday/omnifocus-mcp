@@ -8,6 +8,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { TagId } from "../../domain/ids.js";
+import { summaryTagDeleteById } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TagService } from "../../services/tagService.js";
 
@@ -35,7 +36,10 @@ export interface TagDeleteContext {
  */
 export async function handleTagDelete(input: TagDeleteToolInput, ctx: TagDeleteContext) {
   await ctx.tagService.delete(input.id);
-  return ok({ deleted: true, id: input.id }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { deleted: true, id: input.id },
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryTagDeleteById() }),
+  );
 }
 
 export function registerTagDeleteTool(server: McpServer, ctx: TagDeleteContext) {

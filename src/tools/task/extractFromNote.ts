@@ -36,6 +36,7 @@ import type { CreateTaskInput, OmniFocusAdapter } from "../../adapter/OmniFocusA
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
 import { extractTasksFromProse } from "../../domain/proseExtractor.js";
+import { summaryBatchCreate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 // ---------------------------------------------------------------------------
@@ -188,7 +189,10 @@ export async function handleTaskExtractFromNote(
     invalidateTaskMutation(ctx.cache, { projectId: input.targetProjectId });
   }
 
-  const meta = ctx.makeMeta({ syncPending: outcome.succeeded.length > 0 });
+  const meta = ctx.makeMeta({
+    syncPending: outcome.succeeded.length > 0,
+    humanReadableSummary: summaryBatchCreate(outcome.succeeded.length),
+  });
   return ok(
     {
       phase: "created" as const,

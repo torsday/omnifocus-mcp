@@ -8,6 +8,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { FolderId } from "../../domain/ids.js";
+import { summaryFolderMove } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { FolderService } from "../../services/folderService.js";
 
@@ -35,7 +36,16 @@ export interface FolderMoveContext {
 export async function handleFolderMove(input: FolderMoveToolInput, ctx: FolderMoveContext) {
   await ctx.folderService.move(input.id, input.parentId);
   const { folder } = await ctx.folderService.get(input.id);
-  return ok({ folder }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { folder },
+    ctx.makeMeta({
+      syncPending: true,
+      humanReadableSummary: summaryFolderMove(
+        folder.name,
+        input.parentId != null ? "folder" : "library root",
+      ),
+    }),
+  );
 }
 
 export function registerFolderMoveTool(server: McpServer, ctx: FolderMoveContext) {

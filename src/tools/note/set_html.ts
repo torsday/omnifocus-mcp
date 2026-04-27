@@ -22,6 +22,7 @@ import {
   invalidateTaskMutation,
 } from "../../cache/invalidation.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
+import { summaryNoteSetById } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 // ---------------------------------------------------------------------------
@@ -92,7 +93,10 @@ export async function handleNoteSetHtml(input: NoteSetHtmlToolInput, ctx: NoteSe
       invalidateProjectMutation(ctx.cache, { projectId: ProjectId.of(input.id) });
     }
   }
-  return ok({ updated: true as const, id: input.id }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { updated: true as const, id: input.id },
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryNoteSetById("task") }),
+  );
 }
 
 // ---------------------------------------------------------------------------

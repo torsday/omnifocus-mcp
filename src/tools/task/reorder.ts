@@ -14,6 +14,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter, TaskPosition } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
+import { summaryTaskReorder } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import { ValidationError } from "../../errors/index.js";
 
@@ -153,7 +154,7 @@ export async function handleTaskReorder(input: TaskReorderToolInput, ctx: TaskRe
 
   return ok(
     { reordered: true as const, id: input.id, position },
-    ctx.makeMeta({ syncPending: true }),
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryTaskReorder(task.name) }),
   );
 }
 

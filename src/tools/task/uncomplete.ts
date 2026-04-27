@@ -10,6 +10,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { TaskId } from "../../domain/ids.js";
+import { summaryTaskUncomplete } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 // ---------------------------------------------------------------------------
@@ -55,7 +56,10 @@ export async function handleTaskUncomplete(
   if (ctx.cache !== undefined) {
     invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
   }
-  return ok({ done: true as const, id: input.id }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { done: true as const, id: input.id },
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryTaskUncomplete(task.name) }),
+  );
 }
 
 // ---------------------------------------------------------------------------

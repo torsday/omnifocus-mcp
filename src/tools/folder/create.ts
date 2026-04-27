@@ -8,6 +8,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { FolderId } from "../../domain/ids.js";
+import { summaryFolderCreate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { FolderService } from "../../services/folderService.js";
 
@@ -38,7 +39,10 @@ export async function handleFolderCreate(input: FolderCreateToolInput, ctx: Fold
     ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
   });
   const { folder } = await ctx.folderService.get(createResult.id);
-  return ok({ folder }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { folder },
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryFolderCreate(input.name) }),
+  );
 }
 
 export function registerFolderCreateTool(server: McpServer, ctx: FolderCreateContext) {

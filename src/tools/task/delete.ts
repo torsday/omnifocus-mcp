@@ -22,6 +22,7 @@ import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import type { TaskId as TaskIdType } from "../../domain/ids.js";
 import { TaskId } from "../../domain/ids.js";
+import { summaryTaskDelete } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, type ToolEnvelope, toolResponse } from "../../envelope/index.js";
 import { assertNotModifiedSince } from "../../server/assertNotModifiedSince.js";
 import { dryRunGuard } from "../../server/dryRunGuard.js";
@@ -150,7 +151,10 @@ export async function handleTaskDelete(
       if (ctx.cache !== undefined) {
         invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
       }
-      return ok({ deleted: true as const, id: input.id }, ctx.makeMeta({ syncPending: true }));
+      return ok(
+        { deleted: true as const, id: input.id },
+        ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryTaskDelete(task.name) }),
+      );
     };
 
     return dryRunGuard(input.dry_run, preview, live);

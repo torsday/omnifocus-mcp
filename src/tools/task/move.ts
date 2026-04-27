@@ -16,6 +16,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
+import { summaryTaskMove } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import { ValidationError } from "../../errors/index.js";
 
@@ -148,7 +149,16 @@ export async function handleTaskMove(input: TaskMoveToolInput, ctx: TaskMoveCont
       ? { inbox: true as const }
       : describeLocation(input.projectId ?? null, input.parentId ?? null);
 
-  return ok({ moved: true as const, id: input.id, from, to }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { moved: true as const, id: input.id, from, to },
+    ctx.makeMeta({
+      syncPending: true,
+      humanReadableSummary: summaryTaskMove(
+        task.name,
+        input.toInbox === true ? "inbox" : input.projectId != null ? "project" : "parent task",
+      ),
+    }),
+  );
 }
 
 function describeLocation(

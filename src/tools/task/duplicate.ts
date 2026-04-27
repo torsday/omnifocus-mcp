@@ -19,6 +19,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
+import { summaryTaskDuplicate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import { ValidationError } from "../../errors/index.js";
 
@@ -137,7 +138,7 @@ export async function handleTaskDuplicate(
       newId,
       descendantCount,
     },
-    ctx.makeMeta({ syncPending: true }),
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryTaskDuplicate(source.name) }),
   );
 }
 

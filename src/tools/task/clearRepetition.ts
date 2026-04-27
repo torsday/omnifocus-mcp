@@ -13,6 +13,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { TaskId } from "../../domain/ids.js";
+import { summaryTaskClearRepetition } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 // ---------------------------------------------------------------------------
@@ -63,7 +64,10 @@ export async function handleTaskClearRepetition(
   if (ctx.cache !== undefined) {
     invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
   }
-  const meta = ctx.makeMeta({ syncPending: true });
+  const meta = ctx.makeMeta({
+    syncPending: true,
+    humanReadableSummary: summaryTaskClearRepetition(task.name),
+  });
   return ok({ task }, meta);
 }
 

@@ -13,6 +13,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateProjectMutation } from "../../cache/invalidation.js";
 import { ProjectId } from "../../domain/ids.js";
+import { summaryBatchDropProjects } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 export const PROJECT_BATCH_DROP_DESCRIPTION =
@@ -64,7 +65,10 @@ export async function handleProjectBatchDrop(
 
   return ok(
     { dropped: outcome.succeeded, failed: outcome.failed },
-    ctx.makeMeta({ syncPending: outcome.succeeded.length > 0 }),
+    ctx.makeMeta({
+      syncPending: outcome.succeeded.length > 0,
+      humanReadableSummary: summaryBatchDropProjects(outcome.succeeded.length),
+    }),
   );
 }
 

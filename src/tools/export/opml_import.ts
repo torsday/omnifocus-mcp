@@ -18,6 +18,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ProjectId } from "../../domain/ids.js";
+import { summaryBatchCreate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { ExportService } from "../../services/exportService.js";
 
@@ -75,7 +76,10 @@ export async function handleImportOpml(input: ImportOpmlToolInput, ctx: ImportOp
       : {}),
   });
 
-  const meta = ctx.makeMeta({ syncPending: true });
+  const meta = ctx.makeMeta({
+    syncPending: true,
+    humanReadableSummary: summaryBatchCreate(result.imported),
+  });
   return ok(
     {
       imported: result.imported,

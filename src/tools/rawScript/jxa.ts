@@ -97,7 +97,10 @@ export async function handleRunJxaScript(input: RunJxaScriptInput, ctx: RunJxaSc
   );
 
   const result = await ctx.adapter.runJxaScript(input.script, input.arg);
-  return ok({ result }, ctx.makeMeta({ syncPending: true }));
+  return ok(
+    { result },
+    ctx.makeMeta({ syncPending: true, humanReadableSummary: "Ran JXA script." }),
+  );
 }
 
 // ---------------------------------------------------------------------------

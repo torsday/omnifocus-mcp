@@ -20,6 +20,7 @@ import {
   invalidateTaskMutation,
 } from "../../cache/invalidation.js";
 import { FolderId, TaskId } from "../../domain/ids.js";
+import { summaryTaskConvertToProject } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 // ---------------------------------------------------------------------------
@@ -89,6 +90,7 @@ export async function handleTaskConvertToProject(
   } = {};
   if (input.folderId !== undefined) opts.folderId = input.folderId;
   if (input.position !== undefined) opts.position = input.position;
+  const task = await ctx.adapter.getTask(input.id);
   const projectId = await ctx.adapter.convertTaskToProject(input.id, opts);
 
   if (ctx.cache !== undefined) {
@@ -98,7 +100,10 @@ export async function handleTaskConvertToProject(
 
   return ok(
     { converted: true as const, projectId, taskId: input.id },
-    ctx.makeMeta({ syncPending: true }),
+    ctx.makeMeta({
+      syncPending: true,
+      humanReadableSummary: summaryTaskConvertToProject(task.name),
+    }),
   );
 }
 
