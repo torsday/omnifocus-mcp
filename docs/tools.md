@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 86 tools registered.
+> Auto-generated from source. 89 tools registered.
 
 ## Table of contents
 
@@ -92,6 +92,9 @@
 - [task_uncomplete](#task_uncomplete)
 - [task_undrop](#task_undrop)
 - [task_update](#task_update)
+- [window_get_state](#window_get_state)
+- [window_set_focus](#window_set_focus)
+- [window_set_perspective](#window_set_perspective)
 
 ---
 ## app_launch
@@ -3282,6 +3285,99 @@ Partially update mutable fields on an OmniFocus task. Only supplied fields are c
       "completed": false
     }
   },
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## window_get_state
+
+Read the active perspective and focus container of the front OmniFocus window. **UI-affecting tool family** — only meaningful in pair-assistant flows where the user is looking at OmniFocus. Headless agents should ignore. Use when the agent needs to know what view the user currently sees, or to confirm that a prior `window_set_*` took effect. Do NOT use to evaluate a perspective's data — prefer `perspective_evaluate`, which doesn't depend on UI state. Takes no arguments. Returns { perspectiveName: string | null, focusContainerIds: string[] } — perspectiveName is null when no perspective is bound; focusContainerIds is [] when the window isn't focused on a project or folder. Errors: OF_WINDOW_UNAVAILABLE when OmniFocus has no front window. Read-only; safe to retry.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "window_get_state",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## window_set_focus
+
+Set or clear the front OmniFocus window's focus container (a project or folder). **UI-affecting tool** — only meaningful when the user can see OmniFocus. Headless agents should not fire this. Use when the user asks 'focus on this project' or a guided flow wants to scope the visible view. Do NOT use to filter task data — prefer `task_list { projectId }` or `perspective_evaluate` instead, both of which work without touching the user's UI. Pass containerId (a ProjectId or FolderId) to focus, or null to clear focus. Returns { focusContainerIds: string[] } — single-element array when focused, [] when cleared. Errors: OF_WINDOW_UNAVAILABLE (no front window), OF_NOT_FOUND (containerId is neither a project nor a folder). Side effects: changes the user's visible window state; no data caches invalidated.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "window_set_focus",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## window_set_perspective
+
+Switch the front OmniFocus window to a named perspective (built-in or custom). **UI-affecting tool** — only meaningful when the user can see OmniFocus. Headless agents should not fire this. Use when the user asks 'show me my flagged tasks' or a guided weekly-review prompt wants to navigate the user's UI. Do NOT use to evaluate a perspective's results — prefer perspective_evaluate, which doesn't touch the user's UI. Pass perspectiveName (case-sensitive, matches OF's UX). Built-in names: Inbox, Projects, Tags, Forecast, Flagged, Review, Nearby, Completed, Changed. Returns { perspectiveName }. Errors: OF_WINDOW_UNAVAILABLE (no front window), OF_NOT_FOUND (no perspective with this name). Side effects: changes the user's visible window state; no data caches invalidated.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "window_set_perspective",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
   "meta": {
     "requestId": "req_01ABC",
     "durationMs": 5

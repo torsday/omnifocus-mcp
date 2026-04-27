@@ -39,7 +39,7 @@ import type { BuiltinPerspectiveId, Perspective } from "../../domain/perspective
 import type { Project } from "../../domain/project.js";
 import type { Tag } from "../../domain/tag.js";
 import type { Task } from "../../domain/task.js";
-import { ScriptError } from "../../errors/index.js";
+import { NotFound, ScriptError, WindowUnavailable } from "../../errors/index.js";
 import {
   type ChangesSinceScriptResult,
   mapBatchScriptResult,
@@ -102,6 +102,9 @@ import taskSearchScript from "../../scripts/jxa/task_search.js";
 import taskUncompleteScript from "../../scripts/jxa/task_uncomplete.js";
 import taskUndropScript from "../../scripts/jxa/task_undrop.js";
 import taskUpdateScript from "../../scripts/jxa/task_update.js";
+import windowGetStateScript from "../../scripts/jxa/window_get_state.js";
+import windowSetFocusScript from "../../scripts/jxa/window_set_focus.js";
+import windowSetPerspectiveScript from "../../scripts/jxa/window_set_perspective.js";
 import type {
   AddAttachmentInput,
   AppLaunchResult,
@@ -141,6 +144,23 @@ export interface JxaTransportOptions {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Type-narrow a window-script result to its error envelope. Window scripts
+ * (window_get_state / window_set_perspective / window_set_focus, #466) return
+ * either a success payload or `{ error: { code, message } }` where `code` is
+ * one of `NO_FRONT_WINDOW` / `NOT_FOUND`.
+ */
+function isWindowError<T>(
+  result: T | { error: { code: string; message: string } },
+): result is { error: { code: string; message: string } } {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    "error" in result &&
+    typeof (result as { error?: unknown }).error === "object"
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Transport
@@ -818,6 +838,13 @@ export class JxaTransport implements OmniFocusAdapter {
 
   // -- App lifecycle (wired) ------------------------------------------------
 
+  // Window-script error envelope guard — local because the window scripts'
+  // error shape is a small superset of isScriptError's domain (uses NO_FRONT_WINDOW
+  // / NOT_FOUND codes specifically) and the helper has just one call site per script.
+  // Defined as a property so the existing class-level `isWindowError` references
+  // (in setWindowPerspective / setWindowFocus) resolve via TS scope without a
+  // separate hoist.
+
   async appLaunch(): Promise<AppLaunchResult> {
     return runJxaScript<AppLaunchResult>(
       appLaunchScript,
@@ -827,6 +854,60 @@ export class JxaTransport implements OmniFocusAdapter {
         scriptName: "app_launch",
       },
     );
+  }
+
+  async getWindowState(): Promise<{
+    perspectiveName: string | null;
+    focusContainerIds: string[];
+  }> {
+    const result = await runJxaScript<
+      | { perspectiveName: string | null; focusContainerIds: string[] }
+      | { error: { code: string; message: string } }
+    >(windowGetStateScript, {}, { ...this.runOpts, scriptName: "window_get_state" });
+    if (isWindowError(result)) {
+      throw new WindowUnavailable(result.error.message, {
+        details: { transport: "jxa", scriptName: "window_get_state" },
+      });
+    }
+    return result;
+  }
+
+  async setWindowPerspective(perspectiveName: string): Promise<{ perspectiveName: string }> {
+    const result = await runJxaScript<
+      { perspectiveName: string } | { error: { code: string; message: string } }
+    >(
+      windowSetPerspectiveScript,
+      { perspectiveName },
+      { ...this.runOpts, scriptName: "window_set_perspective" },
+    );
+    if (isWindowError(result)) {
+      if (result.error.code === "NO_FRONT_WINDOW") {
+        throw new WindowUnavailable(result.error.message, {
+          details: { transport: "jxa", scriptName: "window_set_perspective" },
+        });
+      }
+      throw new NotFound(result.error.message, {
+        details: { transport: "jxa", scriptName: "window_set_perspective" },
+      });
+    }
+    return result;
+  }
+
+  async setWindowFocus(containerId: string | null): Promise<{ focusContainerIds: string[] }> {
+    const result = await runJxaScript<
+      { focusContainerIds: string[] } | { error: { code: string; message: string } }
+    >(windowSetFocusScript, { containerId }, { ...this.runOpts, scriptName: "window_set_focus" });
+    if (isWindowError(result)) {
+      if (result.error.code === "NO_FRONT_WINDOW") {
+        throw new WindowUnavailable(result.error.message, {
+          details: { transport: "jxa", scriptName: "window_set_focus" },
+        });
+      }
+      throw new NotFound(result.error.message, {
+        details: { transport: "jxa", scriptName: "window_set_focus" },
+      });
+    }
+    return result;
   }
 
   // -- Plug-in invocation ---------------------------------------------------

@@ -166,6 +166,11 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   // -- App lifecycle --------------------------------------------------------
   appLaunch: "jxa",
 
+  // -- Window controls -------------------------------------------------------
+  getWindowState: "jxa",
+  setWindowPerspective: "jxa",
+  setWindowFocus: "jxa",
+
   // -- Plug-in invocation ---------------------------------------------------
   pluginInvoke: "omnijs",
 
@@ -489,6 +494,21 @@ export class TransportRouter implements OmniFocusAdapter {
 
   appLaunch(): Promise<import("./OmniFocusAdapter.js").AppLaunchResult> {
     return this.pick("appLaunch").appLaunch();
+  }
+
+  getWindowState(): Promise<{
+    perspectiveName: string | null;
+    focusContainerIds: string[];
+  }> {
+    return this.pick("getWindowState").getWindowState();
+  }
+
+  setWindowPerspective(perspectiveName: string): Promise<{ perspectiveName: string }> {
+    return this.pick("setWindowPerspective").setWindowPerspective(perspectiveName);
+  }
+
+  setWindowFocus(containerId: string | null): Promise<{ focusContainerIds: string[] }> {
+    return this.pick("setWindowFocus").setWindowFocus(containerId);
   }
 
   // -- Plug-in invocation ---------------------------------------------------

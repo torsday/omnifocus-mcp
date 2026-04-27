@@ -465,6 +465,20 @@ export class OmniJsTransport implements OmniFocusAdapter {
     return notYetWired("appLaunch");
   }
 
+  // -- Window controls — JXA-only; satisfy the interface only --------------
+  async getWindowState(): Promise<{
+    perspectiveName: string | null;
+    focusContainerIds: string[];
+  }> {
+    return notYetWired("getWindowState");
+  }
+  async setWindowPerspective(_perspectiveName: string): Promise<{ perspectiveName: string }> {
+    return notYetWired("setWindowPerspective");
+  }
+  async setWindowFocus(_containerId: string | null): Promise<{ focusContainerIds: string[] }> {
+    return notYetWired("setWindowFocus");
+  }
+
   // -- Plug-in invocation (wired) -------------------------------------------
 
   async pluginInvoke(input: PluginInvokeInput): Promise<PluginInvokeResult> {

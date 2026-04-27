@@ -1307,6 +1307,59 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     return { launched: false, alreadyRunning: true };
   }
 
+  // -- Window controls (in-memory: synthetic state) ------------------------
+  // The in-memory adapter doesn't model an actual OmniFocus window, but it
+  // satisfies the contract so unit tests can exercise tool wiring without
+  // a live OF. State is preserved across calls so set → get round-trips.
+
+  private windowPerspectiveName: string | null = null;
+  private windowFocusContainerIds: string[] = [];
+
+  async getWindowState(): Promise<{
+    perspectiveName: string | null;
+    focusContainerIds: string[];
+  }> {
+    return {
+      perspectiveName: this.windowPerspectiveName,
+      focusContainerIds: [...this.windowFocusContainerIds],
+    };
+  }
+
+  async setWindowPerspective(perspectiveName: string): Promise<{ perspectiveName: string }> {
+    this.windowPerspectiveName = perspectiveName;
+    return { perspectiveName };
+  }
+
+  async setWindowFocus(containerId: string | null): Promise<{ focusContainerIds: string[] }> {
+    if (containerId === null) {
+      this.windowFocusContainerIds = [];
+      return { focusContainerIds: [] };
+    }
+    // Validate the container exists as either a project or folder. The
+    // adapter stores ProjectId/FolderId-keyed maps; iterate to compare by
+    // string value rather than casting to brand types (lint: no-id-cast).
+    let exists = false;
+    for (const id of this.projects.keys()) {
+      if (String(id) === containerId) {
+        exists = true;
+        break;
+      }
+    }
+    if (!exists) {
+      for (const id of this.folders.keys()) {
+        if (String(id) === containerId) {
+          exists = true;
+          break;
+        }
+      }
+    }
+    if (!exists) {
+      throw new NotFound(`Container not found (project or folder): ${containerId}`);
+    }
+    this.windowFocusContainerIds = [containerId];
+    return { focusContainerIds: [containerId] };
+  }
+
   // -- Plug-in invocation ---------------------------------------------------
   // The in-memory adapter is used exclusively for unit tests and does not
   // have access to the OmniJS plug-in runtime. Throw `NotFound` with a
