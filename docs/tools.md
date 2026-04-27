@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 90 tools registered.
+> Auto-generated from source. 91 tools registered.
 
 ## Table of contents
 
@@ -81,6 +81,7 @@
 - [task_delete](#task_delete)
 - [task_drop](#task_drop)
 - [task_duplicate](#task_duplicate)
+- [task_extract_from_note](#task_extract_from_note)
 - [task_find_by_name](#task_find_by_name)
 - [task_get](#task_get)
 - [task_get_many](#task_get_many)
@@ -2803,6 +2804,37 @@ _No parameters._
 ```json
 {
   "toolName": "task_duplicate",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_extract_from_note
+
+Mechanically split prose into a candidate-task list with source-line provenance. Source can be a task's note (kind: 'task'), a project's note (kind: 'project'), or inline text (kind: 'inline') — useful for piping a transcript through capture-meeting. Two-phase contract: dryRun=true returns { proposed, unmappedLines }; dryRun=false with confirmation: ProposedTask[] creates the (possibly-edited) tasks in targetProjectId via batchCreateTasks semantics. Returns { phase: 'dryRun', proposed, unmappedLines } or { phase: 'created', outcome: BatchOutcome<TaskId> } accordingly. Do NOT use this tool when you already have structured tasks — call task_batch_create directly instead. Prefer this helper when the input is a wall-of-text note that needs splitting. Side effects: dryRun=true is read-only; dryRun=false creates tasks in the target project. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_extract_from_note",
   "arguments": {}
 }
 ```
