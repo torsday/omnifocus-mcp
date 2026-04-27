@@ -1171,6 +1171,16 @@ This resource also doubles as the discoverability surface: when a future agent a
 
 Single source of truth lives in `src/domain/health.ts → isProjectStalled`. Future resources or tools using "stalled" semantics MUST reuse that predicate; do not redefine.
 
+### Domain-specific NL helpers
+
+The agent does prose; the MCP shapes the target schema. For schemas where a misencoding is silently wrong — looks plausible, fires on the wrong cadence — we ship a deterministic helper rather than rely on the LLM to translate. **Not every schema deserves one.** The bar is: high-arity target structure where one wrong field changes behaviour without a parse error. Where the structure is shallow or the LLM's miss is loud, the agent does the translation directly.
+
+The first member is `repetition_from_prose`: takes a phrase like *"every other Tuesday at 10am after I complete it"* and returns `{ kind: "ok", rule: RepetitionRule, normalizedDescription }` — or `{ kind: "ambiguous", interpretations[] }` when the prose admits multiple valid readings, or `{ kind: "error", reason, suggestion? }`. No model calls inside the tool. Pure regex/lexer/grammar pipeline.
+
+Naming convention: `<domain>_from_prose`. Other candidates as their schemas land — perspective rule trees (#460), date phrases with timezone shorthand. Keep the family discoverable by the consistent suffix.
+
+Pattern: agent receives prose → calls helper → presents `normalizedDescription` to user → on confirm, embeds the returned `rule` in the next write. The "ambiguous" return is not a failure — surfacing two valid readings of *"every other Tuesday"* (every-14-days vs first-and-third-weekday-of-month) is the feature. The agent picks one with the user, not by guessing.
+
 ---
 
 ## 29. MCP prompts

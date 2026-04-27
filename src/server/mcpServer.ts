@@ -3,12 +3,12 @@
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
  * API from @modelcontextprotocol/sdk. Currently registers `internal_status`,
- * the four OmniFocus workflow prompts, the thirteen MCP resources, and 69 domain
+ * the four OmniFocus workflow prompts, the thirteen MCP resources, and 70 domain
  * tools across folder, tag, note, search, forecast, perspective, plugin,
- * sync, review, export, app, project, task, and attachment surfaces. Two
- * additional raw-script escape-hatch tools (`run_jxa_script`,
+ * sync, review, export, app, project, task, repetition, and attachment surfaces.
+ * Two additional raw-script escape-hatch tools (`run_jxa_script`,
  * `run_omnijs_script`) register only when `OMNIFOCUS_ALLOW_RAW_SCRIPT=1`
- * (ADR-0004), bringing the wired surface to 71. Every registered tool is
+ * (ADR-0004), bringing the wired surface to 72. Every registered tool is
  * wrapped in `assertNotShuttingDown → withCircuitBreaker → withRateLimitMeta
  * → withLoopDetection` via `installToolMiddleware` (#291), which runs once
  * before any `register*Tool` helper.
@@ -99,6 +99,7 @@ import { registerProjectMoveTool } from "../tools/project/move.js";
 import { registerProjectUpdateTool } from "../tools/project/update.js";
 import { registerRunJxaScriptTool } from "../tools/rawScript/jxa.js";
 import { registerRunOmniJsScriptTool } from "../tools/rawScript/omnijs.js";
+import { registerRepetitionFromProseTool } from "../tools/repetition/fromProse.js";
 import { registerReviewListDueTool } from "../tools/review/listDue.js";
 import { registerReviewMarkReviewedTool } from "../tools/review/markReviewed.js";
 import { registerProjectMarkReviewedTool } from "../tools/review/projectMarkReviewed.js";
@@ -393,6 +394,7 @@ export async function startServer(): Promise<void> {
   registerTaskSearchTool(server, { searchService: services.searchService, makeMeta });
   registerTaskGetManyTool(server, taskAdapterCtx);
   registerTaskParseTransportTextTool(server, { makeMeta });
+  registerRepetitionFromProseTool(server, { makeMeta });
   registerTaskBatchCompleteTool(server, taskMutationCtx);
   registerTaskBatchCreateTool(server, taskMutationCtx);
   registerTaskBatchDeleteTool(server, taskMutationCtx);

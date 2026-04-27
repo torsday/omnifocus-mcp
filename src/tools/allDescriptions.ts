@@ -40,6 +40,7 @@ import { PROJECT_MOVE_DESCRIPTION } from "./project/move.js";
 import { PROJECT_UPDATE_DESCRIPTION } from "./project/update.js";
 import { RUN_JXA_SCRIPT_DESCRIPTION } from "./rawScript/jxa.js";
 import { RUN_OMNIJS_SCRIPT_DESCRIPTION } from "./rawScript/omnijs.js";
+import { REPETITION_FROM_PROSE_DESCRIPTION } from "./repetition/fromProse.js";
 import { REVIEW_LIST_DUE_DESCRIPTION } from "./review/listDue.js";
 import { REVIEW_MARK_REVIEWED_DESCRIPTION } from "./review/markReviewed.js";
 import { PROJECT_MARK_REVIEWED_DESCRIPTION } from "./review/projectMarkReviewed.js";
@@ -132,6 +133,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   project_mark_reviewed: PROJECT_MARK_REVIEWED_DESCRIPTION,
   project_move: PROJECT_MOVE_DESCRIPTION,
   project_update: PROJECT_UPDATE_DESCRIPTION,
+  repetition_from_prose: REPETITION_FROM_PROSE_DESCRIPTION,
   review_list_due: REVIEW_LIST_DUE_DESCRIPTION,
   review_mark_reviewed: REVIEW_MARK_REVIEWED_DESCRIPTION,
   project_set_next_review_date: PROJECT_SET_NEXT_REVIEW_DATE_DESCRIPTION,
