@@ -15,6 +15,7 @@ import { FOLDER_LIST_DESCRIPTION } from "./folder/list.js";
 import { FOLDER_MOVE_DESCRIPTION } from "./folder/move.js";
 import { FOLDER_UPDATE_DESCRIPTION } from "./folder/update.js";
 import { FORECAST_GET_DESCRIPTION } from "./forecast/get.js";
+import { FORECAST_PACK_DESCRIPTION } from "./forecast/pack.js";
 import { NOTE_APPEND_DESCRIPTION } from "./note/append.js";
 import { NOTE_GET_DESCRIPTION } from "./note/get.js";
 import { NOTE_GET_HTML_DESCRIPTION } from "./note/get_html.js";
@@ -91,6 +92,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   export_opml: EXPORT_OPML_DESCRIPTION,
   export_taskpaper: EXPORT_TASKPAPER_DESCRIPTION,
   forecast_get: FORECAST_GET_DESCRIPTION,
+  forecast_pack: FORECAST_PACK_DESCRIPTION,
   folder_create: FOLDER_CREATE_DESCRIPTION,
   folder_delete: FOLDER_DELETE_DESCRIPTION,
   folder_get: FOLDER_GET_DESCRIPTION,
