@@ -39,9 +39,11 @@ import type { PerspectiveService } from "../services/perspectiveService.js";
 import type { ProjectService } from "../services/projectService.js";
 import type { ReviewService } from "../services/reviewService.js";
 import { registerRecentActivityResource } from "./recentActivity.js";
+import { registerRetrospectiveResource } from "./retrospective.js";
 import { registerTaxonomyAuditResource } from "./taxonomyAudit.js";
 
 export { RECENT_ACTIVITY_URI_TEMPLATE } from "./recentActivity.js";
+export { RETROSPECTIVE_URI_TEMPLATE } from "./retrospective.js";
 export { TAXONOMY_AUDIT_URI } from "./taxonomyAudit.js";
 
 // ---------------------------------------------------------------------------
@@ -382,6 +384,9 @@ export function registerOmniFocusResources(server: McpServer, deps: OmniFocusRes
 
   // ── omnifocus://recent-activity{?hours} ───────────────────────────────────
   registerRecentActivityResource(server, adapter);
+
+  // ── omnifocus://retrospective{?from,to} ──────────────────────────────────
+  registerRetrospectiveResource(server, adapter);
 
   // ── omnifocus://taxonomy-audit ────────────────────────────────────────────
   registerTaxonomyAuditResource(server, adapter);
