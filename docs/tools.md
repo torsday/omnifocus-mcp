@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 104 tools registered.
+> Auto-generated from source. 106 tools registered.
 
 ## Table of contents
 
@@ -84,6 +84,7 @@
 - [task_batch_update](#task_batch_update)
 - [task_clear_alarms](#task_clear_alarms)
 - [task_clear_repetition](#task_clear_repetition)
+- [task_clear_waiting_on](#task_clear_waiting_on)
 - [task_complete](#task_complete)
 - [task_convert_to_project](#task_convert_to_project)
 - [task_create](#task_create)
@@ -104,6 +105,7 @@
 - [task_search](#task_search)
 - [task_set_alarms](#task_set_alarms)
 - [task_set_repetition](#task_set_repetition)
+- [task_set_waiting_on](#task_set_waiting_on)
 - [task_uncomplete](#task_uncomplete)
 - [task_undrop](#task_undrop)
 - [task_update](#task_update)
@@ -2900,6 +2902,37 @@ Remove the repetition rule from an OmniFocus task. After clearing, the task beco
 ```
 ---
 
+## task_clear_waiting_on
+
+Clear waiting-on tracking from an OmniFocus task. Strips the `waiting-on` fenced block from the task note (preserving any other user prose) and removes the configured @waiting tag from the task. Idempotent: returns noChange:true when the task has no waiting-on data. Do NOT use to delete the task or remove unrelated tags — prefer task_delete or task_update instead. Returns { id, cleared:true } or { id, noChange:true }. Side effects: writes tag + note; sets meta.syncPending = true.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_clear_waiting_on",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
 ## task_complete
 
 Complete an OmniFocus task — marks it done with a completion timestamp. Accepts an optional ISO-8601 date for the completion time; defaults to now. Idempotent: returns noChange: true if the task is already completed. Do not use to drop or delete a task. Returns { done: true, id } or { noChange: true, id }. Side effects: sets completedAt, sets meta.syncPending = true.
@@ -3651,6 +3684,37 @@ Set the repetition rule on an OmniFocus task. Overwrites any existing rule. Use 
       "steps": 1
     }
   },
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_set_waiting_on
+
+Record that an OmniFocus task is waiting on someone or something. Tags the task with the configured @waiting tag (creating the tag if absent) and writes a structured `waiting-on` fenced block to the top of the task note. The fence preserves any existing user prose in the note. Round-trips through task_get / task_get_many as a structured `waitingOn` field. Surfaces in the omnifocus://waiting-on resource sorted by days overdue. Use to systematize follow-ups; do NOT use for task completion or scheduling. Returns { id, waitingOn } with the persisted entry. Side effects: writes tag + note; sets meta.syncPending = true.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_set_waiting_on",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
   "meta": {
     "requestId": "req_01ABC",
     "durationMs": 5

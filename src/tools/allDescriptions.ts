@@ -99,6 +99,10 @@ import { TASK_UNCOMPLETE_DESCRIPTION } from "./task/uncomplete.js";
 import { TASK_UNDROP_DESCRIPTION } from "./task/undrop.js";
 import { TASK_UPDATE_DESCRIPTION } from "./task/update.js";
 import {
+  TASK_CLEAR_WAITING_ON_DESCRIPTION,
+  TASK_SET_WAITING_ON_DESCRIPTION,
+} from "./task/waitingOn.js";
+import {
   APP_WINDOW_NEW_DESCRIPTION,
   APP_WINDOW_NEW_TAB_DESCRIPTION,
   WINDOW_GET_STATE_DESCRIPTION,
@@ -201,8 +205,10 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   task_parse_transport_text: TASK_PARSE_TRANSPORT_TEXT_DESCRIPTION,
   task_reclassify: TASK_RECLASSIFY_DESCRIPTION,
   task_reorder: TASK_REORDER_DESCRIPTION,
+  task_clear_waiting_on: TASK_CLEAR_WAITING_ON_DESCRIPTION,
   task_set_alarms: TASK_SET_ALARMS_DESCRIPTION,
   task_set_repetition: TASK_SET_REPETITION_DESCRIPTION,
+  task_set_waiting_on: TASK_SET_WAITING_ON_DESCRIPTION,
   task_uncomplete: TASK_UNCOMPLETE_DESCRIPTION,
   task_undrop: TASK_UNDROP_DESCRIPTION,
   task_update: TASK_UPDATE_DESCRIPTION,

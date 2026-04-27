@@ -31,6 +31,7 @@ function makeConfig(overrides: Partial<Config> = {}): Config {
     OMNIFOCUS_ATTACHMENT_PATHS: ["/tmp"],
     OMNIFOCUS_MAX_ATTACHMENT_MB: 100,
     OMNIFOCUS_TOOL_RATE_LIMIT: { limit: 120, windowSeconds: 60 },
+    OMNIFOCUS_WAITING_TAG_NAME: "waiting",
     ...overrides,
   };
 }

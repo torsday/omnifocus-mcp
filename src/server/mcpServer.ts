@@ -159,6 +159,10 @@ import { registerTaskUncompleteTool } from "../tools/task/uncomplete.js";
 import { registerTaskUndropTool } from "../tools/task/undrop.js";
 import { registerTaskUpdateTool } from "../tools/task/update.js";
 import {
+  registerTaskClearWaitingOnTool,
+  registerTaskSetWaitingOnTool,
+} from "../tools/task/waitingOn.js";
+import {
   registerAppWindowNewTabTool,
   registerAppWindowNewTool,
   registerWindowGetStateTool,
@@ -445,6 +449,15 @@ export async function startServer(): Promise<void> {
   });
   registerTaskExtractFromNoteTool(server, taskMutationCtx);
   registerTaskConvertToProjectTool(server, taskMutationCtx);
+  // Waiting-on tools — mutation context plus the configured @waiting tag name.
+  const taskWaitingOnCtx = {
+    adapter,
+    makeMeta,
+    cache: services.cache,
+    waitingTagName: config.OMNIFOCUS_WAITING_TAG_NAME,
+  };
+  registerTaskSetWaitingOnTool(server, taskWaitingOnCtx);
+  registerTaskClearWaitingOnTool(server, taskWaitingOnCtx);
   registerTaskMoveTool(server, taskMutationCtx);
   registerTaskReorderTool(server, taskMutationCtx);
   registerTaskSetAlarmsTool(server, taskMutationCtx);
