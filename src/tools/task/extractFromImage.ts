@@ -66,10 +66,9 @@ import type { AttachmentService } from "../../services/attachmentService.js";
 // Image type allowlist
 // ---------------------------------------------------------------------------
 
-/** Lowercased extensions accepted as image sources. PDFs are accepted but
- * the agent is responsible for first-page extraction (multi-page is a
- * follow-up). */
-const IMAGE_EXTENSIONS = new Set([
+/** Lowercased extensions accepted as image sources. PDF first-page extraction
+ * is the agent's responsibility (multi-page is a follow-up). */
+const IMAGE_EXTENSIONS: readonly string[] = [
   ".png",
   ".jpg",
   ".jpeg",
@@ -78,26 +77,16 @@ const IMAGE_EXTENSIONS = new Set([
   ".gif",
   ".webp",
   ".pdf",
-]);
-
-/** Mime-type prefixes that count as images for attachment-mode validation. */
-const IMAGE_MIME_PREFIXES = ["image/", "application/pdf"];
-
-/**
- * The allowed image extensions, exposed for capability descriptors and tests.
- * Frozen so consumers can't mutate the canonical list.
- */
-export const SUPPORTED_IMAGE_EXTENSIONS: readonly string[] = Object.freeze([...IMAGE_EXTENSIONS]);
+];
 
 function hasImageExtension(filePath: string): boolean {
-  return IMAGE_EXTENSIONS.has(extname(filePath).toLowerCase());
+  return IMAGE_EXTENSIONS.includes(extname(filePath).toLowerCase());
 }
 
 function attachmentLooksLikeImage(att: Attachment): boolean {
   if (att.mimeType !== null) {
-    return IMAGE_MIME_PREFIXES.some((p) => att.mimeType?.startsWith(p));
+    return att.mimeType.startsWith("image/") || att.mimeType === "application/pdf";
   }
-  // Fall back to the filename extension when the OF mime-type is null.
   return hasImageExtension(att.name);
 }
 
@@ -106,18 +95,14 @@ function attachmentLooksLikeImage(att: Attachment): boolean {
 // ---------------------------------------------------------------------------
 
 export const TASK_EXTRACT_FROM_IMAGE_DESCRIPTION =
-  "Capture tasks from an image — agent does the vision, tool does plumbing. " +
-  "Source is a local file path or an existing OF attachment; agent supplies " +
-  "proposed: ProposedTask[]. Two-phase: dryRun=true validates and echoes; " +
-  "dryRun=false with confirmation[] writes via batchCreateTasks. " +
-  "attachSourceTo: 'parent-task' (default) wraps tasks under a parent with the " +
-  "image attached, 'each-task' attaches to every task (path-mode only), 'none' " +
-  "skips. Path-mode supports PNG/JPEG/HEIC/HEIF/GIF/WEBP/PDF (first page only) " +
-  "and respects attachment-path-scope + size cap. Do NOT use when you already " +
-  "have structured tasks — call task_batch_create. Returns { phase: 'dryRun', " +
-  "proposed, sourceKind } or { phase: 'created', parent?, created, outcome }. " +
-  "Side effects: dryRun=true is read-only; dryRun=false creates tasks and may " +
-  "add attachments. Mutations do not sync — call sync_trigger for cross-device.";
+  "Capture tasks from an image — agent does vision, tool does plumbing. " +
+  "Source is a path or existing OF attachment; agent supplies proposed: ProposedTask[]. " +
+  "Two-phase: dryRun=true validates+echoes; dryRun=false with confirmation[] writes. " +
+  "attachSourceTo: 'parent-task' (default), 'each-task' (path-mode only), or 'none'. " +
+  "Path-mode: PNG/JPEG/HEIC/HEIF/GIF/WEBP/PDF; respects attachment-path-scope + size cap. " +
+  "Do NOT use when you already have structured tasks — call task_batch_create. " +
+  "Returns { phase, proposed?, parent?, created?, outcome? }. " +
+  "Side effects: dryRun=false creates tasks; call sync_trigger for cross-device.";
 
 // ---------------------------------------------------------------------------
 // Input schema
@@ -132,10 +117,6 @@ const proposedTaskSchema = z.object({
   note: z.string().optional(),
   deferDate: z.string().datetime({ offset: true }).optional(),
   dueDate: z.string().datetime({ offset: true }).optional(),
-  tags: z
-    .array(z.string())
-    .optional()
-    .describe("Tag NAMES — resolved by the agent before passing."),
 });
 
 const sourceSchema = z
@@ -214,75 +195,69 @@ export interface TaskExtractFromImageContext {
   cache?: InvalidatingCache;
 }
 
-interface ResolvedPathSource {
-  kind: "path";
-  imagePath: string;
+type ResolvedSource =
+  | { kind: "path"; imagePath: string }
+  | { kind: "attachment"; attachment: Attachment };
+
+export interface CreatedTaskRecord {
+  taskId: TaskId;
+  name: string;
+  attachedSourcePath?: string;
 }
 
-interface ResolvedAttachmentSource {
-  kind: "attachment";
-  attachment: Attachment;
+export interface ParentTaskRecord {
+  taskId: TaskId;
+  name: string;
+  attachedSourcePath?: string;
 }
 
-type ResolvedSource = ResolvedPathSource | ResolvedAttachmentSource;
-
-/**
- * Validate the source and resolve it to either a vetted file path or a
- * vetted attachment reference. Throws ValidationError on any rejection so
- * the dry-run and write phases share the same fail-fast behaviour.
- */
-async function resolveAndValidateSource(
+async function resolveSource(
   source: TaskExtractFromImageInput["source"],
   ctx: TaskExtractFromImageContext,
 ): Promise<ResolvedSource> {
   if (source.kind === "path") {
     if (!hasImageExtension(source.imagePath)) {
       throw new ValidationError(
-        `Unsupported image extension for ${source.imagePath}. Allowed: ${SUPPORTED_IMAGE_EXTENSIONS.join(", ")}`,
+        `Unsupported image extension: ${source.imagePath}. Allowed: ${IMAGE_EXTENSIONS.join(",")}`,
         { details: { field: "source.imagePath" } },
       );
     }
-    // The path-scope and size-cap guards are the same checks AttachmentService
-    // runs on attachment_add; we reach into the service rather than duplicate.
     return { kind: "path", imagePath: source.imagePath };
   }
-
-  // attachment kind — look up the attachment via the service layer.
   const owner = source.ownerTaskId
     ? { taskId: source.ownerTaskId }
     : // biome-ignore lint/style/noNonNullAssertion: schema refinement guarantees one of the two
       { projectId: source.ownerProjectId! };
-  const attachments = await ctx.attachmentService.list(owner);
-  const found = attachments.find((a) => a.id === source.attachmentId);
+  const found = (await ctx.attachmentService.list(owner)).find((a) => a.id === source.attachmentId);
   if (!found) {
-    throw new ValidationError(`Attachment not found on owner: ${source.attachmentId}`, {
-      details: { field: "source.attachmentId", attachmentId: source.attachmentId },
+    throw new ValidationError(`Attachment not found: ${source.attachmentId}`, {
+      details: { field: "source.attachmentId" },
     });
   }
   if (!attachmentLooksLikeImage(found)) {
-    throw new ValidationError(
-      `Attachment is not an image (mimeType=${found.mimeType ?? "null"}, name=${found.name})`,
-      { details: { field: "source.attachmentId", attachmentId: source.attachmentId } },
-    );
+    throw new ValidationError(`Attachment is not an image: ${found.name}`, {
+      details: { field: "source.attachmentId" },
+    });
   }
   return { kind: "attachment", attachment: found };
 }
 
-/**
- * Result entry per created task.
- */
-export interface CreatedTaskRecord {
-  taskId: TaskId;
-  name: string;
-  /** Path of the source image attached to this task, when applicable. */
-  attachedSourcePath?: string;
-}
-
-/** Wrapper-parent record returned in `attachSourceTo: "parent-task"` mode. */
-export interface ParentTaskRecord {
-  taskId: TaskId;
-  name: string;
-  attachedSourcePath?: string;
+function toCreateInput(
+  p: {
+    name: string;
+    note?: string | undefined;
+    deferDate?: string | undefined;
+    dueDate?: string | undefined;
+  },
+  parent: { projectId: ProjectId } | { parentId: TaskId },
+): CreateTaskInput {
+  return {
+    name: p.name,
+    ...parent,
+    ...(p.note !== undefined && { note: p.note }),
+    ...(p.deferDate !== undefined && { deferDate: p.deferDate }),
+    ...(p.dueDate !== undefined && { dueDate: p.dueDate }),
+  };
 }
 
 /** Pure handler — callable directly in unit tests. */
@@ -292,106 +267,57 @@ export async function handleTaskExtractFromImage(
 ) {
   // Always validate the source — catches bad paths / non-image attachments
   // before the agent burns time on a write phase.
-  const resolved = await resolveAndValidateSource(input.source, ctx);
+  const resolved = await resolveSource(input.source, ctx);
 
   if (input.dryRun || !input.confirmation) {
-    const meta = ctx.makeMeta();
     return ok(
-      {
-        phase: "dryRun" as const,
-        proposed: input.proposed,
-        sourceKind: resolved.kind,
-      },
-      meta,
+      { phase: "dryRun" as const, proposed: input.proposed, sourceKind: resolved.kind },
+      ctx.makeMeta(),
     );
   }
 
-  // -- Write phase ---------------------------------------------------------
-  // Reject the not-yet-supported combinations early so the user's intent
-  // surfaces as a clear error rather than a silent skip-attachment.
   if (resolved.kind === "attachment" && input.attachSourceTo !== "none") {
-    throw new ValidationError(
-      "Attachment-mode source supports attachSourceTo='none' only in v1. " +
-        "Re-attaching an existing OF attachment to newly-created tasks " +
-        "(save-to-temp + re-add round-trip) is a follow-up. Use 'none' or " +
-        "switch to path-mode if you need re-attachment.",
-      { details: { field: "attachSourceTo", attachSourceTo: input.attachSourceTo } },
-    );
+    throw new ValidationError("attachment-mode source requires attachSourceTo='none' only in v1.", {
+      details: { field: "attachSourceTo", attachSourceTo: input.attachSourceTo },
+    });
   }
 
   const confirmation = input.confirmation;
+  const sourcePath = resolved.kind === "path" ? resolved.imagePath : undefined;
+  let parent: ParentTaskRecord | undefined;
+  let parentScope: { projectId: ProjectId } | { parentId: TaskId } = {
+    projectId: input.targetProjectId,
+  };
 
-  // ── attachSourceTo === 'parent-task' ───────────────────────────────────
-  // Create the parent first so we can hand its id to each child as parentId.
-  // This nests the captured items under a single navigable container.
+  // attachSourceTo === 'parent-task': create the wrapper first so children nest beneath it.
   if (input.attachSourceTo === "parent-task") {
     const parentName = input.parentTaskName ?? "Captured from image";
     const parentId = await ctx.adapter.createTask({
       name: parentName,
       projectId: input.targetProjectId,
     });
-
-    let attachedSourcePath: string | undefined;
-    if (resolved.kind === "path") {
-      await ctx.attachmentService.add({ taskId: parentId, filePath: resolved.imagePath });
-      attachedSourcePath = resolved.imagePath;
+    if (sourcePath !== undefined) {
+      await ctx.attachmentService.add({ taskId: parentId, filePath: sourcePath });
     }
-
-    const childInputs: CreateTaskInput[] = confirmation.map((p) => ({
-      name: p.name,
-      parentId,
-      ...(p.note !== undefined && { note: p.note }),
-      ...(p.deferDate !== undefined && { deferDate: p.deferDate }),
-      ...(p.dueDate !== undefined && { dueDate: p.dueDate }),
-    }));
-    const outcome = await ctx.adapter.batchCreateTasks(childInputs);
-
-    const created: CreatedTaskRecord[] = outcome.succeeded.map((s) => {
-      const proposed = confirmation[s.index];
-      return {
-        taskId: s.value,
-        name: proposed?.name ?? "(unknown)",
-      };
-    });
-
-    if (ctx.cache !== undefined) {
-      invalidateTaskMutation(ctx.cache, { projectId: input.targetProjectId });
-    }
-
-    const meta = ctx.makeMeta({ syncPending: true });
-    const parent: ParentTaskRecord = {
+    parent = {
       taskId: parentId,
       name: parentName,
-      ...(attachedSourcePath !== undefined && { attachedSourcePath }),
+      ...(sourcePath !== undefined && { attachedSourcePath: sourcePath }),
     };
-    return ok(
-      {
-        phase: "created" as const,
-        parent: parent as ParentTaskRecord | undefined,
-        created,
-        outcome,
-      },
-      meta,
-    );
+    parentScope = { parentId };
   }
 
-  // ── attachSourceTo in {'each-task', 'none'} ────────────────────────────
-  const flatInputs: CreateTaskInput[] = confirmation.map((p) => ({
-    name: p.name,
-    projectId: input.targetProjectId,
-    ...(p.note !== undefined && { note: p.note }),
-    ...(p.deferDate !== undefined && { deferDate: p.deferDate }),
-    ...(p.dueDate !== undefined && { dueDate: p.dueDate }),
-  }));
-  const outcome = await ctx.adapter.batchCreateTasks(flatInputs);
+  const outcome = await ctx.adapter.batchCreateTasks(
+    confirmation.map((p) => toCreateInput(p, parentScope)),
+  );
 
   const created: CreatedTaskRecord[] = [];
   for (const s of outcome.succeeded) {
     const proposed = confirmation[s.index];
     let attachedSourcePath: string | undefined;
-    if (input.attachSourceTo === "each-task" && resolved.kind === "path") {
-      await ctx.attachmentService.add({ taskId: s.value, filePath: resolved.imagePath });
-      attachedSourcePath = resolved.imagePath;
+    if (input.attachSourceTo === "each-task" && sourcePath !== undefined) {
+      await ctx.attachmentService.add({ taskId: s.value, filePath: sourcePath });
+      attachedSourcePath = sourcePath;
     }
     created.push({
       taskId: s.value,
@@ -405,15 +331,7 @@ export async function handleTaskExtractFromImage(
   }
 
   const meta = ctx.makeMeta({ syncPending: outcome.succeeded.length > 0 });
-  return ok(
-    {
-      phase: "created" as const,
-      parent: undefined as ParentTaskRecord | undefined,
-      created,
-      outcome,
-    },
-    meta,
-  );
+  return ok({ phase: "created" as const, parent, created, outcome }, meta);
 }
 
 // ---------------------------------------------------------------------------

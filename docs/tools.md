@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 101 tools registered.
+> Auto-generated from source. 102 tools registered.
 
 ## Table of contents
 
@@ -3052,7 +3052,7 @@ _No parameters._
 
 ## task_extract_from_image
 
-Capture tasks from an image — agent does the vision, tool does plumbing. Source is a local file path or an existing OF attachment; agent supplies proposed: ProposedTask[]. Two-phase: dryRun=true validates and echoes; dryRun=false with confirmation[] writes via batchCreateTasks. attachSourceTo: 'parent-task' (default) wraps tasks under a parent with the image attached, 'each-task' attaches to every task (path-mode only), 'none' skips. Path-mode supports PNG/JPEG/HEIC/HEIF/GIF/WEBP/PDF (first page only) and respects attachment-path-scope + size cap. Do NOT use when you already have structured tasks — call task_batch_create. Returns { phase: 'dryRun', proposed, sourceKind } or { phase: 'created', parent?, created, outcome }. Side effects: dryRun=true is read-only; dryRun=false creates tasks and may add attachments. Mutations do not sync — call sync_trigger for cross-device.
+Capture tasks from an image — agent does vision, tool does plumbing. Source is a path or existing OF attachment; agent supplies proposed: ProposedTask[]. Two-phase: dryRun=true validates+echoes; dryRun=false with confirmation[] writes. attachSourceTo: 'parent-task' (default), 'each-task' (path-mode only), or 'none'. Path-mode: PNG/JPEG/HEIC/HEIF/GIF/WEBP/PDF; respects attachment-path-scope + size cap. Do NOT use when you already have structured tasks — call task_batch_create. Returns { phase, proposed?, parent?, created?, outcome? }. Side effects: dryRun=false creates tasks; call sync_trigger for cross-device.
 
 ### Input
 
