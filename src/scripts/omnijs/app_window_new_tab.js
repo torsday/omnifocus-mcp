@@ -14,7 +14,9 @@
   try {
     const windows = document.windows;
     if (!windows || windows.length === 0) {
-      return JSON.stringify({ error: { code: "WINDOW_UNAVAILABLE", message: "No open OmniFocus window" } });
+      return JSON.stringify({
+        error: { code: "WINDOW_UNAVAILABLE", message: "No open OmniFocus window" },
+      });
     }
     const frontWindow = windows[0];
     const tab = document.newTabOnWindow(frontWindow);
