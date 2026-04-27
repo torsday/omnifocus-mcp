@@ -892,6 +892,7 @@ Writes are saved locally and show up immediately in subsequent tool calls. Chang
 | [0013](./docs/adr/0013-tool-response-envelope.md) | Uniform response envelope |
 | [0014](./docs/adr/0014-e2e-harness-strategy.md) | In-memory adapter switch for E2E |
 | [0015](./docs/adr/0015-nl-excellence-response-envelope.md) | NL-excellence envelope: clarification, hints, summary |
+| [0017](./docs/adr/0017-mutation-testing-release-gate.md) | Stryker mutation testing as release-time hard gate |
 
 ---
 
