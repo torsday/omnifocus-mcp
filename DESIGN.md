@@ -1136,6 +1136,7 @@ MCP resources are a distinct primitive from tools: read-only, enumerable via `re
 | `omnifocus://project/{id}`     | Single project with full task tree                                                            | 30s LRU  |
 | `omnifocus://tag/{id}`         | Single tag with its tasks                                                                     | 30s LRU  |
 | `omnifocus://perspective/{id}` | Perspective evaluation result (built-in or custom)                                            | 30s LRU  |
+| `omnifocus://intents`          | Curated routing table mapping human-style user phrases to canonical tool/prompt/resource sequences (NL excellence layer — see below) | 24h |
 
 ### Semantics
 
@@ -1147,6 +1148,16 @@ MCP resources are a distinct primitive from tools: read-only, enumerable via `re
 - **Enumeration:** `resources/list` returns the set, including dynamic URIs (e.g. a `omnifocus://project/{id}` entry per project). For 500+ projects, the list is paginated the same way tool list responses are.
 
 Resources and tools use the same service layer underneath — a `GET /projects/{id}` via resource and a `project_get({id})` via tool return equivalent data. The implementation split is in the MCP handler layer only.
+
+### NL excellence layer — intents
+
+Eighty registered tools is too many for an agent to plan over confidently when the user says "process my inbox" or "what's on my plate today." Eight verbs — capture, plan, review, triage, retrospect, share, audit, automate — is the right cardinality for human-style intent. The `omnifocus://intents` resource is the bridge.
+
+Each intent carries a canonical user phrase, a list of aliases, a one-sentence description in the user's voice, and an ordered sequence of steps (tool calls, prompts, or resource reads). Steps may carry template `args` placeholders the agent fills from user input. The resource is content-curated, not derived: maintainers add entries to `src/resources/intents.data.ts` as new tools land. A unit-test lint asserts every referenced name resolves to a registered tool, prompt, or resource so drift can't ship.
+
+The point isn't to constrain the agent — it can still call any tool directly. The point is to **make the obvious paths obvious**, so the agent's first move on common intents is right. Use as a fallback when uncertain which tool fits, not as a gatekeeper.
+
+This resource also doubles as the discoverability surface: when a future agent asks "what can this server do?", reading `omnifocus://intents` gives a coherent answer organized by intent category, not by tool name. Part of the NL-excellence epic (#491).
 
 ---
 

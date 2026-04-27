@@ -39,12 +39,14 @@ import type { PerspectiveService } from "../services/perspectiveService.js";
 import type { ProjectService } from "../services/projectService.js";
 import type { ReviewService } from "../services/reviewService.js";
 import { registerBurndownResource } from "./burndown.js";
+import { registerIntentsResource } from "./intents.js";
 import { registerRecentActivityResource } from "./recentActivity.js";
 import { registerRetrospectiveResource } from "./retrospective.js";
 import { registerTaxonomyAuditResource } from "./taxonomyAudit.js";
 import { registerVelocityResource } from "./velocity.js";
 
 export { BURNDOWN_URI_TEMPLATE } from "./burndown.js";
+export { INTENTS_URI } from "./intents.js";
 export { RECENT_ACTIVITY_URI_TEMPLATE } from "./recentActivity.js";
 export { RETROSPECTIVE_URI_TEMPLATE } from "./retrospective.js";
 export { TAXONOMY_AUDIT_URI } from "./taxonomyAudit.js";
@@ -400,4 +402,7 @@ export function registerOmniFocusResources(server: McpServer, deps: OmniFocusRes
 
   // ── omnifocus://burndown/{projectId} ─────────────────────────────────────
   registerBurndownResource(server, adapter);
+
+  // ── omnifocus://intents ──────────────────────────────────────────────────
+  registerIntentsResource(server);
 }
