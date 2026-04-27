@@ -88,8 +88,11 @@ function run(argv) {
     const tag = allTags[i];
     const built = buildTag(tag);
 
-    if (args.parentId !== undefined && built.parentId !== args.parentId) continue;
-    if (args.status !== undefined && built.status !== args.status) continue;
+    // JxaTransport sends `parentId: null` / `status: null` for "no filter"
+    // (rather than omitting). Treat null and undefined identically here so
+    // those calls don't filter every tag out — see #515.
+    if (args.parentId != null && built.parentId !== args.parentId) continue;
+    if (args.status != null && built.status !== args.status) continue;
 
     result.push(built);
   }

@@ -39,21 +39,45 @@ function run(argv) {
       id: id,
       name: folder.name(),
       parentId: parentId,
-      projectCount: folder.projects ? folder.projects().length : 0,
-      subfolderCount: folder.folders ? folder.folders().length : 0,
-      createdAt: folder.creationDate
-        ? folder.creationDate().toISOString()
-        : new Date().toISOString(),
-      modifiedAt: folder.modificationDate
-        ? folder.modificationDate().toISOString()
-        : new Date().toISOString(),
+      projectCount: (() => {
+        try {
+          return folder.projects().length;
+        } catch (_e) {
+          return 0;
+        }
+      })(),
+      subfolderCount: (() => {
+        try {
+          return folder.folders().length;
+        } catch (_e) {
+          return 0;
+        }
+      })(),
+      // Guard against "Can't get object." thrown when invoking these — see #498.
+      createdAt: (() => {
+        try {
+          return folder.creationDate().toISOString();
+        } catch (_e) {
+          return new Date().toISOString();
+        }
+      })(),
+      modifiedAt: (() => {
+        try {
+          return folder.modificationDate().toISOString();
+        } catch (_e) {
+          return new Date().toISOString();
+        }
+      })(),
     };
   }
 
   const result = [];
   for (let i = 0; i < allFolders.length; i++) {
     const built = buildFolder(allFolders[i]);
-    if (args.parentId !== undefined && built.parentId !== args.parentId) continue;
+    // JxaTransport may send `parentId: null` for "no filter" — treat null and
+    // undefined identically so those calls don't filter every folder out.
+    // See #515 (tag_list had the same bug).
+    if (args.parentId != null && built.parentId !== args.parentId) continue;
     result.push(built);
   }
 
