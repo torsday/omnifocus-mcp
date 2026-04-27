@@ -50,19 +50,41 @@ export async function fetchProjectTaskTree(
 /**
  * Partition a flat task list into root tasks and a `parentId → children` map.
  *
- * Root tasks are those with `parentId === null` (directly under their project
- * or inbox). The map indexes children by their stringified parent ID, so
- * recursive renderers can look up a given task's children in O(1).
+ * A task is a root if its `parentId` is null OR if its `parentId` does not
+ * appear as the `id` of any other task in the input set. The latter case
+ * matters for two reasons:
+ *
+ *   1. **Project-rooted tasks** (#499). OmniFocus's data model treats a
+ *      project as a container task; top-level tasks of a project carry
+ *      `parentId === <projectId>` rather than `parentId === null`. The
+ *      project itself is never in the fetched task set, so those tasks
+ *      surface as roots here. Without this rule, `export_taskpaper` returned
+ *      `taskCount > 0` with an empty body for every real-database project.
+ *
+ *   2. **Defensive against fetch boundaries.** If a child appears without
+ *      its parent (pagination, filtered fetch, race against a deletion),
+ *      treat it as root rather than silently dropping it from the rendered
+ *      tree.
+ *
+ * The map indexes children by their stringified parent ID, so recursive
+ * renderers can look up a given task's children in O(1).
  */
 export function partitionTasksByParent(tasks: Task[]): {
   rootTasks: Task[];
   byParent: Map<string, Task[]>;
 } {
+  // First pass: index every task ID present in the input set so the second
+  // pass can recognize parentId references that point outside it.
+  const idsInSet = new Set<string>();
+  for (const task of tasks) {
+    idsInSet.add(String(task.id));
+  }
+
   const rootTasks: Task[] = [];
   const byParent = new Map<string, Task[]>();
 
   for (const task of tasks) {
-    if (task.parentId === null) {
+    if (task.parentId === null || !idsInSet.has(String(task.parentId))) {
       rootTasks.push(task);
     } else {
       const key = String(task.parentId);
