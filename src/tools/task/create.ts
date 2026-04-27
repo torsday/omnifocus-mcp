@@ -57,7 +57,7 @@ export const TASK_CREATE_DESCRIPTION =
  * Base object schema — used for MCP tool registration (.shape is accessible).
  * The SDK needs individual field descriptors; ZodEffects from .refine() lacks .shape.
  */
-const taskCreateInputBaseSchema = z.object({
+export const taskCreateInputBaseSchema = z.object({
   name: z.string().min(1).describe("Task name. Required, must be non-empty."),
 
   // Target: at most one of projectId or parentTaskId; neither = inbox

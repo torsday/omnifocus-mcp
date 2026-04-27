@@ -71,11 +71,15 @@ import { registerExportOpmlTool } from "../tools/export/opml.js";
 import { registerImportOpmlTool } from "../tools/export/opml_import.js";
 import { registerTaskPaperTools } from "../tools/export/taskpaper.js";
 import { registerFolderCreateTool } from "../tools/folder/create.js";
+import { registerFolderCreateDescribeTool } from "../tools/folder/createDescribe.js";
 import { registerFolderDeleteTool } from "../tools/folder/delete.js";
+import { registerFolderDeleteDescribeTool } from "../tools/folder/deleteDescribe.js";
 import { registerFolderGetTool } from "../tools/folder/get.js";
 import { registerFolderListTool } from "../tools/folder/list.js";
 import { registerFolderMoveTool } from "../tools/folder/move.js";
+import { registerFolderMoveDescribeTool } from "../tools/folder/moveDescribe.js";
 import { registerFolderUpdateTool } from "../tools/folder/update.js";
+import { registerFolderUpdateDescribeTool } from "../tools/folder/updateDescribe.js";
 import { registerForecastGetTool } from "../tools/forecast/get.js";
 import { registerForecastGetTagTool } from "../tools/forecast/get_tag.js";
 import { registerForecastPackTool } from "../tools/forecast/pack.js";
@@ -94,14 +98,20 @@ import { registerPluginInvokeTool } from "../tools/plugin/invoke.js";
 import { registerProjectBatchCompleteTool } from "../tools/project/batchComplete.js";
 import { registerProjectBatchDropTool } from "../tools/project/batchDrop.js";
 import { registerProjectCompleteTool } from "../tools/project/complete.js";
+import { registerProjectCompleteDescribeTool } from "../tools/project/completeDescribe.js";
 import { registerProjectCreateTool } from "../tools/project/create.js";
+import { registerProjectCreateDescribeTool } from "../tools/project/createDescribe.js";
 import { registerProjectDeleteTool } from "../tools/project/delete.js";
+import { registerProjectDeleteDescribeTool } from "../tools/project/deleteDescribe.js";
 import { registerProjectDropTool } from "../tools/project/drop.js";
+import { registerProjectDropDescribeTool } from "../tools/project/dropDescribe.js";
 import { registerProjectGetTool } from "../tools/project/get.js";
 import { registerProjectGetManyTool } from "../tools/project/getMany.js";
 import { registerProjectListTool } from "../tools/project/list.js";
 import { registerProjectMoveTool } from "../tools/project/move.js";
+import { registerProjectMoveDescribeTool } from "../tools/project/moveDescribe.js";
 import { registerProjectUpdateTool } from "../tools/project/update.js";
+import { registerProjectUpdateDescribeTool } from "../tools/project/updateDescribe.js";
 import { registerRunJxaScriptTool } from "../tools/rawScript/jxa.js";
 import { registerRunOmniJsScriptTool } from "../tools/rawScript/omnijs.js";
 import { registerRepetitionFromProseTool } from "../tools/repetition/fromProse.js";
@@ -114,32 +124,42 @@ import { registerSearchQueryTool } from "../tools/search/query.js";
 import { registerSyncStatusTool } from "../tools/sync/status.js";
 import { registerSyncTriggerTool } from "../tools/sync/trigger.js";
 import { registerTagCreateTool } from "../tools/tag/create.js";
+import { registerTagCreateDescribeTool } from "../tools/tag/createDescribe.js";
 import { registerTagDeleteTool } from "../tools/tag/delete.js";
+import { registerTagDeleteDescribeTool } from "../tools/tag/deleteDescribe.js";
 import { registerTagGetTool } from "../tools/tag/get.js";
 import { registerTagGetLocationTool } from "../tools/tag/getLocation.js";
 import { registerTagGetManyTool } from "../tools/tag/getMany.js";
 import { registerTagListTool } from "../tools/tag/list.js";
 import { registerTagMoveTool } from "../tools/tag/move.js";
+import { registerTagMoveDescribeTool } from "../tools/tag/moveDescribe.js";
 import { registerTagSetAllowsNextActionTool } from "../tools/tag/setAllowsNextAction.js";
 import { registerTagSetLocationTool } from "../tools/tag/setLocation.js";
 import { registerTagSetStatusTool } from "../tools/tag/setStatus.js";
 import { registerTagUpdateTool } from "../tools/tag/update.js";
+import { registerTagUpdateDescribeTool } from "../tools/tag/updateDescribe.js";
 import { registerTaskBatchAssignTool } from "../tools/task/batchAssign.js";
 import { registerTaskBatchCompleteTool } from "../tools/task/batchComplete.js";
 import { registerTaskBatchCreateTool } from "../tools/task/batchCreate.js";
+import { registerTaskBatchCreateDescribeTool } from "../tools/task/batchCreateDescribe.js";
 import { registerTaskBatchDeleteTool } from "../tools/task/batchDelete.js";
 import { registerTaskBatchDropTool } from "../tools/task/batchDrop.js";
 import { registerTaskBatchMoveTool } from "../tools/task/batchMove.js";
 import { registerTaskBatchUncompleteTool } from "../tools/task/batchUncomplete.js";
 import { registerTaskBatchUndropTool } from "../tools/task/batchUndrop.js";
 import { registerTaskBatchUpdateTool } from "../tools/task/batchUpdate.js";
+import { registerTaskBatchUpdateDescribeTool } from "../tools/task/batchUpdateDescribe.js";
 import { registerTaskClearAlarmsTool } from "../tools/task/clearAlarms.js";
 import { registerTaskClearRepetitionTool } from "../tools/task/clearRepetition.js";
 import { registerTaskCompleteTool } from "../tools/task/complete.js";
+import { registerTaskCompleteDescribeTool } from "../tools/task/completeDescribe.js";
 import { registerTaskConvertToProjectTool } from "../tools/task/convertToProject.js";
 import { registerTaskCreateTool } from "../tools/task/create.js";
+import { registerTaskCreateDescribeTool } from "../tools/task/createDescribe.js";
 import { registerTaskDeleteTool } from "../tools/task/delete.js";
+import { registerTaskDeleteDescribeTool } from "../tools/task/deleteDescribe.js";
 import { registerTaskDropTool } from "../tools/task/drop.js";
+import { registerTaskDropDescribeTool } from "../tools/task/dropDescribe.js";
 import { registerTaskDuplicateTool } from "../tools/task/duplicate.js";
 import { registerTaskExtractFromImageTool } from "../tools/task/extractFromImage.js";
 import { registerTaskExtractFromNoteTool } from "../tools/task/extractFromNote.js";
@@ -149,6 +169,7 @@ import { registerTaskGetTool } from "../tools/task/get.js";
 import { registerTaskGetManyTool } from "../tools/task/getMany.js";
 import { registerTaskListTool } from "../tools/task/list.js";
 import { registerTaskMoveTool } from "../tools/task/move.js";
+import { registerTaskMoveDescribeTool } from "../tools/task/moveDescribe.js";
 import { registerTaskParseTransportTextTool } from "../tools/task/parseTransportText.js";
 import { registerTaskReclassifyTool } from "../tools/task/reclassify.js";
 import { registerTaskReorderTool } from "../tools/task/reorder.js";
@@ -158,6 +179,7 @@ import { registerTaskSetRepetitionTool } from "../tools/task/setRepetition.js";
 import { registerTaskUncompleteTool } from "../tools/task/uncomplete.js";
 import { registerTaskUndropTool } from "../tools/task/undrop.js";
 import { registerTaskUpdateTool } from "../tools/task/update.js";
+import { registerTaskUpdateDescribeTool } from "../tools/task/updateDescribe.js";
 import {
   registerTaskClearWaitingOnTool,
   registerTaskSetWaitingOnTool,
@@ -288,7 +310,8 @@ export async function startServer(): Promise<void> {
     perspectiveService: services.perspectiveService,
   });
 
-  // Folder tools — six uniform `{folderService, makeMeta}` registrations.
+  // Folder tools — six uniform `{folderService, makeMeta}` registrations,
+  // plus four `{adapter, makeMeta}` describe (preview) tools.
   const folderCtx = { folderService: services.folderService, makeMeta };
   registerFolderCreateTool(server, folderCtx);
   registerFolderDeleteTool(server, folderCtx);
@@ -297,7 +320,15 @@ export async function startServer(): Promise<void> {
   registerFolderMoveTool(server, folderCtx);
   registerFolderUpdateTool(server, folderCtx);
 
-  // Tag tools — ten uniform `{tagService, makeMeta}` registrations.
+  // Folder describe tools.
+  const folderDescribeCtx = { adapter, makeMeta };
+  registerFolderCreateDescribeTool(server, folderDescribeCtx);
+  registerFolderDeleteDescribeTool(server, folderDescribeCtx);
+  registerFolderMoveDescribeTool(server, folderDescribeCtx);
+  registerFolderUpdateDescribeTool(server, folderDescribeCtx);
+
+  // Tag tools — ten uniform `{tagService, makeMeta}` registrations,
+  // plus four `{adapter, makeMeta}` describe (preview) tools.
   const tagCtx = { tagService: services.tagService, makeMeta };
   registerTagCreateTool(server, tagCtx);
   registerTagDeleteTool(server, tagCtx);
@@ -310,6 +341,13 @@ export async function startServer(): Promise<void> {
   registerTagSetLocationTool(server, tagCtx);
   registerTagSetStatusTool(server, tagCtx);
   registerTagUpdateTool(server, tagCtx);
+
+  // Tag describe tools.
+  const tagDescribeCtx = { adapter, makeMeta };
+  registerTagCreateDescribeTool(server, tagDescribeCtx);
+  registerTagDeleteDescribeTool(server, tagDescribeCtx);
+  registerTagMoveDescribeTool(server, tagDescribeCtx);
+  registerTagUpdateDescribeTool(server, tagDescribeCtx);
 
   // Note tools — five `{adapter, makeMeta, cache}` registrations.
   // cache is required so note mutations invalidate stale task/project entries
@@ -410,6 +448,15 @@ export async function startServer(): Promise<void> {
   registerProjectMoveTool(server, projectServiceCtx);
   registerProjectUpdateTool(server, projectAdapterCtx);
 
+  // Project describe tools.
+  const projectDescribeCtx = { adapter, makeMeta };
+  registerProjectCompleteDescribeTool(server, projectDescribeCtx);
+  registerProjectCreateDescribeTool(server, projectDescribeCtx);
+  registerProjectDeleteDescribeTool(server, projectDescribeCtx);
+  registerProjectDropDescribeTool(server, projectDescribeCtx);
+  registerProjectMoveDescribeTool(server, projectDescribeCtx);
+  registerProjectUpdateDescribeTool(server, projectDescribeCtx);
+
   // Task tools — twenty registrations across four context shapes.
   // Service-backed reads use `{taskService, makeMeta}`; raw adapter reads
   // (find_by_name, get_many, parse_transport_text) use `{adapter, makeMeta}`;
@@ -467,6 +514,17 @@ export async function startServer(): Promise<void> {
   registerTaskCreateTool(server, taskMutationCtx);
   registerTaskDeleteTool(server, taskMutationCtx);
   registerTaskUpdateTool(server, taskMutationCtx);
+
+  // Task describe tools.
+  const taskDescribeCtx = { adapter, makeMeta };
+  registerTaskBatchCreateDescribeTool(server, taskDescribeCtx);
+  registerTaskBatchUpdateDescribeTool(server, taskDescribeCtx);
+  registerTaskCompleteDescribeTool(server, taskDescribeCtx);
+  registerTaskCreateDescribeTool(server, taskDescribeCtx);
+  registerTaskDeleteDescribeTool(server, taskDescribeCtx);
+  registerTaskDropDescribeTool(server, taskDescribeCtx);
+  registerTaskMoveDescribeTool(server, taskDescribeCtx);
+  registerTaskUpdateDescribeTool(server, taskDescribeCtx);
 
   // Attachment tools — four uniform `{attachmentService, makeMeta}`
   // registrations exposed via the `registerAttachmentTools` helper:
