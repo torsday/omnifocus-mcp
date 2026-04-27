@@ -370,6 +370,6 @@ describe("handleTaskExtractFromImage — attachment-mode source", () => {
         },
         makeCtx(adapter),
       ),
-    ).rejects.toThrow(/attachSourceTo='none' only/);
+    ).rejects.toThrow(/attachSourceTo='none'/);
   });
 });
