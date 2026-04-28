@@ -38,6 +38,7 @@ const baseConfig: Config = {
   OMNIFOCUS_MAX_ATTACHMENT_MB: 100,
   OMNIFOCUS_TOOL_RATE_LIMIT: { limit: 120, windowSeconds: 60 },
   OMNIFOCUS_WAITING_TAG_NAME: "waiting",
+  OMNIFOCUS_TEMPLATES_FOLDER_NAME: "Templates",
 };
 
 describe("composeAdapter", () => {
