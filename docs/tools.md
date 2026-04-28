@@ -905,7 +905,7 @@ _No parameters._
 
 ## forecast_get_tag
 
-Read the OmniFocus forecast-tag preference: the single tag whose tasks always appear on the Forecast view alongside dated items. Use when the agent needs to answer 'what tag is the user using as their daily agenda?' or to confirm a tag before composing follow-up queries against it. Do NOT use to list tags in general — prefer tag_list. Takes no arguments. Returns { tagId: string | null }; null when no forecast tag is configured (fresh OmniFocus install or explicitly cleared via forecast_set_tag). Read-only; no side effects; safe to retry. Backed by OmniJS Database.forecastTag.
+Read the OmniFocus forecast-tag preference: the single tag whose tasks always appear on the Forecast view alongside dated items. Use when the agent needs to answer 'what tag is the user using as their daily agenda?' or to confirm a tag before composing follow-up queries against it. Do NOT use to list tags in general — prefer tag_list. Takes no arguments. Returns { tagId: string | null, name: string | null } — name is the tag's display name (or null when tagId is null or the tag has been deleted) so the agent can describe the forecast tag without a follow-up tag_get. Read-only; no side effects; safe to retry. Backed by OmniJS Database.forecastTag.
 
 ### Input
 
@@ -967,7 +967,7 @@ _No parameters._
 
 ## forecast_set_tag
 
-Set or clear the OmniFocus forecast-tag preference. Use when the user wants to designate (or change) the tag whose tasks should always appear on Forecast — common during onboarding flows or context switches ('use @today as my agenda'). Do NOT use to add tags to a task — prefer task_update. Pass tagId as a TagId string to set, or null to clear. Returns { tagId: string | null } echoing what was applied. Errors: NOT_FOUND when the supplied tagId does not exist. Side effects: mutation; invalidates the forecast read cache. Backed by OmniJS Database.forecastTag.
+Set or clear the OmniFocus forecast-tag preference. Use when the user wants to designate (or change) the tag whose tasks should always appear on Forecast — common during onboarding flows or context switches ('use @today as my agenda'). Do NOT use to add tags to a task — prefer task_update. Pass tagId as a TagId string to set, or null to clear. Returns { tagId: string | null, name: string | null } echoing what was applied — name is paired with the tag id so the agent can describe the change without a follow-up tag_get. Errors: NOT_FOUND when the supplied tagId does not exist. Side effects: mutation; invalidates the forecast read cache. Backed by OmniJS Database.forecastTag.
 
 ### Input
 

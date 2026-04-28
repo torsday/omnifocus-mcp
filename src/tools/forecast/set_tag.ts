@@ -24,7 +24,7 @@ export const FORECAST_SET_TAG_DESCRIPTION =
   "Use when the user wants to designate (or change) the tag whose tasks should always appear on Forecast — common during onboarding flows or context switches ('use @today as my agenda'). " +
   "Do NOT use to add tags to a task — prefer task_update. " +
   "Pass tagId as a TagId string to set, or null to clear. " +
-  "Returns { tagId: string | null } echoing what was applied. " +
+  "Returns { tagId: string | null, name: string | null } echoing what was applied — name is paired with the tag id so the agent can describe the change without a follow-up tag_get. " +
   "Errors: NOT_FOUND when the supplied tagId does not exist. " +
   "Side effects: mutation; invalidates the forecast read cache. " +
   "Backed by OmniJS Database.forecastTag.";
