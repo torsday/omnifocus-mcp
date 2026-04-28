@@ -184,10 +184,11 @@ export async function handleTaskBatchAssign(
   const tagPrereadIdxs = indicesNeedingTagPreread(assignments);
   const currentTagsByOrigIdx = new Map<number, TagId[]>();
   if (tagPrereadIdxs.length > 0) {
-    const ids = tagPrereadIdxs.map((i) => assignments[i]!.taskId);
+    const ids = tagPrereadIdxs.map((i) => assignments[i]?.taskId);
     const tasks = await ctx.adapter.getTasksMany(ids);
     for (let k = 0; k < tagPrereadIdxs.length; k++) {
       const t = tasks[k];
+      // biome-ignore lint/style/noNonNullAssertion: k is always a valid tagPrereadIdxs index
       if (t) currentTagsByOrigIdx.set(tagPrereadIdxs[k]!, t.tagIds);
     }
   }
@@ -198,8 +199,10 @@ export async function handleTaskBatchAssign(
     moveIdxs.length > 0
       ? await ctx.adapter.batchMoveTasks(
           moveIdxs.map((i) => ({
-            id: assignments[i]!.taskId,
-            destination: { projectId: assignments[i]!.projectId! },
+            id: assignments[i]?.taskId,
+            // biome-ignore lint/style/noNonNullAssertion: indicesNeedingMove guarantees i is a valid assignments index
+            // biome-ignore lint/suspicious/noNonNullAssertedOptionalChain: projectId is guaranteed present by indicesNeedingMove
+            destination: { projectId: assignments[i]?.projectId! },
           })),
         )
       : { succeeded: [], failed: [] };
@@ -207,10 +210,12 @@ export async function handleTaskBatchAssign(
   /** Map original-index → "ok" | failure-detail for the move phase. Items not in this map didn't request a move. */
   const moveResultByOrigIdx = new Map<number, "ok" | { errorCode: string; message: string }>();
   for (const s of moveOutcome.succeeded) {
+    // biome-ignore lint/style/noNonNullAssertion: s.index is always a valid moveIdxs index
     const origIdx = moveIdxs[s.index]!;
     moveResultByOrigIdx.set(origIdx, "ok");
   }
   for (const f of moveOutcome.failed) {
+    // biome-ignore lint/style/noNonNullAssertion: f.index is always a valid moveIdxs index
     const origIdx = moveIdxs[f.index]!;
     moveResultByOrigIdx.set(origIdx, { errorCode: f.errorCode, message: f.message });
   }
@@ -218,6 +223,7 @@ export async function handleTaskBatchAssign(
   // Phase 2: batch-update items whose move did NOT fail (or that didn't need a move) AND have a non-move patch.
   const updateBatch: Array<{ origIdx: number; id: TaskId; patch: UpdateTaskInput }> = [];
   for (let i = 0; i < assignments.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: loop index is always within assignments bounds
     const a = assignments[i]!;
     const moveRes = moveResultByOrigIdx.get(i);
     if (moveRes !== undefined && moveRes !== "ok") continue; // move failed → skip update
@@ -241,6 +247,7 @@ export async function handleTaskBatchAssign(
   const failed: BatchItemFailure[] = [];
 
   for (let i = 0; i < assignments.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: loop index is always within assignments bounds
     const a = assignments[i]!;
     const moveRes = moveResultByOrigIdx.get(i); // undefined = no move requested
 
@@ -260,6 +267,7 @@ export async function handleTaskBatchAssign(
       if (updateOkBatchIdxs.has(batchIdx)) {
         succeeded.push({ index: i, value: a.taskId });
       } else if (updateFailureByBatchIdx.has(batchIdx)) {
+        // biome-ignore lint/style/noNonNullAssertion: has(batchIdx) checked above
         const f = updateFailureByBatchIdx.get(batchIdx)!;
         failed.push({ index: i, errorCode: `update:${f.errorCode}`, message: f.message });
       }
@@ -273,6 +281,7 @@ export async function handleTaskBatchAssign(
 
   if (ctx.cache !== undefined && succeeded.length > 0) {
     for (const s of succeeded) {
+      // biome-ignore lint/style/noNonNullAssertion: s.index is always a valid assignments index
       const a = assignments[s.index]!;
       invalidateTaskMutation(ctx.cache, {
         taskId: a.taskId,
