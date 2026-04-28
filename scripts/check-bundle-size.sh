@@ -20,14 +20,12 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 BUNDLE="dist/index.js"
-# 580 KiB. Bumped 540 → 580 KiB on 2026-04-28 alongside #494 because the
-# *_describe preview-tool surface (PR #522) adds ~24 new tools whose code
-# overran the prior 540 KiB ceiling. The tree-shaking / code-splitting
-# investigation tracked at #578 remains the long-term answer; this is a
-# one-step bump to land #494 without blocking on that work.
-# Previously 540 KiB (525 → 540 on 2026-04-27 alongside #482); originally
+# 610 KiB. Bumped 580 → 610 KiB on 2026-04-28 alongside #570 because the
+# Example: sweep (~95 description strings each gaining an example line)
+# added ~7 KiB of string literals that pushed past the 580 KiB ceiling.
+# Previously 580 KiB (540 → 580 on 2026-04-28 alongside #494); originally
 # 500 KiB. Keep in sync with DESIGN §20.
-BUDGET=593920
+BUDGET=624640
 
 if [ ! -f "$BUNDLE" ]; then
   echo "::error::$BUNDLE not found — run 'pnpm build' first." >&2
@@ -35,9 +33,9 @@ if [ ! -f "$BUNDLE" ]; then
 fi
 
 SIZE=$(wc -c < "$BUNDLE" | tr -d ' ')
-echo "$BUNDLE: ${SIZE} bytes (budget: ${BUDGET} bytes / 580 KiB)"
+echo "$BUNDLE: ${SIZE} bytes (budget: ${BUDGET} bytes / 610 KiB)"
 
 if [ "$SIZE" -gt "$BUDGET" ]; then
-  echo "::error::bundle exceeds 580 KiB budget (${SIZE} > ${BUDGET})" >&2
+  echo "::error::bundle exceeds 610 KiB budget (${SIZE} > ${BUDGET})" >&2
   exit 1
 fi
