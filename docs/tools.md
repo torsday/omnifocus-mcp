@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 128 tools registered.
+> Auto-generated from source. 130 tools registered.
 
 ## Table of contents
 
@@ -61,6 +61,8 @@
 - [project_move](#project_move)
 - [project_move_describe](#project_move_describe)
 - [project_set_next_review_date](#project_set_next_review_date)
+- [project_template_list](#project_template_list)
+- [project_template_save](#project_template_save)
 - [project_update](#project_update)
 - [project_update_describe](#project_update_describe)
 - [repetition_from_prose](#repetition_from_prose)
@@ -2012,6 +2014,68 @@ _No parameters._
 ```json
 {
   "toolName": "project_set_next_review_date",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## project_template_list
+
+List saved project templates under the Templates folder. Projects without a parseable template fence are skipped. Do NOT use to enumerate ordinary projects — call project_list. Returns { templates: [{ templateId, templateName, parameterNames, capturedAt }] }, sorted by capturedAt desc. Read-only; safe to retry. Example: call with no args; receives [] when no Templates folder exists yet.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "project_template_list",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## project_template_save
+
+Capture a project as a reusable template under the Templates folder (env OMNIFOCUS_TEMPLATES_FOLDER_NAME). Metadata is stored in a fenced YAML block at the top of the template-project note; TaskPaper body sits below. Do NOT use to duplicate a one-off project — prefer task_duplicate. Returns { templateId, templateName, capturedAt }. Side effects: writes folder + project; sets meta.syncPending = true. Example: { projectId: "p_001", templateName: "Client onboarding", parameterNames: ["client"] }.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "project_template_save",
   "arguments": {}
 }
 ```

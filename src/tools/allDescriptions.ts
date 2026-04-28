@@ -50,6 +50,8 @@ import { PROJECT_GET_MANY_DESCRIPTION } from "./project/getMany.js";
 import { PROJECT_LIST_DESCRIPTION } from "./project/list.js";
 import { PROJECT_MOVE_DESCRIPTION } from "./project/move.js";
 import { PROJECT_MOVE_DESCRIBE_DESCRIPTION } from "./project/moveDescribe.js";
+import { PROJECT_TEMPLATE_LIST_DESCRIPTION } from "./project/templateList.js";
+import { PROJECT_TEMPLATE_SAVE_DESCRIPTION } from "./project/templateSave.js";
 import { PROJECT_UPDATE_DESCRIPTION } from "./project/update.js";
 import { PROJECT_UPDATE_DESCRIBE_DESCRIPTION } from "./project/updateDescribe.js";
 import { RUN_JXA_SCRIPT_DESCRIPTION } from "./rawScript/jxa.js";
@@ -185,6 +187,8 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   project_mark_reviewed: PROJECT_MARK_REVIEWED_DESCRIPTION,
   project_move: PROJECT_MOVE_DESCRIPTION,
   project_move_describe: PROJECT_MOVE_DESCRIBE_DESCRIPTION,
+  project_template_list: PROJECT_TEMPLATE_LIST_DESCRIPTION,
+  project_template_save: PROJECT_TEMPLATE_SAVE_DESCRIPTION,
   project_update: PROJECT_UPDATE_DESCRIPTION,
   repetition_from_prose: REPETITION_FROM_PROSE_DESCRIPTION,
   project_update_describe: PROJECT_UPDATE_DESCRIBE_DESCRIPTION,

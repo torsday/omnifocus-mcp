@@ -110,6 +110,8 @@ import { registerProjectGetManyTool } from "../tools/project/getMany.js";
 import { registerProjectListTool } from "../tools/project/list.js";
 import { registerProjectMoveTool } from "../tools/project/move.js";
 import { registerProjectMoveDescribeTool } from "../tools/project/moveDescribe.js";
+import { registerProjectTemplateListTool } from "../tools/project/templateList.js";
+import { registerProjectTemplateSaveTool } from "../tools/project/templateSave.js";
 import { registerProjectUpdateTool } from "../tools/project/update.js";
 import { registerProjectUpdateDescribeTool } from "../tools/project/updateDescribe.js";
 import { registerRunJxaScriptTool } from "../tools/rawScript/jxa.js";
@@ -447,6 +449,15 @@ export async function startServer(): Promise<void> {
   registerProjectListTool(server, { projectService: services.projectService, makeMeta });
   registerProjectMoveTool(server, projectServiceCtx);
   registerProjectUpdateTool(server, projectAdapterCtx);
+  // Project templates — read + write tools share the configured Templates folder name.
+  const projectTemplateCtx = {
+    adapter,
+    makeMeta,
+    cache: services.cache,
+    templatesFolderName: config.OMNIFOCUS_TEMPLATES_FOLDER_NAME,
+  };
+  registerProjectTemplateSaveTool(server, projectTemplateCtx);
+  registerProjectTemplateListTool(server, projectTemplateCtx);
 
   // Project describe tools.
   const projectDescribeCtx = { adapter, makeMeta };

@@ -66,6 +66,7 @@ const envSchema = z.object({
   OMNIFOCUS_MAX_ATTACHMENT_MB: z.coerce.number().int().positive().default(100),
   OMNIFOCUS_TOOL_RATE_LIMIT: rateLimitSchema.prefault("120/60"),
   OMNIFOCUS_WAITING_TAG_NAME: z.string().min(1).default("waiting"),
+  OMNIFOCUS_TEMPLATES_FOLDER_NAME: z.string().min(1).default("Templates"),
 });
 
 // ---------------------------------------------------------------------------
@@ -107,6 +108,7 @@ export function parseConfig(
     OMNIFOCUS_MAX_ATTACHMENT_MB: processEnv.OMNIFOCUS_MAX_ATTACHMENT_MB,
     OMNIFOCUS_TOOL_RATE_LIMIT: processEnv.OMNIFOCUS_TOOL_RATE_LIMIT,
     OMNIFOCUS_WAITING_TAG_NAME: processEnv.OMNIFOCUS_WAITING_TAG_NAME,
+    OMNIFOCUS_TEMPLATES_FOLDER_NAME: processEnv.OMNIFOCUS_TEMPLATES_FOLDER_NAME,
   });
 
   if (!result.success) {
@@ -150,5 +152,6 @@ export function redactConfig(config: Config): Record<string, unknown> {
     OMNIFOCUS_MAX_ATTACHMENT_MB: config.OMNIFOCUS_MAX_ATTACHMENT_MB,
     OMNIFOCUS_TOOL_RATE_LIMIT: config.OMNIFOCUS_TOOL_RATE_LIMIT,
     OMNIFOCUS_WAITING_TAG_NAME: config.OMNIFOCUS_WAITING_TAG_NAME,
+    OMNIFOCUS_TEMPLATES_FOLDER_NAME: config.OMNIFOCUS_TEMPLATES_FOLDER_NAME,
   };
 }
