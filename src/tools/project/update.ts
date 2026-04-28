@@ -20,6 +20,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter, UpdateProjectInput } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateProjectMutation } from "../../cache/invalidation.js";
+import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import type { ProjectId as ProjectIdType } from "../../domain/ids.js";
 import { ProjectId, TagId } from "../../domain/ids.js";
 import { summaryProjectUpdate } from "../../domain/writeSummary.js";
@@ -61,14 +62,21 @@ export const projectUpdateInputSchema = z.object({
     .nullable()
     .optional()
     .describe("HTML note. Pass null to clear. Prefer note for plain-text edits."),
-  status: z
-    .enum(["active", "on-hold"])
-    .optional()
-    .describe("Project status. Use project_complete or project_drop to close a project."),
-  completionCriterion: z
-    .enum(["parallel", "sequential", "singleActions"])
-    .optional()
-    .describe("How the project's tasks are completed."),
+  status: aliasedEnum(
+    ["active", "on-hold"] as const,
+    { paused: "on-hold" },
+    "Project status. Use project_complete or project_drop to close a project.",
+  ).optional(),
+  completionCriterion: aliasedEnum(
+    ["parallel", "sequential", "singleActions"] as const,
+    {
+      "in-order": "sequential",
+      "in order": "sequential",
+      "any-order": "parallel",
+      "any order": "parallel",
+    },
+    "How the project's tasks are completed.",
+  ).optional(),
   deferDate: z
     .string()
     .nullable()

@@ -50,7 +50,13 @@ describe("project_list — input schema", () => {
   });
 
   it("rejects an unknown status", () => {
-    expect(() => projectListInputSchema.parse({ status: "paused" })).toThrow();
+    expect(() => projectListInputSchema.parse({ status: "xyz" })).toThrow();
+  });
+
+  it("normalises common aliases to canonical status values (#573)", () => {
+    expect(projectListInputSchema.parse({ status: "paused" }).status).toBe("on-hold");
+    expect(projectListInputSchema.parse({ status: "completed" }).status).toBe("done");
+    expect(projectListInputSchema.parse({ status: "cancelled" }).status).toBe("dropped");
   });
 
   it("rejects limit > 1000", () => {
