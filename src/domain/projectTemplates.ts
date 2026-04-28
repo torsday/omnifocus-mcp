@@ -103,3 +103,95 @@ export function buildProjectTemplateNote(meta: ProjectTemplateMeta, taskPaperBod
   if (taskPaperBody.length === 0) return fenceOnly;
   return `${fenceOnly}\n\n${taskPaperBody}`;
 }
+
+/**
+ * Return the TaskPaper portion of a template-project note — i.e. everything
+ * after the closing ` ``` ` of the metadata fence, with leading blank lines
+ * trimmed. Returns the empty string if no fence is present.
+ */
+export function extractProjectTemplateBody(note: string | null): string {
+  const match = findFence(note, PROJECT_TEMPLATE_FENCE);
+  if (match === undefined || note === null) return "";
+  return note.slice(match.end).replace(/^\n+/, "");
+}
+
+/**
+ * Substitute `{{name}}` placeholders in a TaskPaper body with values from
+ * `parameters`. Unknown placeholders (those not in the map) are left as-is so
+ * the user can spot them in the resulting project rather than seeing silent
+ * data loss.
+ *
+ * The match is `{{name}}` with optional whitespace inside the braces; names
+ * are alphanumeric + underscore + hyphen. Substitution is purely textual —
+ * no escaping, no markdown awareness. Callers should sanitize values that
+ * could legitimately contain `}}` (rare).
+ */
+export function substituteTemplateParameters(
+  body: string,
+  parameters: Record<string, string>,
+): string {
+  return body.replace(/\{\{\s*([A-Za-z0-9_-]+)\s*\}\}/g, (match, name: string) => {
+    if (Object.hasOwn(parameters, name)) return parameters[name] as string;
+    return match;
+  });
+}
+
+/**
+ * Anchor used for relative-date shifting at instantiation time. The earliest
+ * `@due(date)` in the template body is the natural anchor: shifting "the most
+ * urgent thing" to the user's requested due date and preserving every other
+ * date's offset from it produces an instantiated project whose deadline tree
+ * has the same internal cadence.
+ *
+ * Returns `undefined` when the template has no `@due(date)` to anchor on —
+ * date shifting is then skipped (templates without due dates have nothing to
+ * shift).
+ */
+export function findTemplateAnchorDate(body: string): string | undefined {
+  const dates: string[] = [];
+  for (const m of body.matchAll(/@due\((\d{4}-\d{2}-\d{2})\)/g)) {
+    dates.push(m[1] as string);
+  }
+  if (dates.length === 0) return undefined;
+  return dates.sort()[0];
+}
+
+/**
+ * Shift every `@due(YYYY-MM-DD)` and `@defer(YYYY-MM-DD)` in `body` by the
+ * delta between `anchor` and `newAnchor` (both `YYYY-MM-DD`).
+ *
+ * Date math uses UTC midnight to avoid DST surprises — the dates carry no
+ * time-of-day so calendar-day arithmetic is the right model.
+ */
+export function shiftTemplateDates(body: string, anchor: string, newAnchor: string): string {
+  const anchorMs = Date.UTC(
+    Number(anchor.slice(0, 4)),
+    Number(anchor.slice(5, 7)) - 1,
+    Number(anchor.slice(8, 10)),
+  );
+  const newAnchorMs = Date.UTC(
+    Number(newAnchor.slice(0, 4)),
+    Number(newAnchor.slice(5, 7)) - 1,
+    Number(newAnchor.slice(8, 10)),
+  );
+  const deltaMs = newAnchorMs - anchorMs;
+  if (deltaMs === 0) return body;
+
+  const shift = (date: string): string => {
+    const ms =
+      Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10))) +
+      deltaMs;
+    const d = new Date(ms);
+    const yyyy = d.getUTCFullYear().toString().padStart(4, "0");
+    const mm = (d.getUTCMonth() + 1).toString().padStart(2, "0");
+    const dd = d.getUTCDate().toString().padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  return body.replace(
+    /@(due|defer)\((\d{4}-\d{2}-\d{2})\)/g,
+    (_match, kind: string, date: string) => {
+      return `@${kind}(${shift(date)})`;
+    },
+  );
+}

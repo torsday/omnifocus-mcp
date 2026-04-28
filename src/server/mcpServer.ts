@@ -110,6 +110,7 @@ import { registerProjectGetManyTool } from "../tools/project/getMany.js";
 import { registerProjectListTool } from "../tools/project/list.js";
 import { registerProjectMoveTool } from "../tools/project/move.js";
 import { registerProjectMoveDescribeTool } from "../tools/project/moveDescribe.js";
+import { registerProjectTemplateInstantiateTool } from "../tools/project/templateInstantiate.js";
 import { registerProjectTemplateListTool } from "../tools/project/templateList.js";
 import { registerProjectTemplateSaveTool } from "../tools/project/templateSave.js";
 import { registerProjectUpdateTool } from "../tools/project/update.js";
@@ -458,6 +459,7 @@ export async function startServer(): Promise<void> {
   };
   registerProjectTemplateSaveTool(server, projectTemplateCtx);
   registerProjectTemplateListTool(server, projectTemplateCtx);
+  registerProjectTemplateInstantiateTool(server, projectTemplateCtx);
 
   // Project describe tools.
   const projectDescribeCtx = { adapter, makeMeta };

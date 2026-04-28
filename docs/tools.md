@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 130 tools registered.
+> Auto-generated from source. 131 tools registered.
 
 ## Table of contents
 
@@ -61,6 +61,7 @@
 - [project_move](#project_move)
 - [project_move_describe](#project_move_describe)
 - [project_set_next_review_date](#project_set_next_review_date)
+- [project_template_instantiate](#project_template_instantiate)
 - [project_template_list](#project_template_list)
 - [project_template_save](#project_template_save)
 - [project_update](#project_update)
@@ -2014,6 +2015,37 @@ _No parameters._
 ```json
 {
   "toolName": "project_set_next_review_date",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## project_template_instantiate
+
+Spawn a new project from a saved template under the Templates folder. Substitutes {{name}} placeholders with the supplied parameters and shifts @due / @defer dates relative to the optional dueDate anchor (the earliest @due in the template). Do NOT use to copy a one-off project — prefer task_duplicate. Returns { projectId, taskCount, importWarnings }. Side effects: writes a new project + tasks; sets meta.syncPending = true. Example: { templateName: "Client onboarding", parameters: { client: "Acme" }, dueDate: "2026-06-04" }.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "project_template_instantiate",
   "arguments": {}
 }
 ```
