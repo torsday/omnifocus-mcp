@@ -1205,3 +1205,45 @@ This is the largest gap in competing implementations. No current OmniFocus MCP s
 - **Prompts reference tools by name** in their message content; they do not invoke tools themselves — the LLM executes them.
 - **Stability:** prompt names and required parameters are part of the public contract (ADR-0011). Adding optional parameters is minor; removing or renaming is major.
 - **Enumeration:** `prompts/list` returns all prompts with their parameter schemas.
+
+## 30. Project templates — Templates folder convention
+
+OmniFocus has no first-class template system. The convention this MCP server adopts (#472, #587):
+
+- A folder named **`Templates`** at the library root holds one project per template. The name is configurable via `OMNIFOCUS_TEMPLATES_FOLDER_NAME`.
+- Each template-project's name is the user-facing template name. Names must be unique within the Templates folder; `project_template_save` rejects duplicates with a typed `TemplateExists` error.
+- The template-project's note carries a fenced YAML block at the top:
+
+  ````markdown
+  ```project-template
+  name: Client onboarding
+  parameters: client,startDate
+  capturedAt: 2026-04-27T20:00:00Z
+  ```
+
+  Client onboarding:
+      - Send welcome email @flagged
+      - Schedule kickoff @due(2026-05-04)
+  ````
+
+  The fence captures display name, ordered parameter names (comma-separated, used by `_instantiate` for substitution), and an ISO-8601 capture timestamp. Below the fence sits the project's task tree rendered as TaskPaper via the existing export service.
+
+- The Templates folder is created lazily on first save; first-time users see no extra clutter until they save.
+- Projects stored under Templates that **lack** a parseable fence are silently skipped by `project_template_list` and treated as `TemplateNotFound` by `project_template_instantiate`. This lets users keep ordinary projects in the Templates folder without the listing surface treating them as broken templates.
+
+### Instantiation
+
+`project_template_instantiate` resolves a template by name, then:
+
+1. **Validates parameters.** Every name recorded in the template's `parameters:` field must have a value in the input `parameters` map. Missing names surface together in one `MissingTemplateParameter` error so the agent can fix them in a single round-trip.
+2. **Substitutes `{{name}}` placeholders.** Substitution is purely textual. Names are alphanumeric + underscore + hyphen; whitespace inside the braces is tolerated (`{{ client }}` works the same as `{{client}}`). **Unknown placeholders are left as-is** rather than dropped — visible failure beats silent data loss, and the user can spot them in the resulting project.
+3. **Shifts `@due` and `@defer` dates relative to the supplied `dueDate`.** The anchor is the **earliest `@due(YYYY-MM-DD)`** in the template body; every other date shifts by the same delta. `@defer` dates participate in the shift even though they don't drive anchor selection. Templates without any `@due` to anchor on instantiate as-is when `dueDate` is supplied — there's nothing to shift, and erroring would be wrong since a `dueDate`-less template is a legitimate use case.
+4. **Pre-creates the target project** with `name = templateName` (and optional `targetFolderId`), then hands the substituted body to `importTaskPaper(text, projectId)`. The importer ignores the `Project name:` heading at the top of the body when `targetProjectId` is supplied, so the new project's name is whatever was passed to `createProject`, not whatever appeared in the template.
+
+### Properties
+
+- **Discoverable in OmniFocus directly.** Users can see and edit their templates in the OF UI; the fence is plain markdown and edits round-trip through `project_template_list` cleanly.
+- **No new persistence layer.** Templates live in the OF database the same way any project does — they sync via Omni Sync, restore from backups, and export with TaskPaper export.
+- **Lossiness inherits from TaskPaper.** Repetition rules, custom completion criteria (parallel vs sequential), estimated minutes, and attachments do not round-trip through TaskPaper today; the export step emits warnings into the save response. Templates are meant for common patterns, not corner cases.
+
+Out of scope: `project_template_delete` is filed separately as #588.
