@@ -26,6 +26,7 @@ import { z } from "zod";
 import { flexDateString } from "../../domain/dates.js";
 import { ProjectId, TagId } from "../../domain/ids.js";
 import { ok, type Pagination, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { validateRefined } from "../../errors/validateRefined.js";
 import type { SearchService } from "../../services/searchService.js";
 
 // ---------------------------------------------------------------------------
@@ -145,6 +146,11 @@ export interface TaskSearchContext {
  * metadata in the standard ADR-0013 envelope.
  */
 export async function handleTaskSearch(input: TaskSearchToolInput, ctx: TaskSearchContext) {
+  // Re-parse against the refined schema — the SDK only validates the base
+  // shape, so the at-least-one-field cross-field rule needs explicit
+  // enforcement here. See src/errors/validateRefined.ts.
+  validateRefined(taskSearchInputSchema, input);
+
   const result = await ctx.searchService.search({
     ...(input.q !== undefined && { q: input.q }),
     ...(input.scope !== undefined && { scope: input.scope }),
