@@ -1282,4 +1282,48 @@ OmniFocus has no first-class template system. The convention this MCP server ado
 - **No new persistence layer.** Templates live in the OF database the same way any project does — they sync via Omni Sync, restore from backups, and export with TaskPaper export.
 - **Lossiness inherits from TaskPaper.** Repetition rules, custom completion criteria (parallel vs sequential), estimated minutes, and attachments do not round-trip through TaskPaper today; the export step emits warnings into the save response. Templates are meant for common patterns, not corner cases.
 
-Out of scope: `project_template_delete` is filed separately as #588.
+The template CRUD surface: `project_template_save`, `project_template_list`, `project_template_delete`, `project_template_instantiate`.
+
+Cross-reference: the fence format used by this convention is documented in §31 below.
+
+## 31. Synthetic data on tasks and projects — fenced note metadata
+
+Several agent-useful structured fields (waiting-on tracking, project templates, decision journals) need a place to live on a task or project that is not already part of the OmniFocus data model. The convention this MCP server uses is a markdown code-fenced block at the top of the item's note, holding `key: value` lines.
+
+### Wire format
+
+```
+```<tag>
+key1: value1
+key2: value2
+```
+
+…rest of the user's note here…
+```
+
+`<tag>` is a short identifier that names the feature (e.g. `waiting-on`, `project-template`). The block always appears at the start of the note so tools that display only the first line of a note still see the user's prose, not metadata.
+
+### Invariants
+
+- **Round-trippable.** `upsertFence` / `removeFence` preserve the surrounding note exactly — blank lines, trailing whitespace, any other fences. Multiple features can annotate the same note independently.
+- **Forgiving.** A malformed fence (unclosed, empty body, bad lines) parses to `undefined` rather than an error. Callers treat `undefined` as "feature not in use." The user might have hand-edited the note.
+- **Visible.** Plain markdown; users can view and edit it in OmniFocus's note editor or in search results. No hidden database; no migration needed.
+
+### Helper API (`src/domain/noteFences.ts`)
+
+| Function | Purpose |
+|---|---|
+| `findFence(note, tag)` | Locate the first fence with the given tag. Returns `{ body, start, end }` or `undefined`. |
+| `parseFenceBody(body)` | Parse `key: value` lines into a `Record<string, string>`. Blank lines and lines without a colon are skipped. Last write wins on duplicate keys. Single/double-quoted values are unquoted. |
+| `serializeFenceBody(fields)` | Serialize a typed object back to `key: value` lines. `undefined` values are omitted. Output order matches key iteration order. |
+| `upsertFence(note, tag, body)` | Replace an existing fence in-place, or prepend a new one separated by a blank line. |
+| `removeFence(note, tag)` | Remove a fence; collapses the surrounding blank lines. Returns `null` when removal empties the note. |
+
+### Current consumers
+
+| Feature | Tag | File | Issue |
+|---|---|---|---|
+| Waiting-on tracking | `waiting-on` | `src/domain/waitingOn.ts` | #482 |
+| Project templates | `project-template` | `src/domain/projectTemplates.ts` | #472 |
+
+New features that need structured per-item state should adopt this convention rather than inventing a new storage mechanism. See §30 for the project-templates use case as a reference implementation.
