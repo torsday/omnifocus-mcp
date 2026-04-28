@@ -201,6 +201,66 @@ describe("handleAttachmentRemove", () => {
 });
 
 // ---------------------------------------------------------------------------
+// name pairing (#601)
+// ---------------------------------------------------------------------------
+
+describe("attachment_add pairs ownerKind/ownerName with id (#601)", () => {
+  it("returns task name on add to task", async () => {
+    const adapter = new InMemoryAdapter();
+    const taskId = await seedTask(adapter);
+    const ctx = makeCtx(adapter);
+    const filePath = await touchFile(tmpFile());
+
+    const result = await handleAttachmentAdd({ taskId, filePath }, ctx);
+    expect(result.data.ownerKind).toBe("task");
+    expect(result.data.ownerName).toBe("Test task");
+  });
+
+  it("returns project name on add to project", async () => {
+    const adapter = new InMemoryAdapter();
+    const projectId = await seedProject(adapter);
+    const ctx = makeCtx(adapter);
+    const filePath = await touchFile(tmpFile());
+
+    const result = await handleAttachmentAdd({ projectId, filePath }, ctx);
+    expect(result.data.ownerKind).toBe("project");
+    expect(result.data.ownerName).toBe("Test project");
+  });
+});
+
+describe("attachment_remove pairs ownerKind/ownerName with id (#601)", () => {
+  it("returns task name on remove from task", async () => {
+    const adapter = new InMemoryAdapter();
+    const taskId = await seedTask(adapter);
+    const ctx = makeCtx(adapter);
+    const filePath = await touchFile(tmpFile());
+
+    const {
+      data: { id: attachmentId },
+    } = await handleAttachmentAdd({ taskId, filePath }, ctx);
+    const result = await handleAttachmentRemove({ taskId, attachmentId }, ctx);
+    expect(result.data.removed).toBe(true);
+    expect(result.data.attachmentId).toBe(attachmentId);
+    expect(result.data.ownerKind).toBe("task");
+    expect(result.data.ownerName).toBe("Test task");
+  });
+
+  it("returns project name on remove from project", async () => {
+    const adapter = new InMemoryAdapter();
+    const projectId = await seedProject(adapter);
+    const ctx = makeCtx(adapter);
+    const filePath = await touchFile(tmpFile());
+
+    const {
+      data: { id: attachmentId },
+    } = await handleAttachmentAdd({ projectId, filePath }, ctx);
+    const result = await handleAttachmentRemove({ projectId, attachmentId }, ctx);
+    expect(result.data.ownerKind).toBe("project");
+    expect(result.data.ownerName).toBe("Test project");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // attachment_save_to_path
 // ---------------------------------------------------------------------------
 
