@@ -45,7 +45,7 @@ export const TASK_CREATE_DESCRIPTION =
   "Safety control: pass idempotency_key to make transport retries safe — identical subsequent " +
   "calls within the TTL window replay the original envelope with meta.idempotentReplay = true " +
   "instead of creating a duplicate task. " +
-  "Returns the new task's id. " +
+  "Returns { id, name } — name echoes the supplied name so the agent can describe the new task without a follow-up read. " +
   "Side effects: creates a task in OmniFocus, sets meta.syncPending = true. " +
   "Call sync_trigger when you need the task to appear on other devices.";
 
@@ -210,7 +210,7 @@ export async function handleTaskCreate(input: TaskCreateToolInput, ctx: TaskCrea
 
     const hints = finaliseHints(rawHints.filter((h): h is NonNullable<typeof h> => h != null));
     return ok(
-      { id },
+      { id, name: input.name },
       ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryTaskCreate(input.name) }),
       undefined,
       hints,

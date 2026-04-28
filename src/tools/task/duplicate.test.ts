@@ -110,6 +110,18 @@ describe("task_duplicate — handler", () => {
     expect(clone.parentId).toBeNull();
   });
 
+  it("pairs name with ids in the response (#590)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const src = await adapter.createTask({ name: "Repeating thing" });
+    const res = await handleTaskDuplicate({ id: src, recursive: false }, ctx);
+    expect(res.data).toMatchObject({
+      duplicated: true,
+      sourceId: src,
+      name: "Repeating thing",
+    });
+    expect(typeof res.data.newId).toBe("string");
+  });
+
   it("preserves tag membership on the clone", async () => {
     const { ctx, adapter } = makeCtx();
     const t1 = await adapter.createTag({ name: "work" });
