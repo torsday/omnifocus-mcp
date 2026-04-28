@@ -101,6 +101,21 @@ describe("task_drop — handler", () => {
     expect(envelope.meta.syncPending).toBeFalsy();
   });
 
+  it("pairs name with id in the success payload (#572)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "Send invoice" });
+    const envelope = await handleTaskDrop({ id }, ctx);
+    expect(envelope.data).toMatchObject({ done: true, id, name: "Send invoice" });
+  });
+
+  it("pairs name with id in the noChange payload (#572)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "Send invoice" });
+    await adapter.dropTask(id);
+    const envelope = await handleTaskDrop({ id }, ctx);
+    expect(envelope.data).toMatchObject({ noChange: true, id, name: "Send invoice" });
+  });
+
   it("marks the task as dropped in the adapter", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "Test" });

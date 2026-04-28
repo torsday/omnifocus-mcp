@@ -21,7 +21,7 @@ export const TASK_UNCOMPLETE_DESCRIPTION =
   "Mark an OmniFocus task as incomplete — removes its completion timestamp. " +
   "Idempotent: returns noChange: true if the task is already incomplete. " +
   "Do not use to drop or delete a task. " +
-  "Returns { done: true, id } or { noChange: true, id }. " +
+  "Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. " +
   "Side effects: clears completedAt, sets meta.syncPending = true.";
 
 // ---------------------------------------------------------------------------
@@ -50,14 +50,14 @@ export async function handleTaskUncomplete(
 ) {
   const task = await ctx.adapter.getTask(input.id);
   if (task.completed === false) {
-    return ok({ noChange: true as const, id: input.id }, ctx.makeMeta());
+    return ok({ noChange: true as const, id: input.id, name: task.name }, ctx.makeMeta());
   }
   await ctx.adapter.uncompleteTask(input.id);
   if (ctx.cache !== undefined) {
     invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
   }
   return ok(
-    { done: true as const, id: input.id },
+    { done: true as const, id: input.id, name: task.name },
     ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryTaskUncomplete(task.name) }),
   );
 }

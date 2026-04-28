@@ -87,6 +87,21 @@ describe("task_undrop — handler", () => {
     expect(envelope.meta.syncPending).toBeFalsy();
   });
 
+  it("pairs name with id in the success payload (#572)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "Bring back" });
+    await adapter.dropTask(id);
+    const envelope = await handleTaskUndrop({ id }, ctx);
+    expect(envelope.data).toMatchObject({ done: true, id, name: "Bring back" });
+  });
+
+  it("pairs name with id in the noChange payload (#572)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "Bring back" });
+    const envelope = await handleTaskUndrop({ id }, ctx);
+    expect(envelope.data).toMatchObject({ noChange: true, id, name: "Bring back" });
+  });
+
   it("marks the task as active in the adapter", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "Test" });

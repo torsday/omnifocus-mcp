@@ -24,7 +24,7 @@ export const TASK_DROP_DESCRIPTION =
   "Accepts an optional ISO-8601 date. " +
   "Idempotent: returns noChange: true if already dropped. " +
   "Do not use to complete or delete a task. " +
-  "Returns { done: true, id } or { noChange: true, id }. " +
+  "Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. " +
   "Side effects: sets droppedAt, sets meta.syncPending = true.";
 
 // ---------------------------------------------------------------------------
@@ -55,7 +55,7 @@ export interface TaskDropContext {
 export async function handleTaskDrop(input: TaskDropToolInput, ctx: TaskDropContext) {
   const task = await ctx.adapter.getTask(input.id);
   if (task.dropped) {
-    return ok({ noChange: true as const, id: input.id }, ctx.makeMeta());
+    return ok({ noChange: true as const, id: input.id, name: task.name }, ctx.makeMeta());
   }
   const at = input.at !== undefined ? new Date(input.at) : undefined;
   await ctx.adapter.dropTask(input.id, at);
@@ -63,7 +63,7 @@ export async function handleTaskDrop(input: TaskDropToolInput, ctx: TaskDropCont
     invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
   }
   return ok(
-    { done: true as const, id: input.id },
+    { done: true as const, id: input.id, name: task.name },
     ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryTaskDrop(task.name) }),
   );
 }

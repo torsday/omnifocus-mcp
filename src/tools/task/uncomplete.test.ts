@@ -87,6 +87,21 @@ describe("task_uncomplete — handler", () => {
     expect(envelope.meta.syncPending).toBeFalsy();
   });
 
+  it("pairs name with id in the success payload (#572)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "Reopen" });
+    await adapter.completeTask(id);
+    const envelope = await handleTaskUncomplete({ id }, ctx);
+    expect(envelope.data).toMatchObject({ done: true, id, name: "Reopen" });
+  });
+
+  it("pairs name with id in the noChange payload (#572)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "Reopen" });
+    const envelope = await handleTaskUncomplete({ id }, ctx);
+    expect(envelope.data).toMatchObject({ noChange: true, id, name: "Reopen" });
+  });
+
   it("marks the task as incomplete in the adapter", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "Test" });

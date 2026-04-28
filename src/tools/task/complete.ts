@@ -24,7 +24,7 @@ export const TASK_COMPLETE_DESCRIPTION =
   "Accepts an optional ISO-8601 date for the completion time; defaults to now. " +
   "Idempotent: returns noChange: true if the task is already completed. " +
   "Do not use to drop or delete a task. " +
-  "Returns { done: true, id } or { noChange: true, id }. " +
+  "Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. " +
   "Side effects: sets completedAt, sets meta.syncPending = true.";
 
 // ---------------------------------------------------------------------------
@@ -55,7 +55,7 @@ export interface TaskCompleteContext {
 export async function handleTaskComplete(input: TaskCompleteToolInput, ctx: TaskCompleteContext) {
   const task = await ctx.adapter.getTask(input.id);
   if (task.completed) {
-    return ok({ noChange: true as const, id: input.id }, ctx.makeMeta());
+    return ok({ noChange: true as const, id: input.id, name: task.name }, ctx.makeMeta());
   }
   const at = input.at !== undefined ? new Date(input.at) : undefined;
   await ctx.adapter.completeTask(input.id, at);
@@ -81,7 +81,7 @@ export async function handleTaskComplete(input: TaskCompleteToolInput, ctx: Task
   }
 
   return ok(
-    { done: true as const, id: input.id },
+    { done: true as const, id: input.id, name: task.name },
     ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryTaskComplete(task.name) }),
     undefined,
     hints,
