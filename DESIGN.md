@@ -489,6 +489,7 @@ Each phase ends with a working, integration-tested system valuable on its own. T
 - `docs/adr/0014-e2e-harness-strategy.md` — in-memory adapter switch for E2E
 - `docs/adr/0015-nl-excellence-response-envelope.md` — clarification kind, hints, echo-back summary
 - `docs/adr/0017-mutation-testing-release-gate.md` — Stryker mutation testing as release-time hard gate
+- `docs/adr/0018-calendar-bridge-eventkit-only.md` — EventKit-only calendar bridge via Swift-binary subprocess
 - [GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues) + [Project #4](https://github.com/users/torsday/projects/4) — live backlog derived from this design
 
 ---
