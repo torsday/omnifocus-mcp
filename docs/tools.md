@@ -3139,7 +3139,7 @@ _No parameters._
 
 ## task_batch_complete
 
-Mark many OmniFocus tasks complete in a single JXA round trip. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each completion succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_complete calls whenever you are completing more than one task. Each item is { id, at? } where `at` is an optional ISO-8601 completion timestamp (defaults to now). Already-completed tasks are not treated specially here — use task_complete's idempotent noChange path if you need that per-item semantics. Returns { completed: [{index, value: taskId}], failed: [{index, errorCode, message}] }. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Mark many OmniFocus tasks complete in a single JXA round trip. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each completion succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_complete calls whenever you are completing more than one task. Each item is { id, at? } where `at` is an optional ISO-8601 completion timestamp (defaults to now). Already-completed tasks are not treated specially here — use task_complete's idempotent noChange path if you need that per-item semantics. Returns { completed: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each completion without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
 
 ### Input
 
@@ -3263,7 +3263,7 @@ _No parameters._
 
 ## task_batch_drop
 
-Cancel (drop) many OmniFocus tasks in a single JXA round trip. Dropped tasks remain in OmniFocus but are treated as cancelled/inactive — they do not appear in active task lists. Use task_batch_delete for permanent removal. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each drop succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_drop calls whenever dropping more than one task. Each item is { id }. Returns { dropped: [{index, value: taskId}], failed: [{index, errorCode, message}] }. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Cancel (drop) many OmniFocus tasks in a single JXA round trip. Dropped tasks remain in OmniFocus but are treated as cancelled/inactive — they do not appear in active task lists. Use task_batch_delete for permanent removal. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each drop succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_drop calls whenever dropping more than one task. Each item is { id }. Returns { dropped: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each drop without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
 
 ### Input
 
@@ -3325,7 +3325,7 @@ _No parameters._
 
 ## task_batch_uncomplete
 
-Mark many OmniFocus tasks as incomplete in a single JXA round trip. Reverses a previous completion — useful when a task was completed by mistake or needs to be re-done. Uncompleted tasks return to active status. Use task_batch_complete to mark tasks as completed. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each uncomplete succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_uncomplete calls whenever uncompleting more than one task. Each item is { id }. Returns { uncompleted: [{index, value: taskId}], failed: [{index, errorCode, message}] }. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Mark many OmniFocus tasks as incomplete in a single JXA round trip. Reverses a previous completion — useful when a task was completed by mistake or needs to be re-done. Uncompleted tasks return to active status. Use task_batch_complete to mark tasks as completed. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each uncomplete succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_uncomplete calls whenever uncompleting more than one task. Each item is { id }. Returns { uncompleted: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each restoration without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
 
 ### Input
 
@@ -3356,7 +3356,7 @@ _No parameters._
 
 ## task_batch_undrop
 
-Restore (undrop) many cancelled OmniFocus tasks in a single JXA round trip. Undropped tasks are returned to active status and will reappear in active task lists. Use task_batch_drop to cancel tasks. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each undrop succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_undrop calls whenever undropping more than one task. Each item is { id }. Returns { undropped: [{index, value: taskId}], failed: [{index, errorCode, message}] }. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Restore (undrop) many cancelled OmniFocus tasks in a single JXA round trip. Undropped tasks are returned to active status and will reappear in active task lists. Use task_batch_drop to cancel tasks. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each undrop succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_undrop calls whenever undropping more than one task. Each item is { id }. Returns { undropped: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each restoration without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
 
 ### Input
 

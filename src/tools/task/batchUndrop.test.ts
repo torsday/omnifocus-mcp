@@ -81,6 +81,17 @@ describe("task_batch_undrop — handler", () => {
     expect(result.data.failed[0]?.index).toBe(1);
   });
 
+  it("pairs name with id in each succeeded value (#594)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id1 = await adapter.createTask({ name: "Bring back A" });
+    const id2 = await adapter.createTask({ name: "Bring back B" });
+    await adapter.dropTask(id1);
+    await adapter.dropTask(id2);
+    const result = await handleTaskBatchUndrop({ items: [{ id: id1 }, { id: id2 }] }, ctx);
+    expect(result.data.undropped[0]?.value).toEqual({ id: id1, name: "Bring back A" });
+    expect(result.data.undropped[1]?.value).toEqual({ id: id2, name: "Bring back B" });
+  });
+
   it("sets syncPending=true in meta when at least one task undropped", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "To Undrop" });

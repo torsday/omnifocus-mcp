@@ -26,7 +26,7 @@ export const TASK_BATCH_UNCOMPLETE_DESCRIPTION =
   "independently, and the response reports per-index outcomes. " +
   "Prefer this tool over repeated task_uncomplete calls whenever uncompleting more than one task. " +
   "Each item is { id }. " +
-  "Returns { uncompleted: [{index, value: taskId}], failed: [{index, errorCode, message}] }. " +
+  "Returns { uncompleted: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each restoration without a follow-up read. " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
   "Call sync_trigger when you need changes to appear on other devices.";
 
@@ -53,6 +53,17 @@ export async function handleTaskBatchUncomplete(
   input: TaskBatchUncompleteToolInput,
   ctx: TaskBatchUncompleteContext,
 ) {
+  // Pre-fetch all task names in a single round trip — see batchComplete (#594 lever 4).
+  const ids = input.items.map((it) => it.id);
+  const tasks = await ctx.adapter.getTasksMany(ids);
+  const nameById = new Map<string, string>();
+  for (let i = 0; i < ids.length; i++) {
+    const task = tasks[i];
+    if (task !== null && task !== undefined) {
+      nameById.set(ids[i] as string, task.name);
+    }
+  }
+
   const outcome = await ctx.adapter.batchUncompleteTasks(input.items.map((it) => ({ id: it.id })));
 
   if (ctx.cache !== undefined) {
@@ -64,8 +75,13 @@ export async function handleTaskBatchUncomplete(
     }
   }
 
+  const uncompleted = outcome.succeeded.map((s) => ({
+    index: s.index,
+    value: { id: s.value, name: nameById.get(s.value as string) ?? "" },
+  }));
+
   return ok(
-    { uncompleted: outcome.succeeded, failed: outcome.failed },
+    { uncompleted, failed: outcome.failed },
     ctx.makeMeta({
       syncPending: outcome.succeeded.length > 0,
       humanReadableSummary: summaryBatchUncomplete(outcome.succeeded.length),
