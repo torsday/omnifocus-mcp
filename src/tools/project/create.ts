@@ -17,6 +17,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { CreateProjectInput, OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateProjectMutation } from "../../cache/invalidation.js";
+import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import { finaliseHints, reviewIntervalHint } from "../../domain/hints.js";
 import { FolderId, TagId } from "../../domain/ids.js";
 import { summaryProjectCreate } from "../../domain/writeSummary.js";
@@ -52,16 +53,21 @@ export const projectCreateInputSchema = z.object({
     .optional()
     .describe("Folder ID to place the project in. Omit for root."),
   note: z.string().optional().describe("Plain-text note for the project."),
-  status: z
-    .enum(["active", "on-hold"])
-    .optional()
-    .describe("Initial project status. Default: active."),
-  completionCriterion: z
-    .enum(["parallel", "sequential", "singleActions"])
-    .optional()
-    .describe(
-      "How the project's tasks are completed: parallel (any order), sequential (in order), or singleActions.",
-    ),
+  status: aliasedEnum(
+    ["active", "on-hold"] as const,
+    { paused: "on-hold" },
+    "Initial project status. Default: active.",
+  ).optional(),
+  completionCriterion: aliasedEnum(
+    ["parallel", "sequential", "singleActions"] as const,
+    {
+      "in-order": "sequential",
+      "in order": "sequential",
+      "any-order": "parallel",
+      "any order": "parallel",
+    },
+    "How the project's tasks are completed: parallel (any order), sequential (in order), or singleActions.",
+  ).optional(),
   deferDate: z
     .string()
     .datetime({ offset: true })

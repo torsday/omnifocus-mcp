@@ -12,6 +12,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import { TagId } from "../../domain/ids.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TagListInput, TagService } from "../../services/tagService.js";
@@ -36,10 +37,15 @@ export const tagListInputSchema = z.object({
     .describe(
       "Return only direct children of this tag. Get the ID from a previous tag_list call. Omit for root tags.",
     ),
-  status: z
-    .enum(["active", "on-hold", "dropped"])
-    .optional()
-    .describe("Filter by tag status. Omit to return tags of all statuses."),
+  status: aliasedEnum(
+    ["active", "on-hold", "dropped"] as const,
+    {
+      paused: "on-hold",
+      cancelled: "dropped",
+      archived: "dropped",
+    },
+    "Filter by tag status. Omit to return tags of all statuses.",
+  ).optional(),
 });
 
 export type TagListToolInput = z.infer<typeof tagListInputSchema>;

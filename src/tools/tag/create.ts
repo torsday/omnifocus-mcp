@@ -7,6 +7,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import { TagId } from "../../domain/ids.js";
 import { summaryTagCreate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
@@ -24,10 +25,11 @@ export const tagCreateInputSchema = z.object({
   parentId: TagId.schema
     .optional()
     .describe("Parent tag ID to nest under. Omit for a root tag. Get from tag_list."),
-  status: z
-    .enum(["active", "on-hold"])
-    .optional()
-    .describe("Initial status. Defaults to 'active'. Cannot create a tag in 'dropped' state."),
+  status: aliasedEnum(
+    ["active", "on-hold"] as const,
+    { paused: "on-hold" },
+    "Initial status. Defaults to 'active'. Cannot create a tag in 'dropped' state.",
+  ).optional(),
   allowsNextAction: z
     .boolean()
     .optional()
