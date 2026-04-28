@@ -23,7 +23,9 @@ export const PROJECT_MOVE_DESCRIPTION =
   "Use when reorganizing projects. " +
   "Do not use to complete or drop a project. " +
   "Returns { moved: true, id, name } — name lets the agent describe the change without a follow-up read. " +
-  "Side effects: changes the project's folder, sets meta.syncPending = true.";
+  "Side effects: changes the project's folder, sets meta.syncPending = true."" +
+  'Example: project_move({ id: "prj123", folderId: "fld456" }) ' +
+  'Example: project_move({ id: "prj123", folderId: null })';
 
 // ---------------------------------------------------------------------------
 // Input schema

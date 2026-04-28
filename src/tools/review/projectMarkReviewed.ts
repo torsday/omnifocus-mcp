@@ -21,7 +21,8 @@ export const PROJECT_MARK_REVIEWED_DESCRIPTION =
   "Use when you have a project id and want a single-call review operation. " +
   "Do not use to list projects due for review; prefer review_list_due for that. " +
   "Returns the project id. " +
-  "Side effects: writes to OmniFocus; sets syncPending = true.";
+  "Side effects: writes to OmniFocus; sets syncPending = true. " +
+  'Example: project_mark_reviewed({ id: "prj123" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

@@ -15,7 +15,8 @@ export const FOLDER_GET_DESCRIPTION =
   "Fetch a single folder by its persistent ID, including project and subfolder counts. " +
   "Do not use to list multiple folders; prefer folder_list instead. " +
   "Returns folder details including name, parentId, projectCount, and subfolderCount. " +
-  "Safe to call repeatedly; no side effects.";
+  "Safe to call repeatedly; no side effects. " +
+  'Example: folder_get({ id: "fld123" })';
 
 export const folderGetInputSchema = z.object({
   id: FolderId.schema.describe(

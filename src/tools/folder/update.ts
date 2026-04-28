@@ -17,7 +17,8 @@ export const FOLDER_UPDATE_DESCRIPTION =
   "To move a folder use folder_move instead. " +
   "Get the folder ID from folder_list. " +
   "Returns the updated folder on success. " +
-  "Triggers a sync; call sync_trigger after to propagate to other devices.";
+  "Triggers a sync; call sync_trigger after to propagate to other devices. " +
+  'Example: folder_update({ id: "fld123", name: "Personal" })';
 
 export const folderUpdateInputSchema = z.object({
   id: FolderId.schema.describe("Persistent folder ID. Get from folder_list."),

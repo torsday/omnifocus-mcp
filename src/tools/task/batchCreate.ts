@@ -29,7 +29,8 @@ export const TASK_BATCH_CREATE_DESCRIPTION =
   "flagged, dueDate, deferDate, estimatedMinutes, tagIds, sequential, completedByChildren). " +
   "Returns { created: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name (echoed from the input) so the agent can describe each new task without a follow-up read. " +
   "Side effects: creates tasks in OmniFocus, sets meta.syncPending = true. " +
-  "Call sync_trigger when you need the tasks to appear on other devices.";
+  "Call sync_trigger when you need the tasks to appear on other devices. " +
+  'Example: task_batch_create({ items: [{ name: "Buy milk" }, { name: "Call dentist", projectId: "prj123" }] })';
 
 const singleItemSchema = z
   .object({

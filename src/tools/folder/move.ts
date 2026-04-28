@@ -17,7 +17,9 @@ export const FOLDER_MOVE_DESCRIPTION =
   "Do not use to rename a folder; prefer folder_update instead. " +
   "Get folder IDs from folder_list. " +
   "Returns the updated folder's ID and new parentId on success. " +
-  "Triggers a sync; call sync_trigger after to propagate to other devices.";
+  "Triggers a sync; call sync_trigger after to propagate to other devices. " +
+  'Example: folder_move({ id: "fld123", parentId: "fld456" }) ' +
+  'Example: folder_move({ id: "fld123", parentId: null })';
 
 export const folderMoveInputSchema = z.object({
   id: FolderId.schema.describe("Persistent ID of the folder to move. Get from folder_list."),

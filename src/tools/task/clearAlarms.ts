@@ -27,7 +27,8 @@ export const TASK_CLEAR_ALARMS_DESCRIPTION =
   "After clearing, the task has no scheduled notifications. " +
   "Use task_set_alarms to install a new alarm set. " +
   "Returns the updated task. " +
-  "Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.";
+  "Mutations do not sync automatically — call sync_trigger if cross-device visibility matters. " +
+  'Example: task_clear_alarms({ id: "abc123" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

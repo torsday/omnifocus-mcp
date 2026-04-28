@@ -20,7 +20,8 @@ export const REVIEW_MARK_REVIEWED_DESCRIPTION =
   "Use this after completing a weekly review of a project. " +
   "Do not use to change the review interval; prefer review_set_interval for that. " +
   "Returns the project id. " +
-  "Side effects: writes to OmniFocus; sets syncPending = true.";
+  "Side effects: writes to OmniFocus; sets syncPending = true. " +
+  'Example: review_mark_reviewed({ id: "prj123" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

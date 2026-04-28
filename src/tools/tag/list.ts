@@ -25,7 +25,9 @@ export const TAG_LIST_DESCRIPTION =
   "List all tags in OmniFocus, optionally filtered by parent tag or status. " +
   "Do not use to fetch a single tag by ID; prefer tag_get instead. " +
   "Returns a flat array — use parentId to walk the hierarchy one level at a time. " +
-  "Safe to call repeatedly; no side effects.";
+  "Safe to call repeatedly; no side effects. " +
+  "Example: tag_list({}) " +
+  'Example: tag_list({ status: "active", parentId: "tag123" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

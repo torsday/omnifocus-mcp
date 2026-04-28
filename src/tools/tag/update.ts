@@ -19,7 +19,9 @@ export const TAG_UPDATE_DESCRIPTION =
   "Do not use to move a tag to a different parent; prefer tag_move instead. " +
   "Get the tag ID from tag_list. " +
   "Returns the updated tag on success. " +
-  "Triggers a sync; call sync_trigger after to propagate to other devices.";
+  "Triggers a sync; call sync_trigger after to propagate to other devices. " +
+  'Example: tag_update({ id: "tag123", name: "shopping" }) ' +
+  'Example: tag_update({ id: "tag123", status: "dropped" })';
 
 export const tagUpdateInputSchema = z.object({
   id: TagId.schema.describe("Persistent tag ID. Get from tag_list."),

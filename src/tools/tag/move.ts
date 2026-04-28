@@ -17,7 +17,9 @@ export const TAG_MOVE_DESCRIPTION =
   "Do not use to rename a tag; prefer tag_update instead. " +
   "Get tag IDs from tag_list. " +
   "Returns the updated tag's ID and new parentId on success. " +
-  "Triggers a sync; call sync_trigger after to propagate to other devices.";
+  "Triggers a sync; call sync_trigger after to propagate to other devices. " +
+  'Example: tag_move({ id: "tag123", parentId: "tag456" }) ' +
+  'Example: tag_move({ id: "tag123", parentId: null })';
 
 export const tagMoveInputSchema = z.object({
   id: TagId.schema.describe("Persistent ID of the tag to move. Get from tag_list."),

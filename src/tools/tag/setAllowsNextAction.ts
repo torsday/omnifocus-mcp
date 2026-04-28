@@ -18,7 +18,8 @@ export const TAG_SET_ALLOWS_NEXT_ACTION_DESCRIPTION =
   "Do not use to change other tag properties; prefer tag_update instead. " +
   "Get the tag ID from tag_list. " +
   "Returns the updated tag with allowsNextAction confirmed. " +
-  "Triggers a sync; call sync_trigger after to propagate to other devices.";
+  "Triggers a sync; call sync_trigger after to propagate to other devices. " +
+  'Example: tag_set_allows_next_action({ id: "tag123", allowsNextAction: true })';
 
 export const tagSetAllowsNextActionInputSchema = z.object({
   id: TagId.schema.describe("Persistent tag ID. Get from tag_list."),

@@ -36,7 +36,8 @@ export const IMPORT_OPML_DESCRIPTION =
   "attachments, and repetition rules are silently dropped (not encoded in OPML). " +
   "Do NOT use to export data; prefer export_opml for that. " +
   "Returns { imported, taskIds } where imported is the count of tasks created. " +
-  "Writes to OmniFocus; call sync_trigger after import to propagate changes to other devices.";
+  "Writes to OmniFocus; call sync_trigger after import to propagate changes to other devices. " +
+  'Example: import_opml({ opml: "<opml>...</opml>" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

@@ -26,7 +26,9 @@ export const EXPORT_OPML_DESCRIPTION =
   "Three scopes: 'project' (one project + its tasks), 'folder' (all projects in a folder), " +
   "or 'all' (all active projects). " +
   "Returns { opml, projectCount, taskCount } where opml is a complete XML string. " +
-  "Safe to call repeatedly; no side effects.";
+  "Safe to call repeatedly; no side effects. " +
+  'Example: export_opml({ scope: "project", id: "abc123" }) ' +
+  'Example: export_opml({ scope: "all" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

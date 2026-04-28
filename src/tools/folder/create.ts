@@ -17,7 +17,9 @@ export const FOLDER_CREATE_DESCRIPTION =
   "Optionally nest it inside an existing parent folder (get IDs from folder_list). " +
   "Do not use to move an existing folder; prefer folder_move instead. " +
   "Returns the new folder's persistent ID. " +
-  "Triggers a sync; call sync_trigger after to propagate to other devices.";
+  "Triggers a sync; call sync_trigger after to propagate to other devices. " +
+  'Example: folder_create({ name: "Work" }) ' +
+  'Example: folder_create({ name: "Archive", parentId: "fld123" })';
 
 export const folderCreateInputSchema = z.object({
   name: z.string().min(1).describe("Folder name. Must be non-empty."),

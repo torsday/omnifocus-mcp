@@ -21,7 +21,8 @@ export const PERSPECTIVE_LIST_DESCRIPTION =
   "List all perspectives in OmniFocus — both built-in (Inbox, Projects, Tags, Forecast, Flagged, Nearby, Review) and custom (OmniFocus Pro). " +
   "Do not use to evaluate a perspective; prefer perspective_evaluate for that. " +
   "Returns each perspective's id, name, kind (builtin|custom), and requiresPro flag. " +
-  "Safe to call repeatedly; no side effects, no writes.";
+  "Safe to call repeatedly; no side effects, no writes. " +
+  "Example: perspective_list()";
 
 // ---------------------------------------------------------------------------
 // Input schema (no fields — list is always exhaustive)

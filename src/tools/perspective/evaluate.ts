@@ -30,7 +30,9 @@ export const PERSPECTIVE_EVALUATE_DESCRIPTION =
   "Returns { tasks: Task[] }. " +
   "For 'review', returns [] — use review_list_due instead. " +
   "For 'nearby', returns [] (location unavailable). " +
-  "No side effects; read-only.";
+  "No side effects; read-only. " +
+  'Example: perspective_evaluate({ perspectiveId: "flagged" }) ' +
+  'Example: perspective_evaluate({ perspectiveId: "cust-abc123" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

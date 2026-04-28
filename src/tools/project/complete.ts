@@ -22,7 +22,8 @@ export const PROJECT_COMPLETE_DESCRIPTION =
   "Use when a project is finished. " +
   "Do not use to archive or hide a project without completing it; prefer project_drop for that. " +
   "Returns { completed: true, id, name } — name lets the agent describe the change without a follow-up read. " +
-  "Side effects: sets completionDate, removes from active projects, sets meta.syncPending = true.";
+  "Side effects: sets completionDate, removes from active projects, sets meta.syncPending = true."" +
+  'Example: project_complete({ id: "prj123" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

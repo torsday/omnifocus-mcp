@@ -31,7 +31,8 @@ export const SYNC_TRIGGER_DESCRIPTION =
   "when you need changes to appear on other devices. " +
   "The sync starts immediately but completes asynchronously — this tool does not block until done. " +
   "Returns meta.syncPending = false to confirm the sync was initiated. " +
-  "Side effects: triggers a sync request to Omni Sync Server.";
+  "Side effects: triggers a sync request to Omni Sync Server. " +
+  "Example: sync_trigger()";
 
 // ---------------------------------------------------------------------------
 // Input schema

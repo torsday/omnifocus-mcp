@@ -24,7 +24,8 @@ export const NOTE_GET_DESCRIPTION =
   "Do not use when formatting fidelity matters; prefer note_get_html instead. " +
   "Returns { note } — a string (may be empty) or null when no note exists. " +
   "Set targetKind to 'task' and provide a task ID, or 'project' and a project ID. " +
-  "Safe to call repeatedly; no side effects.";
+  "Safe to call repeatedly; no side effects. " +
+  'Example: note_get({ targetKind: "task", id: "abc123" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

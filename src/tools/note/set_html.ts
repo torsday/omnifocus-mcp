@@ -37,7 +37,8 @@ export const NOTE_SET_HTML_DESCRIPTION =
   "For plain-text writes use note_set instead. " +
   "Returns { updated: true, id, targetKind, name, noteHtml } — name is the parent task/project's display name (pre-fetched so the response describes the change without a follow-up read); noteHtml echoes back the requested HTML (or null if cleared). " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
-  "Call sync_trigger when you need the change to appear on other devices.";
+  "Call sync_trigger when you need the change to appear on other devices. " +
+  'Example: note_set_html({ targetKind: "task", id: "abc123", noteHtml: "<b>Priority:</b> high" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

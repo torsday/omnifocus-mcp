@@ -56,7 +56,9 @@ export const TASK_UPDATE_DESCRIPTION =
   "update is only performed once. " +
   "Returns the updated task. " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
-  "Call sync_trigger when you need changes to appear on other devices.";
+  "Call sync_trigger when you need changes to appear on other devices. " +
+  'Example: task_update({ id: "abc123", flagged: true }) ' +
+  'Example: task_update({ id: "abc123", dueDate: "2026-05-01T00:00:00Z", addTags: ["tag456"] })';
 
 // ---------------------------------------------------------------------------
 // Input schema

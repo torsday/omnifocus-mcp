@@ -47,7 +47,9 @@ export const TASK_DELETE_DESCRIPTION =
   "pass idempotency_key to coalesce retries so the same delete is only performed once. " +
   "Returns { deleted: true, id } on success. " +
   "Side effects: removes the task from OmniFocus, sets meta.syncPending = true. " +
-  "Call sync_trigger when you need the deletion to appear on other devices.";
+  "Call sync_trigger when you need the deletion to appear on other devices. " +
+  'Example: task_delete({ id: "abc123", confirm: true }) ' +
+  'Example: task_delete({ id: "abc123", confirm: true, dry_run: true })';
 
 // ---------------------------------------------------------------------------
 // Input schema

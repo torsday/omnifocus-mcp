@@ -22,7 +22,8 @@ export const TAG_SET_LOCATION_DESCRIPTION =
   "Do not use to read the current location; prefer tag_get_location instead. " +
   "Get the tag ID from tag_list. " +
   "Returns FeatureRequiresPro on OmniFocus Standard installs. " +
-  "Triggers a sync; call sync_trigger after to propagate to other devices.";
+  "Triggers a sync; call sync_trigger after to propagate to other devices. " +
+  'Example: tag_set_location({ id: "tag123", latitude: 37.785, longitude: -122.407, radiusMeters: 200, trigger: "arriving", name: "Office" })';
 
 export const tagSetLocationInputSchema = z.object({
   id: TagId.schema.describe("Persistent tag ID. Get from tag_list."),

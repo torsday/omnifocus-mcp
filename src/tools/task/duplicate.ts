@@ -40,7 +40,9 @@ export const TASK_DUPLICATE_DESCRIPTION =
   "exactly one of projectId, parentId, or toInbox: true to place it elsewhere. " +
   "Returns { duplicated: true, sourceId, newId, descendantCount, name } — name is the source task's name (the duplicate carries the same name) so the agent can describe the new task without a follow-up read. " +
   "Side effects: creates one new task (plus descendants if recursive) in " +
-  "OmniFocus, sets meta.syncPending = true.";
+  "OmniFocus, sets meta.syncPending = true. " +
+  'Example: task_duplicate({ id: "abc123" }) ' +
+  'Example: task_duplicate({ id: "abc123", recursive: true, destination: { projectId: "prj456" } })';
 
 // ---------------------------------------------------------------------------
 // Input schema

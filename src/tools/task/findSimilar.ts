@@ -41,7 +41,9 @@ export const TASK_FIND_SIMILAR_DESCRIPTION =
   "descending; an empty result is { candidates: [] }, not an error. " +
   "Do NOT use this tool for general full-text search — call task_search for that. " +
   "Prefer this helper when the question is 'is this task already in the system?'. " +
-  "No model calls; no side effects. Read-only.";
+  "No model calls; no side effects. Read-only. " +
+  'Example: task_find_similar({ name: "Call dentist" }) ' +
+  'Example: task_find_similar({ name: "Write report", scope: { projectId: "prj123" }, topK: 5 })';
 
 // ---------------------------------------------------------------------------
 // Constants

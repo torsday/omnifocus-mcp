@@ -29,7 +29,8 @@ export const TASK_BATCH_MOVE_DESCRIPTION =
   "Prefer this tool over repeated task_move calls whenever moving more than one task. " +
   "Returns { moved: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each move without a follow-up read. " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
-  "Call sync_trigger when you need changes to appear on other devices.";
+  "Call sync_trigger when you need changes to appear on other devices. " +
+  'Example: task_batch_move({ items: [{ id: "abc123", projectId: "prj456" }, { id: "abc789", parentId: "tsk111" }] })';
 
 const destinationSchema = z
   .object({

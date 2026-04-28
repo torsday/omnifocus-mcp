@@ -22,7 +22,8 @@ export const PROJECT_DROP_DESCRIPTION =
   "Use to defer or abandon a project while keeping it recoverable. " +
   "Do not use if the project is actually done; prefer project_complete for that. " +
   "Returns { dropped: true, id, name } — name lets the agent describe the change without a follow-up read. " +
-  "Side effects: changes project status, sets meta.syncPending = true.";
+  "Side effects: changes project status, sets meta.syncPending = true."" +
+  'Example: project_drop({ id: "prj123" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

@@ -18,7 +18,8 @@ export const TAG_DELETE_DESCRIPTION =
   "Get the tag ID from tag_list. " +
   "Prefer tag_set_status with status='dropped' to preserve history. " +
   "Returns the deleted tag's ID on success. " +
-  "Side effects: writes to OmniFocus, sets meta.syncPending = true.";
+  "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
+  'Example: tag_delete({ id: "tag123" })';
 
 export const tagDeleteInputSchema = z.object({
   id: TagId.schema.describe("Persistent tag ID to delete. Get from tag_list."),

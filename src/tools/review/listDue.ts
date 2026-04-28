@@ -18,7 +18,8 @@ export const REVIEW_LIST_DUE_DESCRIPTION =
   "Sorted by next review date ascending (overdue first, never-reviewed first). " +
   "Do not use to get all projects; prefer project_list for that. " +
   "Returns each project's id, name, nextReviewDate, lastReviewDate, and reviewIntervalDays. " +
-  "Safe to call repeatedly; no side effects, no writes.";
+  "Safe to call repeatedly; no side effects, no writes. " +
+  "Example: review_list_due()";
 
 // ---------------------------------------------------------------------------
 // Input schema

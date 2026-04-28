@@ -25,7 +25,9 @@ export const SEARCH_QUERY_DESCRIPTION =
   "Use for finding tasks by content when you don't know the ID. " +
   "Supports optional filters (project, tags, flagged, completion status) and cursor pagination. " +
   "Do NOT use when a known task ID is available (use task_get instead). " +
-  "Returns tasks[] with pagination; safe to call repeatedly; no side effects.";
+  "Returns tasks[] with pagination; safe to call repeatedly; no side effects. " +
+  'Example: search_query({ q: "dentist" }) ' +
+  'Example: search_query({ q: "report", projectId: "prj123", completed: "exclude" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

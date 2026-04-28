@@ -42,7 +42,8 @@ export const DATABASE_UNDO_DESCRIPTION =
   "cleanup, and integration-test teardown. " +
   "Side effects: reverts whatever entry is at the top of the document's undo stack; " +
   "fully invalidates the read cache (we don't know what was reverted); does NOT trigger sync. " +
-  "Call sync_trigger when you need the change to appear on other devices.";
+  "Call sync_trigger when you need the change to appear on other devices. " +
+  "Example: database_undo({ confirm: true })";
 
 // ---------------------------------------------------------------------------
 // Input schema

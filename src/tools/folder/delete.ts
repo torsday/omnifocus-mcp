@@ -22,7 +22,9 @@ export const FOLDER_DELETE_DESCRIPTION =
   "Pass cascade=true to orphan all direct projects (move to no folder) and recursively delete subfolders before deleting. " +
   "IRREVERSIBLE — do not use to archive; prefer folder_update to rename instead. " +
   "Get the folder ID from folder_list. " +
-  "Triggers a sync; call sync_trigger after to propagate to other devices.";
+  "Triggers a sync; call sync_trigger after to propagate to other devices. " +
+  'Example: folder_delete({ id: "fld123" }) ' +
+  'Example: folder_delete({ id: "fld123", cascade: true })';
 
 export const folderDeleteInputSchema = z.object({
   id: FolderId.schema.describe("Persistent folder ID to delete. Get from folder_list."),

@@ -17,7 +17,8 @@ export const TAG_GET_LOCATION_DESCRIPTION =
   "Location-based tags are an OmniFocus Pro feature. " +
   "Get the tag ID from tag_list. " +
   "Returns { location } with name, radius, and trigger direction, or null if unset. " +
-  "Safe to call repeatedly; no side effects.";
+  "Safe to call repeatedly; no side effects. " +
+  'Example: tag_get_location({ id: "tag123" })';
 
 export const tagGetLocationInputSchema = z.object({
   id: TagId.schema.describe("Persistent tag ID. Get from tag_list."),

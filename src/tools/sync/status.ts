@@ -23,7 +23,8 @@ export const SYNC_STATUS_DESCRIPTION =
   "Use to check whether a previous sync completed before querying cross-device data. " +
   "Returns { lastSyncAt, inFlight }. " +
   "lastSyncAt is null if OmniFocus has never synced in this session. " +
-  "Read-only; no side effects.";
+  "Read-only; no side effects. " +
+  "Example: sync_status()";
 
 // ---------------------------------------------------------------------------
 // Input schema

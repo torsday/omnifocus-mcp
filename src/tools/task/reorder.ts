@@ -31,7 +31,9 @@ export const TASK_REORDER_DESCRIPTION =
   "change containers without caring about sibling order. " +
   "Exactly one positioning form must be set: { before }, { after }, or " +
   "{ at, in }. Returns { reordered: true, id, position }. " +
-  "Side effects: changes sibling order in OmniFocus, sets meta.syncPending = true.";
+  "Side effects: changes sibling order in OmniFocus, sets meta.syncPending = true. " +
+  'Example: task_reorder({ id: "abc123", before: "abc456" }) ' +
+  'Example: task_reorder({ id: "abc123", at: "start", in: { projectId: "prj456" } })';
 
 // ---------------------------------------------------------------------------
 // Input schema

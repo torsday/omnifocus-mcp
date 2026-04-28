@@ -25,7 +25,8 @@ export const PROJECT_BATCH_COMPLETE_DESCRIPTION =
   "Each item is { id }. " +
   "Returns { completed: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the project name so the agent can describe each completion without a follow-up read. " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
-  "Call sync_trigger when you need changes to appear on other devices.";
+  "Call sync_trigger when you need changes to appear on other devices. " +
+  'Example: project_batch_complete({ items: [{ id: "prj123" }, { id: "prj456" }] })';
 
 const singleItemSchema = z.object({
   id: ProjectId.schema.describe("Persistent project ID."),

@@ -32,7 +32,8 @@ export const DATABASE_REDO_DESCRIPTION =
   "Prefer database_redo only as a direct counterpart to database_undo when an undo was issued in error. " +
   "Side effects: re-applies whatever entry is at the top of the document's redo stack; " +
   "fully invalidates the read cache; does NOT trigger sync. " +
-  "Call sync_trigger when you need the change to appear on other devices.";
+  "Call sync_trigger when you need the change to appear on other devices. " +
+  "Example: database_redo({ confirm: true })";
 
 // ---------------------------------------------------------------------------
 // Input schema
