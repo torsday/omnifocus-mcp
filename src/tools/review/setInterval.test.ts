@@ -124,3 +124,28 @@ describe("review_set_interval — handler", () => {
     await expect(handleReviewSetInterval({ id, days: 7 }, ctx)).resolves.toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Name pairing (#607)
+// ---------------------------------------------------------------------------
+
+describe("review_set_interval pairs name with id (#607)", () => {
+  it("returns the project name and the new interval", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createProject({ name: "Reading list", reviewIntervalDays: 30 });
+
+    const env = await handleReviewSetInterval({ id, days: 90 }, ctx);
+    expect(env.data.id).toBe(id);
+    expect(env.data.name).toBe("Reading list");
+    expect(env.data.reviewIntervalDays).toBe(90);
+  });
+
+  it("returns null reviewIntervalDays when cleared", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createProject({ name: "Backlog", reviewIntervalDays: 7 });
+
+    const env = await handleReviewSetInterval({ id, days: null }, ctx);
+    expect(env.data.name).toBe("Backlog");
+    expect(env.data.reviewIntervalDays).toBeNull();
+  });
+});

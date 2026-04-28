@@ -67,3 +67,20 @@ describe("project_mark_reviewed — handler", () => {
     await expect(handleProjectMarkReviewed({ id: "proj_nonexistent" }, ctx)).rejects.toThrow();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Name pairing (#607)
+// ---------------------------------------------------------------------------
+
+describe("project_mark_reviewed pairs name with id (#607)", () => {
+  it("returns the project name and review dates after the mutation", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createProject({ name: "Annual planning", reviewIntervalDays: 365 });
+
+    const env = await handleProjectMarkReviewed({ id }, ctx);
+    expect(env.data.id).toBe(id);
+    expect(env.data.name).toBe("Annual planning");
+    expect(env.data.lastReviewDate).toEqual(expect.any(String));
+    expect("nextReviewDate" in env.data).toBe(true);
+  });
+});

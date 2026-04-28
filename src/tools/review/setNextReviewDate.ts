@@ -25,7 +25,7 @@ export const PROJECT_SET_NEXT_REVIEW_DATE_DESCRIPTION =
   "Do NOT use to mark a project as reviewed (prefer review_mark_reviewed) or to change the recurring interval (prefer review_set_interval). " +
   "Pass projectId and nextReviewDate (ISO-8601 date string), or pass null for nextReviewDate to clear (project becomes 'not scheduled'). " +
   "Past-dated values are accepted and surface the project as overdue immediately — matches OmniFocus's own UX. " +
-  "Returns { id }. " +
+  "Returns { id, name, nextReviewDate } — name is the project's display name (post-mutation lookup; null if the project has been deleted), and nextReviewDate echoes back the new value (or null when cleared) so the agent can describe the change without a follow-up read. " +
   "Errors: NOT_FOUND when projectId does not exist. " +
   "Side effects: writes to OmniFocus; invalidates project + review caches; sets syncPending = true. " +
   'Example: project_set_next_review_date({ projectId: "prj123", nextReviewDate: "2026-05-05" }) ' +
@@ -55,12 +55,12 @@ export async function handleProjectSetNextReviewDate(
   input: ProjectSetNextReviewDateToolInput,
   ctx: ProjectSetNextReviewDateContext,
 ) {
-  await ctx.reviewService.setNextReviewDate(
+  const outcome = await ctx.reviewService.setNextReviewDate(
     ProjectIdCtor.of(input.projectId),
     input.nextReviewDate,
   );
   return ok(
-    { id: input.projectId },
+    { id: input.projectId, name: outcome.name, nextReviewDate: outcome.nextReviewDate },
     ctx.makeMeta({
       syncPending: true,
       humanReadableSummary: summaryReviewSetNextReviewDate(input.nextReviewDate),

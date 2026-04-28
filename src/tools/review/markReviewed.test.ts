@@ -93,3 +93,22 @@ describe("review_mark_reviewed — handler", () => {
     await expect(handleReviewMarkReviewed({ id }, ctx)).resolves.toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Name pairing (#607)
+// ---------------------------------------------------------------------------
+
+describe("review_mark_reviewed pairs name with id (#607)", () => {
+  it("returns the project name and review dates after the mutation", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createProject({ name: "Q3 review", reviewIntervalDays: 14 });
+
+    const env = await handleReviewMarkReviewed({ id }, ctx);
+    expect(env.data.id).toBe(id);
+    expect(env.data.name).toBe("Q3 review");
+    expect(env.data.lastReviewDate).toEqual(expect.any(String));
+    // nextReviewDate may be null if InMemoryAdapter does not advance it on mark;
+    // we just assert the field is present so the response contract holds.
+    expect("nextReviewDate" in env.data).toBe(true);
+  });
+});

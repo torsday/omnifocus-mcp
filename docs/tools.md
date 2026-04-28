@@ -1906,7 +1906,7 @@ List projects in OmniFocus with optional filters. Use for queries across project
 
 ## project_mark_reviewed
 
-Convenience alias for review_mark_reviewed — mark a single project as reviewed, setting lastReviewDate to now and advancing nextReviewDate. Use when you have a project id and want a single-call review operation. Do not use to list projects due for review; prefer review_list_due for that. Returns the project id. Side effects: writes to OmniFocus; sets syncPending = true. Example: project_mark_reviewed({ id: "prj123" })
+Convenience alias for review_mark_reviewed — mark a single project as reviewed, setting lastReviewDate to now and advancing nextReviewDate. Use when you have a project id and want a single-call review operation. Do not use to list projects due for review; prefer review_list_due for that. Returns { id, name, lastReviewDate, nextReviewDate } — name is the project's display name (post-mutation lookup; null if the project has been deleted between write and read), and the dates echo back the new schedule so the agent can describe the result without a follow-up read. Side effects: writes to OmniFocus; sets syncPending = true. Example: project_mark_reviewed({ id: "prj123" })
 
 ### Input
 
@@ -2004,7 +2004,7 @@ _No parameters._
 
 ## project_set_next_review_date
 
-Set or clear a project's next review date directly. Use when the user wants to reschedule a review independent of the recurring interval — 'push the Q3 review to next Monday' without changing the cadence. Do NOT use to mark a project as reviewed (prefer review_mark_reviewed) or to change the recurring interval (prefer review_set_interval). Pass projectId and nextReviewDate (ISO-8601 date string), or pass null for nextReviewDate to clear (project becomes 'not scheduled'). Past-dated values are accepted and surface the project as overdue immediately — matches OmniFocus's own UX. Returns { id }. Errors: NOT_FOUND when projectId does not exist. Side effects: writes to OmniFocus; invalidates project + review caches; sets syncPending = true. Example: project_set_next_review_date({ projectId: "prj123", nextReviewDate: "2026-05-05" }) Example: project_set_next_review_date({ projectId: "prj123", nextReviewDate: null })
+Set or clear a project's next review date directly. Use when the user wants to reschedule a review independent of the recurring interval — 'push the Q3 review to next Monday' without changing the cadence. Do NOT use to mark a project as reviewed (prefer review_mark_reviewed) or to change the recurring interval (prefer review_set_interval). Pass projectId and nextReviewDate (ISO-8601 date string), or pass null for nextReviewDate to clear (project becomes 'not scheduled'). Past-dated values are accepted and surface the project as overdue immediately — matches OmniFocus's own UX. Returns { id, name, nextReviewDate } — name is the project's display name (post-mutation lookup; null if the project has been deleted), and nextReviewDate echoes back the new value (or null when cleared) so the agent can describe the change without a follow-up read. Errors: NOT_FOUND when projectId does not exist. Side effects: writes to OmniFocus; invalidates project + review caches; sets syncPending = true. Example: project_set_next_review_date({ projectId: "prj123", nextReviewDate: "2026-05-05" }) Example: project_set_next_review_date({ projectId: "prj123", nextReviewDate: null })
 
 ### Input
 
@@ -2270,7 +2270,7 @@ _No parameters._
 
 ## review_mark_reviewed
 
-Mark a project as reviewed in OmniFocus — sets lastReviewDate to now and advances nextReviewDate by the project's review interval. Use this after completing a weekly review of a project. Do not use to change the review interval; prefer review_set_interval for that. Returns the project id. Side effects: writes to OmniFocus; sets syncPending = true. Example: review_mark_reviewed({ id: "prj123" })
+Mark a project as reviewed in OmniFocus — sets lastReviewDate to now and advances nextReviewDate by the project's review interval. Use this after completing a weekly review of a project. Do not use to change the review interval; prefer review_set_interval for that. Returns { id, name, lastReviewDate, nextReviewDate } — name is the project's display name (post-mutation lookup; null if the project has been deleted between write and read), and the dates echo back the new schedule so the agent can describe the result without a follow-up read. Side effects: writes to OmniFocus; sets syncPending = true. Example: review_mark_reviewed({ id: "prj123" })
 
 ### Input
 
@@ -2303,7 +2303,7 @@ Mark a project as reviewed in OmniFocus — sets lastReviewDate to now and advan
 
 ## review_set_interval
 
-Set a project's review interval in OmniFocus — updates how many days between reviews. Use null to remove the recurring schedule. Do not use to mark a project as reviewed; prefer review_mark_reviewed for that. Returns the project id. Side effects: writes to OmniFocus; sets syncPending = true. Example: review_set_interval({ id: "prj123", days: 7 }) Example: review_set_interval({ id: "prj123", days: null })
+Set a project's review interval in OmniFocus — updates how many days between reviews. Use null to remove the recurring schedule. Do not use to mark a project as reviewed; prefer review_mark_reviewed for that. Returns { id, name, reviewIntervalDays } — name is the project's display name (post-mutation lookup; null if the project has been deleted), and reviewIntervalDays echoes back the new value (or null when cleared) so the agent can describe the change without a follow-up read. Side effects: writes to OmniFocus; sets syncPending = true. Example: review_set_interval({ id: "prj123", days: 7 }) Example: review_set_interval({ id: "prj123", days: null })
 
 ### Input
 

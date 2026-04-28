@@ -9,15 +9,23 @@ import { NotFound } from "../../errors/index.js";
 import { ReviewService } from "../../services/reviewService.js";
 import { handleProjectSetNextReviewDate } from "./setNextReviewDate.js";
 
-function makeCtx(opts: { setRejects?: Error } = {}) {
+function makeCtx(opts: { setRejects?: Error; projectName?: string } = {}) {
   const setProjectNextReviewDate = vi.fn();
   if (opts.setRejects) {
     setProjectNextReviewDate.mockRejectedValue(opts.setRejects);
   } else {
     setProjectNextReviewDate.mockResolvedValue(undefined);
   }
+  // The post-mutation getProject lookup powers the lever-4 name pairing (#607).
+  // Tests inject the desired post-state via opts.projectName.
+  const getProject = vi.fn().mockResolvedValue({
+    id: PROJECT,
+    name: opts.projectName ?? "Quarterly review",
+    nextReviewDate: null,
+  });
   const adapter = {
     setProjectNextReviewDate,
+    getProject,
   } as unknown as ConstructorParameters<typeof ReviewService>[0]["adapter"];
   const cache = { invalidate: vi.fn() };
   return {
@@ -25,6 +33,7 @@ function makeCtx(opts: { setRejects?: Error } = {}) {
     cache,
     makeMeta: () => ({}) as never,
     _setSpy: setProjectNextReviewDate,
+    _getSpy: getProject,
   };
 }
 
@@ -37,7 +46,7 @@ describe("handleProjectSetNextReviewDate", () => {
       { projectId: PROJECT, nextReviewDate: "2026-12-31T00:00:00.000Z" },
       ctx,
     );
-    expect(env.data).toEqual({ id: PROJECT });
+    expect(env.data).toMatchObject({ id: PROJECT, name: "Quarterly review" });
     expect(ctx._setSpy).toHaveBeenCalledWith(PROJECT, "2026-12-31T00:00:00.000Z");
     // invalidateProjectMutation issues multiple invalidations; assert at least
     // the project namespace is hit.
@@ -50,7 +59,7 @@ describe("handleProjectSetNextReviewDate", () => {
       { projectId: PROJECT, nextReviewDate: null },
       ctx,
     );
-    expect(env.data).toEqual({ id: PROJECT });
+    expect(env.data).toMatchObject({ id: PROJECT, name: "Quarterly review" });
     expect(ctx._setSpy).toHaveBeenCalledWith(PROJECT, null);
     expect(ctx.cache.invalidate).toHaveBeenCalled();
   });
@@ -62,7 +71,7 @@ describe("handleProjectSetNextReviewDate", () => {
       { projectId: PROJECT, nextReviewDate: past },
       ctx,
     );
-    expect(env.data).toEqual({ id: PROJECT });
+    expect(env.data).toMatchObject({ id: PROJECT, name: "Quarterly review" });
     expect(ctx._setSpy).toHaveBeenCalledWith(PROJECT, past);
   });
 
@@ -76,5 +85,36 @@ describe("handleProjectSetNextReviewDate", () => {
     ).rejects.toBeInstanceOf(NotFound);
     // Cache must NOT be invalidated on failure
     expect(ctx.cache.invalidate).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Name pairing (#607)
+// ---------------------------------------------------------------------------
+
+describe("project_set_next_review_date pairs name with id (#607)", () => {
+  it("includes the project name and echoes nextReviewDate", async () => {
+    const ctx = makeCtx({ projectName: "Annual review" });
+    const env = await handleProjectSetNextReviewDate(
+      { projectId: PROJECT, nextReviewDate: "2026-12-31T00:00:00.000Z" },
+      ctx,
+    );
+    expect(env.data).toMatchObject({
+      id: PROJECT,
+      name: "Annual review",
+      nextReviewDate: "2026-12-31T00:00:00.000Z",
+    });
+    expect(ctx._getSpy).toHaveBeenCalledWith(PROJECT);
+  });
+
+  it("name is null when the project orphans (lookup throws)", async () => {
+    const ctx = makeCtx();
+    ctx._getSpy.mockRejectedValueOnce(new Error("project not found"));
+    const env = await handleProjectSetNextReviewDate(
+      { projectId: PROJECT, nextReviewDate: null },
+      ctx,
+    );
+    expect(env.data.name).toBeNull();
+    expect(env.data.nextReviewDate).toBeNull();
   });
 });

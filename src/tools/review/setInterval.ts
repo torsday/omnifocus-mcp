@@ -19,7 +19,7 @@ export const REVIEW_SET_INTERVAL_DESCRIPTION =
   "Set a project's review interval in OmniFocus — updates how many days between reviews. " +
   "Use null to remove the recurring schedule. " +
   "Do not use to mark a project as reviewed; prefer review_mark_reviewed for that. " +
-  "Returns the project id. " +
+  "Returns { id, name, reviewIntervalDays } — name is the project's display name (post-mutation lookup; null if the project has been deleted), and reviewIntervalDays echoes back the new value (or null when cleared) so the agent can describe the change without a follow-up read. " +
   "Side effects: writes to OmniFocus; sets syncPending = true. " +
   'Example: review_set_interval({ id: "prj123", days: 7 }) ' +
   'Example: review_set_interval({ id: "prj123", days: null })';
@@ -53,9 +53,9 @@ export async function handleReviewSetInterval(
   input: ReviewSetIntervalToolInput,
   ctx: ReviewSetIntervalContext,
 ) {
-  await ctx.reviewService.setInterval(ProjectIdCtor.of(input.id), input.days);
+  const outcome = await ctx.reviewService.setInterval(ProjectIdCtor.of(input.id), input.days);
   return ok(
-    { id: input.id },
+    { id: input.id, name: outcome.name, reviewIntervalDays: outcome.reviewIntervalDays },
     ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryReviewSetInterval(input.days) }),
   );
 }
