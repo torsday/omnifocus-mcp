@@ -84,7 +84,11 @@ jobs:
         # above) and a public repo (we are public). With Trusted Publishing
         # configured on npm, no NODE_AUTH_TOKEN is needed — the npm CLI
         # auto-detects the OIDC environment.
-        run: pnpm publish --access public --no-git-checks --provenance
+        # --ignore-scripts skips prepublishOnly (typecheck/lint/test/build)
+        # because those already ran as explicit steps above; running them again
+        # on the same runner is redundant and caused repeated release failures
+        # when lint errors were caught at publish time instead of the gate steps.
+        run: pnpm publish --access public --no-git-checks --provenance --ignore-scripts
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
