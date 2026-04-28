@@ -86,7 +86,9 @@ import { registerNoteGetHtmlTool } from "../tools/note/get_html.js";
 import { registerNoteSetTool } from "../tools/note/set.js";
 import { registerNoteSetHtmlTool } from "../tools/note/set_html.js";
 import { registerInternalStatusTool } from "../tools/observability/internalStatus.js";
+import { registerPerspectiveDeleteTool } from "../tools/perspective/delete.js";
 import { registerPerspectiveEvaluateTool } from "../tools/perspective/evaluate.js";
+import { registerPerspectiveGetTool } from "../tools/perspective/get.js";
 import { registerPerspectiveListTool } from "../tools/perspective/list.js";
 import { registerPluginInvokeTool } from "../tools/plugin/invoke.js";
 import { registerProjectBatchCompleteTool } from "../tools/project/batchComplete.js";
@@ -332,6 +334,12 @@ export async function startServer(): Promise<void> {
   const perspectiveCtx = { perspectiveService: services.perspectiveService, makeMeta };
   registerPerspectiveListTool(server, perspectiveCtx);
   registerPerspectiveEvaluateTool(server, perspectiveCtx);
+  registerPerspectiveGetTool(server, perspectiveCtx);
+  registerPerspectiveDeleteTool(server, {
+    perspectiveService: services.perspectiveService,
+    cache: services.cache,
+    makeMeta,
+  });
 
   // Plugin invoke.
   registerPluginInvokeTool(server, { adapter, makeMeta });

@@ -759,6 +759,28 @@ export class JxaTransport implements OmniFocusAdapter {
     });
   }
 
+  async getCustomPerspective(
+    _identifier: string,
+  ): Promise<import("../../domain/perspective.js").PerspectiveDetail> {
+    throw new ScriptError("getCustomPerspective requires the OmniJS transport", {
+      details: {
+        transport: "jxa",
+        reason: "omnijs-only",
+        method: "getCustomPerspective",
+      },
+    });
+  }
+
+  async deleteCustomPerspective(_identifier: string): Promise<void> {
+    throw new ScriptError("deleteCustomPerspective requires the OmniJS transport", {
+      details: {
+        transport: "jxa",
+        reason: "omnijs-only",
+        method: "deleteCustomPerspective",
+      },
+    });
+  }
+
   // -- Search ---------------------------------------------------------------
 
   async searchTasks(filter: SearchFilter): Promise<Task[]> {

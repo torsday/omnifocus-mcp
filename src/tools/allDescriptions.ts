@@ -26,7 +26,9 @@ import { NOTE_GET_HTML_DESCRIPTION } from "./note/get_html.js";
 import { NOTE_SET_DESCRIPTION } from "./note/set.js";
 import { NOTE_SET_HTML_DESCRIPTION } from "./note/set_html.js";
 import { INTERNAL_STATUS_DESCRIPTION } from "./observability/internalStatus.js";
+import { PERSPECTIVE_DELETE_DESCRIPTION } from "./perspective/delete.js";
 import { PERSPECTIVE_EVALUATE_DESCRIPTION } from "./perspective/evaluate.js";
+import { PERSPECTIVE_GET_DESCRIPTION } from "./perspective/get.js";
 import { PERSPECTIVE_LIST_DESCRIPTION } from "./perspective/list.js";
 import { PLUGIN_INVOKE_DESCRIPTION } from "./plugin/invoke.js";
 import { PROJECT_BATCH_COMPLETE_DESCRIPTION } from "./project/batchComplete.js";
@@ -132,7 +134,9 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   note_get_html: NOTE_GET_HTML_DESCRIPTION,
   note_set: NOTE_SET_DESCRIPTION,
   note_set_html: NOTE_SET_HTML_DESCRIPTION,
+  perspective_delete: PERSPECTIVE_DELETE_DESCRIPTION,
   perspective_evaluate: PERSPECTIVE_EVALUATE_DESCRIPTION,
+  perspective_get: PERSPECTIVE_GET_DESCRIPTION,
   perspective_list: PERSPECTIVE_LIST_DESCRIPTION,
   plugin_invoke: PLUGIN_INVOKE_DESCRIPTION,
   project_batch_complete: PROJECT_BATCH_COMPLETE_DESCRIPTION,

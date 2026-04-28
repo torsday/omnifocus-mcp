@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 102 tools registered.
+> Auto-generated from source. 104 tools registered.
 
 ## Table of contents
 
@@ -35,7 +35,9 @@
 - [note_get_html](#note_get_html)
 - [note_set](#note_set)
 - [note_set_html](#note_set_html)
+- [perspective_delete](#perspective_delete)
 - [perspective_evaluate](#perspective_evaluate)
+- [perspective_get](#perspective_get)
 - [perspective_list](#perspective_list)
 - [plugin_invoke](#plugin_invoke)
 - [project_batch_complete](#project_batch_complete)
@@ -1148,6 +1150,39 @@ Replace the HTML fragment note on a task or project. Overwrites the existing not
 ```
 ---
 
+## perspective_delete
+
+Delete a custom OmniFocus perspective by id. Use when a perspective is no longer needed — e.g. cleaning up after a templated workflow, or rotating out a stale view. Do not use on built-in perspectives (inbox, projects, tags, forecast, flagged, nearby, review) — they cannot be deleted; the call returns a validation error. Custom perspectives require OmniFocus Pro; without it the call returns OF_FEATURE_REQUIRES_PRO. Deletion is permanent — there is no undo for perspective removal in OmniFocus, so confirm with the user before invoking on a perspective they may want to keep. Recommend a sync_trigger after deletion so other devices observe the change. Returns { id } echoing the deleted identifier. Side effects: writes to OmniFocus (removes the perspective from the document), sets meta.syncPending = true. Example: { "perspectiveId": "fOpKrtZBLaZ" } → { id: "fOpKrtZBLaZ" }.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `perspectiveId` | string | Yes | Identifier of the custom perspective to delete. Obtain from perspective_list (look for kind: "custom"). Built-in ids are rejected with a validation error — built-ins are immutable. |
+
+### Example call
+
+```json
+{
+  "toolName": "perspective_delete",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
 ## perspective_evaluate
 
 Evaluate an OmniFocus perspective and return its task list. Accepts both built-in ids (inbox, projects, tags, forecast, flagged, nearby, review) and custom-perspective ids obtained from perspective_list — the tool selects the correct transport internally (JXA for built-in, OmniJS for custom). Custom perspectives require OmniFocus Pro; otherwise returns an error with code OF_FEATURE_REQUIRES_PRO. Returns { tasks: Task[] }. For 'review', returns [] — use review_list_due instead. For 'nearby', returns [] (location unavailable). No side effects; read-only.
@@ -1163,6 +1198,39 @@ Evaluate an OmniFocus perspective and return its task list. Accepts both built-i
 ```json
 {
   "toolName": "perspective_evaluate",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## perspective_get
+
+Read the full configuration of a custom OmniFocus perspective — name, top-level rule aggregation (all/any/none), the structured rule tree, and icon color (when set). Use to introspect what a perspective filters on before evaluating it, or as a building block for cloning / duplicating perspectives. Do not use on built-in perspectives (inbox, projects, tags, forecast, flagged, nearby, review) — they have no rule tree and the call returns a validation error. Use perspective_list instead to enumerate available perspectives. Custom perspectives require OmniFocus Pro; without it the call returns OF_FEATURE_REQUIRES_PRO. Returns { perspective: { id, name, aggregation, rules, iconColor } }. Safe to call repeatedly; no side effects, no writes. Example: { "perspectiveId": "fOpKrtZBLaZ" } → { perspective: { id, name: "Daily Triage", aggregation: "any", rules: [...], iconColor: { r: 0.2, g: 0.5, b: 0.9, a: 1 } } }.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `perspectiveId` | string | Yes | Identifier of the custom perspective to read. Obtain from perspective_list (look for kind: "custom"). Built-in ids (inbox, projects, tags, forecast, flagged, nearby, review) are rejected with a validation error — built-ins have no rule tree. |
+
+### Example call
+
+```json
+{
+  "toolName": "perspective_get",
   "arguments": {}
 }
 ```

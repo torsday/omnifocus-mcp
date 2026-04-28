@@ -123,6 +123,16 @@ export type PerspectiveEvaluateScriptResult =
   | { tasks: Task[] }
   | ScriptErrorEnvelope<"FEATURE_REQUIRES_PRO" | "NOT_FOUND">;
 
+/** Result type for `perspective_get.js`. */
+export type PerspectiveGetScriptResult =
+  | { perspective: import("../domain/perspective.js").PerspectiveDetail }
+  | ScriptErrorEnvelope<"FEATURE_REQUIRES_PRO" | "NOT_FOUND">;
+
+/** Result type for `perspective_delete.js`. */
+export type PerspectiveDeleteScriptResult =
+  | { id: string }
+  | ScriptErrorEnvelope<"FEATURE_REQUIRES_PRO" | "NOT_FOUND" | "SCRIPT_ERROR">;
+
 // ---------------------------------------------------------------------------
 // JXA script result types (complex shapes only; simple `{ task: Task }` etc.
 // use domain types directly at the call site)

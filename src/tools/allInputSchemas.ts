@@ -29,7 +29,9 @@ import { noteGetInputSchema } from "./note/get.js";
 import { noteGetHtmlInputSchema } from "./note/get_html.js";
 import { noteSetInputSchema } from "./note/set.js";
 import { noteSetHtmlInputSchema } from "./note/set_html.js";
+import { perspectiveDeleteInputSchema } from "./perspective/delete.js";
 import { perspectiveEvaluateInputSchema } from "./perspective/evaluate.js";
+import { perspectiveGetInputSchema } from "./perspective/get.js";
 import { perspectiveListInputSchema } from "./perspective/list.js";
 import { projectCompleteInputSchema } from "./project/complete.js";
 import { projectCreateInputSchema } from "./project/create.js";
@@ -94,7 +96,9 @@ export const ALL_INPUT_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   note_get_html: noteGetHtmlInputSchema,
   note_set: noteSetInputSchema,
   note_set_html: noteSetHtmlInputSchema,
+  perspective_delete: perspectiveDeleteInputSchema,
   perspective_evaluate: perspectiveEvaluateInputSchema,
+  perspective_get: perspectiveGetInputSchema,
   perspective_list: perspectiveListInputSchema,
   project_complete: projectCompleteInputSchema,
   project_create: projectCreateInputSchema,

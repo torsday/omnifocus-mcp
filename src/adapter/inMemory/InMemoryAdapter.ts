@@ -1288,6 +1288,46 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     return out;
   }
 
+  /**
+   * Seed map consulted by {@link getCustomPerspective}. Tests call
+   * {@link seedCustomPerspectiveDetail} to register a known identifier →
+   * `PerspectiveDetail`. Production uses the OmniJS transport directly.
+   */
+  private readonly customPerspectiveDetails = new Map<
+    string,
+    import("../../domain/perspective.js").PerspectiveDetail
+  >();
+
+  /** Test-only helper: register full configuration for a custom perspective. */
+  seedCustomPerspectiveDetail(
+    detail: import("../../domain/perspective.js").PerspectiveDetail,
+  ): void {
+    this.customPerspectiveDetails.set(detail.id, detail);
+  }
+
+  async getCustomPerspective(
+    identifier: string,
+  ): Promise<import("../../domain/perspective.js").PerspectiveDetail> {
+    const detail = this.customPerspectiveDetails.get(identifier);
+    if (detail === undefined) {
+      throw new NotFound(`Custom perspective not found: ${identifier}`, {
+        details: { resource: "perspective", id: identifier },
+      });
+    }
+    return detail;
+  }
+
+  async deleteCustomPerspective(identifier: string): Promise<void> {
+    const had =
+      this.customPerspectives.delete(identifier) ||
+      this.customPerspectiveDetails.delete(identifier);
+    if (!had) {
+      throw new NotFound(`Custom perspective not found: ${identifier}`, {
+        details: { resource: "perspective", id: identifier },
+      });
+    }
+  }
+
   async evaluatePerspective(id: BuiltinPerspectiveId): Promise<Task[]> {
     const all = Array.from(this.tasks.values());
     if (id === "review" || id === "nearby") return [];

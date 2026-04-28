@@ -101,6 +101,8 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     listPerspectives: record("listPerspectives"),
     evaluatePerspective: record("evaluatePerspective"),
     evaluateCustomPerspective: record("evaluateCustomPerspective"),
+    getCustomPerspective: record("getCustomPerspective"),
+    deleteCustomPerspective: record("deleteCustomPerspective"),
     listAttachments: record("listAttachments"),
     addAttachment: record("addAttachment"),
     removeAttachment: record("removeAttachment"),
@@ -190,6 +192,8 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
     listPerspectives: () => r.listPerspectives(),
     evaluatePerspective: () => r.evaluatePerspective("inbox"),
     evaluateCustomPerspective: () => r.evaluateCustomPerspective("custom-id"),
+    getCustomPerspective: () => r.getCustomPerspective("custom-id"),
+    deleteCustomPerspective: () => r.deleteCustomPerspective("custom-id"),
     listAttachments: () => r.listAttachments({ taskId: T_ID }),
     addAttachment: () => r.addAttachment({ taskId: T_ID, filePath: "/tmp/x.txt" }),
     removeAttachment: () => r.removeAttachment({ taskId: T_ID, attachmentId: ATT_ID }),
@@ -296,7 +300,9 @@ describe("TransportRouter — table integrity", () => {
       "batchMoveTasks", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works
       "clearTaskAlarms", // Task.notifications mutation is OmniJS-only (#461)
       "convertTaskToProject", // OmniJS-only: Database.convertTasksToProjects()
+      "deleteCustomPerspective", // OmniJS deleteObject — JXA cannot delete custom perspectives (#523)
       "evaluateCustomPerspective",
+      "getCustomPerspective", // archivedFilterRules / iconColor are OmniJS-only reads (#523)
       "getForecastTag", // Database.forecastTag is OmniJS-only (#465)
       "moveTask", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works
       "pluginInvoke",
