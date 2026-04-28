@@ -269,11 +269,11 @@ describe("handleTaskFindSimilar — candidate shape", () => {
       score: expect.any(Number),
       tags: expect.any(Array),
     });
-    expect(candidate?.projectId).toBe(String(projId));
-    expect(candidate?.tags).toContain(String(tagId));
+    expect(candidate?.project?.id).toBe(String(projId));
+    expect(candidate?.tags.map((t) => t.id)).toContain(String(tagId));
   });
 
-  it("inbox tasks (no project) report projectId: null", async () => {
+  it("inbox tasks (no project) report project: null", async () => {
     const adapter = new InMemoryAdapter();
     await adapter.createTask({ name: "Call dentist" }); // inbox
 
@@ -285,7 +285,7 @@ describe("handleTaskFindSimilar — candidate shape", () => {
       expect.fail("expected one candidate");
       return;
     }
-    expect(env.data.candidates[0]?.projectId).toBeNull();
+    expect(env.data.candidates[0]?.project).toBeNull();
   });
 });
 
@@ -339,5 +339,84 @@ describe("registerTaskFindSimilarTool", () => {
     registerTaskFindSimilarTool(server, makeCtx(adapter));
     expect(registerTool).toHaveBeenCalledTimes(1);
     expect(registerTool.mock.calls[0]?.[0]).toBe("task_find_similar");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Name pairing (#608)
+// ---------------------------------------------------------------------------
+
+describe("task_find_similar pairs ids with names (#608)", () => {
+  it("returns project { id, name } and tags [{ id, name }] for paired candidates", async () => {
+    const adapter = new InMemoryAdapter();
+    const projId = await adapter.createProject({ name: "Health" });
+    const tagId1 = await adapter.createTag({ name: "errand" });
+    const tagId2 = await adapter.createTag({ name: "phone" });
+    await adapter.createTask({
+      name: "Call dentist",
+      projectId: projId,
+      tagIds: [tagId1, tagId2],
+    });
+
+    const env = await handleTaskFindSimilar(
+      { name: "Call dentist", limit: 5, includeCompleted: false },
+      makeCtx(adapter),
+    );
+    if (!("data" in env) || env.data.candidates.length === 0) {
+      expect.fail("expected one candidate");
+      return;
+    }
+    const c = env.data.candidates[0];
+    expect(c?.project).toEqual({ id: String(projId), name: "Health" });
+    expect(c?.tags).toEqual(
+      expect.arrayContaining([
+        { id: String(tagId1), name: "errand" },
+        { id: String(tagId2), name: "phone" },
+      ]),
+    );
+    expect(c?.tags).toHaveLength(2);
+  });
+
+  it("batches lookups into a single getProjectsMany + single getTagsMany call", async () => {
+    const adapter = new InMemoryAdapter();
+    const projA = await adapter.createProject({ name: "Project A" });
+    const projB = await adapter.createProject({ name: "Project B" });
+    const tagX = await adapter.createTag({ name: "x" });
+    const tagY = await adapter.createTag({ name: "y" });
+    // Three candidates: two share projA, one is in projB; tags vary.
+    await adapter.createTask({ name: "Call dentist", projectId: projA, tagIds: [tagX] });
+    await adapter.createTask({ name: "Call doctor", projectId: projA, tagIds: [tagX, tagY] });
+    await adapter.createTask({ name: "Call plumber", projectId: projB, tagIds: [tagY] });
+
+    const projSpy = vi.spyOn(adapter, "getProjectsMany");
+    const tagSpy = vi.spyOn(adapter, "getTagsMany");
+
+    const env = await handleTaskFindSimilar(
+      { name: "Call", limit: 5, includeCompleted: false },
+      makeCtx(adapter),
+    );
+    expect("data" in env && env.data.candidates.length).toBeGreaterThan(0);
+    expect(projSpy).toHaveBeenCalledTimes(1);
+    expect(tagSpy).toHaveBeenCalledTimes(1);
+    // Distinct ids passed: projA + projB; tagX + tagY.
+    expect(projSpy.mock.calls[0]?.[0]).toHaveLength(2);
+    expect(tagSpy.mock.calls[0]?.[0]).toHaveLength(2);
+  });
+
+  it("skips name lookups entirely when no candidates survive scoring", async () => {
+    const adapter = new InMemoryAdapter();
+    const projId = await adapter.createProject({ name: "Health" });
+    await adapter.createTask({ name: "Buy milk", projectId: projId });
+
+    const projSpy = vi.spyOn(adapter, "getProjectsMany");
+    const tagSpy = vi.spyOn(adapter, "getTagsMany");
+
+    const env = await handleTaskFindSimilar(
+      { name: "completely unrelated phrase xyzzy", limit: 5, includeCompleted: false },
+      makeCtx(adapter),
+    );
+    expect("data" in env && env.data.candidates).toEqual([]);
+    expect(projSpy).not.toHaveBeenCalled();
+    expect(tagSpy).not.toHaveBeenCalled();
   });
 });

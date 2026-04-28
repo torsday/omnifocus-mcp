@@ -37,8 +37,9 @@ export const TASK_FIND_SIMILAR_DESCRIPTION =
   "candidates and decides whether to create new, link to existing, or merge. " +
   "Excludes completed and dropped tasks by default; opt-in via includeCompleted: true. " +
   "Optional scope { projectId } or { tagId } narrows the candidate set. " +
-  "Returns { candidates: [{ taskId, name, score, projectId, tags }] } sorted by score " +
-  "descending; an empty result is { candidates: [] }, not an error. " +
+  "Returns { candidates: [{ taskId, name, score, project, tags }] } sorted by score descending — " +
+  "project is { id, name } | null and tags is [{ id, name }, ...]. Names are paired alongside ids via a single getProjectsMany + single getTagsMany batch (no N+1) so the agent can describe each candidate without a follow-up read. " +
+  "An empty result is { candidates: [] }, not an error. " +
   "Do NOT use this tool for general full-text search — call task_search for that. " +
   "Prefer this helper when the question is 'is this task already in the system?'. " +
   "No model calls; no side effects. Read-only. " +
@@ -103,8 +104,10 @@ export interface SimilarTaskCandidate {
   taskId: string;
   name: string;
   score: number;
-  projectId: string | null;
-  tags: string[];
+  /** Containing project paired with its display name; null for inbox tasks or when the project has been deleted. */
+  project: { id: string; name: string } | null;
+  /** Tag ids paired with their display names; empty when the task has no tags. Orphan tags (deleted between read and lookup) are dropped. */
+  tags: { id: string; name: string }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -136,21 +139,67 @@ export async function handleTaskFindSimilar(
 
   const reference = { name: input.name, ...(input.note !== undefined && { note: input.note }) };
 
-  const scored: SimilarTaskCandidate[] = tasks
-    .map((task: Task) => {
-      const s = score(reference, { name: task.name, note: task.note });
-      if (s === 0) return null;
-      return {
-        taskId: String(task.id),
-        name: task.name,
-        score: s,
-        projectId: task.projectId === null ? null : String(task.projectId),
-        tags: task.tagIds.map(String),
-      };
-    })
-    .filter((c): c is SimilarTaskCandidate => c !== null)
-    .sort((a, b) => b.score - a.score)
+  // Score, filter zero-signal tasks, sort, slice — but keep the *task*
+  // shape until after we've batch-resolved id → name maps. That way the
+  // batch only fetches names for tasks that survived the cut.
+  const top = tasks
+    .map((task: Task) => ({ task, s: score(reference, { name: task.name, note: task.note }) }))
+    .filter((row) => row.s > 0)
+    .sort((a, b) => b.s - a.s)
     .slice(0, input.limit);
+
+  // Collect distinct ids across the trimmed candidate set.
+  const projectIdSet = new Set<ProjectId>();
+  const tagIdSet = new Set<TagId>();
+  for (const { task } of top) {
+    if (task.projectId !== null) projectIdSet.add(task.projectId);
+    for (const tagId of task.tagIds) tagIdSet.add(tagId);
+  }
+
+  // One round trip per kind, regardless of how many candidates need names.
+  const projectIds = [...projectIdSet];
+  const tagIds = [...tagIdSet];
+  const [projects, tags] = await Promise.all([
+    projectIds.length > 0 ? ctx.adapter.getProjectsMany(projectIds) : Promise.resolve([]),
+    tagIds.length > 0 ? ctx.adapter.getTagsMany(tagIds) : Promise.resolve([]),
+  ]);
+
+  // Build id → name maps. `null` slots in *Many results indicate the
+  // record was deleted between the listTasks call and the lookup; drop
+  // those orphans rather than fail the whole search.
+  const projectNames = new Map<string, string>();
+  projectIds.forEach((id, i) => {
+    const p = projects[i];
+    if (p !== null && p !== undefined) projectNames.set(String(id), p.name);
+  });
+  const tagNames = new Map<string, string>();
+  tagIds.forEach((id, i) => {
+    const t = tags[i];
+    if (t !== null && t !== undefined) tagNames.set(String(id), t.name);
+  });
+
+  const scored: SimilarTaskCandidate[] = top.map(({ task, s }) => {
+    const projectIdStr = task.projectId === null ? null : String(task.projectId);
+    const projectName = projectIdStr === null ? null : (projectNames.get(projectIdStr) ?? null);
+    return {
+      taskId: String(task.id),
+      name: task.name,
+      score: s,
+      project:
+        projectIdStr === null
+          ? null
+          : projectName === null
+            ? null // project orphaned — surface as null rather than emit a half-paired record
+            : { id: projectIdStr, name: projectName },
+      tags: task.tagIds
+        .map((tagId) => {
+          const idStr = String(tagId);
+          const name = tagNames.get(idStr);
+          return name === undefined ? null : { id: idStr, name };
+        })
+        .filter((t): t is { id: string; name: string } => t !== null),
+    };
+  });
 
   return ok({ candidates: scored }, ctx.makeMeta());
 }
