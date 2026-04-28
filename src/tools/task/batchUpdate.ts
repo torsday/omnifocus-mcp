@@ -27,7 +27,7 @@ export const TASK_BATCH_UPDATE_DESCRIPTION =
   "(name, note, flagged, dueDate, deferDate, estimatedMinutes, tagIds, sequential, completedByChildren). " +
   "Additive tag diffs (addTags/removeTags) and safety primitives (dry_run, expectedModifiedAt, " +
   "idempotency_key) are not supported in batch form; fall back to task_update for those. " +
-  "Returns { updated: [{index, value: taskId}], failed: [{index, errorCode, message}] }. " +
+  "Returns { updated: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — name reflects the post-patch name (uses patch.name when supplied, otherwise the existing name). " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
   "Call sync_trigger when you need changes to appear on other devices.";
 
@@ -73,6 +73,18 @@ export async function handleTaskBatchUpdate(
   input: TaskBatchUpdateToolInput,
   ctx: TaskBatchUpdateContext,
 ) {
+  // Pre-fetch all task names so the success rows can pair { id, name }
+  // with the post-patch name (patch.name ?? existing) per #597 (lever 4).
+  const ids = input.items.map((it) => it.id);
+  const tasks = await ctx.adapter.getTasksMany(ids);
+  const nameById = new Map<string, string>();
+  for (let i = 0; i < ids.length; i++) {
+    const task = tasks[i];
+    if (task !== null && task !== undefined) {
+      nameById.set(ids[i] as string, task.name);
+    }
+  }
+
   const adapterInputs = input.items.map((it) => ({
     id: it.id,
     patch: it.patch as UpdateTaskInput,
@@ -89,8 +101,17 @@ export async function handleTaskBatchUpdate(
     }
   }
 
+  const updated = outcome.succeeded.map((s) => {
+    const item = input.items[s.index];
+    // Prefer the post-patch name when a name patch was supplied; fall back to
+    // the existing name from the pre-fetch.
+    const name =
+      (item?.patch as { name?: string } | undefined)?.name ?? nameById.get(s.value as string) ?? "";
+    return { index: s.index, value: { id: s.value, name } };
+  });
+
   return ok(
-    { updated: outcome.succeeded, failed: outcome.failed },
+    { updated, failed: outcome.failed },
     ctx.makeMeta({
       syncPending: outcome.succeeded.length > 0,
       humanReadableSummary: summaryBatchUpdate(outcome.succeeded.length),

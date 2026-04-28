@@ -27,7 +27,7 @@ export const TASK_BATCH_MOVE_DESCRIPTION =
   "before any mutation. Execution is best-effort: each move succeeds or fails " +
   "independently, and the response reports per-index outcomes. " +
   "Prefer this tool over repeated task_move calls whenever moving more than one task. " +
-  "Returns { moved: [{index, value: taskId}], failed: [{index, errorCode, message}] }. " +
+  "Returns { moved: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each move without a follow-up read. " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
   "Call sync_trigger when you need changes to appear on other devices.";
 
@@ -70,6 +70,17 @@ export async function handleTaskBatchMove(
   input: TaskBatchMoveToolInput,
   ctx: TaskBatchMoveContext,
 ) {
+  // Pre-fetch all task names in a single round trip — see batchComplete (#594/#597 lever 4).
+  const ids = input.items.map((it) => it.id);
+  const tasks = await ctx.adapter.getTasksMany(ids);
+  const nameById = new Map<string, string>();
+  for (let i = 0; i < ids.length; i++) {
+    const task = tasks[i];
+    if (task !== null && task !== undefined) {
+      nameById.set(ids[i] as string, task.name);
+    }
+  }
+
   const outcome = await ctx.adapter.batchMoveTasks(
     input.items.map((it) => ({
       id: it.id,
@@ -89,8 +100,13 @@ export async function handleTaskBatchMove(
     }
   }
 
+  const moved = outcome.succeeded.map((s) => ({
+    index: s.index,
+    value: { id: s.value, name: nameById.get(s.value as string) ?? "" },
+  }));
+
   return ok(
-    { moved: outcome.succeeded, failed: outcome.failed },
+    { moved, failed: outcome.failed },
     ctx.makeMeta({
       syncPending: outcome.succeeded.length > 0,
       humanReadableSummary: summaryBatchMove(outcome.succeeded.length, "destination"),

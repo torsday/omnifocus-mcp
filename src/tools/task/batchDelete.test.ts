@@ -94,6 +94,18 @@ describe("task_batch_delete — handler", () => {
     expect(result.data.failed[0]?.index).toBe(1);
   });
 
+  it("pairs name with id in each succeeded value, captured pre-delete (#597)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id1 = await adapter.createTask({ name: "Goodbye A" });
+    const id2 = await adapter.createTask({ name: "Goodbye B" });
+    const result = await handleTaskBatchDelete(
+      { confirm: true, items: [{ id: id1 }, { id: id2 }] },
+      ctx,
+    );
+    expect(result.data.deleted[0]?.value).toEqual({ id: id1, name: "Goodbye A" });
+    expect(result.data.deleted[1]?.value).toEqual({ id: id2, name: "Goodbye B" });
+  });
+
   it("sets syncPending=true in meta when at least one task deleted", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "To Delete" });

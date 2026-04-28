@@ -109,6 +109,15 @@ describe("task_batch_create — handler", () => {
     );
     expect(env.meta.syncPending).toBe(false);
   });
+
+  it("pairs name with id in each succeeded value (#597)", async () => {
+    const { ctx } = makeCtx();
+    const env = await handleTaskBatchCreate({ items: [{ name: "Foo" }, { name: "Bar" }] }, ctx);
+    const data = okData(env);
+    expect(data.created[0]?.value).toMatchObject({ name: "Foo" });
+    expect(data.created[1]?.value).toMatchObject({ name: "Bar" });
+    expect(typeof data.created[0]?.value.id).toBe("string");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -170,6 +179,24 @@ describe("task_batch_update — handler", () => {
     const data = okData(env);
     expect(data.updated.map((s) => s.index)).toEqual([0]);
     expect(data.failed.map((f) => f.index)).toEqual([1]);
+  });
+
+  it("pairs name with id in each succeeded value, post-patch (#597)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id1 = await adapter.createTask({ name: "Old A" });
+    const id2 = await adapter.createTask({ name: "Stable" });
+    const env = await handleTaskBatchUpdate(
+      {
+        items: [
+          { id: id1, patch: { name: "New A" } },
+          { id: id2, patch: { flagged: true } },
+        ],
+      },
+      ctx,
+    );
+    const data = okData(env);
+    expect(data.updated[0]?.value).toEqual({ id: id1, name: "New A" });
+    expect(data.updated[1]?.value).toEqual({ id: id2, name: "Stable" });
   });
 });
 
