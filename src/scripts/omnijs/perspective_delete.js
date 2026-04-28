@@ -33,7 +33,7 @@
     deleteObject(persp);
   } catch (e) {
     return JSON.stringify({
-      error: { code: "SCRIPT_ERROR", message: String(e && e.message ? e.message : e) },
+      error: { code: "SCRIPT_ERROR", message: String(e?.message ? e.message : e) },
     });
   }
 

@@ -130,6 +130,7 @@ describe("upsertFence", () => {
     const fields = { whom: "Alice", since: "2026-04-27T10:00:00-05:00" };
     const note = upsertFence("user note", "waiting-on", serializeFenceBody(fields));
     const m = findFence(note, "waiting-on");
+    // biome-ignore lint/style/noNonNullAssertion: findFence always returns a match here
     expect(parseFenceBody(m!.body)).toEqual(fields);
   });
 });

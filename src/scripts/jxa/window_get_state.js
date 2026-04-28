@@ -36,7 +36,7 @@ function run(_argv) {
   const focusContainerIds = [];
   try {
     const focus = w.focus();
-    if (focus && focus.length) {
+    if (focus?.length) {
       for (let i = 0; i < focus.length; i++) {
         try {
           focusContainerIds.push(String(focus[i].id()));

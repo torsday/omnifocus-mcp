@@ -392,7 +392,7 @@ function detectFrequency(text: string): FrequencyMatch | null {
  *   6. Otherwise emit `ok` with the normalized description.
  */
 export function parseRepetitionFromProse(prose: string): RepetitionParseResult {
-  if (!prose || !prose.trim()) {
+  if (!prose?.trim()) {
     return { kind: "error", reason: "no-repetition-detected" };
   }
 

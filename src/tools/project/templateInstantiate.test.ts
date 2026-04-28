@@ -56,6 +56,7 @@ async function seedTemplate(
   let folder = folders.find((f) => f.name.toLowerCase() === folderName.toLowerCase());
   if (folder === undefined) {
     const folderId = await adapter.createFolder({ name: folderName });
+    // biome-ignore lint/style/noNonNullAssertion: folder was just created so it must exist
     folder = (await adapter.listFolders()).find((f) => f.id === folderId)!;
   }
   const note = buildProjectTemplateNote(
