@@ -78,6 +78,18 @@ describe("project_batch_drop — handler", () => {
     expect(result.data.failed[0]?.index).toBe(1);
   });
 
+  it("pairs name with id in each succeeded value (#592)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id1 = await adapter.createProject({ name: "Side track" });
+    const id2 = await adapter.createProject({ name: "Stale work" });
+
+    const result = await handleProjectBatchDrop({ items: [{ id: id1 }, { id: id2 }] }, ctx);
+
+    expect(result.data.dropped).toHaveLength(2);
+    expect(result.data.dropped[0]?.value).toEqual({ id: id1, name: "Side track" });
+    expect(result.data.dropped[1]?.value).toEqual({ id: id2, name: "Stale work" });
+  });
+
   it("sets syncPending=true when at least one project dropped", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createProject({ name: "P" });
