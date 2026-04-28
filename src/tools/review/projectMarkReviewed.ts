@@ -20,7 +20,7 @@ export const PROJECT_MARK_REVIEWED_DESCRIPTION =
   "Convenience alias for review_mark_reviewed — mark a single project as reviewed, setting lastReviewDate to now and advancing nextReviewDate. " +
   "Use when you have a project id and want a single-call review operation. " +
   "Do not use to list projects due for review; prefer review_list_due for that. " +
-  "Returns the project id. " +
+  "Returns { id, name, lastReviewDate, nextReviewDate } — name is the project's display name (post-mutation lookup; null if the project has been deleted between write and read), and the dates echo back the new schedule so the agent can describe the result without a follow-up read. " +
   "Side effects: writes to OmniFocus; sets syncPending = true. " +
   'Example: project_mark_reviewed({ id: "prj123" })';
 
@@ -47,9 +47,14 @@ export async function handleProjectMarkReviewed(
   input: ProjectMarkReviewedToolInput,
   ctx: ProjectMarkReviewedContext,
 ) {
-  await ctx.reviewService.markReviewed(ProjectIdCtor.of(input.id));
+  const outcome = await ctx.reviewService.markReviewed(ProjectIdCtor.of(input.id));
   return ok(
-    { id: input.id },
+    {
+      id: input.id,
+      name: outcome.name,
+      lastReviewDate: outcome.lastReviewDate,
+      nextReviewDate: outcome.nextReviewDate,
+    },
     ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryReviewMarkReviewed() }),
   );
 }

@@ -19,7 +19,7 @@ export const REVIEW_MARK_REVIEWED_DESCRIPTION =
   "Mark a project as reviewed in OmniFocus — sets lastReviewDate to now and advances nextReviewDate by the project's review interval. " +
   "Use this after completing a weekly review of a project. " +
   "Do not use to change the review interval; prefer review_set_interval for that. " +
-  "Returns the project id. " +
+  "Returns { id, name, lastReviewDate, nextReviewDate } — name is the project's display name (post-mutation lookup; null if the project has been deleted between write and read), and the dates echo back the new schedule so the agent can describe the result without a follow-up read. " +
   "Side effects: writes to OmniFocus; sets syncPending = true. " +
   'Example: review_mark_reviewed({ id: "prj123" })';
 
@@ -46,9 +46,14 @@ export async function handleReviewMarkReviewed(
   input: ReviewMarkReviewedToolInput,
   ctx: ReviewMarkReviewedContext,
 ) {
-  await ctx.reviewService.markReviewed(ProjectIdCtor.of(input.id));
+  const outcome = await ctx.reviewService.markReviewed(ProjectIdCtor.of(input.id));
   return ok(
-    { id: input.id },
+    {
+      id: input.id,
+      name: outcome.name,
+      lastReviewDate: outcome.lastReviewDate,
+      nextReviewDate: outcome.nextReviewDate,
+    },
     ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryReviewMarkReviewed() }),
   );
 }
