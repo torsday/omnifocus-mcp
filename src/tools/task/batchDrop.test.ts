@@ -77,6 +77,15 @@ describe("task_batch_drop — handler", () => {
     expect(result.data.failed[0]?.index).toBe(1);
   });
 
+  it("pairs name with id in each succeeded value (#594)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id1 = await adapter.createTask({ name: "Stale work" });
+    const id2 = await adapter.createTask({ name: "Side track" });
+    const result = await handleTaskBatchDrop({ items: [{ id: id1 }, { id: id2 }] }, ctx);
+    expect(result.data.dropped[0]?.value).toEqual({ id: id1, name: "Stale work" });
+    expect(result.data.dropped[1]?.value).toEqual({ id: id2, name: "Side track" });
+  });
+
   it("sets syncPending=true in meta when at least one task dropped", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "To Drop" });

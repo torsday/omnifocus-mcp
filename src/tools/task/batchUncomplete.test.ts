@@ -82,6 +82,17 @@ describe("task_batch_uncomplete — handler", () => {
     expect(result.data.failed[0]?.index).toBe(1);
   });
 
+  it("pairs name with id in each succeeded value (#594)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id1 = await adapter.createTask({ name: "Reopen me" });
+    const id2 = await adapter.createTask({ name: "And me" });
+    await adapter.completeTask(id1);
+    await adapter.completeTask(id2);
+    const result = await handleTaskBatchUncomplete({ items: [{ id: id1 }, { id: id2 }] }, ctx);
+    expect(result.data.uncompleted[0]?.value).toEqual({ id: id1, name: "Reopen me" });
+    expect(result.data.uncompleted[1]?.value).toEqual({ id: id2, name: "And me" });
+  });
+
   it("sets syncPending=true in meta when at least one task uncompleted", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "To Uncomplete" });

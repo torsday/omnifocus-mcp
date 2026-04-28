@@ -224,6 +224,16 @@ describe("task_batch_complete — handler", () => {
     expect(data.completed.map((s) => s.index)).toEqual([1]);
     expect(data.failed.map((f) => f.index)).toEqual([0]);
   });
+
+  it("pairs name with id in each succeeded value (#594)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id1 = await adapter.createTask({ name: "Send invoice" });
+    const id2 = await adapter.createTask({ name: "Pay rent" });
+    const env = await handleTaskBatchComplete({ items: [{ id: id1 }, { id: id2 }] }, ctx);
+    const data = okData(env);
+    expect(data.completed[0]?.value).toEqual({ id: id1, name: "Send invoice" });
+    expect(data.completed[1]?.value).toEqual({ id: id2, name: "Pay rent" });
+  });
 });
 
 // ---------------------------------------------------------------------------
