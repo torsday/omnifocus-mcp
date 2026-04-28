@@ -25,7 +25,7 @@ export const PROJECT_BATCH_DROP_DESCRIPTION =
   "independently, and the response reports per-index outcomes. " +
   "Prefer this tool over repeated project_drop calls whenever dropping more than one project. " +
   "Each item is { id }. " +
-  "Returns { dropped: [{index, value: projectId}], failed: [{index, errorCode, message}] }. " +
+  "Returns { dropped: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the project name so the agent can describe each drop without a follow-up read. " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
   "Call sync_trigger when you need changes to appear on other devices.";
 
@@ -52,6 +52,19 @@ export async function handleProjectBatchDrop(
   input: ProjectBatchDropToolInput,
   ctx: ProjectBatchDropContext,
 ) {
+  // Pre-fetch all project names in a single round trip so the success rows
+  // can pair { id, name } per #592 (lever 4). Missing entries (null) flow
+  // through naturally — the batch reports the failure for that index.
+  const ids = input.items.map((it) => it.id);
+  const projects = await ctx.adapter.getProjectsMany(ids);
+  const nameById = new Map<string, string>();
+  for (let i = 0; i < ids.length; i++) {
+    const project = projects[i];
+    if (project !== null && project !== undefined) {
+      nameById.set(ids[i] as string, project.name);
+    }
+  }
+
   const outcome = await ctx.adapter.batchDropProjects(input.items.map((it) => ({ id: it.id })));
 
   if (ctx.cache !== undefined) {
@@ -63,8 +76,13 @@ export async function handleProjectBatchDrop(
     }
   }
 
+  const dropped = outcome.succeeded.map((s) => ({
+    index: s.index,
+    value: { id: s.value, name: nameById.get(s.value as string) ?? "" },
+  }));
+
   return ok(
-    { dropped: outcome.succeeded, failed: outcome.failed },
+    { dropped, failed: outcome.failed },
     ctx.makeMeta({
       syncPending: outcome.succeeded.length > 0,
       humanReadableSummary: summaryBatchDropProjects(outcome.succeeded.length),

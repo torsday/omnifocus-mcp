@@ -78,6 +78,18 @@ describe("project_batch_complete — handler", () => {
     expect(result.data.failed[0]?.index).toBe(1);
   });
 
+  it("pairs name with id in each succeeded value (#592)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id1 = await adapter.createProject({ name: "Alpha" });
+    const id2 = await adapter.createProject({ name: "Beta" });
+
+    const result = await handleProjectBatchComplete({ items: [{ id: id1 }, { id: id2 }] }, ctx);
+
+    expect(result.data.completed).toHaveLength(2);
+    expect(result.data.completed[0]?.value).toEqual({ id: id1, name: "Alpha" });
+    expect(result.data.completed[1]?.value).toEqual({ id: id2, name: "Beta" });
+  });
+
   it("sets syncPending=true when at least one project completed", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createProject({ name: "P" });

@@ -1464,7 +1464,7 @@ _No parameters._
 
 ## project_batch_complete
 
-Mark many OmniFocus projects as completed in a single JXA round trip. Completed projects are hidden from active views and closed to new task entry. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each completion succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated project_complete calls whenever completing more than one project. Each item is { id }. Returns { completed: [{index, value: projectId}], failed: [{index, errorCode, message}] }. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Mark many OmniFocus projects as completed in a single JXA round trip. Completed projects are hidden from active views and closed to new task entry. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each completion succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated project_complete calls whenever completing more than one project. Each item is { id }. Returns { completed: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the project name so the agent can describe each completion without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
 
 ### Input
 
@@ -1495,7 +1495,7 @@ _No parameters._
 
 ## project_batch_drop
 
-Cancel (drop) many OmniFocus projects in a single JXA round trip. Dropped projects remain in OmniFocus but are treated as cancelled/inactive — they do not appear in active project lists. Use project_delete for permanent removal. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each drop succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated project_drop calls whenever dropping more than one project. Each item is { id }. Returns { dropped: [{index, value: projectId}], failed: [{index, errorCode, message}] }. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Cancel (drop) many OmniFocus projects in a single JXA round trip. Dropped projects remain in OmniFocus but are treated as cancelled/inactive — they do not appear in active project lists. Use project_delete for permanent removal. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each drop succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated project_drop calls whenever dropping more than one project. Each item is { id }. Returns { dropped: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the project name so the agent can describe each drop without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
 
 ### Input
 
