@@ -14,7 +14,8 @@ export const PROJECT_DROP_DESCRIBE_DESCRIPTION =
   "Preview what project_drop would do without making any changes. " +
   "Do NOT use to actually drop a project — use project_drop instead. " +
   "Returns { description, plannedChanges } describing the status change that would occur. " +
-  "No side effects: read-only by contract — never mutates OmniFocus.";
+  "No side effects: read-only by contract — never mutates OmniFocus. " +
+  "Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.";
 
 export interface ProjectDropDescribeContext {
   adapter: OmniFocusAdapter;

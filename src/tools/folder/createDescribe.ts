@@ -15,7 +15,8 @@ export const FOLDER_CREATE_DESCRIBE_DESCRIPTION =
   "Preview what folder_create would do without making any changes. " +
   "Do NOT use to actually create a folder — use folder_create instead. " +
   "Returns { description, plannedChanges } describing the folder that would be created. " +
-  "No side effects: read-only by contract — never mutates OmniFocus.";
+  "No side effects: read-only by contract — never mutates OmniFocus. " +
+  "Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.";
 
 export interface FolderCreateDescribeContext {
   adapter: OmniFocusAdapter;

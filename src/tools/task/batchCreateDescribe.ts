@@ -15,7 +15,8 @@ export const TASK_BATCH_CREATE_DESCRIBE_DESCRIPTION =
   "Preview what task_batch_create would do without making any changes. " +
   "Do NOT use to actually create tasks — use task_batch_create instead. " +
   "Returns { description, plannedChanges } summarising all tasks that would be created. " +
-  "No side effects: read-only by contract — never mutates OmniFocus.";
+  "No side effects: read-only by contract — never mutates OmniFocus. " +
+  "Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.";
 
 export interface TaskBatchCreateDescribeContext {
   adapter: OmniFocusAdapter;
