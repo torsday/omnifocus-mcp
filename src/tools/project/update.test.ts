@@ -101,6 +101,20 @@ describe("project_update — handler", () => {
     expect(envelope.meta.syncPending).toBe(true);
   });
 
+  it("pairs the post-patch name with id in the response (#585)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createProject({ name: "Before" });
+    const envelope = assertOk(await handleProjectUpdate({ id, name: "After" }, ctx));
+    expect(envelope.data).toMatchObject({ updated: true, id, name: "After" });
+  });
+
+  it("pairs the existing name with id when no name patch (#585)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createProject({ name: "Stable" });
+    const envelope = assertOk(await handleProjectUpdate({ id, flagged: true }, ctx));
+    expect(envelope.data).toMatchObject({ updated: true, id, name: "Stable" });
+  });
+
   it("adapter receives the name patch", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createProject({ name: "Before" });

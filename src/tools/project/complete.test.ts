@@ -74,6 +74,13 @@ describe("project_complete — handler", () => {
     expect(envelope.meta.syncPending).toBe(true);
   });
 
+  it("pairs name with id in the response (#585)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createProject({ name: "Q1 launch" });
+    const envelope = await handleProjectComplete({ id }, ctx);
+    expect(envelope.data).toMatchObject({ completed: true, id, name: "Q1 launch" });
+  });
+
   it("project status is done after completing", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createProject({ name: "P" });
