@@ -16,6 +16,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { FolderId, ProjectId } from "../../domain/ids.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import { ValidationError } from "../../errors/index.js";
@@ -46,7 +47,7 @@ export const IMPORT_TASKPAPER_DESCRIPTION =
   "unrecognised headings fall back to inbox (warning emitted). " +
   "Unknown @tags are created automatically. " +
   "Do NOT use to export data; prefer export_taskpaper for that. " +
-  "Returns { created: TaskId[], warnings: string[] }. " +
+  "Returns { tasks: [{ id, name }], warnings: string[] } — tasks pairs each new id with its display name (resolved via a single getTasksMany batch, no N+1) so the agent can confirm what landed without a follow-up read. Orphan ids (rare; deleted between import and lookup) are dropped from the array. " +
   "Writes to OmniFocus; call sync_trigger to propagate changes to other devices. " +
   'Example: import_taskpaper({ text: "- Buy milk @errands\\n- Call dentist @due(2026-05-01)" })';
 
@@ -91,6 +92,8 @@ export type ImportTaskPaperToolInput = z.infer<typeof importTaskPaperInputSchema
 
 export interface TaskPaperToolContext {
   exportService: ExportService;
+  /** Adapter is needed for the post-import getTasksMany batch that powers the lever-4 name pairing (#609). */
+  adapter: OmniFocusAdapter;
   makeMeta: (partial?: Partial<ResponseMeta>) => ResponseMeta;
 }
 
@@ -149,14 +152,31 @@ export function registerTaskPaperTools(server: McpServer, ctx: TaskPaperToolCont
       description: IMPORT_TASKPAPER_DESCRIPTION,
       inputSchema: importTaskPaperInputSchema.shape,
     },
-    async (input: ImportTaskPaperToolInput) => {
-      const result = await ctx.exportService.importTaskPaper(
-        input.text,
-        input.targetProjectId === undefined ? undefined : ProjectId.of(input.targetProjectId),
-      );
-      return toolResponse(
-        ok({ created: result.created, warnings: result.warnings }, ctx.makeMeta()),
-      );
-    },
+    async (input: ImportTaskPaperToolInput) =>
+      toolResponse(await handleImportTaskPaper(input, ctx)),
   );
+}
+
+/**
+ * Pure handler for `import_taskpaper` — exposed for direct unit tests so the
+ * lever-4 name pairing (#609) can be exercised without the MCP register layer.
+ */
+export async function handleImportTaskPaper(
+  input: ImportTaskPaperToolInput,
+  ctx: TaskPaperToolContext,
+) {
+  const result = await ctx.exportService.importTaskPaper(
+    input.text,
+    input.targetProjectId === undefined ? undefined : ProjectId.of(input.targetProjectId),
+  );
+  // Single batch lookup pairs each created id with its name; orphans
+  // (deleted between import and lookup) are dropped (#609).
+  const fetched = result.created.length > 0 ? await ctx.adapter.getTasksMany(result.created) : [];
+  const tasks = result.created
+    .map((id, i) => {
+      const task = fetched[i];
+      return task === null || task === undefined ? null : { id: String(id), name: task.name };
+    })
+    .filter((row): row is { id: string; name: string } => row !== null);
+  return ok({ tasks, warnings: result.warnings }, ctx.makeMeta());
 }

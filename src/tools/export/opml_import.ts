@@ -17,6 +17,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { ProjectId } from "../../domain/ids.js";
 import { summaryBatchCreate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
@@ -35,7 +36,7 @@ export const IMPORT_OPML_DESCRIPTION =
   "LOSSY: due dates, defer dates, and flagged state are preserved; tags, notes, " +
   "attachments, and repetition rules are silently dropped (not encoded in OPML). " +
   "Do NOT use to export data; prefer export_opml for that. " +
-  "Returns { imported, taskIds } where imported is the count of tasks created. " +
+  "Returns { imported, tasks: [{ id, name }] } — imported is the count of tasks created and tasks pairs each new id with its display name (resolved via a single getTasksMany batch, no N+1) so the agent can confirm what landed without a follow-up read. Orphan ids (rare; the task was deleted between import and lookup) are dropped from the array. " +
   "Writes to OmniFocus; call sync_trigger after import to propagate changes to other devices. " +
   'Example: import_opml({ opml: "<opml>...</opml>" })';
 
@@ -67,6 +68,8 @@ export type ImportOpmlToolInput = z.infer<typeof importOpmlInputSchema>;
 
 export interface ImportOpmlContext {
   exportService: ExportService;
+  /** Adapter is needed for the post-import getTasksMany batch that powers the lever-4 name pairing (#609). */
+  adapter: OmniFocusAdapter;
   makeMeta: (partial?: Partial<ResponseMeta>) => ResponseMeta;
 }
 
@@ -77,17 +80,23 @@ export async function handleImportOpml(input: ImportOpmlToolInput, ctx: ImportOp
       : {}),
   });
 
+  // Single batch lookup pairs each created id with its name. Orphans
+  // (deleted between import and lookup — rare but possible if another
+  // process is racing) are dropped rather than emitted as half-paired
+  // records.
+  const fetched = result.taskIds.length > 0 ? await ctx.adapter.getTasksMany(result.taskIds) : [];
+  const tasks = result.taskIds
+    .map((id, i) => {
+      const task = fetched[i];
+      return task === null || task === undefined ? null : { id: String(id), name: task.name };
+    })
+    .filter((row): row is { id: string; name: string } => row !== null);
+
   const meta = ctx.makeMeta({
     syncPending: true,
     humanReadableSummary: summaryBatchCreate(result.imported),
   });
-  return ok(
-    {
-      imported: result.imported,
-      taskIds: result.taskIds.map(String),
-    },
-    meta,
-  );
+  return ok({ imported: result.imported, tasks }, meta);
 }
 
 // ---------------------------------------------------------------------------
