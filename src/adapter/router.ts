@@ -46,6 +46,7 @@ import type { Tag } from "../domain/tag.js";
 import type { Task } from "../domain/task.js";
 import type { JxaTransport } from "./jxa/JxaTransport.js";
 import type {
+  CreateCustomPerspectiveInput,
   CreateFolderInput,
   CreateProjectInput,
   CreateTagInput,
@@ -155,6 +156,7 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   evaluateCustomPerspective: "omnijs",
   getCustomPerspective: "omnijs",
   deleteCustomPerspective: "omnijs",
+  createCustomPerspective: "omnijs",
 
   // -- Sync -----------------------------------------------------------------
   syncTrigger: "jxa",
@@ -489,6 +491,10 @@ export class TransportRouter implements OmniFocusAdapter {
 
   deleteCustomPerspective(identifier: string): Promise<void> {
     return this.pick("deleteCustomPerspective").deleteCustomPerspective(identifier);
+  }
+
+  createCustomPerspective(input: CreateCustomPerspectiveInput): Promise<string> {
+    return this.pick("createCustomPerspective").createCustomPerspective(input);
   }
 
   syncTrigger(): Promise<SyncStatus> {

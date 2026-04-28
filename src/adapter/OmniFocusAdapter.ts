@@ -5,7 +5,10 @@ import type { AttachmentId, FolderId, ProjectId, TagId, TaskId } from "../domain
 import type {
   BuiltinPerspectiveId,
   Perspective,
+  PerspectiveAggregation,
   PerspectiveDetail,
+  PerspectiveIconColor,
+  PerspectiveRule,
 } from "../domain/perspective.js";
 import type { Project } from "../domain/project.js";
 import type { Tag, TagLocation } from "../domain/tag.js";
@@ -270,6 +273,26 @@ export interface SaveAttachmentResult {
   sizeBytes: number;
 }
 
+/**
+ * Input for `createCustomPerspective` (#577 / #617).
+ *
+ * `rules` is a complete tree — empty array means "show everything" (the
+ * OmniFocus default for fresh perspectives). `aggregation` defaults to
+ * `"all"` when omitted, matching what `perspective_get` returns for
+ * perspectives that have not been customised. `iconColor` left undefined
+ * leaves the OmniFocus-assigned default color in place.
+ */
+export interface CreateCustomPerspectiveInput {
+  /** Display name. Must be non-empty; OmniFocus rejects duplicate names. */
+  name: string;
+  /** Top-level rule aggregation. Defaults to `"all"` when omitted. */
+  aggregation?: PerspectiveAggregation;
+  /** Top-level rule list. Empty array means "show everything". */
+  rules?: PerspectiveRule[];
+  /** Custom icon color in [0, 1] floats. Omit for the OmniFocus default. */
+  iconColor?: PerspectiveIconColor;
+}
+
 // ---------------------------------------------------------------------------
 // Adapter interface
 // ---------------------------------------------------------------------------
@@ -492,6 +515,26 @@ export interface OmniFocusAdapter {
    *         exists.
    */
   deleteCustomPerspective(identifier: string): Promise<void>;
+
+  /**
+   * Create a custom perspective with the given configuration. The shell is
+   * created via JXA `make` (the only supported create path) and the rule
+   * tree + aggregation + iconColor are written via OmniJS in the same
+   * transport hop — if rule writing throws, the shell is rolled back so
+   * the database is never left with a half-configured perspective.
+   *
+   * Routes to OmniJS — JxaTransport returns NOT_YET_WIRED.
+   *
+   * @throws FeatureRequiresPro — when the OmniFocus edition lacks the
+   *         custom-perspective runtime.
+   * @throws ValidationError — when OmniFocus rejects the configuration
+   *         (e.g. duplicate name with replaceExisting unset).
+   * @throws ScriptError — when the shell is created but rule writing fails
+   *         and the rollback also fails (rare; both errors are surfaced).
+   *
+   * @see #577, #617
+   */
+  createCustomPerspective(input: CreateCustomPerspectiveInput): Promise<string>;
 
   // -- Search ----------------------------------------------------------------
 

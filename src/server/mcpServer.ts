@@ -90,6 +90,7 @@ import { registerNoteGetHtmlTool } from "../tools/note/get_html.js";
 import { registerNoteSetTool } from "../tools/note/set.js";
 import { registerNoteSetHtmlTool } from "../tools/note/set_html.js";
 import { registerInternalStatusTool } from "../tools/observability/internalStatus.js";
+import { registerPerspectiveCreateTool } from "../tools/perspective/create.js";
 import { registerPerspectiveDeleteTool } from "../tools/perspective/delete.js";
 import { registerPerspectiveEvaluateTool } from "../tools/perspective/evaluate.js";
 import { registerPerspectiveGetTool } from "../tools/perspective/get.js";
@@ -385,6 +386,7 @@ export async function startServer(): Promise<void> {
     cache: services.cache,
     makeMeta,
   });
+  registerPerspectiveCreateTool(server, { adapter, cache: services.cache, makeMeta });
 
   // Plugin invoke.
   registerPluginInvokeTool(server, { adapter, makeMeta });
