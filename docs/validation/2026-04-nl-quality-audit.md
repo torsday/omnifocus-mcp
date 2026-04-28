@@ -1,8 +1,8 @@
 # NL-quality audit — tool surface scorecard
 
 **Issue:** [#563](https://github.com/torsday/omnifocus-mcp/issues/563)
-**Rubric:** [`docs/nl-quality-standards.md`](./nl-quality-standards.md)
-**Audited:** 96 tools across `src/tools/**`
+**Rubric:** [`docs/nl-quality-standards.md`](../nl-quality-standards.md)
+**Audited:** every tool registered under `src/tools/**` at HEAD
 **Audit date:** 2026-04-27 (cycle 2 of `/loop /ship-next` after #489 foundation merged)
 
 This document captures the state of every shipped tool against the five-lever
@@ -35,10 +35,10 @@ to A as the dominant gap classes close.
 
 ## Dominant gap classes
 
-The 96 rows collapse to five gap classes, each tracked in its own follow-up.
-Working against the *class* (not per-tool) is how the remediation stays
-manageable: one PR per class, ~10–96 tools touched per PR, mechanical changes
-where possible.
+The audit findings collapse to five gap classes, each tracked in its own
+follow-up. Working against the *class* (not per-tool) is how the
+remediation stays manageable: one PR per class, scope ranging from a few
+tools to the full surface, mechanical changes where possible.
 
 ### Class 1 — Missing `Example:` line (universal)
 
@@ -46,7 +46,7 @@ where possible.
 line. Easiest single sweep — one representative call per tool, appended to
 the existing description string.
 
-**Affects:** all 96 tools.
+**Affects:** every tool.
 **Severity:** Mechanical. No semantic change; one literal-string append per
 tool. Risk is bounded by `descriptions.snapshot.test.ts` (regenerates) and
 `descriptionShape.test.ts` (still passes — adding text doesn't break the
