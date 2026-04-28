@@ -293,6 +293,27 @@ export interface CreateCustomPerspectiveInput {
   iconColor?: PerspectiveIconColor;
 }
 
+/**
+ * Patch input for `updateCustomPerspective` (#577 / #618).
+ *
+ * Partial patch — only fields that appear in the patch are written.
+ * Omitting a field leaves the existing value unchanged. Passing `null`
+ * for `iconColor` clears any custom color back to the OmniFocus default.
+ *
+ * Built-in perspectives (Inbox, Forecast, Flagged, etc.) have no rule
+ * tree to patch; the adapter rejects their ids with `ValidationError`.
+ */
+export interface UpdateCustomPerspectiveInput {
+  /** New display name. Must be non-empty when provided. */
+  name?: string;
+  /** New top-level rule aggregation. */
+  aggregation?: PerspectiveAggregation;
+  /** New top-level rule list. Empty array means "show everything". */
+  rules?: PerspectiveRule[];
+  /** New custom icon color, or `null` to clear back to the default. */
+  iconColor?: PerspectiveIconColor | null;
+}
+
 // ---------------------------------------------------------------------------
 // Adapter interface
 // ---------------------------------------------------------------------------
@@ -535,6 +556,28 @@ export interface OmniFocusAdapter {
    * @see #577, #617
    */
   createCustomPerspective(input: CreateCustomPerspectiveInput): Promise<string>;
+
+  /**
+   * Patch a custom perspective's name / aggregation / rules / iconColor.
+   * Only the fields present in `patch` are written; omitted fields are
+   * left unchanged. Passing `null` for `iconColor` clears any custom
+   * color back to the OmniFocus default.
+   *
+   * Built-in perspective ids are rejected with ValidationError, mirroring
+   * the rejection from `perspective_get` and `perspective_delete`.
+   *
+   * Routes to OmniJS — JxaTransport returns NOT_YET_WIRED.
+   *
+   * @throws FeatureRequiresPro — when the OmniFocus edition lacks the
+   *         custom-perspective runtime.
+   * @throws NotFound — when no custom perspective with the given identifier
+   *         exists.
+   * @throws ValidationError — when the id is a built-in perspective, or
+   *         when OmniFocus rejects the patch (e.g. duplicate name).
+   *
+   * @see #577, #618
+   */
+  updateCustomPerspective(identifier: string, patch: UpdateCustomPerspectiveInput): Promise<void>;
 
   // -- Search ----------------------------------------------------------------
 

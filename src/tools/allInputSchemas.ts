@@ -34,6 +34,7 @@ import { perspectiveDeleteInputSchema } from "./perspective/delete.js";
 import { perspectiveEvaluateInputSchema } from "./perspective/evaluate.js";
 import { perspectiveGetInputSchema } from "./perspective/get.js";
 import { perspectiveListInputSchema } from "./perspective/list.js";
+import { perspectiveUpdateInputSchema } from "./perspective/update.js";
 import { projectCompleteInputSchema } from "./project/complete.js";
 import { projectCreateInputSchema } from "./project/create.js";
 import { projectDeleteInputSchema } from "./project/delete.js";
@@ -102,6 +103,7 @@ export const ALL_INPUT_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   perspective_evaluate: perspectiveEvaluateInputSchema,
   perspective_get: perspectiveGetInputSchema,
   perspective_list: perspectiveListInputSchema,
+  perspective_update: perspectiveUpdateInputSchema,
   project_complete: projectCompleteInputSchema,
   project_create: projectCreateInputSchema,
   project_delete: projectDeleteInputSchema,

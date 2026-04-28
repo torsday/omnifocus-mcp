@@ -124,6 +124,7 @@ import type {
   SyncStatus,
   TaskFilter,
   TaskPosition,
+  UpdateCustomPerspectiveInput,
   UpdateFolderInput,
   UpdateProjectInput,
   UpdateTagInput,
@@ -793,6 +794,19 @@ export class JxaTransport implements OmniFocusAdapter {
         transport: "jxa",
         reason: "omnijs-only",
         method: "createCustomPerspective",
+      },
+    });
+  }
+
+  async updateCustomPerspective(
+    _identifier: string,
+    _patch: UpdateCustomPerspectiveInput,
+  ): Promise<void> {
+    throw new ScriptError("updateCustomPerspective requires the OmniJS transport", {
+      details: {
+        transport: "jxa",
+        reason: "omnijs-only",
+        method: "updateCustomPerspective",
       },
     });
   }
