@@ -60,6 +60,7 @@ import type { Attachment } from "../../domain/attachment.js";
 import { AttachmentId, ProjectId, TaskId } from "../../domain/ids.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import { ValidationError } from "../../errors/index.js";
+import { validateRefined } from "../../errors/validateRefined.js";
 import type { AttachmentService } from "../../services/attachmentService.js";
 
 // ---------------------------------------------------------------------------
@@ -265,6 +266,11 @@ export async function handleTaskExtractFromImage(
   input: TaskExtractFromImageInput,
   ctx: TaskExtractFromImageContext,
 ) {
+  // Re-parse against the refined schema so the cross-field rules
+  // (dryRun→confirmation; attachment-source owner XOR) actually fire — the
+  // SDK only validates the base shape. See src/errors/validateRefined.ts.
+  validateRefined(taskExtractFromImageInputSchema, input);
+
   // Always validate the source — catches bad paths / non-image attachments
   // before the agent burns time on a write phase.
   const resolved = await resolveSource(input.source, ctx);

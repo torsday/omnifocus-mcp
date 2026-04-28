@@ -29,6 +29,7 @@ import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/inva
 import { TagId, TaskId } from "../../domain/ids.js";
 import type { Task } from "../../domain/task.js";
 import { ok, type ResponseMeta, type ToolEnvelope, toolResponse } from "../../envelope/index.js";
+import { validateRefined } from "../../errors/validateRefined.js";
 import { assertNotModifiedSince } from "../../server/assertNotModifiedSince.js";
 import { dryRunGuard } from "../../server/dryRunGuard.js";
 import {
@@ -235,6 +236,12 @@ export async function handleTaskUpdate(
   input: TaskUpdateToolInput,
   ctx: TaskUpdateContext,
 ): Promise<ToolEnvelope<TaskUpdateData>> {
+  // Re-parse against the refined schema — the SDK only validates the base
+  // shape, so cross-field rules (tagIds vs addTags/removeTags exclusivity,
+  // dueDate ≥ deferDate) need explicit enforcement.
+  // See src/errors/validateRefined.ts.
+  validateRefined(taskUpdateInputSchema, input);
+
   const { id, addTags, removeTags, setFlagged, tagIds, ...rest } = input;
   const store = ctx.idempotencyStore ?? defaultIdempotencyStore;
 
