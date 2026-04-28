@@ -998,7 +998,7 @@ _No parameters._
 
 ## import_opml
 
-Import tasks from an OPML XML string into OmniFocus. Parses the OPML produced by export_opml and recreates the task hierarchy. Top-level <outline type="omnifocus:project"> elements are matched to existing projects by OmniFocus ID (for round-trip) then by name; unmatched project outlines land in the Inbox. LOSSY: due dates, defer dates, and flagged state are preserved; tags, notes, attachments, and repetition rules are silently dropped (not encoded in OPML). Do NOT use to export data; prefer export_opml for that. Returns { imported, taskIds } where imported is the count of tasks created. Writes to OmniFocus; call sync_trigger after import to propagate changes to other devices. Example: import_opml({ opml: "<opml>...</opml>" })
+Import tasks from an OPML XML string into OmniFocus. Parses the OPML produced by export_opml and recreates the task hierarchy. Top-level <outline type="omnifocus:project"> elements are matched to existing projects by OmniFocus ID (for round-trip) then by name; unmatched project outlines land in the Inbox. LOSSY: due dates, defer dates, and flagged state are preserved; tags, notes, attachments, and repetition rules are silently dropped (not encoded in OPML). Do NOT use to export data; prefer export_opml for that. Returns { imported, tasks: [{ id, name }] } — imported is the count of tasks created and tasks pairs each new id with its display name (resolved via a single getTasksMany batch, no N+1) so the agent can confirm what landed without a follow-up read. Orphan ids (rare; the task was deleted between import and lookup) are dropped from the array. Writes to OmniFocus; call sync_trigger after import to propagate changes to other devices. Example: import_opml({ opml: "<opml>...</opml>" })
 
 ### Input
 
@@ -1032,7 +1032,7 @@ Import tasks from an OPML XML string into OmniFocus. Parses the OPML produced by
 
 ## import_taskpaper
 
-Import tasks from TaskPaper text into OmniFocus. Parses '- Task name @tag @due(2026-01-15) @defer(2026-01-10) @flagged' lines. Indented subtasks become children of the nearest parent task. Project headings ('Project name:') map to existing OF projects by name — unrecognised headings fall back to inbox (warning emitted). Unknown @tags are created automatically. Do NOT use to export data; prefer export_taskpaper for that. Returns { created: TaskId[], warnings: string[] }. Writes to OmniFocus; call sync_trigger to propagate changes to other devices. Example: import_taskpaper({ text: "- Buy milk @errands\n- Call dentist @due(2026-05-01)" })
+Import tasks from TaskPaper text into OmniFocus. Parses '- Task name @tag @due(2026-01-15) @defer(2026-01-10) @flagged' lines. Indented subtasks become children of the nearest parent task. Project headings ('Project name:') map to existing OF projects by name — unrecognised headings fall back to inbox (warning emitted). Unknown @tags are created automatically. Do NOT use to export data; prefer export_taskpaper for that. Returns { tasks: [{ id, name }], warnings: string[] } — tasks pairs each new id with its display name (resolved via a single getTasksMany batch, no N+1) so the agent can confirm what landed without a follow-up read. Orphan ids (rare; deleted between import and lookup) are dropped from the array. Writes to OmniFocus; call sync_trigger to propagate changes to other devices. Example: import_taskpaper({ text: "- Buy milk @errands\n- Call dentist @due(2026-05-01)" })
 
 ### Input
 

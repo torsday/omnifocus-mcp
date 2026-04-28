@@ -411,7 +411,7 @@ export async function startServer(): Promise<void> {
 
   // Export — opml + taskpaper (taskpaper helper registers both
   // export_taskpaper and import_taskpaper).
-  const exportCtx = { exportService: services.exportService, makeMeta };
+  const exportCtx = { exportService: services.exportService, adapter, makeMeta };
   registerExportOpmlTool(server, exportCtx);
   registerImportOpmlTool(server, exportCtx);
   registerTaskPaperTools(server, exportCtx);
