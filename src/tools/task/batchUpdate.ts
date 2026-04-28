@@ -34,17 +34,39 @@ export const TASK_BATCH_UPDATE_DESCRIPTION =
 
 const patchSchema = z
   .object({
-    name: z.string().min(1).optional(),
-    note: z.string().nullable().optional(),
-    flagged: z.boolean().optional(),
-    dueDate: z.string().datetime({ offset: true }).nullable().optional(),
-    dueDateFloating: z.boolean().optional(),
-    deferDate: z.string().datetime({ offset: true }).nullable().optional(),
-    deferDateFloating: z.boolean().optional(),
-    estimatedMinutes: z.number().int().positive().nullable().optional(),
-    tagIds: z.array(TagId.schema).optional(),
-    sequential: z.boolean().optional(),
-    completedByChildren: z.boolean().optional(),
+    name: z.string().min(1).optional().describe("New task name."),
+    note: z.string().nullable().optional().describe("Plain-text note. Null clears the note."),
+    flagged: z.boolean().optional().describe("Flag or unflag the task."),
+    dueDate: z
+      .string()
+      .datetime({ offset: true })
+      .nullable()
+      .optional()
+      .describe("Due date as ISO-8601 with offset. Null clears the date."),
+    dueDateFloating: z
+      .boolean()
+      .optional()
+      .describe("When true, the due time is floating (follows the user across time zones)."),
+    deferDate: z
+      .string()
+      .datetime({ offset: true })
+      .nullable()
+      .optional()
+      .describe("Defer date as ISO-8601 with offset. Null clears the date."),
+    deferDateFloating: z
+      .boolean()
+      .optional()
+      .describe("When true, the defer time is floating (follows the user across time zones)."),
+    estimatedMinutes: z
+      .number()
+      .int()
+      .positive()
+      .nullable()
+      .optional()
+      .describe("Estimated duration in minutes. Null clears the estimate."),
+    tagIds: z.array(TagId.schema).optional().describe("Full replacement tag ID list."),
+    sequential: z.boolean().optional().describe("If true, subtasks must be completed in order."),
+    completedByChildren: z.boolean().optional().describe("Complete when all subtasks complete."),
   })
   .refine((p) => Object.keys(p).length > 0, {
     message: "Patch must contain at least one field",

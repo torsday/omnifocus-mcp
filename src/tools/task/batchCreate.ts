@@ -41,16 +41,35 @@ const singleItemSchema = z
     parentTaskId: TaskId.schema
       .optional()
       .describe("Parent task ID for a subtask. Omit for inbox or project task."),
-    note: z.string().optional(),
-    flagged: z.boolean().optional(),
-    dueDate: z.string().datetime({ offset: true }).optional(),
-    dueDateFloating: z.boolean().optional(),
-    deferDate: z.string().datetime({ offset: true }).optional(),
-    deferDateFloating: z.boolean().optional(),
-    estimatedMinutes: z.number().int().positive().optional(),
-    tagIds: z.array(TagId.schema).optional(),
-    sequential: z.boolean().optional(),
-    completedByChildren: z.boolean().optional(),
+    note: z.string().optional().describe("Plain-text note."),
+    flagged: z.boolean().optional().describe("Flag the task."),
+    dueDate: z
+      .string()
+      .datetime({ offset: true })
+      .optional()
+      .describe("Due date as ISO-8601 with offset."),
+    dueDateFloating: z
+      .boolean()
+      .optional()
+      .describe("When true, the due time is floating (follows the user across time zones)."),
+    deferDate: z
+      .string()
+      .datetime({ offset: true })
+      .optional()
+      .describe("Defer date as ISO-8601 with offset."),
+    deferDateFloating: z
+      .boolean()
+      .optional()
+      .describe("When true, the defer time is floating (follows the user across time zones)."),
+    estimatedMinutes: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe("Estimated duration in minutes."),
+    tagIds: z.array(TagId.schema).optional().describe("Tag IDs to apply."),
+    sequential: z.boolean().optional().describe("If true, subtasks must be completed in order."),
+    completedByChildren: z.boolean().optional().describe("Complete when all subtasks complete."),
   })
   .refine((v) => !(v.projectId !== undefined && v.parentTaskId !== undefined), {
     message: "Supply at most one of projectId or parentTaskId",

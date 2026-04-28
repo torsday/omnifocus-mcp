@@ -115,10 +115,18 @@ export const TASK_EXTRACT_FROM_IMAGE_DESCRIPTION =
  * prompt (#475) and other composers can accept either tool's output.
  */
 const proposedTaskSchema = z.object({
-  name: z.string().min(1),
-  note: z.string().optional(),
-  deferDate: z.string().datetime({ offset: true }).optional(),
-  dueDate: z.string().datetime({ offset: true }).optional(),
+  name: z.string().min(1).describe("Task name extracted from the image."),
+  note: z.string().optional().describe("Additional context or plain-text note for the task."),
+  deferDate: z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .describe("Defer date as ISO-8601 with offset, if detected in the image."),
+  dueDate: z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .describe("Due date as ISO-8601 with offset, if detected in the image."),
 });
 
 const sourceSchema = z
