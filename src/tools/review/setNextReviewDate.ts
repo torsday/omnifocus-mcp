@@ -27,7 +27,9 @@ export const PROJECT_SET_NEXT_REVIEW_DATE_DESCRIPTION =
   "Past-dated values are accepted and surface the project as overdue immediately — matches OmniFocus's own UX. " +
   "Returns { id }. " +
   "Errors: NOT_FOUND when projectId does not exist. " +
-  "Side effects: writes to OmniFocus; invalidates project + review caches; sets syncPending = true.";
+  "Side effects: writes to OmniFocus; invalidates project + review caches; sets syncPending = true. " +
+  'Example: project_set_next_review_date({ projectId: "prj123", nextReviewDate: "2026-05-05" }) ' +
+  'Example: project_set_next_review_date({ projectId: "prj123", nextReviewDate: null })';
 
 export const projectSetNextReviewDateInputSchema = z.object({
   projectId: z

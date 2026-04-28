@@ -34,7 +34,9 @@ export const EXPORT_TASKPAPER_DESCRIPTION =
   "Lossiness warnings are returned in meta.warnings. " +
   "Do NOT use to import data; prefer import_taskpaper for that. " +
   "Returns { taskpaper, projectCount, taskCount }. " +
-  "Safe to call repeatedly; no side effects.";
+  "Safe to call repeatedly; no side effects. " +
+  'Example: export_taskpaper({ scope: "project", id: "abc123" }) ' +
+  'Example: export_taskpaper({ scope: "all" })';
 
 export const IMPORT_TASKPAPER_DESCRIPTION =
   "Import tasks from TaskPaper text into OmniFocus. " +
@@ -45,7 +47,8 @@ export const IMPORT_TASKPAPER_DESCRIPTION =
   "Unknown @tags are created automatically. " +
   "Do NOT use to export data; prefer export_taskpaper for that. " +
   "Returns { created: TaskId[], warnings: string[] }. " +
-  "Writes to OmniFocus; call sync_trigger to propagate changes to other devices.";
+  "Writes to OmniFocus; call sync_trigger to propagate changes to other devices. " +
+  'Example: import_taskpaper({ text: "- Buy milk @errands\\n- Call dentist @due(2026-05-01)" })';
 
 // ---------------------------------------------------------------------------
 // Input schemas

@@ -39,7 +39,8 @@ export const TASK_GET_MANY_DESCRIPTION =
   "Do NOT use for a single ID — use task_get instead. " +
   "Do NOT use when you only have names — use task_find_by_name. " +
   "Returns Task[] in input order. Missing IDs are omitted and appear in meta.warnings. " +
-  "Read-only; safe to retry.";
+  "Read-only; safe to retry. " +
+  'Example: task_get_many({ ids: ["abc123", "abc456"] })';
 
 // ---------------------------------------------------------------------------
 // Constants

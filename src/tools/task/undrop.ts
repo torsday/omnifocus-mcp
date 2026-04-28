@@ -22,7 +22,8 @@ export const TASK_UNDROP_DESCRIPTION =
   "Idempotent: returns noChange: true if the task is not dropped. " +
   "Do not use to complete a task. " +
   "Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. " +
-  "Side effects: clears droppedAt, sets meta.syncPending = true.";
+  "Side effects: clears droppedAt, sets meta.syncPending = true." +
+  'Example: task_undrop({ id: "abc123" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

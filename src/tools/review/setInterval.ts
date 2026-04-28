@@ -20,7 +20,9 @@ export const REVIEW_SET_INTERVAL_DESCRIPTION =
   "Use null to remove the recurring schedule. " +
   "Do not use to mark a project as reviewed; prefer review_mark_reviewed for that. " +
   "Returns the project id. " +
-  "Side effects: writes to OmniFocus; sets syncPending = true.";
+  "Side effects: writes to OmniFocus; sets syncPending = true. " +
+  'Example: review_set_interval({ id: "prj123", days: 7 }) ' +
+  'Example: review_set_interval({ id: "prj123", days: null })';
 
 // ---------------------------------------------------------------------------
 // Input schema

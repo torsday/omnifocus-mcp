@@ -27,7 +27,9 @@ export const FORECAST_SET_TAG_DESCRIPTION =
   "Returns { tagId: string | null, name: string | null } echoing what was applied — name is paired with the tag id so the agent can describe the change without a follow-up tag_get. " +
   "Errors: NOT_FOUND when the supplied tagId does not exist. " +
   "Side effects: mutation; invalidates the forecast read cache. " +
-  "Backed by OmniJS Database.forecastTag.";
+  "Backed by OmniJS Database.forecastTag. " +
+  'Example: forecast_set_tag({ tagId: "tag123" }) ' +
+  "Example: forecast_set_tag({ tagId: null })";
 
 export const forecastSetTagInputSchema = z.object({
   tagId: z

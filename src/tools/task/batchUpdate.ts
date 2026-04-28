@@ -29,7 +29,8 @@ export const TASK_BATCH_UPDATE_DESCRIPTION =
   "idempotency_key) are not supported in batch form; fall back to task_update for those. " +
   "Returns { updated: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — name reflects the post-patch name (uses patch.name when supplied, otherwise the existing name). " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
-  "Call sync_trigger when you need changes to appear on other devices.";
+  "Call sync_trigger when you need changes to appear on other devices. " +
+  'Example: task_batch_update({ items: [{ id: "abc123", patch: { flagged: true } }, { id: "abc456", patch: { dueDate: "2026-05-01T00:00:00Z" } }] })';
 
 const patchSchema = z
   .object({

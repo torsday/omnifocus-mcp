@@ -31,7 +31,9 @@ export const TASK_SET_REPETITION_DESCRIPTION =
   "Set the repetition rule on an OmniFocus task. " +
   "Overwrites any existing rule. Use task_clear_repetition to remove a rule entirely. " +
   "Returns the updated task ID; call task_get for the full object. " +
-  "Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.";
+  "Mutations do not sync automatically — call sync_trigger if cross-device visibility matters. " +
+  'Example: task_set_repetition({ id: "abc123", rule: { method: "fixed", unit: "days", steps: 7 } }) ' +
+  'Example: task_set_repetition({ id: "abc123", rule: { method: "start-again", unit: "weeks", steps: 1 } })';
 
 // ---------------------------------------------------------------------------
 // Input schema

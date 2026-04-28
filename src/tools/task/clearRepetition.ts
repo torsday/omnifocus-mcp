@@ -25,7 +25,8 @@ export const TASK_CLEAR_REPETITION_DESCRIPTION =
   "After clearing, the task becomes a one-time item. " +
   "Use task_set_repetition to set or change a rule. " +
   "Returns the updated task with repetitionRule confirmed as null. " +
-  "Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.";
+  "Mutations do not sync automatically — call sync_trigger if cross-device visibility matters. " +
+  'Example: task_clear_repetition({ id: "abc123" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

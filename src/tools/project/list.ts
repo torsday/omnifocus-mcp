@@ -25,7 +25,9 @@ export const PROJECT_LIST_DESCRIPTION =
   "Use for queries across projects. " +
   "Do NOT use for a known single project (use project_get). " +
   "Filters: folderId, status, flagged, reviewDueBefore. " +
-  "Returns projects[] with pagination; safe to call repeatedly; no side effects.";
+  "Returns projects[] with pagination; safe to call repeatedly; no side effects. " +
+  "Example: project_list({}) " +
+  'Example: project_list({ status: "active", folderId: "fld123" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

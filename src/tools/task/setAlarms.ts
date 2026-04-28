@@ -42,7 +42,9 @@ export const TASK_SET_ALARMS_DESCRIPTION =
   "or the call returns a VALIDATION error. " +
   "Use task_clear_alarms to remove all alarms with no payload. " +
   "Returns the updated task. " +
-  "Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.";
+  "Mutations do not sync automatically — call sync_trigger if cross-device visibility matters. " +
+  'Example: task_set_alarms({ id: "abc123", alarms: [{ kind: "due-relative", offsetSeconds: 3600 }] }) ' +
+  'Example: task_set_alarms({ id: "abc123", alarms: [{ kind: "absolute", fireAt: "2026-05-01T09:00:00Z" }] })';
 
 // ---------------------------------------------------------------------------
 // Input schema

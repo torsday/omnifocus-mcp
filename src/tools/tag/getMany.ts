@@ -22,7 +22,8 @@ export const TAG_GET_MANY_DESCRIPTION =
   "Use when you have a set of tag IDs and need full tag objects for all of them. " +
   "Do NOT use for a single ID — use tag_get instead. " +
   "Returns Tag[] in input order. Missing IDs are omitted and appear in meta.warnings. " +
-  "Read-only; safe to retry.";
+  "Read-only; safe to retry. " +
+  'Example: tag_get_many({ ids: ["tag123", "tag456"] })';
 
 // ---------------------------------------------------------------------------
 // Constants

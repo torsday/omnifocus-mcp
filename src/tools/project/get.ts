@@ -24,7 +24,9 @@ export const PROJECT_GET_DESCRIPTION =
   "Fetch a single OmniFocus project by persistent ID. " +
   "Do NOT use for queries across projects — use project_list. " +
   "When includeTaskTree=true (default), the project's flat task list is attached. " +
-  "Returns { project, tasks? }; safe to call repeatedly; no side effects.";
+  "Returns { project, tasks? }; safe to call repeatedly; no side effects. " +
+  'Example: project_get({ id: "prj123" }) ' +
+  'Example: project_get({ id: "prj123", includeTaskTree: false })';
 
 // ---------------------------------------------------------------------------
 // Input schema

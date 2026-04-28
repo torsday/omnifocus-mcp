@@ -24,7 +24,8 @@ export const APP_LAUNCH_DESCRIPTION =
   "Safe to call when OmniFocus is already running (idempotent). " +
   "Returns { launched, alreadyRunning } — launched=true means OmniFocus was not running and " +
   "was started; alreadyRunning=true means it was already open. " +
-  "Side effects: may open OmniFocus and bring it to the foreground.";
+  "Side effects: may open OmniFocus and bring it to the foreground. " +
+  "Example: app_launch()";
 
 // ---------------------------------------------------------------------------
 // Input schema

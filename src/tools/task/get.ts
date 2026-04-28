@@ -21,7 +21,8 @@ export const TASK_GET_DESCRIPTION =
   "Use when you have a known task ID and need its full detail. " +
   "Do NOT use for multiple IDs — use task_get_many instead. " +
   "Returns the Task object plus its direct subtasks (when includeSubtasks=true, the default). " +
-  "Read-only; safe to retry.";
+  "Read-only; safe to retry. " +
+  'Example: task_get({ id: "abc123" })';
 
 export const taskGetInputSchema = z.object({
   id: TaskId.schema.describe(

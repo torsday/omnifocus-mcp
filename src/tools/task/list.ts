@@ -37,7 +37,10 @@ export const TASK_LIST_DESCRIPTION =
   "Do NOT use for a known single task (use task_get). " +
   "For name-based lookup, prefer task_find_by_name. " +
   "For full-text content search across names and notes, prefer search_query. " +
-  "Returns tasks[] with pagination; safe to call repeatedly; no side effects.";
+  "Returns tasks[] with pagination; safe to call repeatedly; no side effects. " +
+  "Example: task_list({ inbox: true }) " +
+  'Example: task_list({ projectId: "prj123", flagged: true }) ' +
+  'Example: task_list({ dueBefore: "2026-05-01T00:00:00Z", completed: "exclude" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

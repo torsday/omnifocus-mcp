@@ -32,7 +32,9 @@ export const TASK_MOVE_DESCRIPTION =
   "prefer task_update when you only need to change editable fields, not reparent. " +
   "Idempotent: returns noChange: true when the task is already at the destination. " +
   "Returns { moved: true, id, from, to } or { noChange: true, id, at }. " +
-  "Side effects: reparents the task in OmniFocus, sets meta.syncPending = true.";
+  "Side effects: reparents the task in OmniFocus, sets meta.syncPending = true. " +
+  'Example: task_move({ id: "abc123", projectId: "prj456" }) ' +
+  'Example: task_move({ id: "abc123", parentId: "tsk789" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

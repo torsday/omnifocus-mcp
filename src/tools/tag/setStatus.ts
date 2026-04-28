@@ -19,7 +19,9 @@ export const TAG_SET_STATUS_DESCRIPTION =
   "Do not use to permanently remove a tag; prefer tag_delete instead. " +
   "Get the tag ID from tag_list. " +
   "Returns the updated tag with the confirmed status. " +
-  "Triggers a sync; call sync_trigger after to propagate to other devices.";
+  "Triggers a sync; call sync_trigger after to propagate to other devices. " +
+  'Example: tag_set_status({ id: "tag123", status: "on-hold" }) ' +
+  'Example: tag_set_status({ id: "tag123", status: "active" })';
 
 export const tagSetStatusInputSchema = z.object({
   id: TagId.schema.describe("Persistent tag ID. Get from tag_list."),

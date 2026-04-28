@@ -47,7 +47,8 @@ export const TASK_BATCH_ASSIGN_DESCRIPTION =
   "Prefer task_batch_assign over a sequence of single task_update calls when you have a confirmed " +
   "triage plan for multiple tasks. " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
-  "Call sync_trigger when you need changes to appear on other devices.";
+  "Call sync_trigger when you need changes to appear on other devices. " +
+  'Example: task_batch_assign({ assignments: [{ taskId: "abc123", projectId: "prj456", flagged: true }, { taskId: "abc789", addTagIds: ["tag1"] }] })';
 
 // ---------------------------------------------------------------------------
 // Input schema

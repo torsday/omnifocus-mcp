@@ -39,7 +39,9 @@ export const TASK_CONVERT_TO_PROJECT_DESCRIPTION =
   "reparenting; use project_create when starting from scratch. " +
   "Returns { converted: true, projectId, taskId, name } — name is the task name (carried over to the new project) so the agent can describe the conversion without a follow-up read. " +
   "Side effects: removes the task from the task list and adds a project; " +
-  "sets meta.syncPending = true.";
+  "sets meta.syncPending = true. " +
+  'Example: task_convert_to_project({ id: "abc123" }) ' +
+  'Example: task_convert_to_project({ id: "abc123", folderId: "fld456" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

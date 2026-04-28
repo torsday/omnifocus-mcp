@@ -31,7 +31,9 @@ export const TASK_FIND_BY_NAME_DESCRIPTION =
   "Names collide in OmniFocus; prefer task_get with an ID when you have one. " +
   "Use search_query instead when you need to search task notes as well, or want full-text content search. " +
   "Zero matches returns an empty array — not an error. " +
-  "Returns tasks[]; safe to call repeatedly; no side effects.";
+  "Returns tasks[]; safe to call repeatedly; no side effects. " +
+  'Example: task_find_by_name({ name: "Buy milk" }) ' +
+  'Example: task_find_by_name({ name: "report", matchMode: "contains" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

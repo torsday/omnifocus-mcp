@@ -28,7 +28,8 @@ export const TASK_BATCH_UNCOMPLETE_DESCRIPTION =
   "Each item is { id }. " +
   "Returns { uncompleted: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each restoration without a follow-up read. " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
-  "Call sync_trigger when you need changes to appear on other devices.";
+  "Call sync_trigger when you need changes to appear on other devices. " +
+  'Example: task_batch_uncomplete({ items: [{ id: "abc123" }, { id: "abc456" }] })';
 
 const singleItemSchema = z.object({
   id: TaskId.schema.describe("Persistent task ID."),

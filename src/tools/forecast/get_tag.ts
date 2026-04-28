@@ -20,7 +20,8 @@ export const FORECAST_GET_TAG_DESCRIPTION =
   "Do NOT use to list tags in general — prefer tag_list. " +
   "Takes no arguments. " +
   "Returns { tagId: string | null, name: string | null } — name is the tag's display name (or null when tagId is null or the tag has been deleted) so the agent can describe the forecast tag without a follow-up tag_get. " +
-  "Read-only; no side effects; safe to retry. Backed by OmniJS Database.forecastTag.";
+  "Read-only; no side effects; safe to retry. Backed by OmniJS Database.forecastTag." +
+  "Example: forecast_get_tag()";
 
 export const forecastGetTagInputSchema = z.object({});
 

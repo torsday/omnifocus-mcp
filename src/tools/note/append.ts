@@ -33,7 +33,8 @@ export const NOTE_APPEND_DESCRIPTION =
   "Do not use to replace the note entirely; prefer note_set instead. " +
   "Returns { updated: true, id, targetKind, name, note } — name is the parent task/project's display name (captured from the same read that fetched the existing note) so the agent can describe the change without a follow-up read; note is the full content after appending. " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
-  "Call sync_trigger when you need the change to appear on other devices.";
+  "Call sync_trigger when you need the change to appear on other devices. " +
+  'Example: note_append({ targetKind: "task", id: "abc123", text: "Follow up next week" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

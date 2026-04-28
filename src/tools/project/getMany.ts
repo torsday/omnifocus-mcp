@@ -35,7 +35,8 @@ export const PROJECT_GET_MANY_DESCRIPTION =
   "Use when you have a set of project IDs and need full project objects for all of them. " +
   "Do NOT use for a single ID — use project_get instead. " +
   "Returns Project[] in input order. Missing IDs are omitted and appear in meta.warnings. " +
-  "Read-only; safe to retry.";
+  "Read-only; safe to retry. " +
+  'Example: project_get_many({ ids: ["prj123", "prj456"] })';
 
 // ---------------------------------------------------------------------------
 // Constants

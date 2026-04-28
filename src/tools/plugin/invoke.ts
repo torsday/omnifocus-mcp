@@ -28,7 +28,9 @@ export const PLUGIN_INVOKE_DESCRIPTION =
   "`arg` is an optional JSON-serialisable value passed to the plug-in action as Action.args[0]. " +
   "Returns { result } where result is the plug-in's return value (arbitrary JSON). " +
   "Throws NotFound if the plug-in is not installed. " +
-  "Side effects: plug-in may mutate OmniFocus data; call sync_trigger if you need changes on other devices.";
+  "Side effects: plug-in may mutate OmniFocus data; call sync_trigger if you need changes on other devices. " +
+  'Example: plugin_invoke({ identifier: "com.example.my-plugin" }) ' +
+  'Example: plugin_invoke({ identifier: "com.example.my-plugin", arg: { mode: "export" } })';
 
 // ---------------------------------------------------------------------------
 // Input schema

@@ -46,7 +46,9 @@ export const REPETITION_FROM_PROSE_DESCRIPTION =
   "Do NOT use this tool when the agent already has a structured RepetitionRule from " +
   "another source — call task_set_repetition directly instead. Prefer this helper over " +
   "ad-hoc LLM translation whenever the user's repetition phrasing is the only signal. " +
-  "No model calls; no side effects. Use with task_set_repetition or task_create.";
+  "No model calls; no side effects. Use with task_set_repetition or task_create. " +
+  'Example: repetition_from_prose({ prose: "every Monday" }) ' +
+  'Example: repetition_from_prose({ prose: "every 3 days after I complete it" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

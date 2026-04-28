@@ -16,7 +16,9 @@ export const FOLDER_LIST_DESCRIPTION =
   "Do not use to fetch a single folder by ID; prefer folder_get instead. " +
   "Returns a flat array with projectCount and subfolderCount per folder. " +
   "Use parentId to walk the hierarchy one level at a time. " +
-  "Safe to call repeatedly; no side effects.";
+  "Safe to call repeatedly; no side effects. " +
+  "Example: folder_list({}) " +
+  'Example: folder_list({ parentId: "fld123" })';
 
 export const folderListInputSchema = z.object({
   parentId: FolderId.schema

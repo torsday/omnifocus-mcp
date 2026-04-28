@@ -22,7 +22,8 @@ export const TASK_UNCOMPLETE_DESCRIPTION =
   "Idempotent: returns noChange: true if the task is already incomplete. " +
   "Do not use to drop or delete a task. " +
   "Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. " +
-  "Side effects: clears completedAt, sets meta.syncPending = true.";
+  "Side effects: clears completedAt, sets meta.syncPending = true." +
+  'Example: task_uncomplete({ id: "abc123" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

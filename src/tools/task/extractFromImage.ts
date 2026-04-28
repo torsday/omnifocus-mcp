@@ -103,7 +103,8 @@ export const TASK_EXTRACT_FROM_IMAGE_DESCRIPTION =
   "Path-mode: PNG/JPEG/HEIC/HEIF/GIF/WEBP/PDF; respects attachment-path-scope + size cap. " +
   "Do NOT use when you already have structured tasks — call task_batch_create. " +
   "Returns { phase, proposed?, parent?, created?, outcome? }. " +
-  "Side effects: dryRun=false creates tasks; call sync_trigger for cross-device.";
+  "Side effects: dryRun=false creates tasks; call sync_trigger for cross-device. " +
+  'Example: task_extract_from_image({ source: { kind: "path", path: "/tmp/whiteboard.png" }, proposed: [{ name: "Follow up with Alice" }], dryRun: true })';
 
 // ---------------------------------------------------------------------------
 // Input schema

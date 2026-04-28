@@ -47,7 +47,9 @@ export const PROJECT_UPDATE_DESCRIPTION =
   "pass idempotency_key to coalesce retries so the same update is only performed once. " +
   "Returns { updated: true, id, name } — name reflects the post-patch name. " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
-  "Call sync_trigger when you need changes to appear on other devices.";
+  "Call sync_trigger when you need changes to appear on other devices. " +
+  'Example: project_update({ id: "prj123", name: "New Name", flagged: true }) ' +
+  'Example: project_update({ id: "prj123", status: "on-hold", dry_run: true })';
 
 // ---------------------------------------------------------------------------
 // Input schema

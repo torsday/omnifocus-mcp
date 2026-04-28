@@ -55,7 +55,8 @@ export const TASK_EXTRACT_FROM_NOTE_DESCRIPTION =
   "Do NOT use this tool when you already have structured tasks — call task_batch_create " +
   "directly instead. Prefer this helper when the input is a wall-of-text note that needs splitting. " +
   "Side effects: dryRun=true is read-only; dryRun=false creates tasks in the target project. " +
-  "Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.";
+  "Mutations do not sync automatically — call sync_trigger if cross-device visibility matters. " +
+  'Example: task_extract_from_note({ source: { kind: "task", id: "abc123" }, dryRun: true })';
 
 // ---------------------------------------------------------------------------
 // Input schema

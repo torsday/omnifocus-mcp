@@ -34,7 +34,9 @@ export const FORECAST_GET_DESCRIPTION =
   "or use from/to for exact ISO-8601 ranges. " +
   "All include flags default to true; set to false to omit a category. " +
   "When days > 1, response also includes byDate[] grouping tasks per calendar day. " +
-  "Returns { overdue[], dueToday[], deferredToday[], flagged[], byDate? }; safe to call repeatedly; no side effects.";
+  "Returns { overdue[], dueToday[], deferredToday[], flagged[], byDate? }; safe to call repeatedly; no side effects. " +
+  'Example: forecast_get({ date: "today" }) ' +
+  'Example: forecast_get({ date: "today", days: 3, includeFlagged: false })';
 
 // ---------------------------------------------------------------------------
 // Input schema

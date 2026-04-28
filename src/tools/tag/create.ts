@@ -18,7 +18,9 @@ export const TAG_CREATE_DESCRIPTION =
   "Optionally nest it under an existing parent tag (get IDs from tag_list). " +
   "Do not use to move an existing tag; prefer tag_move instead. " +
   "Returns the new tag's persistent ID. " +
-  "Triggers a sync; call sync_trigger after to propagate to other devices.";
+  "Triggers a sync; call sync_trigger after to propagate to other devices. " +
+  'Example: tag_create({ name: "errands" }) ' +
+  'Example: tag_create({ name: "home", parentId: "tag123" })';
 
 export const tagCreateInputSchema = z.object({
   name: z.string().min(1).describe("Tag name. Must be non-empty."),

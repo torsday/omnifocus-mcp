@@ -21,7 +21,8 @@ export const TASK_PARSE_TRANSPORT_TEXT_DESCRIPTION =
   "Do not use this tool to create tasks; pass the returned tasks[] to task_create separately. " +
   "Returns tasks[] with name, tagNames, dueDate, deferDate, flagged, note, and projectName fields, plus count and an optional warnings[] for unparseable dates. " +
   "Tag names and project names are raw strings — resolve to IDs with tag_list before passing to task_create. " +
-  "Read-only; no side effects.";
+  "Read-only; no side effects. " +
+  'Example: task_parse_transport_text({ text: "Buy milk @errands !!\\nWrite report #2026-05-01" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

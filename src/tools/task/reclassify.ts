@@ -50,7 +50,9 @@ export const TASK_RECLASSIFY_DESCRIPTION =
   "Prefer task_reclassify whenever the targets are described by a rule rather than a list, so the dry-run " +
   "diff surfaces to the user before any write. " +
   "Side effects (apply phase only): writes to OmniFocus, sets meta.syncPending = true. " +
-  "Call sync_trigger when you need changes to appear on other devices.";
+  "Call sync_trigger when you need changes to appear on other devices. " +
+  'Example: task_reclassify({ predicate: { kind: "tag", tagId: "tag123" }, changes: { setFlagged: true }, dryRun: true }) ' +
+  'Example: task_reclassify({ predicate: { kind: "tag", tagId: "tag123" }, changes: { setFlagged: true }, dryRun: false, confirmation: "3" })';
 
 // ---------------------------------------------------------------------------
 // Constants

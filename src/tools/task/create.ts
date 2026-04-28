@@ -47,7 +47,9 @@ export const TASK_CREATE_DESCRIPTION =
   "instead of creating a duplicate task. " +
   "Returns { id, name } — name echoes the supplied name so the agent can describe the new task without a follow-up read. " +
   "Side effects: creates a task in OmniFocus, sets meta.syncPending = true. " +
-  "Call sync_trigger when you need the task to appear on other devices.";
+  "Call sync_trigger when you need the task to appear on other devices. " +
+  'Example: task_create({ name: "Buy milk" }) ' +
+  'Example: task_create({ name: "Write report", projectId: "prj123", dueDate: "2026-05-01T00:00:00Z" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

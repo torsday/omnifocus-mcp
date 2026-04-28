@@ -41,7 +41,9 @@ export const TASK_SEARCH_DESCRIPTION =
   "available, dueBefore, dueAfter, flagged, and completed. " +
   "At least one of q, projectId, tagIds, available, dueBefore, or dueAfter must be provided. " +
   "Do NOT use when you already have an ID — prefer task_get instead. " +
-  "Returns tasks[] with pagination (limit defaults to 100, max 500); safe to call repeatedly; no side effects.";
+  "Returns tasks[] with pagination (limit defaults to 100, max 500); safe to call repeatedly; no side effects. " +
+  'Example: task_search({ q: "dentist" }) ' +
+  'Example: task_search({ tagIds: ["tag123"], available: true, dueBefore: "2026-05-01T00:00:00Z" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

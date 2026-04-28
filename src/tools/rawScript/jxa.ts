@@ -38,7 +38,8 @@ export const RUN_JXA_SCRIPT_DESCRIPTION =
   "(defaults to `{}`). " +
   "Returns { result } where result is the parsed JSON output of the script (arbitrary shape). " +
   "Side effects: may mutate, delete, or exfiltrate any OmniFocus data the user has access to. " +
-  "Use sync_trigger separately if the script mutated data and you need it to propagate.";
+  "Use sync_trigger separately if the script mutated data and you need it to propagate. " +
+  "Example: run_jxa_script({ script: \"function run(argv) { return JSON.stringify(Application('OmniFocus').version()); }\" })";
 
 // ---------------------------------------------------------------------------
 // Input schema

@@ -25,7 +25,9 @@ export const TASK_COMPLETE_DESCRIPTION =
   "Idempotent: returns noChange: true if the task is already completed. " +
   "Do not use to drop or delete a task. " +
   "Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. " +
-  "Side effects: sets completedAt, sets meta.syncPending = true.";
+  "Side effects: sets completedAt, sets meta.syncPending = true. " +
+  'Example: task_complete({ id: "abc123" }) ' +
+  'Example: task_complete({ id: "abc123", at: "2026-05-01T09:00:00Z" })';
 
 // ---------------------------------------------------------------------------
 // Input schema

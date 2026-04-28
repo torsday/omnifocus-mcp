@@ -41,7 +41,9 @@ export const PROJECT_CREATE_DESCRIPTION =
   "instead of creating a duplicate project. " +
   "Returns { created: true, id }. " +
   "Side effects: creates a project in OmniFocus, sets meta.syncPending = true. " +
-  "Call sync_trigger when you need the project to appear on other devices.";
+  "Call sync_trigger when you need the project to appear on other devices. " +
+  'Example: project_create({ name: "Website Redesign" }) ' +
+  'Example: project_create({ name: "Q3 Planning", folderId: "fld123", flagged: true })';
 
 // ---------------------------------------------------------------------------
 // Input schema

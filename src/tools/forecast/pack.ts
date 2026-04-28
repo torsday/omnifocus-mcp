@@ -33,7 +33,9 @@ export const FORECAST_PACK_DESCRIPTION =
   "Pass budgetMinutes (1–1440) and optional filter { tagIds?, scope? }; scope is 'today' (default) or 'next7'. " +
   "Returns { selected[], totalMinutes, skipped[] }. selected[] are the picks in execution order (flagged first, then dueDate ascending, then stable by ID). " +
   "skipped[] surfaces tasks the agent should ask the user about: { reason: 'no-estimate' } means the task has no estimatedMinutes so couldn't be packed; { reason: 'exceeds-budget' } means it would have fit individually but was bumped by earlier higher-priority picks. " +
-  "Read-only; no side effects; safe to retry. Pack algorithm is greedy — predictable and explainable beats optimal-by-1-minute.";
+  "Read-only; no side effects; safe to retry. Pack algorithm is greedy — predictable and explainable beats optimal-by-1-minute. " +
+  "Example: forecast_pack({ budgetMinutes: 120 }) " +
+  'Example: forecast_pack({ budgetMinutes: 240, filter: { tagIds: ["tag123"], scope: "today" } })';
 
 // ---------------------------------------------------------------------------
 // Input schema

@@ -28,7 +28,8 @@ export const INTERNAL_STATUS_DESCRIPTION =
   "uptimeMs is the milliseconds since the server process started. " +
   "circuits lists each circuit-breaker name and state (closed/open/half_open). " +
   "lastSync mirrors sync_status data; null if getLastSync throws. " +
-  "Read-only; no side effects.";
+  "Read-only; no side effects. " +
+  "Example: internal_status()";
 
 // ---------------------------------------------------------------------------
 // Input schema

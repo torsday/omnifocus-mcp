@@ -37,7 +37,8 @@ export const WINDOW_GET_STATE_DESCRIPTION =
   "Takes no arguments. " +
   "Returns { perspectiveName: string | null, focusContainerIds: string[] } — perspectiveName is null when no perspective is bound; focusContainerIds is [] when the window isn't focused on a project or folder. " +
   "Errors: OF_WINDOW_UNAVAILABLE when OmniFocus has no front window. " +
-  "Read-only; safe to retry.";
+  "Read-only; safe to retry. " +
+  "Example: window_get_state()";
 
 export const windowGetStateInputSchema = z.object({});
 export type WindowGetStateToolInput = z.infer<typeof windowGetStateInputSchema>;
@@ -73,7 +74,8 @@ export const WINDOW_SET_PERSPECTIVE_DESCRIPTION =
   "Pass perspectiveName (case-sensitive, matches OF's UX). Built-in names: Inbox, Projects, Tags, Forecast, Flagged, Review, Nearby, Completed, Changed. " +
   "Returns { perspectiveName }. " +
   "Errors: OF_WINDOW_UNAVAILABLE (no front window), OF_NOT_FOUND (no perspective with this name). " +
-  "Side effects: changes the user's visible window state; no data caches invalidated.";
+  "Side effects: changes the user's visible window state; no data caches invalidated. " +
+  'Example: window_set_perspective({ perspectiveName: "Flagged" })';
 
 export const windowSetPerspectiveInputSchema = z.object({
   perspectiveName: z
@@ -117,7 +119,9 @@ export const WINDOW_SET_FOCUS_DESCRIPTION =
   "Pass containerId (a ProjectId or FolderId) to focus, or null to clear focus. " +
   "Returns { focusContainerIds: string[] } — single-element array when focused, [] when cleared. " +
   "Errors: OF_WINDOW_UNAVAILABLE (no front window), OF_NOT_FOUND (containerId is neither a project nor a folder). " +
-  "Side effects: changes the user's visible window state; no data caches invalidated.";
+  "Side effects: changes the user's visible window state; no data caches invalidated. " +
+  'Example: window_set_focus({ containerId: "prj123" }) ' +
+  "Example: window_set_focus({ containerId: null })";
 
 export const windowSetFocusInputSchema = z.object({
   containerId: z
@@ -154,7 +158,8 @@ export const APP_WINDOW_NEW_DESCRIPTION =
   "Takes no arguments. " +
   "Returns { perspectiveName: string | null, focusContainerIds: string[] } describing the new window's initial state. " +
   "Errors: WINDOW_OPEN_FAILED when the window could not be created. " +
-  "Side effects: opens a new OmniFocus window; no data caches invalidated.";
+  "Side effects: opens a new OmniFocus window; no data caches invalidated. " +
+  "Example: app_window_new()";
 
 export const appWindowNewInputSchema = z.object({});
 export type AppWindowNewToolInput = z.infer<typeof appWindowNewInputSchema>;
@@ -187,7 +192,8 @@ export const APP_WINDOW_NEW_TAB_DESCRIPTION =
   "Takes no arguments. " +
   "Returns { perspectiveName: string | null, focusContainerIds: string[] } describing the new tab's initial state. " +
   "Errors: WINDOW_UNAVAILABLE when there is no open OmniFocus window; WINDOW_OPEN_FAILED when the tab could not be created. " +
-  "Side effects: opens a new tab in the front OmniFocus window; no data caches invalidated.";
+  "Side effects: opens a new tab in the front OmniFocus window; no data caches invalidated. " +
+  "Example: app_window_new_tab()";
 
 export const appWindowNewTabInputSchema = z.object({});
 export type AppWindowNewTabToolInput = z.infer<typeof appWindowNewTabInputSchema>;
