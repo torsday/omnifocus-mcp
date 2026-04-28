@@ -68,9 +68,19 @@ const assignmentSchema = z
       .array(TagId.schema)
       .optional()
       .describe("Tag IDs to remove. Wins over addTagIds when the same ID appears in both."),
-    deferDate: z.string().datetime({ offset: true }).nullable().optional(),
-    dueDate: z.string().datetime({ offset: true }).nullable().optional(),
-    flagged: z.boolean().optional(),
+    deferDate: z
+      .string()
+      .datetime({ offset: true })
+      .nullable()
+      .optional()
+      .describe("Defer date as ISO-8601 with offset. Null clears the date."),
+    dueDate: z
+      .string()
+      .datetime({ offset: true })
+      .nullable()
+      .optional()
+      .describe("Due date as ISO-8601 with offset. Null clears the date."),
+    flagged: z.boolean().optional().describe("Flag or unflag the task."),
   })
   .refine(
     (a) =>
