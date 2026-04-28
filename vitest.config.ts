@@ -29,6 +29,7 @@ export default defineConfig({
       "tests/integration/**/*.test.ts",
       "tests/perf/**/*.perf.test.ts",
       "tests/e2e/**/*.test.ts",
+      "tests/scripts/**/*.test.ts",
       "src/**/*.test.ts",
     ],
     exclude: ["node_modules", "dist"],
