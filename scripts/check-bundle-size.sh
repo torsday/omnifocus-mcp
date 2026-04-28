@@ -20,12 +20,14 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 BUNDLE="dist/index.js"
-# 610 KiB. Bumped 580 → 610 KiB on 2026-04-28 alongside #570 because the
-# Example: sweep (~95 description strings each gaining an example line)
-# added ~7 KiB of string literals that pushed past the 580 KiB ceiling.
-# Previously 580 KiB (540 → 580 on 2026-04-28 alongside #494); originally
-# 500 KiB. Keep in sync with DESIGN §20.
-BUDGET=624640
+# 625 KiB. Bumped 610 → 625 KiB on 2026-04-28 alongside #577 because the
+# perspective_create + perspective_update pair (slices B/C of the
+# custom-perspective CRUD work) added ~12 KiB: two OmniJS scripts inlined
+# verbatim, an input rule schema with refinements, and two tools whose
+# descriptions document the patch semantics. Previously 610 KiB on
+# 2026-04-28 alongside #570 (Example: sweep, ~7 KiB of strings); 580 KiB
+# alongside #494; 540, 525, originally 500 KiB. Keep in sync with DESIGN §20.
+BUDGET=640000
 
 if [ ! -f "$BUNDLE" ]; then
   echo "::error::$BUNDLE not found — run 'pnpm build' first." >&2
@@ -33,9 +35,9 @@ if [ ! -f "$BUNDLE" ]; then
 fi
 
 SIZE=$(wc -c < "$BUNDLE" | tr -d ' ')
-echo "$BUNDLE: ${SIZE} bytes (budget: ${BUDGET} bytes / 610 KiB)"
+echo "$BUNDLE: ${SIZE} bytes (budget: ${BUDGET} bytes / 625 KiB)"
 
 if [ "$SIZE" -gt "$BUDGET" ]; then
-  echo "::error::bundle exceeds 610 KiB budget (${SIZE} > ${BUDGET})" >&2
+  echo "::error::bundle exceeds 625 KiB budget (${SIZE} > ${BUDGET})" >&2
   exit 1
 fi
