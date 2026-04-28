@@ -836,7 +836,7 @@ Coverage is not enforced because it's gameable. Test *fidelity* is enforced at r
 - `pnpm lint` — zero errors; biome config enforces `coding.md` standards
 - `pnpm test` — zero failures; execution < 10s
 - `pnpm build` — single-file bundle emitted to `dist/index.js`
-- Bundle size budget: < 610 KiB (tsup --minify); above that blocks release. Bumped 500 → 525 → 540 → 580 → 610 KiB as the tool surface grew — per-tool string and Zod-schema overhead became the dominant bundle cost. The 580 → 610 bump landed alongside [#570](https://github.com/torsday/omnifocus-mcp/issues/570) (Example: sweep added ~7 KiB of description strings). Further bumps should NOT be flat increases: [#578](https://github.com/torsday/omnifocus-mcp/issues/578) tracks the tree-shaking / code-splitting investigation that should replace the next bump.
+- Bundle size budget: < 625 KiB (tsup --minify); above that blocks release. Bumped 500 → 525 → 540 → 580 → 610 → 625 KiB as the tool surface grew — per-tool string and Zod-schema overhead became the dominant bundle cost. The 610 → 625 bump landed alongside [#577](https://github.com/torsday/omnifocus-mcp/issues/577) (perspective_create + perspective_update added two OmniJS scripts inlined verbatim plus a recursive input rule schema). The 580 → 610 bump landed alongside [#570](https://github.com/torsday/omnifocus-mcp/issues/570) (Example: sweep added ~7 KiB of description strings). Further bumps should NOT be flat increases: [#578](https://github.com/torsday/omnifocus-mcp/issues/578) tracks the tree-shaking / code-splitting investigation that should replace the next bump.
 
 ---
 
