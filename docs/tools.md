@@ -3517,7 +3517,7 @@ _No parameters._
 
 ## task_complete
 
-Complete an OmniFocus task — marks it done with a completion timestamp. Accepts an optional ISO-8601 date for the completion time; defaults to now. Idempotent: returns noChange: true if the task is already completed. Do not use to drop or delete a task. Returns { done: true, id } or { noChange: true, id }. Side effects: sets completedAt, sets meta.syncPending = true.
+Complete an OmniFocus task — marks it done with a completion timestamp. Accepts an optional ISO-8601 date for the completion time; defaults to now. Idempotent: returns noChange: true if the task is already completed. Do not use to drop or delete a task. Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: sets completedAt, sets meta.syncPending = true.
 
 ### Input
 
@@ -3763,7 +3763,7 @@ _No parameters._
 
 ## task_drop
 
-Drop an OmniFocus task — marks it as dropped/deferred and removes it from active view. Reversible via task_undrop. Accepts an optional ISO-8601 date. Idempotent: returns noChange: true if already dropped. Do not use to complete or delete a task. Returns { done: true, id } or { noChange: true, id }. Side effects: sets droppedAt, sets meta.syncPending = true.
+Drop an OmniFocus task — marks it as dropped/deferred and removes it from active view. Reversible via task_undrop. Accepts an optional ISO-8601 date. Idempotent: returns noChange: true if already dropped. Do not use to complete or delete a task. Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: sets droppedAt, sets meta.syncPending = true.
 
 ### Input
 
@@ -4462,7 +4462,7 @@ _No parameters._
 
 ## task_uncomplete
 
-Mark an OmniFocus task as incomplete — removes its completion timestamp. Idempotent: returns noChange: true if the task is already incomplete. Do not use to drop or delete a task. Returns { done: true, id } or { noChange: true, id }. Side effects: clears completedAt, sets meta.syncPending = true.
+Mark an OmniFocus task as incomplete — removes its completion timestamp. Idempotent: returns noChange: true if the task is already incomplete. Do not use to drop or delete a task. Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: clears completedAt, sets meta.syncPending = true.
 
 ### Input
 
@@ -4495,7 +4495,7 @@ Mark an OmniFocus task as incomplete — removes its completion timestamp. Idemp
 
 ## task_undrop
 
-Restore a dropped OmniFocus task — clears its dropped status and returns it to the active view. Idempotent: returns noChange: true if the task is not dropped. Do not use to complete a task. Returns { done: true, id } or { noChange: true, id }. Side effects: clears droppedAt, sets meta.syncPending = true.
+Restore a dropped OmniFocus task — clears its dropped status and returns it to the active view. Idempotent: returns noChange: true if the task is not dropped. Do not use to complete a task. Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: clears droppedAt, sets meta.syncPending = true.
 
 ### Input
 

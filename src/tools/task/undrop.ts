@@ -21,7 +21,7 @@ export const TASK_UNDROP_DESCRIPTION =
   "Restore a dropped OmniFocus task — clears its dropped status and returns it to the active view. " +
   "Idempotent: returns noChange: true if the task is not dropped. " +
   "Do not use to complete a task. " +
-  "Returns { done: true, id } or { noChange: true, id }. " +
+  "Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. " +
   "Side effects: clears droppedAt, sets meta.syncPending = true.";
 
 // ---------------------------------------------------------------------------
@@ -47,14 +47,14 @@ export interface TaskUndropContext {
 export async function handleTaskUndrop(input: TaskUndropToolInput, ctx: TaskUndropContext) {
   const task = await ctx.adapter.getTask(input.id);
   if (task.dropped === false) {
-    return ok({ noChange: true as const, id: input.id }, ctx.makeMeta());
+    return ok({ noChange: true as const, id: input.id, name: task.name }, ctx.makeMeta());
   }
   await ctx.adapter.undropTask(input.id);
   if (ctx.cache !== undefined) {
     invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
   }
   return ok(
-    { done: true as const, id: input.id },
+    { done: true as const, id: input.id, name: task.name },
     ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryTaskUndrop(task.name) }),
   );
 }
