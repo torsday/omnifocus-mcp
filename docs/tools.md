@@ -2904,7 +2904,7 @@ Remove the repetition rule from an OmniFocus task. After clearing, the task beco
 
 ## task_clear_waiting_on
 
-Clear waiting-on tracking from an OmniFocus task. Strips the `waiting-on` fenced block from the task note (preserving any other user prose) and removes the configured @waiting tag from the task. Idempotent: returns noChange:true when the task has no waiting-on data. Do NOT use to delete the task or remove unrelated tags — prefer task_delete or task_update instead. Returns { id, cleared:true } or { id, noChange:true }. Side effects: writes tag + note; sets meta.syncPending = true.
+Clear waiting-on tracking from an OmniFocus task. Strips the `waiting-on` fenced block from the task note (preserving any other user prose) and removes the configured @waiting tag from the task. Idempotent: returns noChange:true when the task has no waiting-on data. Do NOT use to delete the task or remove unrelated tags — prefer task_delete or task_update instead. Returns { id, cleared:true } or { id, noChange:true }. Side effects: writes tag + note; sets meta.syncPending = true. Example: { "taskId": "abc123" }
 
 ### Input
 
@@ -3694,7 +3694,7 @@ Set the repetition rule on an OmniFocus task. Overwrites any existing rule. Use 
 
 ## task_set_waiting_on
 
-Record that an OmniFocus task is waiting on someone or something. Tags the task with the configured @waiting tag (creating the tag if absent) and writes a structured `waiting-on` fenced block to the top of the task note. The fence preserves any existing user prose in the note. Round-trips through task_get / task_get_many as a structured `waitingOn` field. Surfaces in the omnifocus://waiting-on resource sorted by days overdue. Use to systematize follow-ups; do NOT use for task completion or scheduling. Returns { id, waitingOn } with the persisted entry. Side effects: writes tag + note; sets meta.syncPending = true.
+Record that an OmniFocus task is waiting on someone or something. Tags the task with the configured @waiting tag (creating the tag if absent) and writes a structured `waiting-on` fenced block to the top of the task note. The fence preserves any existing user prose in the note. Round-trips through task_get / task_get_many as a structured `waitingOn` field. Surfaces in the omnifocus://waiting-on resource sorted by days overdue. Use to systematize follow-ups; do NOT use for task completion or scheduling. Returns { id, waitingOn } with the persisted entry. Side effects: writes tag + note; sets meta.syncPending = true. Example: { "taskId": "abc123", "whom": "Alex", "what": "design review", "followUpAfter": "2026-05-05T17:00:00Z" }
 
 ### Input
 
