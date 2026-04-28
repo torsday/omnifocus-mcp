@@ -83,7 +83,7 @@
       persp.iconColor = Color.RGB(iconColor.r, iconColor.g, iconColor.b, iconColor.a);
     }
   } catch (e) {
-    const msg = String(e && e.message ? e.message : e);
+    const msg = String(e?.message ? e.message : e);
     if (msg.toLowerCase().indexOf("already") >= 0 || msg.toLowerCase().indexOf("duplicate") >= 0) {
       return JSON.stringify({
         error: { code: "VALIDATION_ERROR", message: `Duplicate perspective name: ${name}` },

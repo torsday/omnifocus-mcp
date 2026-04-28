@@ -90,7 +90,7 @@
       });
     }
   } catch (e) {
-    const msg = String(e && e.message ? e.message : e);
+    const msg = String(e?.message ? e.message : e);
     // OmniFocus rejects duplicate names with a recognisable message; surface
     // as VALIDATION_ERROR so the agent can react accordingly.
     if (msg.toLowerCase().indexOf("already") >= 0 || msg.toLowerCase().indexOf("duplicate") >= 0) {
@@ -128,13 +128,11 @@
     // Atomic rollback — the shell exists but the configure step failed, so
     // delete the shell so the user is never left with a malformed
     // perspective. If rollback also fails, surface both errors.
-    const configureMsg = String(e && e.message ? e.message : e);
+    const configureMsg = String(e?.message ? e.message : e);
     try {
       deleteObject(persp);
     } catch (rollbackErr) {
-      const rollbackMsg = String(
-        rollbackErr && rollbackErr.message ? rollbackErr.message : rollbackErr,
-      );
+      const rollbackMsg = String(rollbackErr?.message ? rollbackErr.message : rollbackErr);
       return JSON.stringify({
         error: {
           code: "SCRIPT_ERROR",
