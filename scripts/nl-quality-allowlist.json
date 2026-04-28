@@ -94,6 +94,7 @@
     "src/tools/task/uncomplete.ts",
     "src/tools/task/undrop.ts",
     "src/tools/task/update.ts",
+    "src/tools/task/waitingOn.ts",
     "src/tools/window/index.ts"
   ]
 }

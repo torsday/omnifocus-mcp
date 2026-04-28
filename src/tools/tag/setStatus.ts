@@ -7,6 +7,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import { TagId } from "../../domain/ids.js";
 import { summaryTagUpdate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
@@ -22,7 +23,11 @@ export const TAG_SET_STATUS_DESCRIPTION =
 
 export const tagSetStatusInputSchema = z.object({
   id: TagId.schema.describe("Persistent tag ID. Get from tag_list."),
-  status: z.enum(["active", "on-hold", "dropped"]).describe("New lifecycle status for the tag."),
+  status: aliasedEnum(
+    ["active", "on-hold", "dropped"] as const,
+    { paused: "on-hold", cancelled: "dropped", archived: "dropped" },
+    "New lifecycle status for the tag.",
+  ),
 });
 
 export type TagSetStatusToolInput = z.infer<typeof tagSetStatusInputSchema>;

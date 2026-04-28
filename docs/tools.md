@@ -1419,8 +1419,8 @@ Create a new OmniFocus project. Optionally place it in a folder, assign tags, se
 | `name` | string | Yes | Project name. Required, must be non-empty. |
 | `folderId` | string | No | Folder ID to place the project in. Omit for root. |
 | `note` | string | No | Plain-text note for the project. |
-| `status` | one of: active | on-hold | No | Initial project status. Default: active. |
-| `completionCriterion` | one of: parallel | sequential | singleActions | No | How the project's tasks are completed: parallel (any order), sequential (in order), or singleActions. |
+| `status` | unknown | No |  |
+| `completionCriterion` | unknown | No |  |
 | `deferDate` | string | No | Defer date as ISO-8601 with UTC offset. |
 | `deferDateFloating` | boolean | No | When true, the defer time is floating (follows the user across time zones). |
 | `dueDate` | string | No | Due date as ISO-8601 with UTC offset. |
@@ -1602,7 +1602,7 @@ List projects in OmniFocus with optional filters. Use for queries across project
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `folderId` | string | No | Restrict to projects inside this folder. Get the ID from folder_list. Omit for all folders. |
-| `status` | one of: active | on-hold | done | dropped | No | Restrict to projects with this status. 'active' = available; 'on-hold' = paused; 'done' = completed; 'dropped' = abandoned. Omit for any status. |
+| `status` | unknown | No |  |
 | `flagged` | boolean | No | true = flagged only; false = unflagged only; omit = both. |
 | `reviewDueBefore` | string | No | Restrict to projects whose next review date is strictly before this moment. ISO-8601 with offset (e.g. '2026-05-01T00:00:00-07:00'). Projects without a review interval are excluded. |
 | `limit` | number | No | Max projects per page (1..1000). Default 200. Use `cursor` to fetch subsequent pages. |
@@ -1741,8 +1741,8 @@ Partially update mutable fields on an OmniFocus project. Only supplied fields ar
 | `name` | string | No | New project name. Must be non-empty if supplied. |
 | `note` | string | null | No | Plain-text note. Pass null to clear. |
 | `noteHtml` | string | null | No | HTML note. Pass null to clear. Prefer note for plain-text edits. |
-| `status` | one of: active | on-hold | No | Project status. Use project_complete or project_drop to close a project. |
-| `completionCriterion` | one of: parallel | sequential | singleActions | No | How the project's tasks are completed. |
+| `status` | unknown | No |  |
+| `completionCriterion` | unknown | No |  |
 | `deferDate` | string | null | No | ISO-8601 defer date with UTC offset. Pass null to clear. |
 | `deferDateFloating` | boolean | No | When true, the defer time is floating (follows the user across time zones). |
 | `dueDate` | string | null | No | ISO-8601 due date with UTC offset. Pass null to clear. |
@@ -2103,7 +2103,7 @@ Create a new tag in OmniFocus. Optionally nest it under an existing parent tag (
 |-----------|------|----------|-------------|
 | `name` | string | Yes | Tag name. Must be non-empty. |
 | `parentId` | string | No | Parent tag ID to nest under. Omit for a root tag. Get from tag_list. |
-| `status` | one of: active | on-hold | No | Initial status. Defaults to 'active'. Cannot create a tag in 'dropped' state. |
+| `status` | unknown | No |  |
 | `allowsNextAction` | boolean | No | Whether the tag allows next-action selection. Defaults to true. |
 
 ### Example call
@@ -2297,7 +2297,7 @@ List all tags in OmniFocus, optionally filtered by parent tag or status. Do not 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `parentId` | string | No | Return only direct children of this tag. Get the ID from a previous tag_list call. Omit for root tags. |
-| `status` | one of: active | on-hold | dropped | No | Filter by tag status. Omit to return tags of all statuses. |
+| `status` | unknown | No |  |
 
 ### Example call
 
@@ -2476,7 +2476,7 @@ Set the lifecycle status of a tag to active, on-hold, or dropped. Dropped tags a
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `id` | string | Yes | Persistent tag ID. Get from tag_list. |
-| `status` | one of: active | on-hold | dropped | Yes | New lifecycle status for the tag. |
+| `status` | unknown | Yes | New lifecycle status for the tag. Accepts: 'paused' → on-hold, 'cancelled' → dropped, 'archived' → dropped. |
 
 ### Example call
 
@@ -2520,7 +2520,7 @@ Update mutable fields on an existing tag (partial patch). Only supplied fields a
 | `id` | string | Yes | Persistent tag ID. Get from tag_list. |
 | `name` | string | No | New tag name. Must be non-empty if supplied. |
 | `parentId` | string | null | No | New parent tag ID. Pass null to promote to root. Get from tag_list. |
-| `status` | one of: active | on-hold | dropped | No | New lifecycle status. |
+| `status` | unknown | No |  |
 | `allowsNextAction` | boolean | No | Whether the tag allows next-action selection in OmniFocus. |
 
 ### Example call
@@ -2904,7 +2904,7 @@ Remove the repetition rule from an OmniFocus task. After clearing, the task beco
 
 ## task_clear_waiting_on
 
-Clear waiting-on tracking from an OmniFocus task. Strips the `waiting-on` fenced block from the task note (preserving any other user prose) and removes the configured @waiting tag from the task. Idempotent: returns noChange:true when the task has no waiting-on data. Do NOT use to delete the task or remove unrelated tags — prefer task_delete or task_update instead. Returns { id, cleared:true } or { id, noChange:true }. Side effects: writes tag + note; sets meta.syncPending = true.
+Clear waiting-on tracking from an OmniFocus task. Strips the `waiting-on` fenced block from the task note (preserving any other user prose) and removes the configured @waiting tag from the task. Idempotent: returns noChange:true when the task has no waiting-on data. Do NOT use to delete the task or remove unrelated tags — prefer task_delete or task_update instead. Returns { id, cleared:true } or { id, noChange:true }. Side effects: writes tag + note; sets meta.syncPending = true. Example: { "taskId": "abc123" }
 
 ### Input
 
@@ -3694,7 +3694,7 @@ Set the repetition rule on an OmniFocus task. Overwrites any existing rule. Use 
 
 ## task_set_waiting_on
 
-Record that an OmniFocus task is waiting on someone or something. Tags the task with the configured @waiting tag (creating the tag if absent) and writes a structured `waiting-on` fenced block to the top of the task note. The fence preserves any existing user prose in the note. Round-trips through task_get / task_get_many as a structured `waitingOn` field. Surfaces in the omnifocus://waiting-on resource sorted by days overdue. Use to systematize follow-ups; do NOT use for task completion or scheduling. Returns { id, waitingOn } with the persisted entry. Side effects: writes tag + note; sets meta.syncPending = true.
+Record that an OmniFocus task is waiting on someone or something. Tags the task with the configured @waiting tag (creating the tag if absent) and writes a structured `waiting-on` fenced block to the top of the task note. The fence preserves any existing user prose in the note. Round-trips through task_get / task_get_many as a structured `waitingOn` field. Surfaces in the omnifocus://waiting-on resource sorted by days overdue. Use to systematize follow-ups; do NOT use for task completion or scheduling. Returns { id, waitingOn } with the persisted entry. Side effects: writes tag + note; sets meta.syncPending = true. Example: { "taskId": "abc123", "whom": "Alex", "what": "design review", "followUpAfter": "2026-05-05T17:00:00Z" }
 
 ### Input
 

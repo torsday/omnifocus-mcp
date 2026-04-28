@@ -30,6 +30,7 @@ import { ProjectId, TagId, TaskId } from "../../domain/ids.js";
 import type { Task } from "../../domain/task.js";
 import { evaluatePredicate, type TaskPredicate } from "../../domain/taskPredicate.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { validateRefined } from "../../errors/validateRefined.js";
 import { applyTagDiff, handleTaskBatchAssign } from "./batchAssign.js";
 
 // ---------------------------------------------------------------------------
@@ -208,6 +209,11 @@ export interface TaskReclassifyContext {
 }
 
 export async function handleTaskReclassify(input: TaskReclassifyInput, ctx: TaskReclassifyContext) {
+  // Re-parse against the refined schema — the SDK only validates the base
+  // shape, so the dryRun→confirmation cross-field rule needs explicit
+  // enforcement here. See src/errors/validateRefined.ts.
+  validateRefined(taskReclassifyInputSchema, input);
+
   // Phase 0: pull all open tasks and apply the predicate in TS.
   // We don't include completed/dropped tasks — reclassification of completed
   // work is out of scope for the v1 contract.

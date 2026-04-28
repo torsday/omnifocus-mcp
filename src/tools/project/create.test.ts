@@ -96,6 +96,26 @@ describe("project_create — input schema", () => {
   it("rejects estimatedMinutes < 1", () => {
     expect(() => projectCreateInputSchema.parse({ name: "P", estimatedMinutes: 0 })).toThrow();
   });
+
+  it("normalises status alias 'paused' → 'on-hold' (#573)", () => {
+    const parsed = projectCreateInputSchema.parse({ name: "P", status: "paused" });
+    expect(parsed.status).toBe("on-hold");
+  });
+
+  it("normalises completionCriterion aliases (#573)", () => {
+    expect(
+      projectCreateInputSchema.parse({ name: "P", completionCriterion: "in order" })
+        .completionCriterion,
+    ).toBe("sequential");
+    expect(
+      projectCreateInputSchema.parse({ name: "P", completionCriterion: "in-order" })
+        .completionCriterion,
+    ).toBe("sequential");
+    expect(
+      projectCreateInputSchema.parse({ name: "P", completionCriterion: "any order" })
+        .completionCriterion,
+    ).toBe("parallel");
+  });
 });
 
 // ---------------------------------------------------------------------------

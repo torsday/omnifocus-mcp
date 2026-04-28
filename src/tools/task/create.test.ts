@@ -154,6 +154,33 @@ describe("task_create — handler", () => {
     const envelope = assertOk(await handleTaskCreate({ name: "Task" }, ctx));
     expect(envelope.meta.syncPending).toBe(true);
   });
+
+  it("surfaces refinement failure with structured failures[] payload", async () => {
+    // The MCP SDK validates only `taskCreateInputBaseSchema.shape`, so the
+    // XOR refinement on the exported schema doesn't fire automatically.
+    // The handler re-parses against the refined schema and surfaces an
+    // actionable `details.failures` array — the lever-5 win from #575.
+    const { ctx } = makeCtx();
+    let caught: unknown;
+    try {
+      // Cast: the type rejects this combo, but the agent can still send it
+      // — we want to verify the runtime guard fires.
+      await handleTaskCreate(
+        { name: "T", projectId: "proj_001", parentTaskId: "task_001" } as never,
+        ctx,
+      );
+    } catch (e) {
+      caught = e;
+    }
+    const { ValidationError } = await import("../../errors/index.js");
+    expect(caught).toBeInstanceOf(ValidationError);
+    if (!(caught instanceof ValidationError)) return;
+    const failures = (caught.details as { failures: Array<{ field: string }> } | undefined)
+      ?.failures;
+    expect(Array.isArray(failures)).toBe(true);
+    expect(failures?.length).toBeGreaterThan(0);
+    expect(failures?.[0]?.field).toBe("projectId");
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -38,6 +38,7 @@ import { ProjectId, TaskId } from "../../domain/ids.js";
 import { extractTasksFromProse } from "../../domain/proseExtractor.js";
 import { summaryBatchCreate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { validateRefined } from "../../errors/validateRefined.js";
 
 // ---------------------------------------------------------------------------
 // Tool description (DESIGN §6.8 four-section shape)
@@ -156,6 +157,11 @@ export async function handleTaskExtractFromNote(
   input: TaskExtractFromNoteInput,
   ctx: TaskExtractFromNoteContext,
 ) {
+  // Re-parse against the refined schema — the SDK only validates the base
+  // shape, so the dryRun→confirmation cross-field rule needs explicit
+  // enforcement here. See src/errors/validateRefined.ts.
+  validateRefined(taskExtractFromNoteInputSchema, input);
+
   const text = await resolveSourceText(input.source, ctx.adapter);
   const extracted = extractTasksFromProse(text);
 

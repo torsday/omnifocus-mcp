@@ -7,6 +7,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import { TagId } from "../../domain/ids.js";
 import { summaryTagUpdate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
@@ -27,7 +28,11 @@ export const tagUpdateInputSchema = z.object({
     .nullable()
     .optional()
     .describe("New parent tag ID. Pass null to promote to root. Get from tag_list."),
-  status: z.enum(["active", "on-hold", "dropped"]).optional().describe("New lifecycle status."),
+  status: aliasedEnum(
+    ["active", "on-hold", "dropped"] as const,
+    { paused: "on-hold", cancelled: "dropped", archived: "dropped" },
+    "New lifecycle status.",
+  ).optional(),
   allowsNextAction: z
     .boolean()
     .optional()

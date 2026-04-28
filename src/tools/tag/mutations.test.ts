@@ -216,6 +216,18 @@ describe("tag_set_status — input schema", () => {
   it("rejects unknown status", () => {
     expect(() => tagSetStatusInputSchema.parse({ id: "tag_000001", status: "unknown" })).toThrow();
   });
+
+  it("normalises status aliases to canonical values (#573)", () => {
+    expect(tagSetStatusInputSchema.parse({ id: "tag_000001", status: "paused" }).status).toBe(
+      "on-hold",
+    );
+    expect(tagSetStatusInputSchema.parse({ id: "tag_000001", status: "cancelled" }).status).toBe(
+      "dropped",
+    );
+    expect(tagSetStatusInputSchema.parse({ id: "tag_000001", status: "archived" }).status).toBe(
+      "dropped",
+    );
+  });
 });
 
 describe("tag_set_status — handler", () => {

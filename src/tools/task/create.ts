@@ -27,6 +27,7 @@ import {
 import { ProjectId, TagId, TaskId } from "../../domain/ids.js";
 import { summaryTaskCreate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { validateRefined } from "../../errors/validateRefined.js";
 import {
   idempotencyStore as defaultIdempotencyStore,
   type IdempotencyStore,
@@ -157,6 +158,13 @@ export interface TaskCreateContext {
  * @throws {OmniFocusNotRunning} when OmniFocus is not running
  */
 export async function handleTaskCreate(input: TaskCreateToolInput, ctx: TaskCreateContext) {
+  // Re-parse against the refined schema so cross-field constraints (XOR
+  // projectId/parentTaskId, dueDate ≥ deferDate) actually fire — the SDK
+  // only validates the base `.shape`. Failures surface as
+  // ValidationError.details.failures with actionable rows. See
+  // src/errors/validateRefined.ts.
+  validateRefined(taskCreateInputSchema, input);
+
   const store = ctx.idempotencyStore ?? defaultIdempotencyStore;
 
   return withIdempotencyKey(store, input.idempotency_key, async () => {

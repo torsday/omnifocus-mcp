@@ -11,6 +11,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import { FolderId } from "../../domain/ids.js";
 import { ok, type Pagination, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { ProjectListInput, ProjectService } from "../../services/projectService.js";
@@ -36,14 +37,17 @@ export const projectListInputSchema = z.object({
     .describe(
       "Restrict to projects inside this folder. Get the ID from folder_list. Omit for all folders.",
     ),
-  status: z
-    .enum(["active", "on-hold", "done", "dropped"])
-    .optional()
-    .describe(
-      "Restrict to projects with this status. " +
-        "'active' = available; 'on-hold' = paused; 'done' = completed; 'dropped' = abandoned. " +
-        "Omit for any status.",
-    ),
+  status: aliasedEnum(
+    ["active", "on-hold", "done", "dropped"] as const,
+    {
+      paused: "on-hold",
+      completed: "done",
+      cancelled: "dropped",
+    },
+    "Restrict to projects with this status. " +
+      "'active' = available; 'on-hold' = paused; 'done' = completed; 'dropped' = abandoned. " +
+      "Omit for any status.",
+  ).optional(),
   flagged: z
     .boolean()
     .optional()

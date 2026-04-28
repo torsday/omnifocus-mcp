@@ -44,7 +44,8 @@ export const TASK_SET_WAITING_ON_DESCRIPTION =
   "Surfaces in the omnifocus://waiting-on resource sorted by days overdue. " +
   "Use to systematize follow-ups; do NOT use for task completion or scheduling. " +
   "Returns { id, waitingOn } with the persisted entry. " +
-  "Side effects: writes tag + note; sets meta.syncPending = true.";
+  "Side effects: writes tag + note; sets meta.syncPending = true. " +
+  'Example: { "taskId": "abc123", "whom": "Alex", "what": "design review", "followUpAfter": "2026-05-05T17:00:00Z" }';
 
 export const TASK_CLEAR_WAITING_ON_DESCRIPTION =
   "Clear waiting-on tracking from an OmniFocus task. " +
@@ -53,7 +54,8 @@ export const TASK_CLEAR_WAITING_ON_DESCRIPTION =
   "Idempotent: returns noChange:true when the task has no waiting-on data. " +
   "Do NOT use to delete the task or remove unrelated tags — prefer task_delete or task_update instead. " +
   "Returns { id, cleared:true } or { id, noChange:true }. " +
-  "Side effects: writes tag + note; sets meta.syncPending = true.";
+  "Side effects: writes tag + note; sets meta.syncPending = true. " +
+  'Example: { "taskId": "abc123" }';
 
 // ---------------------------------------------------------------------------
 // Input schemas
