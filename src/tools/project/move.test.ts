@@ -79,6 +79,14 @@ describe("project_move — handler", () => {
     expect(envelope.meta.syncPending).toBe(true);
   });
 
+  it("pairs name with id in the response (#585)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const folderId = await adapter.createFolder({ name: "F" });
+    const id = await adapter.createProject({ name: "Reorg me" });
+    const envelope = await handleProjectMove({ id, folderId }, ctx);
+    expect(envelope.data).toMatchObject({ moved: true, id, name: "Reorg me" });
+  });
+
   it("project is in the target folder after move", async () => {
     const { ctx, adapter } = makeCtx();
     const folderId = await adapter.createFolder({ name: "F" });

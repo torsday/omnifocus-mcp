@@ -45,7 +45,7 @@ export const PROJECT_UPDATE_DESCRIPTION =
   "Safety controls: set dry_run=true to preview without mutating; pass expectedModifiedAt " +
   "(from a recent project_get) to reject the call if the project changed since you read it; " +
   "pass idempotency_key to coalesce retries so the same update is only performed once. " +
-  "Returns { updated: true, id }. " +
+  "Returns { updated: true, id, name } — name reflects the post-patch name. " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
   "Call sync_trigger when you need changes to appear on other devices.";
 
@@ -164,7 +164,7 @@ export interface ProjectUpdateContext {
   idempotencyStore?: IdempotencyStore;
 }
 
-type ProjectUpdateData = { updated: true; id: ProjectIdType };
+type ProjectUpdateData = { updated: true; id: ProjectIdType; name: string };
 
 /**
  * Pure handler for `project_update`.
@@ -213,8 +213,14 @@ export async function handleProjectUpdate(
       }),
     };
 
+    // Preview uses the pre-mutation name; live phase uses the same (the
+    // patch's `name`, when supplied, is reflected in `project.name` only
+    // after the adapter call — but we want the new name for round-trip
+    // readability). Resolve to the post-patch name when name is patched.
+    const projectedName = rest.name ?? project.name;
+
     const preview = (): ToolEnvelope<ProjectUpdateData> =>
-      ok({ updated: true as const, id }, ctx.makeMeta({ syncPending: false }));
+      ok({ updated: true as const, id, name: projectedName }, ctx.makeMeta({ syncPending: false }));
 
     const live = async (): Promise<ToolEnvelope<ProjectUpdateData>> => {
       await ctx.adapter.updateProject(id, patch);
@@ -222,7 +228,7 @@ export async function handleProjectUpdate(
         invalidateProjectMutation(ctx.cache, { projectId: id });
       }
       return ok(
-        { updated: true as const, id },
+        { updated: true as const, id, name: projectedName },
         ctx.makeMeta({
           syncPending: true,
           humanReadableSummary: summaryProjectUpdate(project.name),

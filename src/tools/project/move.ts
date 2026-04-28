@@ -22,7 +22,7 @@ export const PROJECT_MOVE_DESCRIPTION =
   "Pass folderId to move into a folder, or null to move to the root (no folder). " +
   "Use when reorganizing projects. " +
   "Do not use to complete or drop a project. " +
-  "Returns { moved: true, id }. " +
+  "Returns { moved: true, id, name } — name lets the agent describe the change without a follow-up read. " +
   "Side effects: changes the project's folder, sets meta.syncPending = true.";
 
 // ---------------------------------------------------------------------------
@@ -47,12 +47,15 @@ export interface ProjectMoveContext {
 }
 
 export async function handleProjectMove(input: ProjectMoveToolInput, ctx: ProjectMoveContext) {
+  // Pre-mutation fetch lets us pair the name into the response — see
+  // project/complete.ts for the rationale.
+  const { project } = await ctx.projectService.get({ id: input.id, includeTaskTree: false });
   await ctx.projectService.moveProject(input.id, { folderId: input.folderId });
   if (ctx.cache !== undefined) {
     invalidateProjectMutation(ctx.cache, { projectId: input.id });
   }
   return ok(
-    { moved: true as const, id: input.id },
+    { moved: true as const, id: input.id, name: project.name },
     ctx.makeMeta({
       syncPending: true,
       humanReadableSummary: summaryProjectMoveById(

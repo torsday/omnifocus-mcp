@@ -70,6 +70,13 @@ describe("project_drop — handler", () => {
     expect(envelope.meta.syncPending).toBe(true);
   });
 
+  it("pairs name with id in the response (#585)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createProject({ name: "Side quest" });
+    const envelope = await handleProjectDrop({ id }, ctx);
+    expect(envelope.data).toMatchObject({ dropped: true, id, name: "Side quest" });
+  });
+
   it("project status is dropped after dropping", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createProject({ name: "P" });

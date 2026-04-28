@@ -21,7 +21,7 @@ export const PROJECT_DROP_DESCRIPTION =
   "Drop an OmniFocus project — marks it as on-hold/dropped and removes it from the active view without completing it. " +
   "Use to defer or abandon a project while keeping it recoverable. " +
   "Do not use if the project is actually done; prefer project_complete for that. " +
-  "Returns { dropped: true, id }. " +
+  "Returns { dropped: true, id, name } — name lets the agent describe the change without a follow-up read. " +
   "Side effects: changes project status, sets meta.syncPending = true.";
 
 // ---------------------------------------------------------------------------
@@ -45,12 +45,15 @@ export interface ProjectDropContext {
 }
 
 export async function handleProjectDrop(input: ProjectDropToolInput, ctx: ProjectDropContext) {
+  // Pre-mutation fetch lets us pair the name into the response — see
+  // project/complete.ts for the rationale.
+  const { project } = await ctx.projectService.get({ id: input.id, includeTaskTree: false });
   await ctx.projectService.dropProject(input.id);
   if (ctx.cache !== undefined) {
     invalidateProjectMutation(ctx.cache, { projectId: input.id });
   }
   return ok(
-    { dropped: true as const, id: input.id },
+    { dropped: true as const, id: input.id, name: project.name },
     ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryProjectDropById() }),
   );
 }

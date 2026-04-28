@@ -21,7 +21,7 @@ export const PROJECT_COMPLETE_DESCRIPTION =
   "Complete an OmniFocus project — marks it done with today's date and moves it out of the active view. " +
   "Use when a project is finished. " +
   "Do not use to archive or hide a project without completing it; prefer project_drop for that. " +
-  "Returns { completed: true, id }. " +
+  "Returns { completed: true, id, name } — name lets the agent describe the change without a follow-up read. " +
   "Side effects: sets completionDate, removes from active projects, sets meta.syncPending = true.";
 
 // ---------------------------------------------------------------------------
@@ -48,12 +48,17 @@ export async function handleProjectComplete(
   input: ProjectCompleteToolInput,
   ctx: ProjectCompleteContext,
 ) {
+  // Fetch pre-mutation so we can pair the name into the response — the
+  // service-level `completeProject` returns void, and a post-mutation
+  // fetch would still work but adds an extra round trip. NotFound from
+  // `get` is the correct failure mode if the id is bogus.
+  const { project } = await ctx.projectService.get({ id: input.id, includeTaskTree: false });
   await ctx.projectService.completeProject(input.id);
   if (ctx.cache !== undefined) {
     invalidateProjectMutation(ctx.cache, { projectId: input.id });
   }
   return ok(
-    { completed: true as const, id: input.id },
+    { completed: true as const, id: input.id, name: project.name },
     ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryProjectCompleteById() }),
   );
 }

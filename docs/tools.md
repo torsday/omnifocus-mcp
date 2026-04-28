@@ -1525,7 +1525,7 @@ _No parameters._
 
 ## project_complete
 
-Complete an OmniFocus project — marks it done with today's date and moves it out of the active view. Use when a project is finished. Do not use to archive or hide a project without completing it; prefer project_drop for that. Returns { completed: true, id }. Side effects: sets completionDate, removes from active projects, sets meta.syncPending = true.
+Complete an OmniFocus project — marks it done with today's date and moves it out of the active view. Use when a project is finished. Do not use to archive or hide a project without completing it; prefer project_drop for that. Returns { completed: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: sets completionDate, removes from active projects, sets meta.syncPending = true.
 
 ### Input
 
@@ -1738,7 +1738,7 @@ _No parameters._
 
 ## project_drop
 
-Drop an OmniFocus project — marks it as on-hold/dropped and removes it from the active view without completing it. Use to defer or abandon a project while keeping it recoverable. Do not use if the project is actually done; prefer project_complete for that. Returns { dropped: true, id }. Side effects: changes project status, sets meta.syncPending = true.
+Drop an OmniFocus project — marks it as on-hold/dropped and removes it from the active view without completing it. Use to defer or abandon a project while keeping it recoverable. Do not use if the project is actually done; prefer project_complete for that. Returns { dropped: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: changes project status, sets meta.syncPending = true.
 
 ### Input
 
@@ -1938,7 +1938,7 @@ Convenience alias for review_mark_reviewed — mark a single project as reviewed
 
 ## project_move
 
-Move an OmniFocus project to a different folder. Pass folderId to move into a folder, or null to move to the root (no folder). Use when reorganizing projects. Do not use to complete or drop a project. Returns { moved: true, id }. Side effects: changes the project's folder, sets meta.syncPending = true.
+Move an OmniFocus project to a different folder. Pass folderId to move into a folder, or null to move to the root (no folder). Use when reorganizing projects. Do not use to complete or drop a project. Returns { moved: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: changes the project's folder, sets meta.syncPending = true.
 
 ### Input
 
@@ -2096,7 +2096,7 @@ _No parameters._
 
 ## project_update
 
-Partially update mutable fields on an OmniFocus project. Only supplied fields are changed; omit a field to leave it unchanged. Pass null for note, deferDate, dueDate, estimatedMinutes, or reviewIntervalDays to clear those fields. Do NOT use to create or delete projects; prefer project_create or project_delete instead. Safety controls: set dry_run=true to preview without mutating; pass expectedModifiedAt (from a recent project_get) to reject the call if the project changed since you read it; pass idempotency_key to coalesce retries so the same update is only performed once. Returns { updated: true, id }. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Partially update mutable fields on an OmniFocus project. Only supplied fields are changed; omit a field to leave it unchanged. Pass null for note, deferDate, dueDate, estimatedMinutes, or reviewIntervalDays to clear those fields. Do NOT use to create or delete projects; prefer project_create or project_delete instead. Safety controls: set dry_run=true to preview without mutating; pass expectedModifiedAt (from a recent project_get) to reject the call if the project changed since you read it; pass idempotency_key to coalesce retries so the same update is only performed once. Returns { updated: true, id, name } — name reflects the post-patch name. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
 
 ### Input
 
