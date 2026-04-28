@@ -1097,7 +1097,7 @@ _No parameters._
 
 ## note_append
 
-Append text to the plain-text note on a task or project. Adds a newline between existing content and the new text unless the note is empty. Do not use to replace the note entirely; prefer note_set instead. Returns { note } with the full note content after appending. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the change to appear on other devices.
+Append text to the plain-text note on a task or project. Adds a newline between existing content and the new text unless the note is empty. Do not use to replace the note entirely; prefer note_set instead. Returns { updated: true, id, targetKind, name, note } — name is the parent task/project's display name (captured from the same read that fetched the existing note) so the agent can describe the change without a follow-up read; note is the full content after appending. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the change to appear on other devices.
 
 ### Input
 
@@ -1219,7 +1219,7 @@ Read the HTML fragment from a task or project note. Returns { noteHtml } — an 
 
 ## note_set
 
-Replace the plain-text note on a task or project. Overwrites the existing note entirely. Pass note: null to clear the note. To add text without overwriting use note_append instead. Returns { note } with the final note content after writing. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the change to appear on other devices.
+Replace the plain-text note on a task or project. Overwrites the existing note entirely. Pass note: null to clear the note. To add text without overwriting use note_append instead. Returns { updated: true, id, targetKind, name, note } — name is the parent task/project's display name (pre-fetched so the response describes the change without a follow-up read); note echoes back the final content after writing (or null if cleared). Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the change to appear on other devices.
 
 ### Input
 
@@ -1261,7 +1261,7 @@ Replace the plain-text note on a task or project. Overwrites the existing note e
 
 ## note_set_html
 
-Replace the HTML fragment note on a task or project. Overwrites the existing note entirely with the provided HTML. OmniFocus preserves its supported HTML subset (bold, italic, links, lists, inline images); unsupported elements may be stripped. Pass noteHtml: null to clear the note. For plain-text writes use note_set instead. Returns { noteHtml } with the final HTML content after writing. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the change to appear on other devices.
+Replace the HTML fragment note on a task or project. Overwrites the existing note entirely with the provided HTML. OmniFocus preserves its supported HTML subset (bold, italic, links, lists, inline images); unsupported elements may be stripped. Pass noteHtml: null to clear the note. For plain-text writes use note_set instead. Returns { updated: true, id, targetKind, name, noteHtml } — name is the parent task/project's display name (pre-fetched so the response describes the change without a follow-up read); noteHtml echoes back the requested HTML (or null if cleared). Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the change to appear on other devices.
 
 ### Input
 

@@ -20,7 +20,7 @@ import {
   invalidateTaskMutation,
 } from "../../cache/invalidation.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
-import { summaryNoteAppendById } from "../../domain/writeSummary.js";
+import { summaryNoteAppend } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 // ---------------------------------------------------------------------------
@@ -31,7 +31,7 @@ export const NOTE_APPEND_DESCRIPTION =
   "Append text to the plain-text note on a task or project. " +
   "Adds a newline between existing content and the new text unless the note is empty. " +
   "Do not use to replace the note entirely; prefer note_set instead. " +
-  "Returns { note } with the full note content after appending. " +
+  "Returns { updated: true, id, targetKind, name, note } — name is the parent task/project's display name (captured from the same read that fetched the existing note) so the agent can describe the change without a follow-up read; note is the full content after appending. " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
   "Call sync_trigger when you need the change to appear on other devices.";
 
@@ -79,10 +79,19 @@ export interface NoteAppendContext {
  * @throws {NotFound} when the task or project ID does not exist
  */
 export async function handleNoteAppend(input: NoteAppendToolInput, ctx: NoteAppendContext) {
-  const existing =
-    input.targetKind === "task"
-      ? (await ctx.adapter.getTask(TaskId.of(input.id))).note
-      : (await ctx.adapter.getProject(ProjectId.of(input.id))).note;
+  // Single read fetches both the existing note and the parent's display
+  // name; no extra round trip for the lever-4 name pairing (#606).
+  let existing: string | null;
+  let name: string;
+  if (input.targetKind === "task") {
+    const task = await ctx.adapter.getTask(TaskId.of(input.id));
+    existing = task.note;
+    name = task.name;
+  } else {
+    const project = await ctx.adapter.getProject(ProjectId.of(input.id));
+    existing = project.note;
+    name = project.name;
+  }
 
   const combined = existing ? `${existing}\n${input.text}` : input.text;
 
@@ -99,8 +108,17 @@ export async function handleNoteAppend(input: NoteAppendToolInput, ctx: NoteAppe
   }
 
   return ok(
-    { updated: true as const, id: input.id },
-    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryNoteAppendById("task") }),
+    {
+      updated: true as const,
+      id: input.id,
+      targetKind: input.targetKind,
+      name,
+      note: combined,
+    },
+    ctx.makeMeta({
+      syncPending: true,
+      humanReadableSummary: summaryNoteAppend(input.targetKind, name),
+    }),
   );
 }
 

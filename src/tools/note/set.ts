@@ -18,7 +18,7 @@ import {
   invalidateTaskMutation,
 } from "../../cache/invalidation.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
-import { summaryNoteSetById } from "../../domain/writeSummary.js";
+import { summaryNoteSet } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
 // ---------------------------------------------------------------------------
@@ -29,7 +29,7 @@ export const NOTE_SET_DESCRIPTION =
   "Replace the plain-text note on a task or project. " +
   "Overwrites the existing note entirely. Pass note: null to clear the note. " +
   "To add text without overwriting use note_append instead. " +
-  "Returns { note } with the final note content after writing. " +
+  "Returns { updated: true, id, targetKind, name, note } — name is the parent task/project's display name (pre-fetched so the response describes the change without a follow-up read); note echoes back the final content after writing (or null if cleared). " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +
   "Call sync_trigger when you need the change to appear on other devices.";
 
@@ -71,6 +71,13 @@ export interface NoteSetContext {
  * @throws {NotFound} when the task or project ID does not exist
  */
 export async function handleNoteSet(input: NoteSetToolInput, ctx: NoteSetContext) {
+  // Pre-fetch the parent's display name so the response can describe the
+  // change without a follow-up read (lever-4 round-trip readability, #606).
+  const name =
+    input.targetKind === "task"
+      ? (await ctx.adapter.getTask(TaskId.of(input.id))).name
+      : (await ctx.adapter.getProject(ProjectId.of(input.id))).name;
+
   if (input.targetKind === "task") {
     await ctx.adapter.updateTask(TaskId.of(input.id), { note: input.note });
     if (ctx.cache !== undefined) {
@@ -83,8 +90,17 @@ export async function handleNoteSet(input: NoteSetToolInput, ctx: NoteSetContext
     }
   }
   return ok(
-    { updated: true as const, id: input.id },
-    ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryNoteSetById("task") }),
+    {
+      updated: true as const,
+      id: input.id,
+      targetKind: input.targetKind,
+      name,
+      note: input.note,
+    },
+    ctx.makeMeta({
+      syncPending: true,
+      humanReadableSummary: summaryNoteSet(input.targetKind, name),
+    }),
   );
 }
 
