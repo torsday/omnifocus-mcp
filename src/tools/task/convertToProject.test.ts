@@ -85,6 +85,18 @@ describe("task_convert_to_project — handler", () => {
     expect(result.data.projectId).toBe(id);
   });
 
+  it("pairs name with the converted ids in the response (#590)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "Big effort" });
+    const result = await handleTaskConvertToProject({ id }, ctx);
+    expect(result.data).toMatchObject({
+      converted: true,
+      taskId: id,
+      projectId: id,
+      name: "Big effort",
+    });
+  });
+
   it("removes the task from the task list after conversion", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "Soon a project" });

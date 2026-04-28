@@ -3582,7 +3582,7 @@ _No parameters._
 
 ## task_convert_to_project
 
-Promote an OmniFocus task to a first-class project via OmniJS Database.convertTasksToProjects(). The task's persistent identifier is preserved on the resulting project — agents can continue using the same ID as a project ID after conversion. Subtasks, notes, tags, and dates are carried over by OmniFocus automatically. Use this when a task has grown in scope and needs its own review interval, subtask hierarchy, or project-level metadata. Do NOT use on tasks already in a project — use task_move instead for reparenting; use project_create when starting from scratch. Returns { converted: true, projectId, taskId } on success. Side effects: removes the task from the task list and adds a project; sets meta.syncPending = true.
+Promote an OmniFocus task to a first-class project via OmniJS Database.convertTasksToProjects(). The task's persistent identifier is preserved on the resulting project — agents can continue using the same ID as a project ID after conversion. Subtasks, notes, tags, and dates are carried over by OmniFocus automatically. Use this when a task has grown in scope and needs its own review interval, subtask hierarchy, or project-level metadata. Do NOT use on tasks already in a project — use task_move instead for reparenting; use project_create when starting from scratch. Returns { converted: true, projectId, taskId, name } — name is the task name (carried over to the new project) so the agent can describe the conversion without a follow-up read. Side effects: removes the task from the task list and adds a project; sets meta.syncPending = true.
 
 ### Input
 
@@ -3613,7 +3613,7 @@ _No parameters._
 
 ## task_create
 
-Create a new task in OmniFocus — in the inbox, inside a project, or as a subtask of another task. Supply exactly one of: projectId (project task), parentTaskId (subtask), or neither (inbox). Do not use for bulk creation; prefer task_batch_create for that. Safety control: pass idempotency_key to make transport retries safe — identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of creating a duplicate task. Returns the new task's id. Side effects: creates a task in OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the task to appear on other devices.
+Create a new task in OmniFocus — in the inbox, inside a project, or as a subtask of another task. Supply exactly one of: projectId (project task), parentTaskId (subtask), or neither (inbox). Do not use for bulk creation; prefer task_batch_create for that. Safety control: pass idempotency_key to make transport retries safe — identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of creating a duplicate task. Returns { id, name } — name echoes the supplied name so the agent can describe the new task without a follow-up read. Side effects: creates a task in OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the task to appear on other devices.
 
 ### Input
 
@@ -3828,7 +3828,7 @@ _No parameters._
 
 ## task_duplicate
 
-Duplicate an OmniFocus task, optionally including its entire subtask subtree when recursive: true. Editable fields copy over (name, note, defer/due dates, flagged, tags, estimate, repetition); system fields (id, timestamps) regenerate; completed/dropped state is NOT carried — the duplicate is a fresh, active task. Do NOT use task_duplicate as a substitute for task_move (which reparents the existing task) or task_create (when the new task's fields differ from the source). By default the clone lands alongside the source. Provide destination with exactly one of projectId, parentId, or toInbox: true to place it elsewhere. Returns { duplicated: true, sourceId, newId, descendantCount }. Side effects: creates one new task (plus descendants if recursive) in OmniFocus, sets meta.syncPending = true.
+Duplicate an OmniFocus task, optionally including its entire subtask subtree when recursive: true. Editable fields copy over (name, note, defer/due dates, flagged, tags, estimate, repetition); system fields (id, timestamps) regenerate; completed/dropped state is NOT carried — the duplicate is a fresh, active task. Do NOT use task_duplicate as a substitute for task_move (which reparents the existing task) or task_create (when the new task's fields differ from the source). By default the clone lands alongside the source. Provide destination with exactly one of projectId, parentId, or toInbox: true to place it elsewhere. Returns { duplicated: true, sourceId, newId, descendantCount, name } — name is the source task's name (the duplicate carries the same name) so the agent can describe the new task without a follow-up read. Side effects: creates one new task (plus descendants if recursive) in OmniFocus, sets meta.syncPending = true.
 
 ### Input
 

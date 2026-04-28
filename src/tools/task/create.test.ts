@@ -155,6 +155,13 @@ describe("task_create — handler", () => {
     expect(envelope.meta.syncPending).toBe(true);
   });
 
+  it("pairs name with id in the response (#590)", async () => {
+    const { ctx } = makeCtx();
+    const envelope = assertOk(await handleTaskCreate({ name: "New thing" }, ctx));
+    expect(envelope.data).toMatchObject({ name: "New thing" });
+    expect(typeof envelope.data.id).toBe("string");
+  });
+
   it("surfaces refinement failure with structured failures[] payload", async () => {
     // The MCP SDK validates only `taskCreateInputBaseSchema.shape`, so the
     // XOR refinement on the exported schema doesn't fire automatically.

@@ -37,7 +37,7 @@ export const TASK_CONVERT_TO_PROJECT_DESCRIPTION =
   "subtask hierarchy, or project-level metadata. " +
   "Do NOT use on tasks already in a project — use task_move instead for " +
   "reparenting; use project_create when starting from scratch. " +
-  "Returns { converted: true, projectId, taskId } on success. " +
+  "Returns { converted: true, projectId, taskId, name } — name is the task name (carried over to the new project) so the agent can describe the conversion without a follow-up read. " +
   "Side effects: removes the task from the task list and adds a project; " +
   "sets meta.syncPending = true.";
 
@@ -99,7 +99,7 @@ export async function handleTaskConvertToProject(
   }
 
   return ok(
-    { converted: true as const, projectId, taskId: input.id },
+    { converted: true as const, projectId, taskId: input.id, name: task.name },
     ctx.makeMeta({
       syncPending: true,
       humanReadableSummary: summaryTaskConvertToProject(task.name),

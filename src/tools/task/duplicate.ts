@@ -38,7 +38,7 @@ export const TASK_DUPLICATE_DESCRIPTION =
   "the source). " +
   "By default the clone lands alongside the source. Provide destination with " +
   "exactly one of projectId, parentId, or toInbox: true to place it elsewhere. " +
-  "Returns { duplicated: true, sourceId, newId, descendantCount }. " +
+  "Returns { duplicated: true, sourceId, newId, descendantCount, name } — name is the source task's name (the duplicate carries the same name) so the agent can describe the new task without a follow-up read. " +
   "Side effects: creates one new task (plus descendants if recursive) in " +
   "OmniFocus, sets meta.syncPending = true.";
 
@@ -137,6 +137,7 @@ export async function handleTaskDuplicate(
       sourceId: input.id,
       newId,
       descendantCount,
+      name: source.name,
     },
     ctx.makeMeta({ syncPending: true, humanReadableSummary: summaryTaskDuplicate(source.name) }),
   );
