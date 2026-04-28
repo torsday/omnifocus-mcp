@@ -835,7 +835,7 @@ Coverage is not enforced because it's gameable. Test *fidelity* is enforced at r
 - `pnpm lint` — zero errors; biome config enforces `coding.md` standards
 - `pnpm test` — zero failures; execution < 10s
 - `pnpm build` — single-file bundle emitted to `dist/index.js`
-- Bundle size budget: < 540 KiB (tsup --minify); above that blocks release. Bumped 500 → 525 → 540 KiB as the tool surface grew — per-tool string and Zod-schema overhead became the dominant bundle cost. The next bump should NOT be another flat increase: open a follow-up to investigate tree-shaking, code-splitting per-tool, or moving large constant strings out of the bundle.
+- Bundle size budget: < 580 KiB (tsup --minify); above that blocks release. Bumped 500 → 525 → 540 → 580 KiB as the tool surface grew — per-tool string and Zod-schema overhead became the dominant bundle cost. The 540 → 580 bump landed alongside [#494](https://github.com/torsday/omnifocus-mcp/issues/494) (~24 *_describe preview tools). Further bumps should NOT be flat increases: [#578](https://github.com/torsday/omnifocus-mcp/issues/578) tracks the tree-shaking / code-splitting investigation that should replace the next bump.
 
 ---
 
