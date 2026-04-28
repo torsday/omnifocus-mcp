@@ -168,7 +168,7 @@ minified. SDK is another 30 KB.
 ### E — Bump the budget on a measured cadence (status quo, formalised)
 
 **What.** Accept that ~3–5 KB per new tool is the structural cost.
-Bump the budget by 25 KB every ~10 tools added, tracked in DESIGN §20
+Bump the budget in 25 KB steps as needed, tracked in DESIGN §20
 with a note in CHANGELOG. No runtime change.
 
 **Cost.** None to the bundle; the budget is just a release gate.
@@ -193,9 +193,9 @@ binary model.
 **For the meantime: option E is fine.** Bump the budget when needed,
 in 25 KB steps, with a CHANGELOG note each time. The bundle has plenty
 of room to grow before option A becomes mandatory — at the current
-~3 KB/tool growth rate, the next ceiling (540 → 565 KB) covers ~8 tool
-additions, plenty of runway to ship A as a deliberate piece of work
-rather than under pressure.
+~3 KB/tool growth rate, each 25 KB ceiling buys roughly a quarter's
+worth of new feature work — plenty of runway to ship A as a deliberate
+piece of work rather than under pressure.
 
 ---
 
