@@ -502,3 +502,80 @@ describe("note_set_html — handler", () => {
     expect(calls.some((s) => s.startsWith("project:"))).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// note_* — name pairing (#606)
+// ---------------------------------------------------------------------------
+
+describe("note_set pairs name with id (#606)", () => {
+  it("returns task name and echoes note for task target", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "Buy groceries" });
+    const envelope = await handleNoteSet({ targetKind: "task", id, note: "milk, eggs" }, ctx);
+    expect(envelope.data.updated).toBe(true);
+    expect(envelope.data.id).toBe(id);
+    expect(envelope.data.targetKind).toBe("task");
+    expect(envelope.data.name).toBe("Buy groceries");
+    expect(envelope.data.note).toBe("milk, eggs");
+  });
+
+  it("returns project name and null note when cleared", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createProject({ name: "Q1 plan" });
+    const envelope = await handleNoteSet({ targetKind: "project", id, note: null }, ctx);
+    expect(envelope.data.targetKind).toBe("project");
+    expect(envelope.data.name).toBe("Q1 plan");
+    expect(envelope.data.note).toBeNull();
+  });
+
+  it("populates name-bearing summary in meta", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "Renew passport" });
+    const envelope = await handleNoteSet({ targetKind: "task", id, note: "x" }, ctx);
+    expect(envelope.meta.humanReadableSummary).toContain("Renew passport");
+  });
+});
+
+describe("note_append pairs name with id (#606)", () => {
+  it("returns task name and combined note", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "Daily journal", note: "day 1" });
+    const envelope = await handleNoteAppend({ targetKind: "task", id, text: "day 2" }, ctx);
+    expect(envelope.data.id).toBe(id);
+    expect(envelope.data.targetKind).toBe("task");
+    expect(envelope.data.name).toBe("Daily journal");
+    expect(envelope.data.note).toBe("day 1\nday 2");
+  });
+
+  it("returns project name when appending to project", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createProject({ name: "Trip planning" });
+    const envelope = await handleNoteAppend({ targetKind: "project", id, text: "first" }, ctx);
+    expect(envelope.data.targetKind).toBe("project");
+    expect(envelope.data.name).toBe("Trip planning");
+    expect(envelope.data.note).toBe("first");
+  });
+});
+
+describe("note_set_html pairs name with id (#606)", () => {
+  it("returns task name and echoes noteHtml", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "Write blog post" });
+    const envelope = await handleNoteSetHtml(
+      { targetKind: "task", id, noteHtml: "<b>draft</b>" },
+      ctx,
+    );
+    expect(envelope.data.targetKind).toBe("task");
+    expect(envelope.data.name).toBe("Write blog post");
+    expect(envelope.data.noteHtml).toBe("<b>draft</b>");
+  });
+
+  it("returns project name and null noteHtml when cleared", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createProject({ name: "Migration" });
+    const envelope = await handleNoteSetHtml({ targetKind: "project", id, noteHtml: null }, ctx);
+    expect(envelope.data.targetKind).toBe("project");
+    expect(envelope.data.name).toBe("Migration");
+    expect(envelope.data.noteHtml).toBeNull();
+  });
+});
