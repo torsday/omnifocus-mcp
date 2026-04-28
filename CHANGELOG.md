@@ -4,91 +4,93 @@ All notable changes to `@torsday/omnifocus-mcp` will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [ADR-0011](./docs/adr/0011-versioning-and-stability.md) for the explicit definition of breaking vs additive changes in this project.
 
+
 ## [1.1.0](https://github.com/torsday/omnifocus-mcp/compare/v1.0.2...v1.1.0) (2026-04-28)
 
+**Summary** — The headline additions are project templates, waiting-on tracking, and several new analytics resources. Alongside new tools, the entire tool surface went through a focused NL-quality pass: every description now carries a worked `Example:` line, every mutation response pairs a human-readable name alongside the opaque ID, and enum inputs accept common aliases so loosely-worded agent inputs succeed rather than bounce. Agents calling this server cold will be able to compose correct calls with substantially less trial-and-error. No breaking changes; all v1.0.x call shapes are unchanged.
 
 ### Added
 
-* **app:** add app_window_new and app_window_new_tab ([#527](https://github.com/torsday/omnifocus-mcp/issues/527)) ([#558](https://github.com/torsday/omnifocus-mcp/issues/558)) ([15227bc](https://github.com/torsday/omnifocus-mcp/commit/15227bc33b610a165170294bca88d70ae0f1cb38))
-* **database:** add database_undo / database_redo for agent error recovery ([#544](https://github.com/torsday/omnifocus-mcp/issues/544)) ([10d460d](https://github.com/torsday/omnifocus-mcp/commit/10d460d3b56fc9afa674b6ced0499ed9a59bee5b))
-* **dates:** wire deferDateFloating/dueDateFloating through all date-bearing tools ([#514](https://github.com/torsday/omnifocus-mcp/issues/514)) ([d34eefb](https://github.com/torsday/omnifocus-mcp/commit/d34eefb1b2aef2822ce66ef33f5d2f27d310961e)), closes [#462](https://github.com/torsday/omnifocus-mcp/issues/462)
-* **envelope:** add hints[] array to ok responses (ADR-0015) ([6aca020](https://github.com/torsday/omnifocus-mcp/commit/6aca02042e25490560d2fb7206b354641330ebe3))
-* **envelope:** add humanReadableSummary to every write-tool response ([d82d069](https://github.com/torsday/omnifocus-mcp/commit/d82d06922c6f3962726d15e219d9a8ace693da34))
-* **forecast:** add forecast_pack — time-budget reconciliation ([4bb7890](https://github.com/torsday/omnifocus-mcp/commit/4bb7890ff5e3870d4f7d26f812c76a94f1bd68f4)), closes [#473](https://github.com/torsday/omnifocus-mcp/issues/473)
-* **forecast:** expose forecast-tag preference (get + set) ([4531611](https://github.com/torsday/omnifocus-mcp/commit/4531611418fe90fdbfbaea52f4b93760d53ff0d6)), closes [#465](https://github.com/torsday/omnifocus-mcp/issues/465)
-* **nl-quality:** forgiving aliases for status / completion-criterion enums ([2e7e6ba](https://github.com/torsday/omnifocus-mcp/commit/2e7e6ba15f74e90fdf9ba7bfd478054aa71169c0)), closes [#573](https://github.com/torsday/omnifocus-mcp/issues/573)
-* **nl-quality:** pair name with id in forecast_get_tag / forecast_set_tag ([bdbd87a](https://github.com/torsday/omnifocus-mcp/commit/bdbd87af80221ff27fc52332524be8937c7ba5a0)), closes [#599](https://github.com/torsday/omnifocus-mcp/issues/599)
-* **nl-quality:** pair name with id in note_append / note_set / note_set_html ([#606](https://github.com/torsday/omnifocus-mcp/issues/606) slice 2) ([22313d9](https://github.com/torsday/omnifocus-mcp/commit/22313d99bb844102213dce0d6646b1da5f9cc970))
-* **nl-quality:** pair name with id in project-batch responses ([#592](https://github.com/torsday/omnifocus-mcp/issues/592) Group B) ([d367fbb](https://github.com/torsday/omnifocus-mcp/commit/d367fbbc26c7c07e02b18fed425a0efcacb4a26a))
-* **nl-quality:** pair name with id in project-verb responses ([#585](https://github.com/torsday/omnifocus-mcp/issues/585) slice) ([aa94f22](https://github.com/torsday/omnifocus-mcp/commit/aa94f22cc8a6bee70afb4689129545da64d549c3))
-* **nl-quality:** pair name with id in remaining task-batch verbs ([#597](https://github.com/torsday/omnifocus-mcp/issues/597)) ([20d8336](https://github.com/torsday/omnifocus-mcp/commit/20d8336b65e97896d471220edef2449fad7bda84))
-* **nl-quality:** pair name with id in task creates/convert/duplicate ([#590](https://github.com/torsday/omnifocus-mcp/issues/590) Group A) ([aba0b35](https://github.com/torsday/omnifocus-mcp/commit/aba0b35bfdf41106857c36a2ad4d594d41d8eff6))
-* **nl-quality:** pair name with id in task-batch lifecycle responses ([978899d](https://github.com/torsday/omnifocus-mcp/commit/978899d6b45644a0f510cb68e124ea6e34c07793)), closes [#594](https://github.com/torsday/omnifocus-mcp/issues/594)
-* **nl-quality:** pair name with id in task-verb responses ([#572](https://github.com/torsday/omnifocus-mcp/issues/572) slice) ([5272054](https://github.com/torsday/omnifocus-mcp/commit/5272054c0445f60ee628c0e444baac715bcb27cf))
-* **nl-quality:** pair owner name with id in attachment_add / attachment_remove ([27f5efc](https://github.com/torsday/omnifocus-mcp/commit/27f5efca3326e8f39fa7a7c01e7b92baa2fe2c53))
-* **nl-quality:** wire zodToActionable at handlers with refined input schemas ([e93f781](https://github.com/torsday/omnifocus-mcp/commit/e93f7817a40991ac6b88a645e426a3798dc01f17)), closes [#575](https://github.com/torsday/omnifocus-mcp/issues/575)
-* **perspective:** add perspective_get and perspective_delete ([0c31f7d](https://github.com/torsday/omnifocus-mcp/commit/0c31f7d7eea3e74f4e9e931b0546ef903eda1348))
-* **project:** project_template_instantiate (parameter substitution + relative-date shifting) ([f83f427](https://github.com/torsday/omnifocus-mcp/commit/f83f42705b49562e77a39477afc81661abf7bbe7))
-* **project:** project_template_save + project_template_list (first slice of [#472](https://github.com/torsday/omnifocus-mcp/issues/472)) ([590f1a1](https://github.com/torsday/omnifocus-mcp/commit/590f1a12dcda8b6cac9d84dffdd30dcf326e5154))
-* **prompts:** add inbox-triage prompt + task_batch_assign tool ([#539](https://github.com/torsday/omnifocus-mcp/issues/539)) ([26ef26d](https://github.com/torsday/omnifocus-mcp/commit/26ef26dd425395182c0e66f9e75e66800cd7d21e))
-* **repetition:** add repetition_from_prose deterministic helper ([#535](https://github.com/torsday/omnifocus-mcp/issues/535)) ([f9abf49](https://github.com/torsday/omnifocus-mcp/commit/f9abf492a10e1c450b5ea5d56ea7caf5b6d8358a))
-* **resources:** add omnifocus://intents — eighty tools, eight verbs ([#530](https://github.com/torsday/omnifocus-mcp/issues/530)) ([ed6a78d](https://github.com/torsday/omnifocus-mcp/commit/ed6a78d7897902f4a241ca1f50983d38e6b849f2))
-* **resources:** add omnifocus://project-health stalled-project triage ([#534](https://github.com/torsday/omnifocus-mcp/issues/534)) ([d6ec05b](https://github.com/torsday/omnifocus-mcp/commit/d6ec05b644e7cae0242ce3f3d6b7fd785fa649ee))
-* **resources:** add omnifocus://recent-activity session-priming resource ([#505](https://github.com/torsday/omnifocus-mcp/issues/505)) ([88c2607](https://github.com/torsday/omnifocus-mcp/commit/88c26071c0539e182d22c0c3cc95671c86d33e6d))
-* **resources:** add omnifocus://retrospective range resource ([9642a0b](https://github.com/torsday/omnifocus-mcp/commit/9642a0bf44a5eecb6de23b08c3befda920343fe0)), closes [#474](https://github.com/torsday/omnifocus-mcp/issues/474)
-* **resources:** add omnifocus://stats database statistics resource ([#533](https://github.com/torsday/omnifocus-mcp/issues/533)) ([2c8fe97](https://github.com/torsday/omnifocus-mcp/commit/2c8fe97c445601ded73857598fefab01b814b5ad))
-* **resources:** add omnifocus://taxonomy-audit collision detector ([#509](https://github.com/torsday/omnifocus-mcp/issues/509)) ([8afc6b3](https://github.com/torsday/omnifocus-mcp/commit/8afc6b33012ae2353a747b109d754c5f5b376523)), closes [#470](https://github.com/torsday/omnifocus-mcp/issues/470)
-* **resources:** add velocity + burndown analytics resources ([#513](https://github.com/torsday/omnifocus-mcp/issues/513)) ([27c0ed2](https://github.com/torsday/omnifocus-mcp/commit/27c0ed2b9f0c79980cb57d58219b40f7dc04e94d))
-* **review:** add project_set_next_review_date ([d8ca689](https://github.com/torsday/omnifocus-mcp/commit/d8ca689d17b49f5b0eb47518a7a437508726e36d)), closes [#467](https://github.com/torsday/omnifocus-mcp/issues/467)
-* **task:** add task_convert_to_project via Database.convertTasksToProjects ([ea7542a](https://github.com/torsday/omnifocus-mcp/commit/ea7542ade50924c38bdb164ee23d448e45305706))
-* **task:** add task_extract_from_image vision capture tool ([#486](https://github.com/torsday/omnifocus-mcp/issues/486)) ([540a63a](https://github.com/torsday/omnifocus-mcp/commit/540a63aa56166faa0952cf5f5f67cec0ced216dc))
-* **task:** add task_extract_from_note prose-to-tasks extractor ([#536](https://github.com/torsday/omnifocus-mcp/issues/536)) ([a2fed5b](https://github.com/torsday/omnifocus-mcp/commit/a2fed5b6a5c486689286383293fcf61d0c3ce22d))
-* **task:** add task_find_similar lexical-similarity helper ([#543](https://github.com/torsday/omnifocus-mcp/issues/543)) ([41a645b](https://github.com/torsday/omnifocus-mcp/commit/41a645b72e960ca818d20c238db99c68a8208c5a))
-* **task:** add task_reclassify with mandatory dry-run ([#545](https://github.com/torsday/omnifocus-mcp/issues/545)) ([7a2da90](https://github.com/torsday/omnifocus-mcp/commit/7a2da90c392cbb158ed2c98f175c56c214b9231f))
-* **task:** add task_set_alarms / task_clear_alarms tools ([#461](https://github.com/torsday/omnifocus-mcp/issues/461)) ([#552](https://github.com/torsday/omnifocus-mcp/issues/552)) ([6920343](https://github.com/torsday/omnifocus-mcp/commit/69203436ac4d808db6a18c6b82b641dea6662b06))
-* **task:** waiting-on tracking via fenced note metadata ([3a8c6e7](https://github.com/torsday/omnifocus-mcp/commit/3a8c6e7b7751d2247cf550133af60d3d7609732c))
-* **task:** wire task_convert_to_project through adapter + router layers ([e37993e](https://github.com/torsday/omnifocus-mcp/commit/e37993ed25c3fd4bd5492b4cb9a500fb2366a081))
-* **tools:** add *_describe preview tools for every write operation ([a12fc0c](https://github.com/torsday/omnifocus-mcp/commit/a12fc0cb5cbb80a4419ff1b6c5e8c3680352e843)), closes [#494](https://github.com/torsday/omnifocus-mcp/issues/494)
-* **transport:** expose front-window perspective + focus controls ([40bd197](https://github.com/torsday/omnifocus-mcp/commit/40bd19704d008d53e1440a042a327fb9ec752ded)), closes [#466](https://github.com/torsday/omnifocus-mcp/issues/466)
+- **Project templates — `project_template_save`, `project_template_list`, `project_template_instantiate`** — capture a project's task tree as TaskPaper into a `Templates` folder (folder name configurable via `OMNIFOCUS_TEMPLATES_FOLDER_NAME`), then spawn a new project from any saved template with `{{placeholder}}` substitution and automatic `@due`/`@defer` date-shifting anchored to the template's earliest due date. Parameters are validated on instantiation — every declared `{{name}}` must have a supplied value, and all missing names are reported in a single typed `MissingTemplateParameter` error. Convention documented in DESIGN.md §30. ([#472](https://github.com/torsday/omnifocus-mcp/issues/472), [#587](https://github.com/torsday/omnifocus-mcp/issues/587))
 
+- **Waiting-on tracking** — `task_set_waiting_on` and `task_clear_waiting_on` write/strip a fenced YAML block at the top of a task's note recording `whom`, `what`, `since`, and `followUpAfter`. The configured `@waiting` tag is added/removed automatically. `task_get` and `task_get_many` surface a structured `waitingOn` field on affected tasks. New `omnifocus://waiting-on` resource lists every open waiting-on task sorted by days overdue. ([#482](https://github.com/torsday/omnifocus-mcp/issues/482))
+
+- **`perspective_get` and `perspective_delete`** — `perspective_get` returns the full rule tree for a custom perspective so agents can inspect what it filters without evaluating it. `perspective_delete` removes it and invalidates the perspective cache. Both reject built-in perspective IDs with a typed error; both require OmniFocus Pro. ([#523](https://github.com/torsday/omnifocus-mcp/issues/523))
+
+- **`*_describe` preview tools for every write operation** — a companion `task_create_describe`, `project_create_describe`, etc. returns a human-readable summary of what the live call would do, without touching OmniFocus. Lets agents confirm intent before firing a mutation. ([#494](https://github.com/torsday/omnifocus-mcp/issues/494))
+
+- **`database_undo` and `database_redo`** — exposes OmniFocus's undo/redo stack so agents can recover from mistakes without manual user intervention. ([#544](https://github.com/torsday/omnifocus-mcp/issues/544))
+
+- **`task_extract_from_image`** — vision tool that accepts a base64-encoded image and returns structured task proposals extracted from handwritten notes, whiteboard photos, or screenshots. ([#486](https://github.com/torsday/omnifocus-mcp/issues/486))
+
+- **`task_extract_from_note`** — parses free-form prose (meeting notes, bullet lists, brain dumps) into structured `task_batch_create` candidates with optional project and tag assignments. ([#536](https://github.com/torsday/omnifocus-mcp/issues/536))
+
+- **`task_reclassify`** — moves a task between inbox, project, or parent with a mandatory dry-run first pass showing the proposed change before committing. ([#545](https://github.com/torsday/omnifocus-mcp/issues/545))
+
+- **`task_find_similar`** — lexical-similarity search across task names to detect near-duplicates before creating new tasks. ([#543](https://github.com/torsday/omnifocus-mcp/issues/543))
+
+- **`task_convert_to_project`** — promotes a task to a first-class project via `Database.convertTasksToProjects`, preserving subtasks and metadata.
+
+- **`task_set_alarms` and `task_clear_alarms`** — add or remove OmniFocus notification alarms on a task; supports absolute-date, relative-to-due, and relative-to-defer alarm types. ([#461](https://github.com/torsday/omnifocus-mcp/issues/461))
+
+- **`repetition_from_prose`** — deterministic converter from natural-language repetition strings ("every weekday", "every 2 weeks on Monday") to a validated `RepetitionRule` ready for `task_create` or `task_update`. ([#535](https://github.com/torsday/omnifocus-mcp/issues/535))
+
+- **`forecast_pack`** — time-budget reconciliation: given a target date and a daily minute budget, assigns tasks from the Forecast view into day buckets and surfaces overloaded days. ([#473](https://github.com/torsday/omnifocus-mcp/issues/473))
+
+- **Forecast tag preference (`forecast_get_tag`, `forecast_set_tag`)** — read and write the OmniFocus Forecast tag preference (the tag whose tasks appear in the Forecast view). ([#465](https://github.com/torsday/omnifocus-mcp/issues/465))
+
+- **`project_set_next_review_date`** — set the next scheduled review date on a project without waiting for the review cycle to elapse naturally. ([#467](https://github.com/torsday/omnifocus-mcp/issues/467))
+
+- **`app_window_new` and `app_window_new_tab`** — open a new OmniFocus window or a new tab on the frontmost window for guided-review flows. ([#558](https://github.com/torsday/omnifocus-mcp/issues/558))
+
+- **`window_set_focus` and `window_set_perspective`** — set the focus context and switch the active perspective on the front window, enabling agent-driven guided workflows. ([#466](https://github.com/torsday/omnifocus-mcp/issues/466))
+
+- **`task_batch_assign` + inbox-triage prompt** — bulk-assign tags, projects, and dates to a list of task IDs in one round trip; paired with a built-in `inbox-triage` MCP prompt that sequences the tool calls for a full GTD-style processing sweep. ([#539](https://github.com/torsday/omnifocus-mcp/issues/539))
+
+- **`deferDateFloating` and `dueDateFloating` on all date-bearing tools** — mark a date as "floating" (timezone-independent) at the field level, matching OmniFocus's own semantics for travel-friendly tasks. ([#462](https://github.com/torsday/omnifocus-mcp/issues/462))
+
+- **Seven new read resources:**
+  - `omnifocus://intents` — index of every tool grouped by the eight core verb intents, for agent orientation ([#530](https://github.com/torsday/omnifocus-mcp/issues/530))
+  - `omnifocus://project-health` — stalled-project triage: projects with no incomplete tasks, overdue reviews, or no activity in 30+ days ([#534](https://github.com/torsday/omnifocus-mcp/issues/534))
+  - `omnifocus://retrospective` — completed-task summary over a caller-specified date range ([#474](https://github.com/torsday/omnifocus-mcp/issues/474))
+  - `omnifocus://stats` — database statistics (task counts by status, project counts, tag usage) ([#533](https://github.com/torsday/omnifocus-mcp/issues/533))
+  - `omnifocus://velocity` and `omnifocus://burndown` — completion-rate and open-task-trend analytics over rolling windows ([#513](https://github.com/torsday/omnifocus-mcp/issues/513))
+  - `omnifocus://taxonomy-audit` — detects tag and project name collisions before a batch import causes duplicates ([#509](https://github.com/torsday/omnifocus-mcp/issues/509))
+  - `omnifocus://recent-activity` — session-priming snapshot of tasks touched in the last N hours, useful for resuming context at the start of a session ([#505](https://github.com/torsday/omnifocus-mcp/issues/505))
+
+- **Response envelope improvements** — every `ok` response now carries a `hints[]` array (agent-readable suggestions about next steps) and a `humanReadableSummary` string (one-line confirmation of what was just done). Both fields are defined in ADR-0015. ([#524](https://github.com/torsday/omnifocus-mcp/issues/524))
+
+### Improved
+
+- **NL-quality: `Example:` on every tool description** — all ~95 `*_DESCRIPTION` constants now end with at least one `Example: tool_name({ … })` line; multi-mode tools include 2–3 representative examples. Agents can construct a first call from the description alone. ([#570](https://github.com/torsday/omnifocus-mcp/issues/570))
+
+- **NL-quality: name paired with id in all mutation responses** — tools that previously returned a bare `{ id }` now return `{ id, name }`. Agents can confirm what was just created or modified without a follow-up `*_get` call. Covers task verbs, project verbs, batch operations, attachments, notes, and forecast-tag operations. ([#572](https://github.com/torsday/omnifocus-mcp/issues/572), [#585](https://github.com/torsday/omnifocus-mcp/issues/585), [#590](https://github.com/torsday/omnifocus-mcp/issues/590), [#592](https://github.com/torsday/omnifocus-mcp/issues/592), [#597](https://github.com/torsday/omnifocus-mcp/issues/597), [#606](https://github.com/torsday/omnifocus-mcp/issues/606))
+
+- **NL-quality: forgiving enum aliases** — status, completion-criterion, and related fields now accept common synonyms (`"done"`, `"dropped"`, `"active"`, etc.) alongside the canonical values. Mis-typed or loosely-worded agent inputs are accepted rather than rejected. ([#573](https://github.com/torsday/omnifocus-mcp/issues/573))
+
+- **NL-quality: `zodToActionable` input-error rewriting** — Zod validation failures at the tool boundary are translated into structured, agent-actionable messages naming the failing field and stating the accepted value set, instead of surfacing raw Zod issue arrays. ([#575](https://github.com/torsday/omnifocus-mcp/issues/575))
 
 ### Fixed
 
-* **domain/ids:** accept dotted IDs from repeating-task instances ([83e9060](https://github.com/torsday/omnifocus-mcp/commit/83e906014966b128896ca36715c500bede157a6c)), closes [#497](https://github.com/torsday/omnifocus-mcp/issues/497)
-* **export:** partitionTasksByParent treats project-rooted tasks as roots ([#503](https://github.com/torsday/omnifocus-mcp/issues/503)) ([7ac8ce2](https://github.com/torsday/omnifocus-mcp/commit/7ac8ce22b89ae688ebf6e49b85aee08de3fdf3ca)), closes [#499](https://github.com/torsday/omnifocus-mcp/issues/499)
-* **jxa:** guard creationDate/modificationDate against can't-get-object errors ([a518f36](https://github.com/torsday/omnifocus-mcp/commit/a518f36c02f02e6bcffdf506235cf5e57aaa4aca)), closes [#498](https://github.com/torsday/omnifocus-mcp/issues/498)
-* **jxa:** tag_list/folder_list filter checks treat null as no-filter ([9c1d601](https://github.com/torsday/omnifocus-mcp/commit/9c1d6014de33ef028ba729183d9d8b2302902813)), closes [#515](https://github.com/torsday/omnifocus-mcp/issues/515)
-* **lint:** use ProjectIdCtor.of() instead of ID cast in convertTaskToProject ([a50c06d](https://github.com/torsday/omnifocus-mcp/commit/a50c06d4f162757912e1e82f38593a5a8c3d61ad))
-* **nl-quality:** add Example: lines to waitingOn descriptions ([16b926c](https://github.com/torsday/omnifocus-mcp/commit/16b926c2f54e5af5fb76ad46c0342e134638c1e4))
-* **nl-quality:** move audit to docs/validation, drop tool-count prose ([31335c4](https://github.com/torsday/omnifocus-mcp/commit/31335c4b699f0887bcaa5226e9723c510925000e))
-* **task:** trim task_extract_from_image strings to fit bundle budget ([35a2592](https://github.com/torsday/omnifocus-mcp/commit/35a2592d24e955912666386088a6fb3427bb73f8))
-* **tools:** import order + describe tool snapshots ([35f822d](https://github.com/torsday/omnifocus-mcp/commit/35f822d5cb28dcdc9657209472f59d7cf4b5540a))
+- **Repeating-task IDs accepted everywhere** — OmniFocus appends a `.N` suffix to IDs of repeating-task instances (e.g. `abc123.1`). These were previously rejected by the ID validator, causing lookups on the second and later occurrences of a repeating task to fail. ([#497](https://github.com/torsday/omnifocus-mcp/issues/497))
 
+- **`export_taskpaper` includes project-level tasks** — tasks attached directly to the project node were silently dropped from TaskPaper exports. ([#499](https://github.com/torsday/omnifocus-mcp/issues/499))
+
+- **JXA date metadata no longer throws on inaccessible objects** — certain completed tasks returned a `can't get object` AppleScript error when `creationDate`/`modificationDate` were read. The JXA layer now guards these reads and returns `null` instead. ([#498](https://github.com/torsday/omnifocus-mcp/issues/498))
+
+- **`tag_list`/`folder_list` null filters treated as no-filter** — passing `null` for an optional filter (e.g. `parentId: null`) was misinterpreted as an active filter and returned empty results. ([#515](https://github.com/torsday/omnifocus-mcp/issues/515))
 
 ### Performance
 
-* **forecast_get:** push every bucket filter into whose() — ~50x speedup ([#529](https://github.com/torsday/omnifocus-mcp/issues/529)) ([b3416b7](https://github.com/torsday/omnifocus-mcp/commit/b3416b77bcb0d52bed1542cffb566411c9db0525)), closes [#500](https://github.com/torsday/omnifocus-mcp/issues/500)
-
-
-### Changed
-
-* **test:** replace magic-number toHaveLength with named-resource checks ([d13ab9a](https://github.com/torsday/omnifocus-mcp/commit/d13ab9ad5d53aeb2c3d12831c3cf013144f74173)), closes [#512](https://github.com/torsday/omnifocus-mcp/issues/512)
-
+- **`forecast_get` ~50× faster** — bucket filters are pushed into the JXA `whose()` clause so OmniFocus evaluates them database-side rather than returning all tasks and filtering in JavaScript. Cold fetches on large databases drop from 4–8 s to under 200 ms. ([#500](https://github.com/torsday/omnifocus-mcp/issues/500))
 
 ### Documentation
 
-* **adr:** 0018 calendar bridge — EventKit only, Swift-binary subprocess ([b83d440](https://github.com/torsday/omnifocus-mcp/commit/b83d440882dd108bf9c4f1c04ec28e7b0430956a))
-* **adr:** add ADR-0015 — NL-excellence response envelope ([#524](https://github.com/torsday/omnifocus-mcp/issues/524)) ([e0d5b1d](https://github.com/torsday/omnifocus-mcp/commit/e0d5b1d11c229eb4775ce2ab2bc5e5c50f42b69e))
-* **adr:** add ADR-0017 — mutation testing as release gate ([#528](https://github.com/torsday/omnifocus-mcp/issues/528)) ([e8ec2ac](https://github.com/torsday/omnifocus-mcp/commit/e8ec2acf3f4c748dc476b98dca611ccc235cd054))
-* **clients:** add OpenCode and Pi setup guides ([#559](https://github.com/torsday/omnifocus-mcp/issues/559)) ([#560](https://github.com/torsday/omnifocus-mcp/issues/560)) ([29022d0](https://github.com/torsday/omnifocus-mcp/commit/29022d01896471d95419caa4271f6322eec73bb2))
-* **contributing:** note that the dev MCP doesn't hot-reload from dist ([0bee39f](https://github.com/torsday/omnifocus-mcp/commit/0bee39f10ebcb8334668bd8282ec358a83d192cf))
-* **design:** drop tool-count from bundle-budget rationale ([d812671](https://github.com/torsday/omnifocus-mcp/commit/d812671f10261c77c4e9605956d6d18805a56069))
-* **perspective:** drop stale "mutations not supported" comment ([d66e09b](https://github.com/torsday/omnifocus-mcp/commit/d66e09b3d74f19b50c7df2a44287e167f51b3662))
-* **readme:** genericize version-specific references ([dbde992](https://github.com/torsday/omnifocus-mcp/commit/dbde9923f436cd2473204bd11cebe185199a6fb3))
-* regenerate tools.md to include task_convert_to_project ([2f48911](https://github.com/torsday/omnifocus-mcp/commit/2f489116d807083c81a504abfbe3acd8c10bebfa))
-* **spike:** bundle-size strategy — measure, evaluate, recommend ([fe00c76](https://github.com/torsday/omnifocus-mcp/commit/fe00c769b309b723615c7146c75e1fadba3b9240)), closes [#578](https://github.com/torsday/omnifocus-mcp/issues/578)
-* **spike:** reword tool-count phrasings to satisfy meta-lint ([d0d768b](https://github.com/torsday/omnifocus-mcp/commit/d0d768b9e2ad238e9590334f81eb3bb622217f6f))
-* stop restating tool counts in living docs — defer to omnifocus://capabilities ([dce3ad0](https://github.com/torsday/omnifocus-mcp/commit/dce3ad042b5168312cd43b0aa6e9a1d481a0dfaf)), closes [#478](https://github.com/torsday/omnifocus-mcp/issues/478)
+- **Setup guides for OpenCode and Pi** — `docs/clients/opencode.md` covers OpenCode's `opencode.json` MCP config format. `docs/clients/pi.md` documents that Pi (pi.ai) has no MCP client support as of mid-2025. ([#559](https://github.com/torsday/omnifocus-mcp/issues/559))
+- **Homebrew tap** — `torsday/homebrew-tap` now carries a formula; the release workflow patches it automatically after each npm publish. Non-Node users can install via `brew install torsday/tap/omnifocus-mcp`.
+- **ADR-0015** — NL-excellence response envelope (hints, humanReadableSummary). ([#524](https://github.com/torsday/omnifocus-mcp/issues/524))
+- **ADR-0017** — mutation testing as release gate. ([#528](https://github.com/torsday/omnifocus-mcp/issues/528))
+- **ADR-0018** — calendar bridge architecture: EventKit only, Swift-binary subprocess.
 
 ## [1.0.2](https://github.com/torsday/omnifocus-mcp/compare/v1.0.1...v1.0.2) (2026-04-26)
 
