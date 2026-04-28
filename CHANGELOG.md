@@ -4,6 +4,94 @@ All notable changes to `@torsday/omnifocus-mcp` will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [ADR-0011](./docs/adr/0011-versioning-and-stability.md) for the explicit definition of breaking vs additive changes in this project.
 
+
+## [1.1.0](https://github.com/torsday/omnifocus-mcp/compare/v1.0.2...v1.1.0) (2026-04-28)
+
+**Summary** — The headline additions are project templates, waiting-on tracking, and several new analytics resources. Alongside new tools, the entire tool surface went through a focused NL-quality pass: every description now carries a worked `Example:` line, every mutation response pairs a human-readable name alongside the opaque ID, and enum inputs accept common aliases so loosely-worded agent inputs succeed rather than bounce. Agents calling this server cold will be able to compose correct calls with substantially less trial-and-error. No breaking changes; all v1.0.x call shapes are unchanged.
+
+### Added
+
+- **Project templates — `project_template_save`, `project_template_list`, `project_template_instantiate`** — capture a project's task tree as TaskPaper into a `Templates` folder (folder name configurable via `OMNIFOCUS_TEMPLATES_FOLDER_NAME`), then spawn a new project from any saved template with `{{placeholder}}` substitution and automatic `@due`/`@defer` date-shifting anchored to the template's earliest due date. Parameters are validated on instantiation — every declared `{{name}}` must have a supplied value, and all missing names are reported in a single typed `MissingTemplateParameter` error. Convention documented in DESIGN.md §30. ([#472](https://github.com/torsday/omnifocus-mcp/issues/472), [#587](https://github.com/torsday/omnifocus-mcp/issues/587))
+
+- **Waiting-on tracking** — `task_set_waiting_on` and `task_clear_waiting_on` write/strip a fenced YAML block at the top of a task's note recording `whom`, `what`, `since`, and `followUpAfter`. The configured `@waiting` tag is added/removed automatically. `task_get` and `task_get_many` surface a structured `waitingOn` field on affected tasks. New `omnifocus://waiting-on` resource lists every open waiting-on task sorted by days overdue. ([#482](https://github.com/torsday/omnifocus-mcp/issues/482))
+
+- **`perspective_get` and `perspective_delete`** — `perspective_get` returns the full rule tree for a custom perspective so agents can inspect what it filters without evaluating it. `perspective_delete` removes it and invalidates the perspective cache. Both reject built-in perspective IDs with a typed error; both require OmniFocus Pro. ([#523](https://github.com/torsday/omnifocus-mcp/issues/523))
+
+- **`*_describe` preview tools for every write operation** — a companion `task_create_describe`, `project_create_describe`, etc. returns a human-readable summary of what the live call would do, without touching OmniFocus. Lets agents confirm intent before firing a mutation. ([#494](https://github.com/torsday/omnifocus-mcp/issues/494))
+
+- **`database_undo` and `database_redo`** — exposes OmniFocus's undo/redo stack so agents can recover from mistakes without manual user intervention. ([#544](https://github.com/torsday/omnifocus-mcp/issues/544))
+
+- **`task_extract_from_image`** — vision tool that accepts a base64-encoded image and returns structured task proposals extracted from handwritten notes, whiteboard photos, or screenshots. ([#486](https://github.com/torsday/omnifocus-mcp/issues/486))
+
+- **`task_extract_from_note`** — parses free-form prose (meeting notes, bullet lists, brain dumps) into structured `task_batch_create` candidates with optional project and tag assignments. ([#536](https://github.com/torsday/omnifocus-mcp/issues/536))
+
+- **`task_reclassify`** — moves a task between inbox, project, or parent with a mandatory dry-run first pass showing the proposed change before committing. ([#545](https://github.com/torsday/omnifocus-mcp/issues/545))
+
+- **`task_find_similar`** — lexical-similarity search across task names to detect near-duplicates before creating new tasks. ([#543](https://github.com/torsday/omnifocus-mcp/issues/543))
+
+- **`task_convert_to_project`** — promotes a task to a first-class project via `Database.convertTasksToProjects`, preserving subtasks and metadata.
+
+- **`task_set_alarms` and `task_clear_alarms`** — add or remove OmniFocus notification alarms on a task; supports absolute-date, relative-to-due, and relative-to-defer alarm types. ([#461](https://github.com/torsday/omnifocus-mcp/issues/461))
+
+- **`repetition_from_prose`** — deterministic converter from natural-language repetition strings ("every weekday", "every 2 weeks on Monday") to a validated `RepetitionRule` ready for `task_create` or `task_update`. ([#535](https://github.com/torsday/omnifocus-mcp/issues/535))
+
+- **`forecast_pack`** — time-budget reconciliation: given a target date and a daily minute budget, assigns tasks from the Forecast view into day buckets and surfaces overloaded days. ([#473](https://github.com/torsday/omnifocus-mcp/issues/473))
+
+- **Forecast tag preference (`forecast_get_tag`, `forecast_set_tag`)** — read and write the OmniFocus Forecast tag preference (the tag whose tasks appear in the Forecast view). ([#465](https://github.com/torsday/omnifocus-mcp/issues/465))
+
+- **`project_set_next_review_date`** — set the next scheduled review date on a project without waiting for the review cycle to elapse naturally. ([#467](https://github.com/torsday/omnifocus-mcp/issues/467))
+
+- **`app_window_new` and `app_window_new_tab`** — open a new OmniFocus window or a new tab on the frontmost window for guided-review flows. ([#558](https://github.com/torsday/omnifocus-mcp/issues/558))
+
+- **`window_set_focus` and `window_set_perspective`** — set the focus context and switch the active perspective on the front window, enabling agent-driven guided workflows. ([#466](https://github.com/torsday/omnifocus-mcp/issues/466))
+
+- **`task_batch_assign` + inbox-triage prompt** — bulk-assign tags, projects, and dates to a list of task IDs in one round trip; paired with a built-in `inbox-triage` MCP prompt that sequences the tool calls for a full GTD-style processing sweep. ([#539](https://github.com/torsday/omnifocus-mcp/issues/539))
+
+- **`deferDateFloating` and `dueDateFloating` on all date-bearing tools** — mark a date as "floating" (timezone-independent) at the field level, matching OmniFocus's own semantics for travel-friendly tasks. ([#462](https://github.com/torsday/omnifocus-mcp/issues/462))
+
+- **Seven new read resources:**
+  - `omnifocus://intents` — index of every tool grouped by the eight core verb intents, for agent orientation ([#530](https://github.com/torsday/omnifocus-mcp/issues/530))
+  - `omnifocus://project-health` — stalled-project triage: projects with no incomplete tasks, overdue reviews, or no activity in 30+ days ([#534](https://github.com/torsday/omnifocus-mcp/issues/534))
+  - `omnifocus://retrospective` — completed-task summary over a caller-specified date range ([#474](https://github.com/torsday/omnifocus-mcp/issues/474))
+  - `omnifocus://stats` — database statistics (task counts by status, project counts, tag usage) ([#533](https://github.com/torsday/omnifocus-mcp/issues/533))
+  - `omnifocus://velocity` and `omnifocus://burndown` — completion-rate and open-task-trend analytics over rolling windows ([#513](https://github.com/torsday/omnifocus-mcp/issues/513))
+  - `omnifocus://taxonomy-audit` — detects tag and project name collisions before a batch import causes duplicates ([#509](https://github.com/torsday/omnifocus-mcp/issues/509))
+  - `omnifocus://recent-activity` — session-priming snapshot of tasks touched in the last N hours, useful for resuming context at the start of a session ([#505](https://github.com/torsday/omnifocus-mcp/issues/505))
+
+- **Response envelope improvements** — every `ok` response now carries a `hints[]` array (agent-readable suggestions about next steps) and a `humanReadableSummary` string (one-line confirmation of what was just done). Both fields are defined in ADR-0015. ([#524](https://github.com/torsday/omnifocus-mcp/issues/524))
+
+### Improved
+
+- **NL-quality: `Example:` on every tool description** — all ~95 `*_DESCRIPTION` constants now end with at least one `Example: tool_name({ … })` line; multi-mode tools include 2–3 representative examples. Agents can construct a first call from the description alone. ([#570](https://github.com/torsday/omnifocus-mcp/issues/570))
+
+- **NL-quality: name paired with id in all mutation responses** — tools that previously returned a bare `{ id }` now return `{ id, name }`. Agents can confirm what was just created or modified without a follow-up `*_get` call. Covers task verbs, project verbs, batch operations, attachments, notes, and forecast-tag operations. ([#572](https://github.com/torsday/omnifocus-mcp/issues/572), [#585](https://github.com/torsday/omnifocus-mcp/issues/585), [#590](https://github.com/torsday/omnifocus-mcp/issues/590), [#592](https://github.com/torsday/omnifocus-mcp/issues/592), [#597](https://github.com/torsday/omnifocus-mcp/issues/597), [#606](https://github.com/torsday/omnifocus-mcp/issues/606))
+
+- **NL-quality: forgiving enum aliases** — status, completion-criterion, and related fields now accept common synonyms (`"done"`, `"dropped"`, `"active"`, etc.) alongside the canonical values. Mis-typed or loosely-worded agent inputs are accepted rather than rejected. ([#573](https://github.com/torsday/omnifocus-mcp/issues/573))
+
+- **NL-quality: `zodToActionable` input-error rewriting** — Zod validation failures at the tool boundary are translated into structured, agent-actionable messages naming the failing field and stating the accepted value set, instead of surfacing raw Zod issue arrays. ([#575](https://github.com/torsday/omnifocus-mcp/issues/575))
+
+### Fixed
+
+- **Repeating-task IDs accepted everywhere** — OmniFocus appends a `.N` suffix to IDs of repeating-task instances (e.g. `abc123.1`). These were previously rejected by the ID validator, causing lookups on the second and later occurrences of a repeating task to fail. ([#497](https://github.com/torsday/omnifocus-mcp/issues/497))
+
+- **`export_taskpaper` includes project-level tasks** — tasks attached directly to the project node were silently dropped from TaskPaper exports. ([#499](https://github.com/torsday/omnifocus-mcp/issues/499))
+
+- **JXA date metadata no longer throws on inaccessible objects** — certain completed tasks returned a `can't get object` AppleScript error when `creationDate`/`modificationDate` were read. The JXA layer now guards these reads and returns `null` instead. ([#498](https://github.com/torsday/omnifocus-mcp/issues/498))
+
+- **`tag_list`/`folder_list` null filters treated as no-filter** — passing `null` for an optional filter (e.g. `parentId: null`) was misinterpreted as an active filter and returned empty results. ([#515](https://github.com/torsday/omnifocus-mcp/issues/515))
+
+### Performance
+
+- **`forecast_get` ~50× faster** — bucket filters are pushed into the JXA `whose()` clause so OmniFocus evaluates them database-side rather than returning all tasks and filtering in JavaScript. Cold fetches on large databases drop from 4–8 s to under 200 ms. ([#500](https://github.com/torsday/omnifocus-mcp/issues/500))
+
+### Documentation
+
+- **Setup guides for OpenCode and Pi** — `docs/clients/opencode.md` covers OpenCode's `opencode.json` MCP config format. `docs/clients/pi.md` documents that Pi (pi.ai) has no MCP client support as of mid-2025. ([#559](https://github.com/torsday/omnifocus-mcp/issues/559))
+- **Homebrew tap** — `torsday/homebrew-tap` now carries a formula; the release workflow patches it automatically after each npm publish. Non-Node users can install via `brew install torsday/tap/omnifocus-mcp`.
+- **ADR-0015** — NL-excellence response envelope (hints, humanReadableSummary). ([#524](https://github.com/torsday/omnifocus-mcp/issues/524))
+- **ADR-0017** — mutation testing as release gate. ([#528](https://github.com/torsday/omnifocus-mcp/issues/528))
+- **ADR-0018** — calendar bridge architecture: EventKit only, Swift-binary subprocess.
+
 ## [1.0.2](https://github.com/torsday/omnifocus-mcp/compare/v1.0.1...v1.0.2) (2026-04-26)
 
 **Summary** — One contributor-facing fix and one architectural-decision spike note; otherwise an internal-infrastructure release validating the post-v1.0.1 release flow under the new release-please + OIDC + PAT identity. **Bytes on the wire are identical to v1.0.1**: the published bundle, tool surface, tool descriptions, and runtime behaviour are unchanged. Consumers running `npx -y @torsday/omnifocus-mcp` see no difference. Internal-only commits (CI hygiene, release-please workflow tuning, comment-block cleanups) are intentionally hidden from this CHANGELOG by `release-please-config.json` and are not enumerated below.
