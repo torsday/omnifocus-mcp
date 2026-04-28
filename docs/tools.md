@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 131 tools registered.
+> Auto-generated from source. 132 tools registered.
 
 ## Table of contents
 
@@ -39,6 +39,7 @@
 - [note_get_html](#note_get_html)
 - [note_set](#note_set)
 - [note_set_html](#note_set_html)
+- [perspective_create](#perspective_create)
 - [perspective_delete](#perspective_delete)
 - [perspective_evaluate](#perspective_evaluate)
 - [perspective_get](#perspective_get)
@@ -1293,6 +1294,42 @@ Replace the HTML fragment note on a task or project. Overwrites the existing not
     "id": "abc123",
     "noteHtml": "<p>Updated note.</p>"
   },
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## perspective_create
+
+Create a new custom OmniFocus perspective with the given name, optional rule tree, optional aggregation, and optional icon color. The shell is created via JXA `make` (the only supported create path) and rules + aggregation + iconColor are written via OmniJS in the same transport hop — if rule writing throws, the shell is rolled back so the database is never left with a half-configured perspective. Use BEFORE composing complex authoring flows: pair with `perspective_get` to clone an existing perspective, or with `perspective_delete` to replace one. Do NOT use to update an existing perspective — prefer `perspective_update` (slice C) when it lands. rules is the same shape `perspective_get` returns (atom | aggregate | disabled wrapper) — round-trips are lossless. Each rule atom may set at most one action* predicate; combine predicates by wrapping atoms in a RuleAggregate with aggregateType all/any/none. Tag-id and focus-id arrays must be non-empty with non-empty entries. Returns { id } — the persistent identifier of the new custom perspective. Side effects: creates a perspective in OmniFocus; invalidates the perspective cache; sets meta.syncPending = true. Custom perspectives require OmniFocus Pro — without it, the adapter throws FeatureRequiresPro. Example: perspective_create({ name: "Today's plate", aggregation: "all", rules: [{ actionStatus: "flagged" }] })
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Display name for the new perspective. Must be non-empty and unique within the OmniFocus database — duplicate names are rejected with VALIDATION_ERROR. |
+| `aggregation` | one of: all | any | none | No | Top-level rule aggregation. One of "all", "any", "none". Defaults to "all" when omitted. |
+| `rules` | unknown[] | No | Top-level rule list. Empty array means 'show everything' (the default for fresh perspectives). Each rule is an atom (single action* predicate), an aggregate (compound rule with aggregateType + aggregateRules), or a disabled wrapper around either. |
+| `iconColor` | object | No | Custom icon color in [0, 1] floats { r, g, b, a }. Omit for the OmniFocus-assigned default. |
+
+### Example call
+
+```json
+{
+  "toolName": "perspective_create",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
   "meta": {
     "requestId": "req_01ABC",
     "durationMs": 5

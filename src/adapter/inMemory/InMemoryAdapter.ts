@@ -1328,6 +1328,38 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     }
   }
 
+  async createCustomPerspective(
+    input: import("../OmniFocusAdapter.js").CreateCustomPerspectiveInput,
+  ): Promise<string> {
+    if (input.name.length === 0) {
+      throw new ValidationError("name is required and must be non-empty", {
+        details: { field: "name" },
+      });
+    }
+    // Match OmniFocus's duplicate-name rejection so unit-level tests cover
+    // the same surface as production.
+    for (const detail of this.customPerspectiveDetails.values()) {
+      if (detail.name === input.name) {
+        throw new ValidationError(`Duplicate perspective name: ${input.name}`, {
+          details: { field: "name", existingId: detail.id },
+        });
+      }
+    }
+    this.idCounter += 1;
+    const id = `persp_${this.idCounter.toString().padStart(6, "0")}`;
+    const detail: import("../../domain/perspective.js").PerspectiveDetail = {
+      id,
+      name: input.name,
+      aggregation: input.aggregation ?? "all",
+      rules: input.rules ?? [],
+      iconColor: input.iconColor ?? null,
+    };
+    this.customPerspectiveDetails.set(id, detail);
+    // Also register in the kind=custom listing so list/perspective_list returns it.
+    this.customPerspectives.set(id, []);
+    return id;
+  }
+
   async evaluatePerspective(id: BuiltinPerspectiveId): Promise<Task[]> {
     const all = Array.from(this.tasks.values());
     if (id === "review" || id === "nearby") return [];

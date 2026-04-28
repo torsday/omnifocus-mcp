@@ -108,6 +108,7 @@ import windowSetPerspectiveScript from "../../scripts/jxa/window_set_perspective
 import type {
   AddAttachmentInput,
   AppLaunchResult,
+  CreateCustomPerspectiveInput,
   CreateFolderInput,
   CreateProjectInput,
   CreateTagInput,
@@ -777,6 +778,21 @@ export class JxaTransport implements OmniFocusAdapter {
         transport: "jxa",
         reason: "omnijs-only",
         method: "deleteCustomPerspective",
+      },
+    });
+  }
+
+  async createCustomPerspective(_input: CreateCustomPerspectiveInput): Promise<string> {
+    // Although the JXA `make` step is what actually creates the shell, the
+    // configure-and-rollback orchestration around it must run inside a
+    // single OmniJS execution to keep the rollback contract local. So
+    // routing always lands on OmniJS — this method exists only to satisfy
+    // the OmniFocusAdapter interface.
+    throw new ScriptError("createCustomPerspective requires the OmniJS transport", {
+      details: {
+        transport: "jxa",
+        reason: "omnijs-only",
+        method: "createCustomPerspective",
       },
     });
   }

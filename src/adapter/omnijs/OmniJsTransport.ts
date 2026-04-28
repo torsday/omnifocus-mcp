@@ -42,6 +42,7 @@ import {
   type AppWindowNewScriptResult,
   isScriptError,
   mapBatchScriptResult,
+  type PerspectiveCreateScriptResult,
   type PerspectiveDeleteScriptResult,
   type PerspectiveEvaluateScriptResult,
   type PerspectiveGetScriptResult,
@@ -55,6 +56,7 @@ import databaseRedoScript from "../../scripts/omnijs/database_redo.js";
 import databaseUndoScript from "../../scripts/omnijs/database_undo.js";
 import forecastGetTagScript from "../../scripts/omnijs/forecast_get_tag.js";
 import forecastSetTagScript from "../../scripts/omnijs/forecast_set_tag.js";
+import perspectiveCreateScript from "../../scripts/omnijs/perspective_create.js";
 import perspectiveDeleteScript from "../../scripts/omnijs/perspective_delete.js";
 import perspectiveEvaluateScript from "../../scripts/omnijs/perspective_evaluate.js";
 import perspectiveGetScript from "../../scripts/omnijs/perspective_get.js";
@@ -66,6 +68,7 @@ import taskMoveScript from "../../scripts/omnijs/task_move.js";
 import taskReorderScript from "../../scripts/omnijs/task_reorder.js";
 import taskSetAlarmsScript from "../../scripts/omnijs/task_set_alarms.js";
 import type {
+  CreateCustomPerspectiveInput,
   CreateFolderInput,
   CreateProjectInput,
   CreateTagInput,
@@ -734,6 +737,45 @@ export class OmniJsTransport implements OmniFocusAdapter {
         },
       });
     }
+  }
+
+  async createCustomPerspective(input: CreateCustomPerspectiveInput): Promise<string> {
+    // Pass the input through verbatim — the OmniJS script accepts the same
+    // rule shape that perspective_get.js emits, so round-trips are
+    // lossless without re-encoding work here. The script handles
+    // validation, JXA make, OmniJS configure, and rollback.
+    const result = await runOmniJsScript<PerspectiveCreateScriptResult>(
+      perspectiveCreateScript,
+      {
+        name: input.name,
+        ...(input.aggregation !== undefined && { aggregation: input.aggregation }),
+        ...(input.rules !== undefined && { rules: input.rules }),
+        ...(input.iconColor !== undefined && { iconColor: input.iconColor }),
+      },
+      { ...this.runOpts, scriptName: "perspective_create" },
+    );
+
+    if (isScriptError(result)) {
+      if (result.error.code === "FEATURE_REQUIRES_PRO") {
+        throw new FeatureRequiresPro(result.error.message, {
+          details: { feature: "custom-perspectives" },
+        });
+      }
+      if (result.error.code === "VALIDATION_ERROR") {
+        throw new ValidationError(result.error.message, {
+          details: { name: input.name },
+        });
+      }
+      throw new ScriptError(result.error.message, {
+        details: {
+          transport: "omnijs",
+          script: "perspective_create",
+          name: input.name,
+        },
+      });
+    }
+
+    return result.id;
   }
 
   // -- Sync -----------------------------------------------------------------
