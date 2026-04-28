@@ -184,7 +184,8 @@ export async function handleTaskBatchAssign(
   const tagPrereadIdxs = indicesNeedingTagPreread(assignments);
   const currentTagsByOrigIdx = new Map<number, TagId[]>();
   if (tagPrereadIdxs.length > 0) {
-    const ids = tagPrereadIdxs.map((i) => assignments[i]?.taskId);
+    // biome-ignore lint/style/noNonNullAssertion: tagPrereadIdxs contains only valid assignment indices
+    const ids = tagPrereadIdxs.map((i) => assignments[i]!.taskId);
     const tasks = await ctx.adapter.getTasksMany(ids);
     for (let k = 0; k < tagPrereadIdxs.length; k++) {
       const t = tasks[k];
@@ -199,10 +200,10 @@ export async function handleTaskBatchAssign(
     moveIdxs.length > 0
       ? await ctx.adapter.batchMoveTasks(
           moveIdxs.map((i) => ({
-            id: assignments[i]?.taskId,
-            // biome-ignore lint/style/noNonNullAssertion: indicesNeedingMove guarantees i is a valid assignments index
-            // biome-ignore lint/suspicious/noNonNullAssertedOptionalChain: projectId is guaranteed present by indicesNeedingMove
-            destination: { projectId: assignments[i]?.projectId! },
+            // biome-ignore lint/style/noNonNullAssertion: moveIdxs contains only valid assignment indices
+            id: assignments[i]!.taskId,
+            // biome-ignore lint/style/noNonNullAssertion: indicesNeedingMove guarantees projectId is present
+            destination: { projectId: assignments[i]!.projectId! },
           })),
         )
       : { succeeded: [], failed: [] };

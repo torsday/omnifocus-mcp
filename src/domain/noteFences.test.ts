@@ -21,7 +21,7 @@ describe("findFence", () => {
     const note = "```waiting-on\nwhom: Alice\n```\n\nrest of note";
     const m = findFence(note, "waiting-on");
     expect(m?.body).toBe("whom: Alice");
-    expect(note.slice(m!.start, m!.end)).toBe("```waiting-on\nwhom: Alice\n```");
+    expect(note.slice(m?.start, m?.end)).toBe("```waiting-on\nwhom: Alice\n```");
   });
 
   it("locates a fence in the middle of the note", () => {
