@@ -12,6 +12,7 @@ import { handleForecastSetTag } from "./set_tag.js";
 function makeCtx(opts: {
   setResolves?: { tagId: ReturnType<typeof TagIdCtor.of> | null };
   setRejects?: Error;
+  tagName?: string;
 }) {
   const setForecastTag = vi.fn();
   if (opts.setRejects) {
@@ -21,6 +22,10 @@ function makeCtx(opts: {
   }
   const adapter = {
     setForecastTag,
+    getTag: vi.fn().mockImplementation(async (id: ReturnType<typeof TagIdCtor.of>) => ({
+      id,
+      name: opts.tagName ?? "Today",
+    })),
   } as unknown as ConstructorParameters<typeof ForecastService>[0]["adapter"];
   const cache = { invalidate: vi.fn() };
   return {
@@ -32,11 +37,11 @@ function makeCtx(opts: {
 }
 
 describe("handleForecastSetTag", () => {
-  it("sets the forecast tag and invalidates the forecast cache", async () => {
+  it("sets the forecast tag and invalidates the forecast cache, returning paired name (#599)", async () => {
     const tagId = TagIdCtor.of("tag-today");
-    const ctx = makeCtx({ setResolves: { tagId } });
+    const ctx = makeCtx({ setResolves: { tagId }, tagName: "Today" });
     const env = await handleForecastSetTag({ tagId }, ctx);
-    expect(env.data).toEqual({ tagId });
+    expect(env.data).toEqual({ tagId, name: "Today" });
     expect(ctx._setSpy).toHaveBeenCalledWith(tagId);
     expect(ctx.cache.invalidate).toHaveBeenCalledWith("forecast:*");
   });
@@ -44,7 +49,7 @@ describe("handleForecastSetTag", () => {
   it("clears the forecast tag when tagId is null", async () => {
     const ctx = makeCtx({ setResolves: { tagId: null } });
     const env = await handleForecastSetTag({ tagId: null }, ctx);
-    expect(env.data).toEqual({ tagId: null });
+    expect(env.data).toEqual({ tagId: null, name: null });
     expect(ctx._setSpy).toHaveBeenCalledWith(null);
     expect(ctx.cache.invalidate).toHaveBeenCalledWith("forecast:*");
   });

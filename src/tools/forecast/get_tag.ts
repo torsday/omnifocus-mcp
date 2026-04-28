@@ -19,7 +19,7 @@ export const FORECAST_GET_TAG_DESCRIPTION =
   "Use when the agent needs to answer 'what tag is the user using as their daily agenda?' or to confirm a tag before composing follow-up queries against it. " +
   "Do NOT use to list tags in general — prefer tag_list. " +
   "Takes no arguments. " +
-  "Returns { tagId: string | null }; null when no forecast tag is configured (fresh OmniFocus install or explicitly cleared via forecast_set_tag). " +
+  "Returns { tagId: string | null, name: string | null } — name is the tag's display name (or null when tagId is null or the tag has been deleted) so the agent can describe the forecast tag without a follow-up tag_get. " +
   "Read-only; no side effects; safe to retry. Backed by OmniJS Database.forecastTag.";
 
 export const forecastGetTagInputSchema = z.object({});
