@@ -81,8 +81,8 @@ describe("buildWaitingOnPayload", () => {
     const payload = await buildWaitingOnPayload(adapter, NOW);
     const byName = Object.fromEntries(payload.items.map((i) => [i.name, i.daysOverdue]));
     expect(byName["no follow-up"]).toBeNull();
-    expect(byName["future"]).toBeNull();
-    expect(byName["today"]).toBe(0);
+    expect(byName.future).toBeNull();
+    expect(byName.today).toBe(0);
     expect(byName["5 days late"]).toBe(5);
   });
 
