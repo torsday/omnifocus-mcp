@@ -1,5 +1,6 @@
 import type {
   AddAttachmentInput,
+  AttachmentOwner,
   ListAttachmentsInput,
   OmniFocusAdapter,
   RemoveAttachmentInput,
@@ -10,6 +11,34 @@ import { assertAttachmentPath } from "../attachment/assertAttachmentPath.js";
 import { assertAttachmentSize } from "../attachment/assertAttachmentSize.js";
 import type { Attachment } from "../domain/attachment.js";
 import type { AttachmentId } from "../domain/ids.js";
+
+/**
+ * Outcome of `add` / `remove` — the new/old attachment ID paired with the
+ * owner's display name and kind so the agent can describe the mutation
+ * without a follow-up read (lever-4 round-trip readability per
+ * docs/nl-quality-standards.md §4 / #601).
+ */
+export interface AttachmentMutationOutcome {
+  /** Owner kind: "task" or "project". */
+  ownerKind: "task" | "project";
+  /** Owner display name; null only if the owner was deleted between mutation and lookup. */
+  ownerName: string | null;
+}
+
+/** Extract just the owner half (drop attachment-specific fields) from an add/remove input. */
+function ownerFromInput(input: AttachmentOwner & object): AttachmentOwner {
+  return "taskId" in input && input.taskId !== undefined
+    ? { taskId: input.taskId }
+    : {
+        projectId: (
+          input as { projectId: AttachmentOwner extends { projectId: infer P } ? P : never }
+        ).projectId,
+      };
+}
+
+function ownerKindOf(owner: AttachmentOwner): "task" | "project" {
+  return "taskId" in owner ? "task" : "project";
+}
 
 // ---------------------------------------------------------------------------
 // Service shape
@@ -59,19 +88,50 @@ export class AttachmentService {
    * @throws ValidationError — path outside allowed scope or file exceeds cap
    * @throws NotFound — when the owner does not exist
    */
-  async add(input: AddAttachmentInput): Promise<AttachmentId> {
+  async add(input: AddAttachmentInput): Promise<{ id: AttachmentId } & AttachmentMutationOutcome> {
     await assertAttachmentPath(input.filePath, this.allowedPaths);
     await assertAttachmentSize(input.filePath, this.maxMb);
-    return this.adapter.addAttachment(input);
+    const id = await this.adapter.addAttachment(input);
+    const owner = ownerFromInput(input);
+    return { id, ownerKind: ownerKindOf(owner), ownerName: await this.lookupOwnerName(owner) };
   }
 
   /**
    * Remove an attachment by ID.
    *
+   * Captures the owner's display name *before* the JXA mutation so the
+   * paired name survives even if the adapter call mutates the cache or
+   * removes ancillary state (#601 AC). The lookup runs against the parent
+   * task or project (which is not deleted), but we still gate on
+   * pre-mutation read to keep the contract honest.
+   *
    * @throws NotFound — when the owner or attachment does not exist
    */
-  async remove(input: RemoveAttachmentInput): Promise<void> {
-    return this.adapter.removeAttachment(input);
+  async remove(input: RemoveAttachmentInput): Promise<AttachmentMutationOutcome> {
+    const owner = ownerFromInput(input);
+    const ownerName = await this.lookupOwnerName(owner);
+    await this.adapter.removeAttachment(input);
+    return { ownerKind: ownerKindOf(owner), ownerName };
+  }
+
+  /**
+   * Resolve a task/project owner to its display name.
+   *
+   * Returns `null` (rather than throwing) when the owner has been deleted
+   * between the mutation and the lookup — surface the orphan rather than
+   * failing the whole call.
+   */
+  private async lookupOwnerName(owner: AttachmentOwner): Promise<string | null> {
+    try {
+      if ("taskId" in owner) {
+        const task = await this.adapter.getTask(owner.taskId);
+        return task.name;
+      }
+      const project = await this.adapter.getProject(owner.projectId);
+      return project.name;
+    } catch {
+      return null;
+    }
   }
 
   /**
