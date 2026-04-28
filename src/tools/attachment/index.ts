@@ -94,7 +94,7 @@ export const ATTACHMENT_ADD_DESCRIPTION =
   "Path must be within the allowed scope (default: $HOME; override via OMNIFOCUS_ATTACHMENT_PATHS). " +
   "File must not exceed the size cap (default 100 MB; override via OMNIFOCUS_MAX_ATTACHMENT_MB). " +
   "Returns { id, ownerKind, ownerName } — ownerKind is 'task' or 'project' and ownerName is the parent's display name (null only if the parent was deleted between the add and the lookup) so the agent can describe the new attachment without a follow-up read. " +
-  "Mutations do not propagate until sync_trigger is called."" +
+  "Mutations do not propagate until sync_trigger is called. " +
   'Example: attachment_add({ taskId: "abc123", filePath: "/Users/me/report.pdf" })';
 
 export const attachmentAddInputSchema = ownerBaseSchema.extend({
@@ -128,7 +128,7 @@ export const ATTACHMENT_REMOVE_DESCRIPTION =
   "Do not use to retrieve or export attachment content — use attachment_save_to_path instead. " +
   "Returns { removed: true, attachmentId, ownerKind, ownerName } — ownerKind is 'task' or 'project' and ownerName is captured BEFORE the JXA call so it survives even if the lookup were to fail post-mutation; null only when the parent itself has been deleted. The agent can describe the removal without a follow-up read. " +
   "Throws NotFound if the attachment or owner does not exist. " +
-  "Permanent — cannot be undone. Mutations do not propagate until sync_trigger is called."" +
+  "Permanent — cannot be undone. Mutations do not propagate until sync_trigger is called. " +
   'Example: attachment_remove({ taskId: "abc123", attachmentId: "att456" })';
 
 export const attachmentRemoveInputSchema = ownerBaseSchema.extend({

@@ -141,7 +141,7 @@
 ---
 ## app_launch
 
-Explicitly launch OmniFocus. Do NOT call this automatically — only invoke when the user explicitly asks to open OmniFocus; prefer other tools when OF is already running. Safe to call when OmniFocus is already running (idempotent). Returns { launched, alreadyRunning } — launched=true means OmniFocus was not running and was started; alreadyRunning=true means it was already open. Side effects: may open OmniFocus and bring it to the foreground.
+Explicitly launch OmniFocus. Do NOT call this automatically — only invoke when the user explicitly asks to open OmniFocus; prefer other tools when OF is already running. Safe to call when OmniFocus is already running (idempotent). Returns { launched, alreadyRunning } — launched=true means OmniFocus was not running and was started; alreadyRunning=true means it was already open. Side effects: may open OmniFocus and bring it to the foreground. Example: app_launch()
 
 ### Input
 
@@ -172,7 +172,7 @@ _No parameters._
 
 ## app_window_new
 
-Open a new OmniFocus window via OmniJS document.newWindow(). **UI-affecting tool** — only meaningful when OmniFocus is running. Headless agents should not fire this. Use when the user asks 'open a new window' or a flow needs a fresh, unfocused OmniFocus window. Do NOT use to read task or project data — prefer task_list or project_list instead. Takes no arguments. Returns { perspectiveName: string | null, focusContainerIds: string[] } describing the new window's initial state. Errors: WINDOW_OPEN_FAILED when the window could not be created. Side effects: opens a new OmniFocus window; no data caches invalidated.
+Open a new OmniFocus window via OmniJS document.newWindow(). **UI-affecting tool** — only meaningful when OmniFocus is running. Headless agents should not fire this. Use when the user asks 'open a new window' or a flow needs a fresh, unfocused OmniFocus window. Do NOT use to read task or project data — prefer task_list or project_list instead. Takes no arguments. Returns { perspectiveName: string | null, focusContainerIds: string[] } describing the new window's initial state. Errors: WINDOW_OPEN_FAILED when the window could not be created. Side effects: opens a new OmniFocus window; no data caches invalidated. Example: app_window_new()
 
 ### Input
 
@@ -203,7 +203,7 @@ _No parameters._
 
 ## app_window_new_tab
 
-Open a new tab on the front OmniFocus window via OmniJS document.newTabOnWindow(). **UI-affecting tool** — only meaningful when OmniFocus has an open window. Headless agents should not fire this. Use when the user asks 'open a new tab' or a flow needs an additional view in the existing window. Do NOT use to open a standalone window — prefer app_window_new instead. Takes no arguments. Returns { perspectiveName: string | null, focusContainerIds: string[] } describing the new tab's initial state. Errors: WINDOW_UNAVAILABLE when there is no open OmniFocus window; WINDOW_OPEN_FAILED when the tab could not be created. Side effects: opens a new tab in the front OmniFocus window; no data caches invalidated.
+Open a new tab on the front OmniFocus window via OmniJS document.newTabOnWindow(). **UI-affecting tool** — only meaningful when OmniFocus has an open window. Headless agents should not fire this. Use when the user asks 'open a new tab' or a flow needs an additional view in the existing window. Do NOT use to open a standalone window — prefer app_window_new instead. Takes no arguments. Returns { perspectiveName: string | null, focusContainerIds: string[] } describing the new tab's initial state. Errors: WINDOW_UNAVAILABLE when there is no open OmniFocus window; WINDOW_OPEN_FAILED when the tab could not be created. Side effects: opens a new tab in the front OmniFocus window; no data caches invalidated. Example: app_window_new_tab()
 
 ### Input
 
@@ -234,7 +234,7 @@ _No parameters._
 
 ## attachment_add
 
-Add a file attachment to a task or project from a local file path. The file is embedded into the OmniFocus database. Path must be within the allowed scope (default: $HOME; override via OMNIFOCUS_ATTACHMENT_PATHS). File must not exceed the size cap (default 100 MB; override via OMNIFOCUS_MAX_ATTACHMENT_MB). Returns { id, ownerKind, ownerName } — ownerKind is 'task' or 'project' and ownerName is the parent's display name (null only if the parent was deleted between the add and the lookup) so the agent can describe the new attachment without a follow-up read. Mutations do not propagate until sync_trigger is called.
+Add a file attachment to a task or project from a local file path. The file is embedded into the OmniFocus database. Path must be within the allowed scope (default: $HOME; override via OMNIFOCUS_ATTACHMENT_PATHS). File must not exceed the size cap (default 100 MB; override via OMNIFOCUS_MAX_ATTACHMENT_MB). Returns { id, ownerKind, ownerName } — ownerKind is 'task' or 'project' and ownerName is the parent's display name (null only if the parent was deleted between the add and the lookup) so the agent can describe the new attachment without a follow-up read. Mutations do not propagate until sync_trigger is called. Example: attachment_add({ taskId: "abc123", filePath: "/Users/me/report.pdf" })
 
 ### Input
 
@@ -269,7 +269,7 @@ Add a file attachment to a task or project from a local file path. The file is e
 
 ## attachment_list
 
-List all file attachments on a task or project. Do not use to retrieve attachment content — use attachment_save_to_path instead. Returns { attachments } — array of objects with id, name, mimeType, sizeBytes, addedAt, and kind (embedded|alias). Provide exactly one of taskId or projectId. Read-only; safe to retry.
+List all file attachments on a task or project. Do not use to retrieve attachment content — use attachment_save_to_path instead. Returns { attachments } — array of objects with id, name, mimeType, sizeBytes, addedAt, and kind (embedded|alias). Provide exactly one of taskId or projectId. Read-only; safe to retry. Example: attachment_list({ taskId: "abc123" })
 
 ### Input
 
@@ -303,7 +303,7 @@ List all file attachments on a task or project. Do not use to retrieve attachmen
 
 ## attachment_remove
 
-Remove an attachment from a task or project by attachment ID. Do not use to retrieve or export attachment content — use attachment_save_to_path instead. Returns { removed: true, attachmentId, ownerKind, ownerName } — ownerKind is 'task' or 'project' and ownerName is captured BEFORE the JXA call so it survives even if the lookup were to fail post-mutation; null only when the parent itself has been deleted. The agent can describe the removal without a follow-up read. Throws NotFound if the attachment or owner does not exist. Permanent — cannot be undone. Mutations do not propagate until sync_trigger is called.
+Remove an attachment from a task or project by attachment ID. Do not use to retrieve or export attachment content — use attachment_save_to_path instead. Returns { removed: true, attachmentId, ownerKind, ownerName } — ownerKind is 'task' or 'project' and ownerName is captured BEFORE the JXA call so it survives even if the lookup were to fail post-mutation; null only when the parent itself has been deleted. The agent can describe the removal without a follow-up read. Throws NotFound if the attachment or owner does not exist. Permanent — cannot be undone. Mutations do not propagate until sync_trigger is called. Example: attachment_remove({ taskId: "abc123", attachmentId: "att456" })
 
 ### Input
 
@@ -338,7 +338,7 @@ Remove an attachment from a task or project by attachment ID. Do not use to retr
 
 ## attachment_save_to_path
 
-Copy an attachment's content to a local file path. Do not use to list or remove attachments — use attachment_list or attachment_remove instead. Returns { saved: true, path, sizeBytes } on success. Destination path must be within the allowed scope (default: $HOME). Writes the file to destPath (creates or overwrites); no side effects on OmniFocus data.
+Copy an attachment's content to a local file path. Do not use to list or remove attachments — use attachment_list or attachment_remove instead. Returns { saved: true, path, sizeBytes } on success. Destination path must be within the allowed scope (default: $HOME). Writes the file to destPath (creates or overwrites); no side effects on OmniFocus data. Example: attachment_save_to_path({ taskId: "abc123", attachmentId: "att456", destPath: "/Users/me/report.pdf" })
 
 ### Input
 
@@ -374,7 +374,7 @@ Copy an attachment's content to a local file path. Do not use to list or remove 
 
 ## database_redo
 
-Re-apply the most recently undone mutation, identical to ⌘⇧Z in OmniFocus. Advances one entry on the document's redo stack. Any mutation between an undo and a redo invalidates the redo stack (matching UI semantics). Mandatory `confirm: true` mirrors database_undo's destructive-write pattern. Returns { redid: boolean } — true when an entry was redone, false when the stack was empty. Do NOT use this tool to re-apply a specific operation — the redo stack is opaque. Prefer database_redo only as a direct counterpart to database_undo when an undo was issued in error. Side effects: re-applies whatever entry is at the top of the document's redo stack; fully invalidates the read cache; does NOT trigger sync. Call sync_trigger when you need the change to appear on other devices.
+Re-apply the most recently undone mutation, identical to ⌘⇧Z in OmniFocus. Advances one entry on the document's redo stack. Any mutation between an undo and a redo invalidates the redo stack (matching UI semantics). Mandatory `confirm: true` mirrors database_undo's destructive-write pattern. Returns { redid: boolean } — true when an entry was redone, false when the stack was empty. Do NOT use this tool to re-apply a specific operation — the redo stack is opaque. Prefer database_redo only as a direct counterpart to database_undo when an undo was issued in error. Side effects: re-applies whatever entry is at the top of the document's redo stack; fully invalidates the read cache; does NOT trigger sync. Call sync_trigger when you need the change to appear on other devices. Example: database_redo({ confirm: true })
 
 ### Input
 
@@ -405,7 +405,7 @@ _No parameters._
 
 ## database_undo
 
-Reverse the most recent document mutation, identical to ⌘Z in OmniFocus. Walks back one entry on the document's undo stack regardless of mutation source — an MCP undo can revert a manual UI edit if that was the most recent change. Mandatory `confirm: true` mirrors task_batch_delete's destructive-write pattern, since undo can silently revert changes the agent or another caller just made. Returns { undid: boolean } — true when an entry was undone, false when the stack was empty. Do NOT use this tool to roll back specific operations — the undo stack is opaque and you cannot inspect what would be reverted before calling. Prefer database_undo for: post-batch error recovery, retry-after-partial-failure cleanup, and integration-test teardown. Side effects: reverts whatever entry is at the top of the document's undo stack; fully invalidates the read cache (we don't know what was reverted); does NOT trigger sync. Call sync_trigger when you need the change to appear on other devices.
+Reverse the most recent document mutation, identical to ⌘Z in OmniFocus. Walks back one entry on the document's undo stack regardless of mutation source — an MCP undo can revert a manual UI edit if that was the most recent change. Mandatory `confirm: true` mirrors task_batch_delete's destructive-write pattern, since undo can silently revert changes the agent or another caller just made. Returns { undid: boolean } — true when an entry was undone, false when the stack was empty. Do NOT use this tool to roll back specific operations — the undo stack is opaque and you cannot inspect what would be reverted before calling. Prefer database_undo for: post-batch error recovery, retry-after-partial-failure cleanup, and integration-test teardown. Side effects: reverts whatever entry is at the top of the document's undo stack; fully invalidates the read cache (we don't know what was reverted); does NOT trigger sync. Call sync_trigger when you need the change to appear on other devices. Example: database_undo({ confirm: true })
 
 ### Input
 
@@ -436,7 +436,7 @@ _No parameters._
 
 ## export_opml
 
-Export OmniFocus data as OPML XML — a structured outline format OmniFocus can import. Do NOT use to export a single task; OPML scope is project-level or broader. Three scopes: 'project' (one project + its tasks), 'folder' (all projects in a folder), or 'all' (all active projects). Returns { opml, projectCount, taskCount } where opml is a complete XML string. Safe to call repeatedly; no side effects.
+Export OmniFocus data as OPML XML — a structured outline format OmniFocus can import. Do NOT use to export a single task; OPML scope is project-level or broader. Three scopes: 'project' (one project + its tasks), 'folder' (all projects in a folder), or 'all' (all active projects). Returns { opml, projectCount, taskCount } where opml is a complete XML string. Safe to call repeatedly; no side effects. Example: export_opml({ scope: "project", id: "abc123" }) Example: export_opml({ scope: "all" })
 
 ### Input
 
@@ -467,7 +467,7 @@ _No parameters._
 
 ## export_taskpaper
 
-Export OmniFocus data as TaskPaper plain text. Three scopes: 'project' (one project + its tasks), 'folder' (all projects in a folder), or 'all' (all active projects). Export is lossy — HTML notes are downgraded to plain text; tag locations, attachments, and complex repetition rules are omitted. Lossiness warnings are returned in meta.warnings. Do NOT use to import data; prefer import_taskpaper for that. Returns { taskpaper, projectCount, taskCount }. Safe to call repeatedly; no side effects.
+Export OmniFocus data as TaskPaper plain text. Three scopes: 'project' (one project + its tasks), 'folder' (all projects in a folder), or 'all' (all active projects). Export is lossy — HTML notes are downgraded to plain text; tag locations, attachments, and complex repetition rules are omitted. Lossiness warnings are returned in meta.warnings. Do NOT use to import data; prefer import_taskpaper for that. Returns { taskpaper, projectCount, taskCount }. Safe to call repeatedly; no side effects. Example: export_taskpaper({ scope: "project", id: "abc123" }) Example: export_taskpaper({ scope: "all" })
 
 ### Input
 
@@ -501,7 +501,7 @@ Export OmniFocus data as TaskPaper plain text. Three scopes: 'project' (one proj
 
 ## folder_create
 
-Create a new folder in OmniFocus. Optionally nest it inside an existing parent folder (get IDs from folder_list). Do not use to move an existing folder; prefer folder_move instead. Returns the new folder's persistent ID. Triggers a sync; call sync_trigger after to propagate to other devices.
+Create a new folder in OmniFocus. Optionally nest it inside an existing parent folder (get IDs from folder_list). Do not use to move an existing folder; prefer folder_move instead. Returns the new folder's persistent ID. Triggers a sync; call sync_trigger after to propagate to other devices. Example: folder_create({ name: "Work" }) Example: folder_create({ name: "Archive", parentId: "fld123" })
 
 ### Input
 
@@ -574,7 +574,7 @@ _No parameters._
 
 ## folder_delete
 
-Delete a folder from OmniFocus. By default returns ValidationError when the folder contains projects or subfolders. Pass cascade=true to orphan all direct projects (move to no folder) and recursively delete subfolders before deleting. IRREVERSIBLE — do not use to archive; prefer folder_update to rename instead. Get the folder ID from folder_list. Triggers a sync; call sync_trigger after to propagate to other devices.
+Delete a folder from OmniFocus. By default returns ValidationError when the folder contains projects or subfolders. Pass cascade=true to orphan all direct projects (move to no folder) and recursively delete subfolders before deleting. IRREVERSIBLE — do not use to archive; prefer folder_update to rename instead. Get the folder ID from folder_list. Triggers a sync; call sync_trigger after to propagate to other devices. Example: folder_delete({ id: "fld123" }) Example: folder_delete({ id: "fld123", cascade: true })
 
 ### Input
 
@@ -644,7 +644,7 @@ _No parameters._
 
 ## folder_get
 
-Fetch a single folder by its persistent ID, including project and subfolder counts. Do not use to list multiple folders; prefer folder_list instead. Returns folder details including name, parentId, projectCount, and subfolderCount. Safe to call repeatedly; no side effects.
+Fetch a single folder by its persistent ID, including project and subfolder counts. Do not use to list multiple folders; prefer folder_list instead. Returns folder details including name, parentId, projectCount, and subfolderCount. Safe to call repeatedly; no side effects. Example: folder_get({ id: "fld123" })
 
 ### Input
 
@@ -685,7 +685,7 @@ Fetch a single folder by its persistent ID, including project and subfolder coun
 
 ## folder_list
 
-List folders in OmniFocus, optionally filtered by parent folder. Do not use to fetch a single folder by ID; prefer folder_get instead. Returns a flat array with projectCount and subfolderCount per folder. Use parentId to walk the hierarchy one level at a time. Safe to call repeatedly; no side effects.
+List folders in OmniFocus, optionally filtered by parent folder. Do not use to fetch a single folder by ID; prefer folder_get instead. Returns a flat array with projectCount and subfolderCount per folder. Use parentId to walk the hierarchy one level at a time. Safe to call repeatedly; no side effects. Example: folder_list({}) Example: folder_list({ parentId: "fld123" })
 
 ### Input
 
@@ -726,7 +726,7 @@ List folders in OmniFocus, optionally filtered by parent folder. Do not use to f
 
 ## folder_move
 
-Move a folder to a new parent, or promote it to a root folder by passing parentId=null. Do not use to rename a folder; prefer folder_update instead. Get folder IDs from folder_list. Returns the updated folder's ID and new parentId on success. Triggers a sync; call sync_trigger after to propagate to other devices.
+Move a folder to a new parent, or promote it to a root folder by passing parentId=null. Do not use to rename a folder; prefer folder_update instead. Get folder IDs from folder_list. Returns the updated folder's ID and new parentId on success. Triggers a sync; call sync_trigger after to propagate to other devices. Example: folder_move({ id: "fld123", parentId: "fld456" }) Example: folder_move({ id: "fld123", parentId: null })
 
 ### Input
 
@@ -800,7 +800,7 @@ _No parameters._
 
 ## folder_update
 
-Rename a folder (partial patch — only supplied fields are changed). To move a folder use folder_move instead. Get the folder ID from folder_list. Returns the updated folder on success. Triggers a sync; call sync_trigger after to propagate to other devices.
+Rename a folder (partial patch — only supplied fields are changed). To move a folder use folder_move instead. Get the folder ID from folder_list. Returns the updated folder on success. Triggers a sync; call sync_trigger after to propagate to other devices. Example: folder_update({ id: "fld123", name: "Personal" })
 
 ### Input
 
@@ -874,7 +874,7 @@ _No parameters._
 
 ## forecast_get
 
-Get forecast-view tasks from OmniFocus grouped by category: overdue, dueToday, deferredToday, flagged. Use this for 'what's on my plate today' or multi-day planning queries. Do NOT use to list all tasks across all projects; prefer task_list instead. Supply date (ISO-8601 or shortcut like 'today', 'tomorrow') and days (1–7) for the ergonomic interface, or use from/to for exact ISO-8601 ranges. All include flags default to true; set to false to omit a category. When days > 1, response also includes byDate[] grouping tasks per calendar day. Returns { overdue[], dueToday[], deferredToday[], flagged[], byDate? }; safe to call repeatedly; no side effects.
+Get forecast-view tasks from OmniFocus grouped by category: overdue, dueToday, deferredToday, flagged. Use this for 'what's on my plate today' or multi-day planning queries. Do NOT use to list all tasks across all projects; prefer task_list instead. Supply date (ISO-8601 or shortcut like 'today', 'tomorrow') and days (1–7) for the ergonomic interface, or use from/to for exact ISO-8601 ranges. All include flags default to true; set to false to omit a category. When days > 1, response also includes byDate[] grouping tasks per calendar day. Returns { overdue[], dueToday[], deferredToday[], flagged[], byDate? }; safe to call repeatedly; no side effects. Example: forecast_get({ date: "today" }) Example: forecast_get({ date: "today", days: 3, includeFlagged: false })
 
 ### Input
 
@@ -905,7 +905,7 @@ _No parameters._
 
 ## forecast_get_tag
 
-Read the OmniFocus forecast-tag preference: the single tag whose tasks always appear on the Forecast view alongside dated items. Use when the agent needs to answer 'what tag is the user using as their daily agenda?' or to confirm a tag before composing follow-up queries against it. Do NOT use to list tags in general — prefer tag_list. Takes no arguments. Returns { tagId: string | null, name: string | null } — name is the tag's display name (or null when tagId is null or the tag has been deleted) so the agent can describe the forecast tag without a follow-up tag_get. Read-only; no side effects; safe to retry. Backed by OmniJS Database.forecastTag.
+Read the OmniFocus forecast-tag preference: the single tag whose tasks always appear on the Forecast view alongside dated items. Use when the agent needs to answer 'what tag is the user using as their daily agenda?' or to confirm a tag before composing follow-up queries against it. Do NOT use to list tags in general — prefer tag_list. Takes no arguments. Returns { tagId: string | null, name: string | null } — name is the tag's display name (or null when tagId is null or the tag has been deleted) so the agent can describe the forecast tag without a follow-up tag_get. Read-only; no side effects; safe to retry. Backed by OmniJS Database.forecastTag.Example: forecast_get_tag()
 
 ### Input
 
@@ -936,7 +936,7 @@ _No parameters._
 
 ## forecast_pack
 
-Pack today's forecast tasks into a time budget. Use when the user asks 'I have N hours; what should I do?' or wants a focused subset of forecast tasks that fit a limited window. Do NOT use for the full forecast — prefer forecast_get for that. Do NOT use to schedule work across multiple days — pass scope='next7' as a hint, but the pack is still budget-bounded; for true multi-day planning use forecast_get with days>1 and let the agent compose. Pass budgetMinutes (1–1440) and optional filter { tagIds?, scope? }; scope is 'today' (default) or 'next7'. Returns { selected[], totalMinutes, skipped[] }. selected[] are the picks in execution order (flagged first, then dueDate ascending, then stable by ID). skipped[] surfaces tasks the agent should ask the user about: { reason: 'no-estimate' } means the task has no estimatedMinutes so couldn't be packed; { reason: 'exceeds-budget' } means it would have fit individually but was bumped by earlier higher-priority picks. Read-only; no side effects; safe to retry. Pack algorithm is greedy — predictable and explainable beats optimal-by-1-minute.
+Pack today's forecast tasks into a time budget. Use when the user asks 'I have N hours; what should I do?' or wants a focused subset of forecast tasks that fit a limited window. Do NOT use for the full forecast — prefer forecast_get for that. Do NOT use to schedule work across multiple days — pass scope='next7' as a hint, but the pack is still budget-bounded; for true multi-day planning use forecast_get with days>1 and let the agent compose. Pass budgetMinutes (1–1440) and optional filter { tagIds?, scope? }; scope is 'today' (default) or 'next7'. Returns { selected[], totalMinutes, skipped[] }. selected[] are the picks in execution order (flagged first, then dueDate ascending, then stable by ID). skipped[] surfaces tasks the agent should ask the user about: { reason: 'no-estimate' } means the task has no estimatedMinutes so couldn't be packed; { reason: 'exceeds-budget' } means it would have fit individually but was bumped by earlier higher-priority picks. Read-only; no side effects; safe to retry. Pack algorithm is greedy — predictable and explainable beats optimal-by-1-minute. Example: forecast_pack({ budgetMinutes: 120 }) Example: forecast_pack({ budgetMinutes: 240, filter: { tagIds: ["tag123"], scope: "today" } })
 
 ### Input
 
@@ -967,7 +967,7 @@ _No parameters._
 
 ## forecast_set_tag
 
-Set or clear the OmniFocus forecast-tag preference. Use when the user wants to designate (or change) the tag whose tasks should always appear on Forecast — common during onboarding flows or context switches ('use @today as my agenda'). Do NOT use to add tags to a task — prefer task_update. Pass tagId as a TagId string to set, or null to clear. Returns { tagId: string | null, name: string | null } echoing what was applied — name is paired with the tag id so the agent can describe the change without a follow-up tag_get. Errors: NOT_FOUND when the supplied tagId does not exist. Side effects: mutation; invalidates the forecast read cache. Backed by OmniJS Database.forecastTag.
+Set or clear the OmniFocus forecast-tag preference. Use when the user wants to designate (or change) the tag whose tasks should always appear on Forecast — common during onboarding flows or context switches ('use @today as my agenda'). Do NOT use to add tags to a task — prefer task_update. Pass tagId as a TagId string to set, or null to clear. Returns { tagId: string | null, name: string | null } echoing what was applied — name is paired with the tag id so the agent can describe the change without a follow-up tag_get. Errors: NOT_FOUND when the supplied tagId does not exist. Side effects: mutation; invalidates the forecast read cache. Backed by OmniJS Database.forecastTag. Example: forecast_set_tag({ tagId: "tag123" }) Example: forecast_set_tag({ tagId: null })
 
 ### Input
 
@@ -998,7 +998,7 @@ _No parameters._
 
 ## import_opml
 
-Import tasks from an OPML XML string into OmniFocus. Parses the OPML produced by export_opml and recreates the task hierarchy. Top-level <outline type="omnifocus:project"> elements are matched to existing projects by OmniFocus ID (for round-trip) then by name; unmatched project outlines land in the Inbox. LOSSY: due dates, defer dates, and flagged state are preserved; tags, notes, attachments, and repetition rules are silently dropped (not encoded in OPML). Do NOT use to export data; prefer export_opml for that. Returns { imported, taskIds } where imported is the count of tasks created. Writes to OmniFocus; call sync_trigger after import to propagate changes to other devices.
+Import tasks from an OPML XML string into OmniFocus. Parses the OPML produced by export_opml and recreates the task hierarchy. Top-level <outline type="omnifocus:project"> elements are matched to existing projects by OmniFocus ID (for round-trip) then by name; unmatched project outlines land in the Inbox. LOSSY: due dates, defer dates, and flagged state are preserved; tags, notes, attachments, and repetition rules are silently dropped (not encoded in OPML). Do NOT use to export data; prefer export_opml for that. Returns { imported, taskIds } where imported is the count of tasks created. Writes to OmniFocus; call sync_trigger after import to propagate changes to other devices. Example: import_opml({ opml: "<opml>...</opml>" })
 
 ### Input
 
@@ -1032,7 +1032,7 @@ Import tasks from an OPML XML string into OmniFocus. Parses the OPML produced by
 
 ## import_taskpaper
 
-Import tasks from TaskPaper text into OmniFocus. Parses '- Task name @tag @due(2026-01-15) @defer(2026-01-10) @flagged' lines. Indented subtasks become children of the nearest parent task. Project headings ('Project name:') map to existing OF projects by name — unrecognised headings fall back to inbox (warning emitted). Unknown @tags are created automatically. Do NOT use to export data; prefer export_taskpaper for that. Returns { created: TaskId[], warnings: string[] }. Writes to OmniFocus; call sync_trigger to propagate changes to other devices.
+Import tasks from TaskPaper text into OmniFocus. Parses '- Task name @tag @due(2026-01-15) @defer(2026-01-10) @flagged' lines. Indented subtasks become children of the nearest parent task. Project headings ('Project name:') map to existing OF projects by name — unrecognised headings fall back to inbox (warning emitted). Unknown @tags are created automatically. Do NOT use to export data; prefer export_taskpaper for that. Returns { created: TaskId[], warnings: string[] }. Writes to OmniFocus; call sync_trigger to propagate changes to other devices. Example: import_taskpaper({ text: "- Buy milk @errands\n- Call dentist @due(2026-05-01)" })
 
 ### Input
 
@@ -1066,7 +1066,7 @@ Import tasks from TaskPaper text into OmniFocus. Parses '- Task name @tag @due(2
 
 ## internal_status
 
-Return a health snapshot of the running omnifocus-mcp server. Do NOT use this to read OmniFocus data — prefer task_list, project_list, sync_status, etc. Returns { uptimeMs, ofRunning, lastSync, cache, circuits, queueDepth }. uptimeMs is the milliseconds since the server process started. circuits lists each circuit-breaker name and state (closed/open/half_open). lastSync mirrors sync_status data; null if getLastSync throws. Read-only; no side effects.
+Return a health snapshot of the running omnifocus-mcp server. Do NOT use this to read OmniFocus data — prefer task_list, project_list, sync_status, etc. Returns { uptimeMs, ofRunning, lastSync, cache, circuits, queueDepth }. uptimeMs is the milliseconds since the server process started. circuits lists each circuit-breaker name and state (closed/open/half_open). lastSync mirrors sync_status data; null if getLastSync throws. Read-only; no side effects. Example: internal_status()
 
 ### Input
 
@@ -1097,7 +1097,7 @@ _No parameters._
 
 ## note_append
 
-Append text to the plain-text note on a task or project. Adds a newline between existing content and the new text unless the note is empty. Do not use to replace the note entirely; prefer note_set instead. Returns { updated: true, id, targetKind, name, note } — name is the parent task/project's display name (captured from the same read that fetched the existing note) so the agent can describe the change without a follow-up read; note is the full content after appending. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the change to appear on other devices.
+Append text to the plain-text note on a task or project. Adds a newline between existing content and the new text unless the note is empty. Do not use to replace the note entirely; prefer note_set instead. Returns { updated: true, id, targetKind, name, note } — name is the parent task/project's display name (captured from the same read that fetched the existing note) so the agent can describe the change without a follow-up read; note is the full content after appending. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the change to appear on other devices. Example: note_append({ targetKind: "task", id: "abc123", text: "Follow up next week" })
 
 ### Input
 
@@ -1139,7 +1139,7 @@ Append text to the plain-text note on a task or project. Adds a newline between 
 
 ## note_get
 
-Read the plain-text note from a task or project. Do not use when formatting fidelity matters; prefer note_get_html instead. Returns { note } — a string (may be empty) or null when no note exists. Set targetKind to 'task' and provide a task ID, or 'project' and a project ID. Safe to call repeatedly; no side effects.
+Read the plain-text note from a task or project. Do not use when formatting fidelity matters; prefer note_get_html instead. Returns { note } — a string (may be empty) or null when no note exists. Set targetKind to 'task' and provide a task ID, or 'project' and a project ID. Safe to call repeatedly; no side effects. Example: note_get({ targetKind: "task", id: "abc123" })
 
 ### Input
 
@@ -1179,7 +1179,7 @@ Read the plain-text note from a task or project. Do not use when formatting fide
 
 ## note_get_html
 
-Read the HTML fragment from a task or project note. Returns { noteHtml } — an HTML string (may be empty) or null when no note exists. Set targetKind to 'task' and provide a task ID, or 'project' and a project ID. For plain-text access without formatting, use note_get instead. Safe to call repeatedly; no side effects.
+Read the HTML fragment from a task or project note. Returns { noteHtml } — an HTML string (may be empty) or null when no note exists. Set targetKind to 'task' and provide a task ID, or 'project' and a project ID. For plain-text access without formatting, use note_get instead. Safe to call repeatedly; no side effects. Example: note_get_html({ targetKind: "task", id: "abc123" })
 
 ### Input
 
@@ -1219,7 +1219,7 @@ Read the HTML fragment from a task or project note. Returns { noteHtml } — an 
 
 ## note_set
 
-Replace the plain-text note on a task or project. Overwrites the existing note entirely. Pass note: null to clear the note. To add text without overwriting use note_append instead. Returns { updated: true, id, targetKind, name, note } — name is the parent task/project's display name (pre-fetched so the response describes the change without a follow-up read); note echoes back the final content after writing (or null if cleared). Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the change to appear on other devices.
+Replace the plain-text note on a task or project. Overwrites the existing note entirely. Pass note: null to clear the note. To add text without overwriting use note_append instead. Returns { updated: true, id, targetKind, name, note } — name is the parent task/project's display name (pre-fetched so the response describes the change without a follow-up read); note echoes back the final content after writing (or null if cleared). Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the change to appear on other devices. Example: note_set({ targetKind: "task", id: "abc123", note: "Check with Alice first" })
 
 ### Input
 
@@ -1261,7 +1261,7 @@ Replace the plain-text note on a task or project. Overwrites the existing note e
 
 ## note_set_html
 
-Replace the HTML fragment note on a task or project. Overwrites the existing note entirely with the provided HTML. OmniFocus preserves its supported HTML subset (bold, italic, links, lists, inline images); unsupported elements may be stripped. Pass noteHtml: null to clear the note. For plain-text writes use note_set instead. Returns { updated: true, id, targetKind, name, noteHtml } — name is the parent task/project's display name (pre-fetched so the response describes the change without a follow-up read); noteHtml echoes back the requested HTML (or null if cleared). Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the change to appear on other devices.
+Replace the HTML fragment note on a task or project. Overwrites the existing note entirely with the provided HTML. OmniFocus preserves its supported HTML subset (bold, italic, links, lists, inline images); unsupported elements may be stripped. Pass noteHtml: null to clear the note. For plain-text writes use note_set instead. Returns { updated: true, id, targetKind, name, noteHtml } — name is the parent task/project's display name (pre-fetched so the response describes the change without a follow-up read); noteHtml echoes back the requested HTML (or null if cleared). Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the change to appear on other devices. Example: note_set_html({ targetKind: "task", id: "abc123", noteHtml: "<b>Priority:</b> high" })
 
 ### Input
 
@@ -1336,7 +1336,7 @@ Delete a custom OmniFocus perspective by id. Use when a perspective is no longer
 
 ## perspective_evaluate
 
-Evaluate an OmniFocus perspective and return its task list. Accepts both built-in ids (inbox, projects, tags, forecast, flagged, nearby, review) and custom-perspective ids obtained from perspective_list — the tool selects the correct transport internally (JXA for built-in, OmniJS for custom). Custom perspectives require OmniFocus Pro; otherwise returns an error with code OF_FEATURE_REQUIRES_PRO. Returns { tasks: Task[] }. For 'review', returns [] — use review_list_due instead. For 'nearby', returns [] (location unavailable). No side effects; read-only.
+Evaluate an OmniFocus perspective and return its task list. Accepts both built-in ids (inbox, projects, tags, forecast, flagged, nearby, review) and custom-perspective ids obtained from perspective_list — the tool selects the correct transport internally (JXA for built-in, OmniJS for custom). Custom perspectives require OmniFocus Pro; otherwise returns an error with code OF_FEATURE_REQUIRES_PRO. Returns { tasks: Task[] }. For 'review', returns [] — use review_list_due instead. For 'nearby', returns [] (location unavailable). No side effects; read-only. Example: perspective_evaluate({ perspectiveId: "flagged" }) Example: perspective_evaluate({ perspectiveId: "cust-abc123" })
 
 ### Input
 
@@ -1402,7 +1402,7 @@ Read the full configuration of a custom OmniFocus perspective — name, top-leve
 
 ## perspective_list
 
-List all perspectives in OmniFocus — both built-in (Inbox, Projects, Tags, Forecast, Flagged, Nearby, Review) and custom (OmniFocus Pro). Do not use to evaluate a perspective; prefer perspective_evaluate for that. Returns each perspective's id, name, kind (builtin|custom), and requiresPro flag. Safe to call repeatedly; no side effects, no writes.
+List all perspectives in OmniFocus — both built-in (Inbox, Projects, Tags, Forecast, Flagged, Nearby, Review) and custom (OmniFocus Pro). Do not use to evaluate a perspective; prefer perspective_evaluate for that. Returns each perspective's id, name, kind (builtin|custom), and requiresPro flag. Safe to call repeatedly; no side effects, no writes. Example: perspective_list()
 
 ### Input
 
@@ -1433,7 +1433,7 @@ _No parameters._
 
 ## plugin_invoke
 
-Invoke a named Omni Automation plug-in action in OmniFocus. Use this when you need to run a specific installed plug-in — not for built-in OmniFocus operations. Do NOT use to run arbitrary JavaScript; for raw scripting use run_omnijs_script (requires opt-in env var). `identifier` is the plug-in's bundle ID (e.g. `"com.example.my-plugin"`). `arg` is an optional JSON-serialisable value passed to the plug-in action as Action.args[0]. Returns { result } where result is the plug-in's return value (arbitrary JSON). Throws NotFound if the plug-in is not installed. Side effects: plug-in may mutate OmniFocus data; call sync_trigger if you need changes on other devices.
+Invoke a named Omni Automation plug-in action in OmniFocus. Use this when you need to run a specific installed plug-in — not for built-in OmniFocus operations. Do NOT use to run arbitrary JavaScript; for raw scripting use run_omnijs_script (requires opt-in env var). `identifier` is the plug-in's bundle ID (e.g. `"com.example.my-plugin"`). `arg` is an optional JSON-serialisable value passed to the plug-in action as Action.args[0]. Returns { result } where result is the plug-in's return value (arbitrary JSON). Throws NotFound if the plug-in is not installed. Side effects: plug-in may mutate OmniFocus data; call sync_trigger if you need changes on other devices. Example: plugin_invoke({ identifier: "com.example.my-plugin" }) Example: plugin_invoke({ identifier: "com.example.my-plugin", arg: { mode: "export" } })
 
 ### Input
 
@@ -1464,7 +1464,7 @@ _No parameters._
 
 ## project_batch_complete
 
-Mark many OmniFocus projects as completed in a single JXA round trip. Completed projects are hidden from active views and closed to new task entry. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each completion succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated project_complete calls whenever completing more than one project. Each item is { id }. Returns { completed: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the project name so the agent can describe each completion without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Mark many OmniFocus projects as completed in a single JXA round trip. Completed projects are hidden from active views and closed to new task entry. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each completion succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated project_complete calls whenever completing more than one project. Each item is { id }. Returns { completed: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the project name so the agent can describe each completion without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices. Example: project_batch_complete({ items: [{ id: "prj123" }, { id: "prj456" }] })
 
 ### Input
 
@@ -1495,7 +1495,7 @@ _No parameters._
 
 ## project_batch_drop
 
-Cancel (drop) many OmniFocus projects in a single JXA round trip. Dropped projects remain in OmniFocus but are treated as cancelled/inactive — they do not appear in active project lists. Use project_delete for permanent removal. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each drop succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated project_drop calls whenever dropping more than one project. Each item is { id }. Returns { dropped: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the project name so the agent can describe each drop without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Cancel (drop) many OmniFocus projects in a single JXA round trip. Dropped projects remain in OmniFocus but are treated as cancelled/inactive — they do not appear in active project lists. Use project_delete for permanent removal. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each drop succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated project_drop calls whenever dropping more than one project. Each item is { id }. Returns { dropped: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the project name so the agent can describe each drop without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices. Example: project_batch_drop({ items: [{ id: "prj123" }, { id: "prj456" }] })
 
 ### Input
 
@@ -1526,7 +1526,7 @@ _No parameters._
 
 ## project_complete
 
-Complete an OmniFocus project — marks it done with today's date and moves it out of the active view. Use when a project is finished. Do not use to archive or hide a project without completing it; prefer project_drop for that. Returns { completed: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: sets completionDate, removes from active projects, sets meta.syncPending = true.
+Complete an OmniFocus project — marks it done with today's date and moves it out of the active view. Use when a project is finished. Do not use to archive or hide a project without completing it; prefer project_drop for that. Returns { completed: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: sets completionDate, removes from active projects, sets meta.syncPending = true. Example: project_complete({ id: "prj123" })
 
 ### Input
 
@@ -1590,7 +1590,7 @@ _No parameters._
 
 ## project_create
 
-Create a new OmniFocus project. Optionally place it in a folder, assign tags, set completion criterion, status, defer/due dates, estimated minutes, flagged state, and review interval. Safety control: pass idempotency_key to make transport retries safe — identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of creating a duplicate project. Returns { created: true, id }. Side effects: creates a project in OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the project to appear on other devices.
+Create a new OmniFocus project. Optionally place it in a folder, assign tags, set completion criterion, status, defer/due dates, estimated minutes, flagged state, and review interval. Safety control: pass idempotency_key to make transport retries safe — identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of creating a duplicate project. Returns { created: true, id }. Side effects: creates a project in OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the project to appear on other devices. Example: project_create({ name: "Website Redesign" }) Example: project_create({ name: "Q3 Planning", folderId: "fld123", flagged: true })
 
 ### Input
 
@@ -1667,7 +1667,7 @@ _No parameters._
 
 ## project_delete
 
-Permanently delete an OmniFocus project and ALL its contained tasks. IRREVERSIBLE — uses OmniFocus deleteObject; there is no undo. All tasks inside the project are also permanently deleted (cascade). Prefer project_drop when you want a recoverable status change. Only use project_delete when the agent has explicit user intent to permanently remove the project and its tasks. Safety controls: set dry_run=true to preview without mutating; pass expectedModifiedAt (from a recent project_get) to reject the call if the project changed since you read it; pass idempotency_key to coalesce retries so the same delete is only performed once. Returns { deleted: true, id } on success. Side effects: removes the project and its tasks from OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the deletion to appear on other devices.
+Permanently delete an OmniFocus project and ALL its contained tasks. IRREVERSIBLE — uses OmniFocus deleteObject; there is no undo. All tasks inside the project are also permanently deleted (cascade). Prefer project_drop when you want a recoverable status change. Only use project_delete when the agent has explicit user intent to permanently remove the project and its tasks. Safety controls: set dry_run=true to preview without mutating; pass expectedModifiedAt (from a recent project_get) to reject the call if the project changed since you read it; pass idempotency_key to coalesce retries so the same delete is only performed once. Returns { deleted: true, id } on success. Side effects: removes the project and its tasks from OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the deletion to appear on other devices. Example: project_delete({ id: "prj123", dry_run: true }) Example: project_delete({ id: "prj123", expectedModifiedAt: "2026-04-01T10:00:00Z" })
 
 ### Input
 
@@ -1739,7 +1739,7 @@ _No parameters._
 
 ## project_drop
 
-Drop an OmniFocus project — marks it as on-hold/dropped and removes it from the active view without completing it. Use to defer or abandon a project while keeping it recoverable. Do not use if the project is actually done; prefer project_complete for that. Returns { dropped: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: changes project status, sets meta.syncPending = true.
+Drop an OmniFocus project — marks it as on-hold/dropped and removes it from the active view without completing it. Use to defer or abandon a project while keeping it recoverable. Do not use if the project is actually done; prefer project_complete for that. Returns { dropped: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: changes project status, sets meta.syncPending = true.Example: project_drop({ id: "prj123" })
 
 ### Input
 
@@ -1803,7 +1803,7 @@ _No parameters._
 
 ## project_get
 
-Fetch a single OmniFocus project by persistent ID. Do NOT use for queries across projects — use project_list. When includeTaskTree=true (default), the project's flat task list is attached. Returns { project, tasks? }; safe to call repeatedly; no side effects.
+Fetch a single OmniFocus project by persistent ID. Do NOT use for queries across projects — use project_list. When includeTaskTree=true (default), the project's flat task list is attached. Returns { project, tasks? }; safe to call repeatedly; no side effects. Example: project_get({ id: "prj123" }) Example: project_get({ id: "prj123", includeTaskTree: false })
 
 ### Input
 
@@ -1837,7 +1837,7 @@ Fetch a single OmniFocus project by persistent ID. Do NOT use for queries across
 
 ## project_get_many
 
-Fetch up to 100 projects by persistent ID in a single OmniFocus round-trip. Use when you have a set of project IDs and need full project objects for all of them. Do NOT use for a single ID — use project_get instead. Returns Project[] in input order. Missing IDs are omitted and appear in meta.warnings. Read-only; safe to retry.
+Fetch up to 100 projects by persistent ID in a single OmniFocus round-trip. Use when you have a set of project IDs and need full project objects for all of them. Do NOT use for a single ID — use project_get instead. Returns Project[] in input order. Missing IDs are omitted and appear in meta.warnings. Read-only; safe to retry. Example: project_get_many({ ids: ["prj123", "prj456"] })
 
 ### Input
 
@@ -1868,7 +1868,7 @@ _No parameters._
 
 ## project_list
 
-List projects in OmniFocus with optional filters. Use for queries across projects. Do NOT use for a known single project (use project_get). Filters: folderId, status, flagged, reviewDueBefore. Returns projects[] with pagination; safe to call repeatedly; no side effects.
+List projects in OmniFocus with optional filters. Use for queries across projects. Do NOT use for a known single project (use project_get). Filters: folderId, status, flagged, reviewDueBefore. Returns projects[] with pagination; safe to call repeatedly; no side effects. Example: project_list({}) Example: project_list({ status: "active", folderId: "fld123" })
 
 ### Input
 
@@ -1906,7 +1906,7 @@ List projects in OmniFocus with optional filters. Use for queries across project
 
 ## project_mark_reviewed
 
-Convenience alias for review_mark_reviewed — mark a single project as reviewed, setting lastReviewDate to now and advancing nextReviewDate. Use when you have a project id and want a single-call review operation. Do not use to list projects due for review; prefer review_list_due for that. Returns the project id. Side effects: writes to OmniFocus; sets syncPending = true.
+Convenience alias for review_mark_reviewed — mark a single project as reviewed, setting lastReviewDate to now and advancing nextReviewDate. Use when you have a project id and want a single-call review operation. Do not use to list projects due for review; prefer review_list_due for that. Returns the project id. Side effects: writes to OmniFocus; sets syncPending = true. Example: project_mark_reviewed({ id: "prj123" })
 
 ### Input
 
@@ -1939,7 +1939,7 @@ Convenience alias for review_mark_reviewed — mark a single project as reviewed
 
 ## project_move
 
-Move an OmniFocus project to a different folder. Pass folderId to move into a folder, or null to move to the root (no folder). Use when reorganizing projects. Do not use to complete or drop a project. Returns { moved: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: changes the project's folder, sets meta.syncPending = true.
+Move an OmniFocus project to a different folder. Pass folderId to move into a folder, or null to move to the root (no folder). Use when reorganizing projects. Do not use to complete or drop a project. Returns { moved: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: changes the project's folder, sets meta.syncPending = true.Example: project_move({ id: "prj123", folderId: "fld456" }) Example: project_move({ id: "prj123", folderId: null })
 
 ### Input
 
@@ -2004,7 +2004,7 @@ _No parameters._
 
 ## project_set_next_review_date
 
-Set or clear a project's next review date directly. Use when the user wants to reschedule a review independent of the recurring interval — 'push the Q3 review to next Monday' without changing the cadence. Do NOT use to mark a project as reviewed (prefer review_mark_reviewed) or to change the recurring interval (prefer review_set_interval). Pass projectId and nextReviewDate (ISO-8601 date string), or pass null for nextReviewDate to clear (project becomes 'not scheduled'). Past-dated values are accepted and surface the project as overdue immediately — matches OmniFocus's own UX. Returns { id }. Errors: NOT_FOUND when projectId does not exist. Side effects: writes to OmniFocus; invalidates project + review caches; sets syncPending = true.
+Set or clear a project's next review date directly. Use when the user wants to reschedule a review independent of the recurring interval — 'push the Q3 review to next Monday' without changing the cadence. Do NOT use to mark a project as reviewed (prefer review_mark_reviewed) or to change the recurring interval (prefer review_set_interval). Pass projectId and nextReviewDate (ISO-8601 date string), or pass null for nextReviewDate to clear (project becomes 'not scheduled'). Past-dated values are accepted and surface the project as overdue immediately — matches OmniFocus's own UX. Returns { id }. Errors: NOT_FOUND when projectId does not exist. Side effects: writes to OmniFocus; invalidates project + review caches; sets syncPending = true. Example: project_set_next_review_date({ projectId: "prj123", nextReviewDate: "2026-05-05" }) Example: project_set_next_review_date({ projectId: "prj123", nextReviewDate: null })
 
 ### Input
 
@@ -2128,7 +2128,7 @@ _No parameters._
 
 ## project_update
 
-Partially update mutable fields on an OmniFocus project. Only supplied fields are changed; omit a field to leave it unchanged. Pass null for note, deferDate, dueDate, estimatedMinutes, or reviewIntervalDays to clear those fields. Do NOT use to create or delete projects; prefer project_create or project_delete instead. Safety controls: set dry_run=true to preview without mutating; pass expectedModifiedAt (from a recent project_get) to reject the call if the project changed since you read it; pass idempotency_key to coalesce retries so the same update is only performed once. Returns { updated: true, id, name } — name reflects the post-patch name. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Partially update mutable fields on an OmniFocus project. Only supplied fields are changed; omit a field to leave it unchanged. Pass null for note, deferDate, dueDate, estimatedMinutes, or reviewIntervalDays to clear those fields. Do NOT use to create or delete projects; prefer project_create or project_delete instead. Safety controls: set dry_run=true to preview without mutating; pass expectedModifiedAt (from a recent project_get) to reject the call if the project changed since you read it; pass idempotency_key to coalesce retries so the same update is only performed once. Returns { updated: true, id, name } — name reflects the post-patch name. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices. Example: project_update({ id: "prj123", name: "New Name", flagged: true }) Example: project_update({ id: "prj123", status: "on-hold", dry_run: true })
 
 ### Input
 
@@ -2208,7 +2208,7 @@ _No parameters._
 
 ## repetition_from_prose
 
-Deterministic prose-to-RepetitionRule helper. Pass a natural-language phrase ('every Monday', 'every 3 days', 'first Tuesday of every month') and receive a structured RepetitionRule plus a normalized description to confirm with the user. Returns one of three shapes: { kind: 'ok', rule, normalizedDescription } when the prose maps to one rule; { kind: 'ambiguous', interpretations[] } when prose admits multiple valid readings (typically 2-3) — agent picks one with the user; { kind: 'error', reason, suggestion? } for no-repetition-detected or unsupported-pattern. Supported patterns: daily/weekly/monthly/yearly, every-N-days/weeks/months/years, every weekday/weekend, every {Mon|Tue|...}, nth-weekday-of-month, nth-day-of-month, completion-relative phrasing ('after I complete it'). Time-of-day and end-conditions surface in normalizedDescription only — the canonical RepetitionRule schema doesn't carry those fields. Do NOT use this tool when the agent already has a structured RepetitionRule from another source — call task_set_repetition directly instead. Prefer this helper over ad-hoc LLM translation whenever the user's repetition phrasing is the only signal. No model calls; no side effects. Use with task_set_repetition or task_create.
+Deterministic prose-to-RepetitionRule helper. Pass a natural-language phrase ('every Monday', 'every 3 days', 'first Tuesday of every month') and receive a structured RepetitionRule plus a normalized description to confirm with the user. Returns one of three shapes: { kind: 'ok', rule, normalizedDescription } when the prose maps to one rule; { kind: 'ambiguous', interpretations[] } when prose admits multiple valid readings (typically 2-3) — agent picks one with the user; { kind: 'error', reason, suggestion? } for no-repetition-detected or unsupported-pattern. Supported patterns: daily/weekly/monthly/yearly, every-N-days/weeks/months/years, every weekday/weekend, every {Mon|Tue|...}, nth-weekday-of-month, nth-day-of-month, completion-relative phrasing ('after I complete it'). Time-of-day and end-conditions surface in normalizedDescription only — the canonical RepetitionRule schema doesn't carry those fields. Do NOT use this tool when the agent already has a structured RepetitionRule from another source — call task_set_repetition directly instead. Prefer this helper over ad-hoc LLM translation whenever the user's repetition phrasing is the only signal. No model calls; no side effects. Use with task_set_repetition or task_create. Example: repetition_from_prose({ prose: "every Monday" }) Example: repetition_from_prose({ prose: "every 3 days after I complete it" })
 
 ### Input
 
@@ -2239,7 +2239,7 @@ _No parameters._
 
 ## review_list_due
 
-List projects due for review in OmniFocus — those whose next review date is today or earlier, or has never been set. Sorted by next review date ascending (overdue first, never-reviewed first). Do not use to get all projects; prefer project_list for that. Returns each project's id, name, nextReviewDate, lastReviewDate, and reviewIntervalDays. Safe to call repeatedly; no side effects, no writes.
+List projects due for review in OmniFocus — those whose next review date is today or earlier, or has never been set. Sorted by next review date ascending (overdue first, never-reviewed first). Do not use to get all projects; prefer project_list for that. Returns each project's id, name, nextReviewDate, lastReviewDate, and reviewIntervalDays. Safe to call repeatedly; no side effects, no writes. Example: review_list_due()
 
 ### Input
 
@@ -2270,7 +2270,7 @@ _No parameters._
 
 ## review_mark_reviewed
 
-Mark a project as reviewed in OmniFocus — sets lastReviewDate to now and advances nextReviewDate by the project's review interval. Use this after completing a weekly review of a project. Do not use to change the review interval; prefer review_set_interval for that. Returns the project id. Side effects: writes to OmniFocus; sets syncPending = true.
+Mark a project as reviewed in OmniFocus — sets lastReviewDate to now and advances nextReviewDate by the project's review interval. Use this after completing a weekly review of a project. Do not use to change the review interval; prefer review_set_interval for that. Returns the project id. Side effects: writes to OmniFocus; sets syncPending = true. Example: review_mark_reviewed({ id: "prj123" })
 
 ### Input
 
@@ -2303,7 +2303,7 @@ Mark a project as reviewed in OmniFocus — sets lastReviewDate to now and advan
 
 ## review_set_interval
 
-Set a project's review interval in OmniFocus — updates how many days between reviews. Use null to remove the recurring schedule. Do not use to mark a project as reviewed; prefer review_mark_reviewed for that. Returns the project id. Side effects: writes to OmniFocus; sets syncPending = true.
+Set a project's review interval in OmniFocus — updates how many days between reviews. Use null to remove the recurring schedule. Do not use to mark a project as reviewed; prefer review_mark_reviewed for that. Returns the project id. Side effects: writes to OmniFocus; sets syncPending = true. Example: review_set_interval({ id: "prj123", days: 7 }) Example: review_set_interval({ id: "prj123", days: null })
 
 ### Input
 
@@ -2337,7 +2337,7 @@ Set a project's review interval in OmniFocus — updates how many days between r
 
 ## run_jxa_script
 
-⚠ DANGEROUS — raw JXA escape hatch. Executes an arbitrary JavaScript-for-Automation script against OmniFocus with FULL Automation privileges (read, write, delete, move, sync). Only available when the server was started with OMNIFOCUS_ALLOW_RAW_SCRIPT=1. Every call is audit-logged with the full script body. Do NOT use this for operations covered by the typed tools (task_*, project_*, tag_*, folder_*, etc.) — typed tools are safer, idempotent, and return structured results. Use ONLY when you need a feature no typed tool exposes AND you control the environment. `script` must be a JXA program that defines `function run(argv)` and returns a JSON-encoded string. `arg` is an optional JSON-serialisable value passed as argv[0] (defaults to `{}`). Returns { result } where result is the parsed JSON output of the script (arbitrary shape). Side effects: may mutate, delete, or exfiltrate any OmniFocus data the user has access to. Use sync_trigger separately if the script mutated data and you need it to propagate.
+⚠ DANGEROUS — raw JXA escape hatch. Executes an arbitrary JavaScript-for-Automation script against OmniFocus with FULL Automation privileges (read, write, delete, move, sync). Only available when the server was started with OMNIFOCUS_ALLOW_RAW_SCRIPT=1. Every call is audit-logged with the full script body. Do NOT use this for operations covered by the typed tools (task_*, project_*, tag_*, folder_*, etc.) — typed tools are safer, idempotent, and return structured results. Use ONLY when you need a feature no typed tool exposes AND you control the environment. `script` must be a JXA program that defines `function run(argv)` and returns a JSON-encoded string. `arg` is an optional JSON-serialisable value passed as argv[0] (defaults to `{}`). Returns { result } where result is the parsed JSON output of the script (arbitrary shape). Side effects: may mutate, delete, or exfiltrate any OmniFocus data the user has access to. Use sync_trigger separately if the script mutated data and you need it to propagate. Example: run_jxa_script({ script: "function run(argv) { return JSON.stringify(Application('OmniFocus').version()); }" })
 
 ### Input
 
@@ -2371,7 +2371,7 @@ Set a project's review interval in OmniFocus — updates how many days between r
 
 ## run_omnijs_script
 
-⚠ DANGEROUS — raw OmniJS escape hatch. Executes an arbitrary Omni Automation (OmniJS) script against OmniFocus with FULL Automation privileges (read, write, delete, move, sync, plug-in APIs). Only available when the server was started with OMNIFOCUS_ALLOW_RAW_SCRIPT=1. Every call is audit-logged with the full script body. Do NOT use this for operations covered by the typed tools (task_*, project_*, plugin_invoke, etc.) — typed tools are safer, idempotent, and return structured results. Use ONLY when you need a feature no typed tool exposes AND you control the environment. `script` is a raw OmniJS program; the serialised result must be JSON-encodable. `arg` is an optional JSON-serialisable value forwarded through the callback-file bridge (defaults to `{}`). Returns { result } where result is the parsed JSON output of the script (arbitrary shape). Side effects: may mutate, delete, or exfiltrate any OmniFocus data the user has access to. Use sync_trigger separately if the script mutated data and you need it to propagate.
+⚠ DANGEROUS — raw OmniJS escape hatch. Executes an arbitrary Omni Automation (OmniJS) script against OmniFocus with FULL Automation privileges (read, write, delete, move, sync, plug-in APIs). Only available when the server was started with OMNIFOCUS_ALLOW_RAW_SCRIPT=1. Every call is audit-logged with the full script body. Do NOT use this for operations covered by the typed tools (task_*, project_*, plugin_invoke, etc.) — typed tools are safer, idempotent, and return structured results. Use ONLY when you need a feature no typed tool exposes AND you control the environment. `script` is a raw OmniJS program; the serialised result must be JSON-encodable. `arg` is an optional JSON-serialisable value forwarded through the callback-file bridge (defaults to `{}`). Returns { result } where result is the parsed JSON output of the script (arbitrary shape). Side effects: may mutate, delete, or exfiltrate any OmniFocus data the user has access to. Use sync_trigger separately if the script mutated data and you need it to propagate. Example: run_omnijs_script({ script: "flattenedProjects.length" })
 
 ### Input
 
@@ -2405,7 +2405,7 @@ Set a project's review interval in OmniFocus — updates how many days between r
 
 ## search_query
 
-Full-text search across OmniFocus task names and/or notes. Use for finding tasks by content when you don't know the ID. Supports optional filters (project, tags, flagged, completion status) and cursor pagination. Do NOT use when a known task ID is available (use task_get instead). Returns tasks[] with pagination; safe to call repeatedly; no side effects.
+Full-text search across OmniFocus task names and/or notes. Use for finding tasks by content when you don't know the ID. Supports optional filters (project, tags, flagged, completion status) and cursor pagination. Do NOT use when a known task ID is available (use task_get instead). Returns tasks[] with pagination; safe to call repeatedly; no side effects. Example: search_query({ q: "dentist" }) Example: search_query({ q: "report", projectId: "prj123", completed: "exclude" })
 
 ### Input
 
@@ -2456,7 +2456,7 @@ Full-text search across OmniFocus task names and/or notes. Use for finding tasks
 
 ## sync_status
 
-Return the last OmniFocus sync state without triggering a new sync. Do NOT call this to initiate a sync — use sync_trigger instead. Use to check whether a previous sync completed before querying cross-device data. Returns { lastSyncAt, inFlight }. lastSyncAt is null if OmniFocus has never synced in this session. Read-only; no side effects.
+Return the last OmniFocus sync state without triggering a new sync. Do NOT call this to initiate a sync — use sync_trigger instead. Use to check whether a previous sync completed before querying cross-device data. Returns { lastSyncAt, inFlight }. lastSyncAt is null if OmniFocus has never synced in this session. Read-only; no side effects. Example: sync_status()
 
 ### Input
 
@@ -2490,7 +2490,7 @@ _No parameters._
 
 ## sync_trigger
 
-Kick off an OmniFocus sync with Omni Sync Server. Do not call when no mutations have been made; prefer checking meta.syncPending first. Call this after any sequence of mutations (task_create, task_update, folder_create, etc.) when you need changes to appear on other devices. The sync starts immediately but completes asynchronously — this tool does not block until done. Returns meta.syncPending = false to confirm the sync was initiated. Side effects: triggers a sync request to Omni Sync Server.
+Kick off an OmniFocus sync with Omni Sync Server. Do not call when no mutations have been made; prefer checking meta.syncPending first. Call this after any sequence of mutations (task_create, task_update, folder_create, etc.) when you need changes to appear on other devices. The sync starts immediately but completes asynchronously — this tool does not block until done. Returns meta.syncPending = false to confirm the sync was initiated. Side effects: triggers a sync request to Omni Sync Server. Example: sync_trigger()
 
 ### Input
 
@@ -2523,7 +2523,7 @@ _No parameters._
 
 ## tag_create
 
-Create a new tag in OmniFocus. Optionally nest it under an existing parent tag (get IDs from tag_list). Do not use to move an existing tag; prefer tag_move instead. Returns the new tag's persistent ID. Triggers a sync; call sync_trigger after to propagate to other devices.
+Create a new tag in OmniFocus. Optionally nest it under an existing parent tag (get IDs from tag_list). Do not use to move an existing tag; prefer tag_move instead. Returns the new tag's persistent ID. Triggers a sync; call sync_trigger after to propagate to other devices. Example: tag_create({ name: "errands" }) Example: tag_create({ name: "home", parentId: "tag123" })
 
 ### Input
 
@@ -2598,7 +2598,7 @@ _No parameters._
 
 ## tag_delete
 
-Hard-delete a tag from OmniFocus. IRREVERSIBLE — the tag and all its children are removed. Tasks that carried this tag lose it. Get the tag ID from tag_list. Prefer tag_set_status with status='dropped' to preserve history. Returns the deleted tag's ID on success. Side effects: writes to OmniFocus, sets meta.syncPending = true.
+Hard-delete a tag from OmniFocus. IRREVERSIBLE — the tag and all its children are removed. Tasks that carried this tag lose it. Get the tag ID from tag_list. Prefer tag_set_status with status='dropped' to preserve history. Returns the deleted tag's ID on success. Side effects: writes to OmniFocus, sets meta.syncPending = true. Example: tag_delete({ id: "tag123" })
 
 ### Input
 
@@ -2667,7 +2667,7 @@ _No parameters._
 
 ## tag_get
 
-Fetch a single tag by its persistent ID, including task count. Do not use to list multiple tags; prefer tag_list instead. Returns tag details; no side effects.
+Fetch a single tag by its persistent ID, including task count. Do not use to list multiple tags; prefer tag_list instead. Returns tag details; no side effects. Example: tag_get({ id: "tag123" })
 
 ### Input
 
@@ -2708,7 +2708,7 @@ Fetch a single tag by its persistent ID, including task count. Do not use to lis
 
 ## tag_get_location
 
-Get the geographic location trigger currently set on a tag, or null if none. Do not use to set or clear a location; prefer tag_set_location instead. Location-based tags are an OmniFocus Pro feature. Get the tag ID from tag_list. Returns { location } with name, radius, and trigger direction, or null if unset. Safe to call repeatedly; no side effects.
+Get the geographic location trigger currently set on a tag, or null if none. Do not use to set or clear a location; prefer tag_set_location instead. Location-based tags are an OmniFocus Pro feature. Get the tag ID from tag_list. Returns { location } with name, radius, and trigger direction, or null if unset. Safe to call repeatedly; no side effects. Example: tag_get_location({ id: "tag123" })
 
 ### Input
 
@@ -2749,7 +2749,7 @@ Get the geographic location trigger currently set on a tag, or null if none. Do 
 
 ## tag_get_many
 
-Fetch up to 100 tags by persistent ID in a single OmniFocus round-trip. Use when you have a set of tag IDs and need full tag objects for all of them. Do NOT use for a single ID — use tag_get instead. Returns Tag[] in input order. Missing IDs are omitted and appear in meta.warnings. Read-only; safe to retry.
+Fetch up to 100 tags by persistent ID in a single OmniFocus round-trip. Use when you have a set of tag IDs and need full tag objects for all of them. Do NOT use for a single ID — use tag_get instead. Returns Tag[] in input order. Missing IDs are omitted and appear in meta.warnings. Read-only; safe to retry. Example: tag_get_many({ ids: ["tag123", "tag456"] })
 
 ### Input
 
@@ -2780,7 +2780,7 @@ _No parameters._
 
 ## tag_list
 
-List all tags in OmniFocus, optionally filtered by parent tag or status. Do not use to fetch a single tag by ID; prefer tag_get instead. Returns a flat array — use parentId to walk the hierarchy one level at a time. Safe to call repeatedly; no side effects.
+List all tags in OmniFocus, optionally filtered by parent tag or status. Do not use to fetch a single tag by ID; prefer tag_get instead. Returns a flat array — use parentId to walk the hierarchy one level at a time. Safe to call repeatedly; no side effects. Example: tag_list({}) Example: tag_list({ status: "active", parentId: "tag123" })
 
 ### Input
 
@@ -2822,7 +2822,7 @@ List all tags in OmniFocus, optionally filtered by parent tag or status. Do not 
 
 ## tag_move
 
-Move a tag to a new parent, or promote it to a root tag by passing parentId=null. Do not use to rename a tag; prefer tag_update instead. Get tag IDs from tag_list. Returns the updated tag's ID and new parentId on success. Triggers a sync; call sync_trigger after to propagate to other devices.
+Move a tag to a new parent, or promote it to a root tag by passing parentId=null. Do not use to rename a tag; prefer tag_update instead. Get tag IDs from tag_list. Returns the updated tag's ID and new parentId on success. Triggers a sync; call sync_trigger after to propagate to other devices. Example: tag_move({ id: "tag123", parentId: "tag456" }) Example: tag_move({ id: "tag123", parentId: null })
 
 ### Input
 
@@ -2896,7 +2896,7 @@ _No parameters._
 
 ## tag_set_allows_next_action
 
-Enable or disable next-action selection for a tag in OmniFocus. When true, tasks with this tag are eligible for next-action promotion. Do not use to change other tag properties; prefer tag_update instead. Get the tag ID from tag_list. Returns the updated tag with allowsNextAction confirmed. Triggers a sync; call sync_trigger after to propagate to other devices.
+Enable or disable next-action selection for a tag in OmniFocus. When true, tasks with this tag are eligible for next-action promotion. Do not use to change other tag properties; prefer tag_update instead. Get the tag ID from tag_list. Returns the updated tag with allowsNextAction confirmed. Triggers a sync; call sync_trigger after to propagate to other devices. Example: tag_set_allows_next_action({ id: "tag123", allowsNextAction: true })
 
 ### Input
 
@@ -2938,7 +2938,7 @@ Enable or disable next-action selection for a tag in OmniFocus. When true, tasks
 
 ## tag_set_location
 
-Set a geographic location trigger on a tag (OmniFocus Pro only). The trigger fires when arriving at, leaving, or both for the specified radius. Do not use to read the current location; prefer tag_get_location instead. Get the tag ID from tag_list. Returns FeatureRequiresPro on OmniFocus Standard installs. Triggers a sync; call sync_trigger after to propagate to other devices.
+Set a geographic location trigger on a tag (OmniFocus Pro only). The trigger fires when arriving at, leaving, or both for the specified radius. Do not use to read the current location; prefer tag_get_location instead. Get the tag ID from tag_list. Returns FeatureRequiresPro on OmniFocus Standard installs. Triggers a sync; call sync_trigger after to propagate to other devices. Example: tag_set_location({ id: "tag123", latitude: 37.785, longitude: -122.407, radiusMeters: 200, trigger: "arriving", name: "Office" })
 
 ### Input
 
@@ -2990,7 +2990,7 @@ Set a geographic location trigger on a tag (OmniFocus Pro only). The trigger fir
 
 ## tag_set_status
 
-Set the lifecycle status of a tag to active, on-hold, or dropped. Dropped tags are hidden in OmniFocus but not deleted. Do not use to permanently remove a tag; prefer tag_delete instead. Get the tag ID from tag_list. Returns the updated tag with the confirmed status. Triggers a sync; call sync_trigger after to propagate to other devices.
+Set the lifecycle status of a tag to active, on-hold, or dropped. Dropped tags are hidden in OmniFocus but not deleted. Do not use to permanently remove a tag; prefer tag_delete instead. Get the tag ID from tag_list. Returns the updated tag with the confirmed status. Triggers a sync; call sync_trigger after to propagate to other devices. Example: tag_set_status({ id: "tag123", status: "on-hold" }) Example: tag_set_status({ id: "tag123", status: "active" })
 
 ### Input
 
@@ -3032,7 +3032,7 @@ Set the lifecycle status of a tag to active, on-hold, or dropped. Dropped tags a
 
 ## tag_update
 
-Update mutable fields on an existing tag (partial patch). Only supplied fields are changed; omit a field to leave it unchanged. Do not use to move a tag to a different parent; prefer tag_move instead. Get the tag ID from tag_list. Returns the updated tag on success. Triggers a sync; call sync_trigger after to propagate to other devices.
+Update mutable fields on an existing tag (partial patch). Only supplied fields are changed; omit a field to leave it unchanged. Do not use to move a tag to a different parent; prefer tag_move instead. Get the tag ID from tag_list. Returns the updated tag on success. Triggers a sync; call sync_trigger after to propagate to other devices. Example: tag_update({ id: "tag123", name: "shopping" }) Example: tag_update({ id: "tag123", status: "dropped" })
 
 ### Input
 
@@ -3108,7 +3108,7 @@ _No parameters._
 
 ## task_batch_assign
 
-Apply inbox-triage style assignments to many tasks in one batch — move to a project, diff tags additively, set defer/due/flagged. Tighter schema than task_batch_update; designed for the inbox-triage prompt's confirm step. Each assignment is { taskId, projectId?, addTagIds?, removeTagIds?, deferDate?, dueDate?, flagged? }. Tag diffs are resolved via a pre-read of current tagIds; specifying both addTagIds and removeTagIds for the same tag is a no-op (remove wins). Atomicity: best-effort, per-item — OF has no transactional batch. An item succeeds only if both its move (if requested) AND its non-move update succeed. Failures are reported with errorCode prefixed 'move:' or 'update:'. Returns { assigned: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each assignment without a follow-up read. Do NOT use this tool for full task replacement — use task_update or task_batch_update for those. Prefer task_batch_assign over a sequence of single task_update calls when you have a confirmed triage plan for multiple tasks. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Apply inbox-triage style assignments to many tasks in one batch — move to a project, diff tags additively, set defer/due/flagged. Tighter schema than task_batch_update; designed for the inbox-triage prompt's confirm step. Each assignment is { taskId, projectId?, addTagIds?, removeTagIds?, deferDate?, dueDate?, flagged? }. Tag diffs are resolved via a pre-read of current tagIds; specifying both addTagIds and removeTagIds for the same tag is a no-op (remove wins). Atomicity: best-effort, per-item — OF has no transactional batch. An item succeeds only if both its move (if requested) AND its non-move update succeed. Failures are reported with errorCode prefixed 'move:' or 'update:'. Returns { assigned: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each assignment without a follow-up read. Do NOT use this tool for full task replacement — use task_update or task_batch_update for those. Prefer task_batch_assign over a sequence of single task_update calls when you have a confirmed triage plan for multiple tasks. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices. Example: task_batch_assign({ assignments: [{ taskId: "abc123", projectId: "prj456", flagged: true }, { taskId: "abc789", addTagIds: ["tag1"] }] })
 
 ### Input
 
@@ -3139,7 +3139,7 @@ _No parameters._
 
 ## task_batch_complete
 
-Mark many OmniFocus tasks complete in a single JXA round trip. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each completion succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_complete calls whenever you are completing more than one task. Each item is { id, at? } where `at` is an optional ISO-8601 completion timestamp (defaults to now). Already-completed tasks are not treated specially here — use task_complete's idempotent noChange path if you need that per-item semantics. Returns { completed: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each completion without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Mark many OmniFocus tasks complete in a single JXA round trip. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each completion succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_complete calls whenever you are completing more than one task. Each item is { id, at? } where `at` is an optional ISO-8601 completion timestamp (defaults to now). Already-completed tasks are not treated specially here — use task_complete's idempotent noChange path if you need that per-item semantics. Returns { completed: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each completion without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices. Example: task_batch_complete({ items: [{ id: "abc123" }, { id: "abc456" }] })
 
 ### Input
 
@@ -3170,7 +3170,7 @@ _No parameters._
 
 ## task_batch_create
 
-Create many OmniFocus tasks in a single JXA round trip. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: once the batch reaches OmniFocus, each task succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_create calls whenever you are creating more than one task. Each item accepts the same shape as task_create (name, optional projectId or parentTaskId, note, flagged, dueDate, deferDate, estimatedMinutes, tagIds, sequential, completedByChildren). Returns { created: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name (echoed from the input) so the agent can describe each new task without a follow-up read. Side effects: creates tasks in OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the tasks to appear on other devices.
+Create many OmniFocus tasks in a single JXA round trip. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: once the batch reaches OmniFocus, each task succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_create calls whenever you are creating more than one task. Each item accepts the same shape as task_create (name, optional projectId or parentTaskId, note, flagged, dueDate, deferDate, estimatedMinutes, tagIds, sequential, completedByChildren). Returns { created: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name (echoed from the input) so the agent can describe each new task without a follow-up read. Side effects: creates tasks in OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the tasks to appear on other devices. Example: task_batch_create({ items: [{ name: "Buy milk" }, { name: "Call dentist", projectId: "prj123" }] })
 
 ### Input
 
@@ -3232,7 +3232,7 @@ _No parameters._
 
 ## task_batch_delete
 
-Permanently delete many OmniFocus tasks in a single JXA round trip. IRREVERSIBLE — deleted tasks cannot be recovered. REQUIRED: pass confirm=true at the top level to acknowledge this action is irreversible; the entire batch is rejected without it. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each deletion succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_delete calls whenever deleting more than one task. Each item is { id }. Returns { deleted: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name (captured pre-delete) so the agent can describe each removal without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Permanently delete many OmniFocus tasks in a single JXA round trip. IRREVERSIBLE — deleted tasks cannot be recovered. REQUIRED: pass confirm=true at the top level to acknowledge this action is irreversible; the entire batch is rejected without it. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each deletion succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_delete calls whenever deleting more than one task. Each item is { id }. Returns { deleted: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name (captured pre-delete) so the agent can describe each removal without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices. Example: task_batch_delete({ confirm: true, items: [{ id: "abc123" }, { id: "abc456" }] })
 
 ### Input
 
@@ -3263,7 +3263,7 @@ _No parameters._
 
 ## task_batch_drop
 
-Cancel (drop) many OmniFocus tasks in a single JXA round trip. Dropped tasks remain in OmniFocus but are treated as cancelled/inactive — they do not appear in active task lists. Use task_batch_delete for permanent removal. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each drop succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_drop calls whenever dropping more than one task. Each item is { id }. Returns { dropped: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each drop without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Cancel (drop) many OmniFocus tasks in a single JXA round trip. Dropped tasks remain in OmniFocus but are treated as cancelled/inactive — they do not appear in active task lists. Use task_batch_delete for permanent removal. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each drop succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_drop calls whenever dropping more than one task. Each item is { id }. Returns { dropped: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each drop without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices. Example: task_batch_drop({ items: [{ id: "abc123" }, { id: "abc456" }] })
 
 ### Input
 
@@ -3294,7 +3294,7 @@ _No parameters._
 
 ## task_batch_move
 
-Move many OmniFocus tasks to new destinations in a single OmniJS round trip. Routes through OmniJS — not JXA — because JXA task.move() is unimplemented in OmniFocus 4.x. Each item specifies a task ID and exactly one destination: projectId (move into a project) or parentId (move under a parent task). Omit both to move to the inbox. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each move succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_move calls whenever moving more than one task. Returns { moved: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each move without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Move many OmniFocus tasks to new destinations in a single OmniJS round trip. Routes through OmniJS — not JXA — because JXA task.move() is unimplemented in OmniFocus 4.x. Each item specifies a task ID and exactly one destination: projectId (move into a project) or parentId (move under a parent task). Omit both to move to the inbox. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each move succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_move calls whenever moving more than one task. Returns { moved: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each move without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices. Example: task_batch_move({ items: [{ id: "abc123", projectId: "prj456" }, { id: "abc789", parentId: "tsk111" }] })
 
 ### Input
 
@@ -3325,7 +3325,7 @@ _No parameters._
 
 ## task_batch_uncomplete
 
-Mark many OmniFocus tasks as incomplete in a single JXA round trip. Reverses a previous completion — useful when a task was completed by mistake or needs to be re-done. Uncompleted tasks return to active status. Use task_batch_complete to mark tasks as completed. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each uncomplete succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_uncomplete calls whenever uncompleting more than one task. Each item is { id }. Returns { uncompleted: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each restoration without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Mark many OmniFocus tasks as incomplete in a single JXA round trip. Reverses a previous completion — useful when a task was completed by mistake or needs to be re-done. Uncompleted tasks return to active status. Use task_batch_complete to mark tasks as completed. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each uncomplete succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_uncomplete calls whenever uncompleting more than one task. Each item is { id }. Returns { uncompleted: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each restoration without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices. Example: task_batch_uncomplete({ items: [{ id: "abc123" }, { id: "abc456" }] })
 
 ### Input
 
@@ -3356,7 +3356,7 @@ _No parameters._
 
 ## task_batch_undrop
 
-Restore (undrop) many cancelled OmniFocus tasks in a single JXA round trip. Undropped tasks are returned to active status and will reappear in active task lists. Use task_batch_drop to cancel tasks. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each undrop succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_undrop calls whenever undropping more than one task. Each item is { id }. Returns { undropped: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each restoration without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Restore (undrop) many cancelled OmniFocus tasks in a single JXA round trip. Undropped tasks are returned to active status and will reappear in active task lists. Use task_batch_drop to cancel tasks. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each undrop succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_undrop calls whenever undropping more than one task. Each item is { id }. Returns { undropped: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each restoration without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices. Example: task_batch_undrop({ items: [{ id: "abc123" }, { id: "abc456" }] })
 
 ### Input
 
@@ -3387,7 +3387,7 @@ _No parameters._
 
 ## task_batch_update
 
-Partially update many OmniFocus tasks in a single JXA round trip. Validation is atomic: if any patch fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each update succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_update calls whenever you are updating more than one task. Each item is { id, patch } where patch accepts a subset of task_update's editable fields (name, note, flagged, dueDate, deferDate, estimatedMinutes, tagIds, sequential, completedByChildren). Additive tag diffs (addTags/removeTags) and safety primitives (dry_run, expectedModifiedAt, idempotency_key) are not supported in batch form; fall back to task_update for those. Returns { updated: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — name reflects the post-patch name (uses patch.name when supplied, otherwise the existing name). Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Partially update many OmniFocus tasks in a single JXA round trip. Validation is atomic: if any patch fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each update succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_update calls whenever you are updating more than one task. Each item is { id, patch } where patch accepts a subset of task_update's editable fields (name, note, flagged, dueDate, deferDate, estimatedMinutes, tagIds, sequential, completedByChildren). Additive tag diffs (addTags/removeTags) and safety primitives (dry_run, expectedModifiedAt, idempotency_key) are not supported in batch form; fall back to task_update for those. Returns { updated: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — name reflects the post-patch name (uses patch.name when supplied, otherwise the existing name). Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices. Example: task_batch_update({ items: [{ id: "abc123", patch: { flagged: true } }, { id: "abc456", patch: { dueDate: "2026-05-01T00:00:00Z" } }] })
 
 ### Input
 
@@ -3449,7 +3449,7 @@ _No parameters._
 
 ## task_clear_alarms
 
-Remove all alarms/notifications from an OmniFocus task. After clearing, the task has no scheduled notifications. Use task_set_alarms to install a new alarm set. Returns the updated task. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.
+Remove all alarms/notifications from an OmniFocus task. After clearing, the task has no scheduled notifications. Use task_set_alarms to install a new alarm set. Returns the updated task. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters. Example: task_clear_alarms({ id: "abc123" })
 
 ### Input
 
@@ -3480,7 +3480,7 @@ _No parameters._
 
 ## task_clear_repetition
 
-Remove the repetition rule from an OmniFocus task. After clearing, the task becomes a one-time item. Use task_set_repetition to set or change a rule. Returns the updated task with repetitionRule confirmed as null. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.
+Remove the repetition rule from an OmniFocus task. After clearing, the task becomes a one-time item. Use task_set_repetition to set or change a rule. Returns the updated task with repetitionRule confirmed as null. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters. Example: task_clear_repetition({ id: "abc123" })
 
 ### Input
 
@@ -3549,7 +3549,7 @@ _No parameters._
 
 ## task_complete
 
-Complete an OmniFocus task — marks it done with a completion timestamp. Accepts an optional ISO-8601 date for the completion time; defaults to now. Idempotent: returns noChange: true if the task is already completed. Do not use to drop or delete a task. Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: sets completedAt, sets meta.syncPending = true.
+Complete an OmniFocus task — marks it done with a completion timestamp. Accepts an optional ISO-8601 date for the completion time; defaults to now. Idempotent: returns noChange: true if the task is already completed. Do not use to drop or delete a task. Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: sets completedAt, sets meta.syncPending = true. Example: task_complete({ id: "abc123" }) Example: task_complete({ id: "abc123", at: "2026-05-01T09:00:00Z" })
 
 ### Input
 
@@ -3614,7 +3614,7 @@ _No parameters._
 
 ## task_convert_to_project
 
-Promote an OmniFocus task to a first-class project via OmniJS Database.convertTasksToProjects(). The task's persistent identifier is preserved on the resulting project — agents can continue using the same ID as a project ID after conversion. Subtasks, notes, tags, and dates are carried over by OmniFocus automatically. Use this when a task has grown in scope and needs its own review interval, subtask hierarchy, or project-level metadata. Do NOT use on tasks already in a project — use task_move instead for reparenting; use project_create when starting from scratch. Returns { converted: true, projectId, taskId, name } — name is the task name (carried over to the new project) so the agent can describe the conversion without a follow-up read. Side effects: removes the task from the task list and adds a project; sets meta.syncPending = true.
+Promote an OmniFocus task to a first-class project via OmniJS Database.convertTasksToProjects(). The task's persistent identifier is preserved on the resulting project — agents can continue using the same ID as a project ID after conversion. Subtasks, notes, tags, and dates are carried over by OmniFocus automatically. Use this when a task has grown in scope and needs its own review interval, subtask hierarchy, or project-level metadata. Do NOT use on tasks already in a project — use task_move instead for reparenting; use project_create when starting from scratch. Returns { converted: true, projectId, taskId, name } — name is the task name (carried over to the new project) so the agent can describe the conversion without a follow-up read. Side effects: removes the task from the task list and adds a project; sets meta.syncPending = true. Example: task_convert_to_project({ id: "abc123" }) Example: task_convert_to_project({ id: "abc123", folderId: "fld456" })
 
 ### Input
 
@@ -3645,7 +3645,7 @@ _No parameters._
 
 ## task_create
 
-Create a new task in OmniFocus — in the inbox, inside a project, or as a subtask of another task. Supply exactly one of: projectId (project task), parentTaskId (subtask), or neither (inbox). Do not use for bulk creation; prefer task_batch_create for that. Safety control: pass idempotency_key to make transport retries safe — identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of creating a duplicate task. Returns { id, name } — name echoes the supplied name so the agent can describe the new task without a follow-up read. Side effects: creates a task in OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the task to appear on other devices.
+Create a new task in OmniFocus — in the inbox, inside a project, or as a subtask of another task. Supply exactly one of: projectId (project task), parentTaskId (subtask), or neither (inbox). Do not use for bulk creation; prefer task_batch_create for that. Safety control: pass idempotency_key to make transport retries safe — identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of creating a duplicate task. Returns { id, name } — name echoes the supplied name so the agent can describe the new task without a follow-up read. Side effects: creates a task in OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the task to appear on other devices. Example: task_create({ name: "Buy milk" }) Example: task_create({ name: "Write report", projectId: "prj123", dueDate: "2026-05-01T00:00:00Z" })
 
 ### Input
 
@@ -3722,7 +3722,7 @@ _No parameters._
 
 ## task_delete
 
-Permanently delete an OmniFocus task. IRREVERSIBLE — uses OmniFocus deleteObject; there is no undo. Prefer task_drop when you want a recoverable status change. Only use task_delete when the agent has explicit user intent to permanently remove the task. REQUIRED: pass confirm=true to acknowledge this action is irreversible; the call is rejected without it. Safety controls: set dry_run=true to preview without mutating; pass expectedModifiedAt (from a recent task_get) to reject the call if the task changed since you read it; pass idempotency_key to coalesce retries so the same delete is only performed once. Returns { deleted: true, id } on success. Side effects: removes the task from OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the deletion to appear on other devices.
+Permanently delete an OmniFocus task. IRREVERSIBLE — uses OmniFocus deleteObject; there is no undo. Prefer task_drop when you want a recoverable status change. Only use task_delete when the agent has explicit user intent to permanently remove the task. REQUIRED: pass confirm=true to acknowledge this action is irreversible; the call is rejected without it. Safety controls: set dry_run=true to preview without mutating; pass expectedModifiedAt (from a recent task_get) to reject the call if the task changed since you read it; pass idempotency_key to coalesce retries so the same delete is only performed once. Returns { deleted: true, id } on success. Side effects: removes the task from OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the deletion to appear on other devices. Example: task_delete({ id: "abc123", confirm: true }) Example: task_delete({ id: "abc123", confirm: true, dry_run: true })
 
 ### Input
 
@@ -3795,7 +3795,7 @@ _No parameters._
 
 ## task_drop
 
-Drop an OmniFocus task — marks it as dropped/deferred and removes it from active view. Reversible via task_undrop. Accepts an optional ISO-8601 date. Idempotent: returns noChange: true if already dropped. Do not use to complete or delete a task. Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: sets droppedAt, sets meta.syncPending = true.
+Drop an OmniFocus task — marks it as dropped/deferred and removes it from active view. Reversible via task_undrop. Accepts an optional ISO-8601 date. Idempotent: returns noChange: true if already dropped. Do not use to complete or delete a task. Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: sets droppedAt, sets meta.syncPending = true.Example: task_drop({ id: "abc123" })
 
 ### Input
 
@@ -3860,7 +3860,7 @@ _No parameters._
 
 ## task_duplicate
 
-Duplicate an OmniFocus task, optionally including its entire subtask subtree when recursive: true. Editable fields copy over (name, note, defer/due dates, flagged, tags, estimate, repetition); system fields (id, timestamps) regenerate; completed/dropped state is NOT carried — the duplicate is a fresh, active task. Do NOT use task_duplicate as a substitute for task_move (which reparents the existing task) or task_create (when the new task's fields differ from the source). By default the clone lands alongside the source. Provide destination with exactly one of projectId, parentId, or toInbox: true to place it elsewhere. Returns { duplicated: true, sourceId, newId, descendantCount, name } — name is the source task's name (the duplicate carries the same name) so the agent can describe the new task without a follow-up read. Side effects: creates one new task (plus descendants if recursive) in OmniFocus, sets meta.syncPending = true.
+Duplicate an OmniFocus task, optionally including its entire subtask subtree when recursive: true. Editable fields copy over (name, note, defer/due dates, flagged, tags, estimate, repetition); system fields (id, timestamps) regenerate; completed/dropped state is NOT carried — the duplicate is a fresh, active task. Do NOT use task_duplicate as a substitute for task_move (which reparents the existing task) or task_create (when the new task's fields differ from the source). By default the clone lands alongside the source. Provide destination with exactly one of projectId, parentId, or toInbox: true to place it elsewhere. Returns { duplicated: true, sourceId, newId, descendantCount, name } — name is the source task's name (the duplicate carries the same name) so the agent can describe the new task without a follow-up read. Side effects: creates one new task (plus descendants if recursive) in OmniFocus, sets meta.syncPending = true. Example: task_duplicate({ id: "abc123" }) Example: task_duplicate({ id: "abc123", recursive: true, destination: { projectId: "prj456" } })
 
 ### Input
 
@@ -3891,7 +3891,7 @@ _No parameters._
 
 ## task_extract_from_image
 
-Capture tasks from an image — agent does vision, tool does plumbing. Source is a path or existing OF attachment; agent supplies proposed: ProposedTask[]. Two-phase: dryRun=true validates+echoes; dryRun=false with confirmation[] writes. attachSourceTo: 'parent-task' (default), 'each-task' (path-mode only), or 'none'. Path-mode: PNG/JPEG/HEIC/HEIF/GIF/WEBP/PDF; respects attachment-path-scope + size cap. Do NOT use when you already have structured tasks — call task_batch_create. Returns { phase, proposed?, parent?, created?, outcome? }. Side effects: dryRun=false creates tasks; call sync_trigger for cross-device.
+Capture tasks from an image — agent does vision, tool does plumbing. Source is a path or existing OF attachment; agent supplies proposed: ProposedTask[]. Two-phase: dryRun=true validates+echoes; dryRun=false with confirmation[] writes. attachSourceTo: 'parent-task' (default), 'each-task' (path-mode only), or 'none'. Path-mode: PNG/JPEG/HEIC/HEIF/GIF/WEBP/PDF; respects attachment-path-scope + size cap. Do NOT use when you already have structured tasks — call task_batch_create. Returns { phase, proposed?, parent?, created?, outcome? }. Side effects: dryRun=false creates tasks; call sync_trigger for cross-device. Example: task_extract_from_image({ source: { kind: "path", path: "/tmp/whiteboard.png" }, proposed: [{ name: "Follow up with Alice" }], dryRun: true })
 
 ### Input
 
@@ -3922,7 +3922,7 @@ _No parameters._
 
 ## task_extract_from_note
 
-Mechanically split prose into a candidate-task list with source-line provenance. Source can be a task's note (kind: 'task'), a project's note (kind: 'project'), or inline text (kind: 'inline') — useful for piping a transcript through capture-meeting. Two-phase contract: dryRun=true returns { proposed, unmappedLines }; dryRun=false with confirmation: ProposedTask[] creates the (possibly-edited) tasks in targetProjectId via batchCreateTasks semantics. Returns { phase: 'dryRun', proposed, unmappedLines } or { phase: 'created', outcome: BatchOutcome<TaskId> } accordingly. Do NOT use this tool when you already have structured tasks — call task_batch_create directly instead. Prefer this helper when the input is a wall-of-text note that needs splitting. Side effects: dryRun=true is read-only; dryRun=false creates tasks in the target project. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.
+Mechanically split prose into a candidate-task list with source-line provenance. Source can be a task's note (kind: 'task'), a project's note (kind: 'project'), or inline text (kind: 'inline') — useful for piping a transcript through capture-meeting. Two-phase contract: dryRun=true returns { proposed, unmappedLines }; dryRun=false with confirmation: ProposedTask[] creates the (possibly-edited) tasks in targetProjectId via batchCreateTasks semantics. Returns { phase: 'dryRun', proposed, unmappedLines } or { phase: 'created', outcome: BatchOutcome<TaskId> } accordingly. Do NOT use this tool when you already have structured tasks — call task_batch_create directly instead. Prefer this helper when the input is a wall-of-text note that needs splitting. Side effects: dryRun=true is read-only; dryRun=false creates tasks in the target project. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters. Example: task_extract_from_note({ source: { kind: "task", id: "abc123" }, dryRun: true })
 
 ### Input
 
@@ -3953,7 +3953,7 @@ _No parameters._
 
 ## task_find_by_name
 
-Find tasks in OmniFocus by name. Returns ALL matching tasks (names are not unique in OmniFocus). Names collide in OmniFocus; prefer task_get with an ID when you have one. Use search_query instead when you need to search task notes as well, or want full-text content search. Zero matches returns an empty array — not an error. Returns tasks[]; safe to call repeatedly; no side effects.
+Find tasks in OmniFocus by name. Returns ALL matching tasks (names are not unique in OmniFocus). Names collide in OmniFocus; prefer task_get with an ID when you have one. Use search_query instead when you need to search task notes as well, or want full-text content search. Zero matches returns an empty array — not an error. Returns tasks[]; safe to call repeatedly; no side effects. Example: task_find_by_name({ name: "Buy milk" }) Example: task_find_by_name({ name: "report", matchMode: "contains" })
 
 ### Input
 
@@ -4000,7 +4000,7 @@ Find tasks in OmniFocus by name. Returns ALL matching tasks (names are not uniqu
 
 ## task_find_similar
 
-Lexical nearest-neighbour search for de-duplicating tasks. Pass a candidate name (and optional note) and receive the top-K most-similar existing tasks ranked by a deterministic [0, 1] lexical-signal score (Jaccard token-overlap + prefix bonus + exact-name boost). Title-dominant: a perfect title match outranks a perfect note match. Use BEFORE task_create when you suspect a duplicate; the agent inspects the candidates and decides whether to create new, link to existing, or merge. Excludes completed and dropped tasks by default; opt-in via includeCompleted: true. Optional scope { projectId } or { tagId } narrows the candidate set. Returns { candidates: [{ taskId, name, score, projectId, tags }] } sorted by score descending; an empty result is { candidates: [] }, not an error. Do NOT use this tool for general full-text search — call task_search for that. Prefer this helper when the question is 'is this task already in the system?'. No model calls; no side effects. Read-only.
+Lexical nearest-neighbour search for de-duplicating tasks. Pass a candidate name (and optional note) and receive the top-K most-similar existing tasks ranked by a deterministic [0, 1] lexical-signal score (Jaccard token-overlap + prefix bonus + exact-name boost). Title-dominant: a perfect title match outranks a perfect note match. Use BEFORE task_create when you suspect a duplicate; the agent inspects the candidates and decides whether to create new, link to existing, or merge. Excludes completed and dropped tasks by default; opt-in via includeCompleted: true. Optional scope { projectId } or { tagId } narrows the candidate set. Returns { candidates: [{ taskId, name, score, projectId, tags }] } sorted by score descending; an empty result is { candidates: [] }, not an error. Do NOT use this tool for general full-text search — call task_search for that. Prefer this helper when the question is 'is this task already in the system?'. No model calls; no side effects. Read-only. Example: task_find_similar({ name: "Call dentist" }) Example: task_find_similar({ name: "Write report", scope: { projectId: "prj123" }, topK: 5 })
 
 ### Input
 
@@ -4031,7 +4031,7 @@ _No parameters._
 
 ## task_get
 
-Fetch a single OmniFocus task by persistent ID. Use when you have a known task ID and need its full detail. Do NOT use for multiple IDs — use task_get_many instead. Returns the Task object plus its direct subtasks (when includeSubtasks=true, the default). Read-only; safe to retry.
+Fetch a single OmniFocus task by persistent ID. Use when you have a known task ID and need its full detail. Do NOT use for multiple IDs — use task_get_many instead. Returns the Task object plus its direct subtasks (when includeSubtasks=true, the default). Read-only; safe to retry. Example: task_get({ id: "abc123" })
 
 ### Input
 
@@ -4074,7 +4074,7 @@ Fetch a single OmniFocus task by persistent ID. Use when you have a known task I
 
 ## task_get_many
 
-Fetch up to 100 tasks by persistent ID in a single OmniFocus round-trip. Use when you have a set of task IDs from multiple sources and need full task objects for all of them. Do NOT use for a single ID — use task_get instead. Do NOT use when you only have names — use task_find_by_name. Returns Task[] in input order. Missing IDs are omitted and appear in meta.warnings. Read-only; safe to retry.
+Fetch up to 100 tasks by persistent ID in a single OmniFocus round-trip. Use when you have a set of task IDs from multiple sources and need full task objects for all of them. Do NOT use for a single ID — use task_get instead. Do NOT use when you only have names — use task_find_by_name. Returns Task[] in input order. Missing IDs are omitted and appear in meta.warnings. Read-only; safe to retry. Example: task_get_many({ ids: ["abc123", "abc456"] })
 
 ### Input
 
@@ -4123,7 +4123,7 @@ Fetch up to 100 tasks by persistent ID in a single OmniFocus round-trip. Use whe
 
 ## task_list
 
-List tasks in OmniFocus with optional filters (project, tag, inbox, flagged, completion, due dates). Use inbox=true to fetch unprocessed Inbox tasks. Use this for filter-based queries across tasks. Do NOT use for a known single task (use task_get). For name-based lookup, prefer task_find_by_name. For full-text content search across names and notes, prefer search_query. Returns tasks[] with pagination; safe to call repeatedly; no side effects.
+List tasks in OmniFocus with optional filters (project, tag, inbox, flagged, completion, due dates). Use inbox=true to fetch unprocessed Inbox tasks. Use this for filter-based queries across tasks. Do NOT use for a known single task (use task_get). For name-based lookup, prefer task_find_by_name. For full-text content search across names and notes, prefer search_query. Returns tasks[] with pagination; safe to call repeatedly; no side effects. Example: task_list({ inbox: true }) Example: task_list({ projectId: "prj123", flagged: true }) Example: task_list({ dueBefore: "2026-05-01T00:00:00Z", completed: "exclude" })
 
 ### Input
 
@@ -4186,7 +4186,7 @@ List tasks in OmniFocus with optional filters (project, tag, inbox, flagged, com
 
 ## task_move
 
-Move an OmniFocus task to a new location — a different project, another task (as a subtask), or the inbox. Exactly one destination must be specified: projectId, parentId, or toInbox: true. Do NOT use task_move to reorder siblings within the same parent (task_reorder handles that); prefer task_update when you only need to change editable fields, not reparent. Idempotent: returns noChange: true when the task is already at the destination. Returns { moved: true, id, from, to } or { noChange: true, id, at }. Side effects: reparents the task in OmniFocus, sets meta.syncPending = true.
+Move an OmniFocus task to a new location — a different project, another task (as a subtask), or the inbox. Exactly one destination must be specified: projectId, parentId, or toInbox: true. Do NOT use task_move to reorder siblings within the same parent (task_reorder handles that); prefer task_update when you only need to change editable fields, not reparent. Idempotent: returns noChange: true when the task is already at the destination. Returns { moved: true, id, from, to } or { noChange: true, id, at }. Side effects: reparents the task in OmniFocus, sets meta.syncPending = true. Example: task_move({ id: "abc123", projectId: "prj456" }) Example: task_move({ id: "abc123", parentId: "tsk789" })
 
 ### Input
 
@@ -4248,7 +4248,7 @@ _No parameters._
 
 ## task_parse_transport_text
 
-Parse OmniFocus transport text DSL into structured task objects — no tasks are created. Supports @tag, #due-date, ::defer-date, !!, and //note tokens; a leading 'Project: Name' line sets the project context for subsequent tasks. Do not use this tool to create tasks; pass the returned tasks[] to task_create separately. Returns tasks[] with name, tagNames, dueDate, deferDate, flagged, note, and projectName fields, plus count and an optional warnings[] for unparseable dates. Tag names and project names are raw strings — resolve to IDs with tag_list before passing to task_create. Read-only; no side effects.
+Parse OmniFocus transport text DSL into structured task objects — no tasks are created. Supports @tag, #due-date, ::defer-date, !!, and //note tokens; a leading 'Project: Name' line sets the project context for subsequent tasks. Do not use this tool to create tasks; pass the returned tasks[] to task_create separately. Returns tasks[] with name, tagNames, dueDate, deferDate, flagged, note, and projectName fields, plus count and an optional warnings[] for unparseable dates. Tag names and project names are raw strings — resolve to IDs with tag_list before passing to task_create. Read-only; no side effects. Example: task_parse_transport_text({ text: "Buy milk @errands !!\nWrite report #2026-05-01" })
 
 ### Input
 
@@ -4279,7 +4279,7 @@ _No parameters._
 
 ## task_reclassify
 
-Predicate-driven bulk task reclassification with a mandatory two-phase contract. Phase 1 (dryRun: true): match tasks by predicate, return { matched, proposed: [{taskId, before, after}] } with no mutations. Phase 2 (dryRun: false): require `confirmation` echoing the matched count from the prior dry-run; mismatch fails fast. Hard cap: dryRun: false rejects > 200 matches (use task_batch_update with explicit IDs for larger sets). Predicate is a discriminated-union AST: { kind: 'title-contains', value, caseSensitive? } | { kind: 'tag', tagId } | { kind: 'project', projectId } | { kind: 'and', predicates: [] } | { kind: 'or', predicates: [] } | { kind: 'not', predicate }. Changes apply uniformly to every match: addTags, removeTags, setProject, setFlagged. Do NOT use this tool when you have explicit task IDs — call task_batch_update directly. Prefer task_reclassify whenever the targets are described by a rule rather than a list, so the dry-run diff surfaces to the user before any write. Side effects (apply phase only): writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Predicate-driven bulk task reclassification with a mandatory two-phase contract. Phase 1 (dryRun: true): match tasks by predicate, return { matched, proposed: [{taskId, before, after}] } with no mutations. Phase 2 (dryRun: false): require `confirmation` echoing the matched count from the prior dry-run; mismatch fails fast. Hard cap: dryRun: false rejects > 200 matches (use task_batch_update with explicit IDs for larger sets). Predicate is a discriminated-union AST: { kind: 'title-contains', value, caseSensitive? } | { kind: 'tag', tagId } | { kind: 'project', projectId } | { kind: 'and', predicates: [] } | { kind: 'or', predicates: [] } | { kind: 'not', predicate }. Changes apply uniformly to every match: addTags, removeTags, setProject, setFlagged. Do NOT use this tool when you have explicit task IDs — call task_batch_update directly. Prefer task_reclassify whenever the targets are described by a rule rather than a list, so the dry-run diff surfaces to the user before any write. Side effects (apply phase only): writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices. Example: task_reclassify({ predicate: { kind: "tag", tagId: "tag123" }, changes: { setFlagged: true }, dryRun: true }) Example: task_reclassify({ predicate: { kind: "tag", tagId: "tag123" }, changes: { setFlagged: true }, dryRun: false, confirmation: "3" })
 
 ### Input
 
@@ -4310,7 +4310,7 @@ _No parameters._
 
 ## task_reorder
 
-Reorder an OmniFocus task among its siblings. OmniFocus has no numeric sibling index — position is always expressed relative to another task (before / after) or as the absolute start / end of a container. Do NOT use task_reorder to reparent a task to a different project or parent (task_move handles reparenting); prefer task_move when the task needs to change containers without caring about sibling order. Exactly one positioning form must be set: { before }, { after }, or { at, in }. Returns { reordered: true, id, position }. Side effects: changes sibling order in OmniFocus, sets meta.syncPending = true.
+Reorder an OmniFocus task among its siblings. OmniFocus has no numeric sibling index — position is always expressed relative to another task (before / after) or as the absolute start / end of a container. Do NOT use task_reorder to reparent a task to a different project or parent (task_move handles reparenting); prefer task_move when the task needs to change containers without caring about sibling order. Exactly one positioning form must be set: { before }, { after }, or { at, in }. Returns { reordered: true, id, position }. Side effects: changes sibling order in OmniFocus, sets meta.syncPending = true. Example: task_reorder({ id: "abc123", before: "abc456" }) Example: task_reorder({ id: "abc123", at: "start", in: { projectId: "prj456" } })
 
 ### Input
 
@@ -4341,7 +4341,7 @@ _No parameters._
 
 ## task_search
 
-Search OmniFocus tasks by keyword and/or structured filters, with cursor pagination. q is optional — omit it to filter by tag, project, date range, or availability alone. When q is supplied, scans task names and/or notes (controlled by scope) for a case-insensitive substring match. Narrow results with: projectId, tagIds (task must carry ALL listed tags), available, dueBefore, dueAfter, flagged, and completed. At least one of q, projectId, tagIds, available, dueBefore, or dueAfter must be provided. Do NOT use when you already have an ID — prefer task_get instead. Returns tasks[] with pagination (limit defaults to 100, max 500); safe to call repeatedly; no side effects.
+Search OmniFocus tasks by keyword and/or structured filters, with cursor pagination. q is optional — omit it to filter by tag, project, date range, or availability alone. When q is supplied, scans task names and/or notes (controlled by scope) for a case-insensitive substring match. Narrow results with: projectId, tagIds (task must carry ALL listed tags), available, dueBefore, dueAfter, flagged, and completed. At least one of q, projectId, tagIds, available, dueBefore, or dueAfter must be provided. Do NOT use when you already have an ID — prefer task_get instead. Returns tasks[] with pagination (limit defaults to 100, max 500); safe to call repeatedly; no side effects. Example: task_search({ q: "dentist" }) Example: task_search({ tagIds: ["tag123"], available: true, dueBefore: "2026-05-01T00:00:00Z" })
 
 ### Input
 
@@ -4384,7 +4384,7 @@ Search OmniFocus tasks by keyword and/or structured filters, with cursor paginat
 
 ## task_set_alarms
 
-Replace the alarm/notification set on an OmniFocus task atomically. Pass an array of alarms; this overwrites any existing alarms in full. Each alarm is one of: {kind:'due-relative', offsetSeconds:N} (positive = before due date, negative = after), {kind:'defer-relative', offsetSeconds:N} (relative to defer date), or {kind:'absolute', fireAt:ISO-8601 string}. Relative kinds require the task to already have the corresponding date set, or the call returns a VALIDATION error. Use task_clear_alarms to remove all alarms with no payload. Returns the updated task. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.
+Replace the alarm/notification set on an OmniFocus task atomically. Pass an array of alarms; this overwrites any existing alarms in full. Each alarm is one of: {kind:'due-relative', offsetSeconds:N} (positive = before due date, negative = after), {kind:'defer-relative', offsetSeconds:N} (relative to defer date), or {kind:'absolute', fireAt:ISO-8601 string}. Relative kinds require the task to already have the corresponding date set, or the call returns a VALIDATION error. Use task_clear_alarms to remove all alarms with no payload. Returns the updated task. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters. Example: task_set_alarms({ id: "abc123", alarms: [{ kind: "due-relative", offsetSeconds: 3600 }] }) Example: task_set_alarms({ id: "abc123", alarms: [{ kind: "absolute", fireAt: "2026-05-01T09:00:00Z" }] })
 
 ### Input
 
@@ -4415,7 +4415,7 @@ _No parameters._
 
 ## task_set_repetition
 
-Set the repetition rule on an OmniFocus task. Overwrites any existing rule. Use task_clear_repetition to remove a rule entirely. Returns the updated task ID; call task_get for the full object. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.
+Set the repetition rule on an OmniFocus task. Overwrites any existing rule. Use task_clear_repetition to remove a rule entirely. Returns the updated task ID; call task_get for the full object. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters. Example: task_set_repetition({ id: "abc123", rule: { method: "fixed", unit: "days", steps: 7 } }) Example: task_set_repetition({ id: "abc123", rule: { method: "start-again", unit: "weeks", steps: 1 } })
 
 ### Input
 
@@ -4494,7 +4494,7 @@ _No parameters._
 
 ## task_uncomplete
 
-Mark an OmniFocus task as incomplete — removes its completion timestamp. Idempotent: returns noChange: true if the task is already incomplete. Do not use to drop or delete a task. Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: clears completedAt, sets meta.syncPending = true.
+Mark an OmniFocus task as incomplete — removes its completion timestamp. Idempotent: returns noChange: true if the task is already incomplete. Do not use to drop or delete a task. Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: clears completedAt, sets meta.syncPending = true.Example: task_uncomplete({ id: "abc123" })
 
 ### Input
 
@@ -4527,7 +4527,7 @@ Mark an OmniFocus task as incomplete — removes its completion timestamp. Idemp
 
 ## task_undrop
 
-Restore a dropped OmniFocus task — clears its dropped status and returns it to the active view. Idempotent: returns noChange: true if the task is not dropped. Do not use to complete a task. Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: clears droppedAt, sets meta.syncPending = true.
+Restore a dropped OmniFocus task — clears its dropped status and returns it to the active view. Idempotent: returns noChange: true if the task is not dropped. Do not use to complete a task. Returns { done: true, id, name } or { noChange: true, id, name } — name lets the agent describe the change without a follow-up read. Side effects: clears droppedAt, sets meta.syncPending = true.Example: task_undrop({ id: "abc123" })
 
 ### Input
 
@@ -4560,7 +4560,7 @@ Restore a dropped OmniFocus task — clears its dropped status and returns it to
 
 ## task_update
 
-Partially update mutable fields on an OmniFocus task. Only supplied fields are changed; omit a field to leave it unchanged. Do not use to complete or delete a task; prefer task_complete or task_delete instead. Two tag-update modes: (1) supply tagIds to replace the full tag set; (2) supply addTags and/or removeTags to apply a diff without reading first. Supplying tagIds together with addTags/removeTags is a ValidationError. setFlagged is a convenience alias for flagged. Safety controls: set dry_run=true to preview the patched task without mutating; pass expectedModifiedAt (from a recent task_get) to reject the call if the task changed since you read it; pass idempotency_key to coalesce retries so the same update is only performed once. Returns the updated task. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+Partially update mutable fields on an OmniFocus task. Only supplied fields are changed; omit a field to leave it unchanged. Do not use to complete or delete a task; prefer task_complete or task_delete instead. Two tag-update modes: (1) supply tagIds to replace the full tag set; (2) supply addTags and/or removeTags to apply a diff without reading first. Supplying tagIds together with addTags/removeTags is a ValidationError. setFlagged is a convenience alias for flagged. Safety controls: set dry_run=true to preview the patched task without mutating; pass expectedModifiedAt (from a recent task_get) to reject the call if the task changed since you read it; pass idempotency_key to coalesce retries so the same update is only performed once. Returns the updated task. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices. Example: task_update({ id: "abc123", flagged: true }) Example: task_update({ id: "abc123", dueDate: "2026-05-01T00:00:00Z", addTags: ["tag456"] })
 
 ### Input
 
@@ -4651,7 +4651,7 @@ _No parameters._
 
 ## window_get_state
 
-Read the active perspective and focus container of the front OmniFocus window. **UI-affecting tool family** — only meaningful in pair-assistant flows where the user is looking at OmniFocus. Headless agents should ignore. Use when the agent needs to know what view the user currently sees, or to confirm that a prior `window_set_*` took effect. Do NOT use to evaluate a perspective's data — prefer `perspective_evaluate`, which doesn't depend on UI state. Takes no arguments. Returns { perspectiveName: string | null, focusContainerIds: string[] } — perspectiveName is null when no perspective is bound; focusContainerIds is [] when the window isn't focused on a project or folder. Errors: OF_WINDOW_UNAVAILABLE when OmniFocus has no front window. Read-only; safe to retry.
+Read the active perspective and focus container of the front OmniFocus window. **UI-affecting tool family** — only meaningful in pair-assistant flows where the user is looking at OmniFocus. Headless agents should ignore. Use when the agent needs to know what view the user currently sees, or to confirm that a prior `window_set_*` took effect. Do NOT use to evaluate a perspective's data — prefer `perspective_evaluate`, which doesn't depend on UI state. Takes no arguments. Returns { perspectiveName: string | null, focusContainerIds: string[] } — perspectiveName is null when no perspective is bound; focusContainerIds is [] when the window isn't focused on a project or folder. Errors: OF_WINDOW_UNAVAILABLE when OmniFocus has no front window. Read-only; safe to retry. Example: window_get_state()
 
 ### Input
 
@@ -4682,7 +4682,7 @@ _No parameters._
 
 ## window_set_focus
 
-Set or clear the front OmniFocus window's focus container (a project or folder). **UI-affecting tool** — only meaningful when the user can see OmniFocus. Headless agents should not fire this. Use when the user asks 'focus on this project' or a guided flow wants to scope the visible view. Do NOT use to filter task data — prefer `task_list { projectId }` or `perspective_evaluate` instead, both of which work without touching the user's UI. Pass containerId (a ProjectId or FolderId) to focus, or null to clear focus. Returns { focusContainerIds: string[] } — single-element array when focused, [] when cleared. Errors: OF_WINDOW_UNAVAILABLE (no front window), OF_NOT_FOUND (containerId is neither a project nor a folder). Side effects: changes the user's visible window state; no data caches invalidated.
+Set or clear the front OmniFocus window's focus container (a project or folder). **UI-affecting tool** — only meaningful when the user can see OmniFocus. Headless agents should not fire this. Use when the user asks 'focus on this project' or a guided flow wants to scope the visible view. Do NOT use to filter task data — prefer `task_list { projectId }` or `perspective_evaluate` instead, both of which work without touching the user's UI. Pass containerId (a ProjectId or FolderId) to focus, or null to clear focus. Returns { focusContainerIds: string[] } — single-element array when focused, [] when cleared. Errors: OF_WINDOW_UNAVAILABLE (no front window), OF_NOT_FOUND (containerId is neither a project nor a folder). Side effects: changes the user's visible window state; no data caches invalidated. Example: window_set_focus({ containerId: "prj123" }) Example: window_set_focus({ containerId: null })
 
 ### Input
 
@@ -4713,7 +4713,7 @@ _No parameters._
 
 ## window_set_perspective
 
-Switch the front OmniFocus window to a named perspective (built-in or custom). **UI-affecting tool** — only meaningful when the user can see OmniFocus. Headless agents should not fire this. Use when the user asks 'show me my flagged tasks' or a guided weekly-review prompt wants to navigate the user's UI. Do NOT use to evaluate a perspective's results — prefer perspective_evaluate, which doesn't touch the user's UI. Pass perspectiveName (case-sensitive, matches OF's UX). Built-in names: Inbox, Projects, Tags, Forecast, Flagged, Review, Nearby, Completed, Changed. Returns { perspectiveName }. Errors: OF_WINDOW_UNAVAILABLE (no front window), OF_NOT_FOUND (no perspective with this name). Side effects: changes the user's visible window state; no data caches invalidated.
+Switch the front OmniFocus window to a named perspective (built-in or custom). **UI-affecting tool** — only meaningful when the user can see OmniFocus. Headless agents should not fire this. Use when the user asks 'show me my flagged tasks' or a guided weekly-review prompt wants to navigate the user's UI. Do NOT use to evaluate a perspective's results — prefer perspective_evaluate, which doesn't touch the user's UI. Pass perspectiveName (case-sensitive, matches OF's UX). Built-in names: Inbox, Projects, Tags, Forecast, Flagged, Review, Nearby, Completed, Changed. Returns { perspectiveName }. Errors: OF_WINDOW_UNAVAILABLE (no front window), OF_NOT_FOUND (no perspective with this name). Side effects: changes the user's visible window state; no data caches invalidated. Example: window_set_perspective({ perspectiveName: "Flagged" })
 
 ### Input
 
