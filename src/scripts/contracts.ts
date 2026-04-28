@@ -138,6 +138,11 @@ export type PerspectiveCreateScriptResult =
   | { id: string }
   | ScriptErrorEnvelope<"FEATURE_REQUIRES_PRO" | "VALIDATION_ERROR" | "SCRIPT_ERROR">;
 
+/** Result type for `perspective_update.js`. */
+export type PerspectiveUpdateScriptResult =
+  | { id: string }
+  | ScriptErrorEnvelope<"FEATURE_REQUIRES_PRO" | "NOT_FOUND" | "VALIDATION_ERROR" | "SCRIPT_ERROR">;
+
 // ---------------------------------------------------------------------------
 // JXA script result types (complex shapes only; simple `{ task: Task }` etc.
 // use domain types directly at the call site)

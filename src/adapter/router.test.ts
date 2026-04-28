@@ -104,6 +104,7 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     getCustomPerspective: record("getCustomPerspective"),
     deleteCustomPerspective: record("deleteCustomPerspective"),
     createCustomPerspective: record("createCustomPerspective"),
+    updateCustomPerspective: record("updateCustomPerspective"),
     listAttachments: record("listAttachments"),
     addAttachment: record("addAttachment"),
     removeAttachment: record("removeAttachment"),
@@ -196,6 +197,7 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
     getCustomPerspective: () => r.getCustomPerspective("custom-id"),
     deleteCustomPerspective: () => r.deleteCustomPerspective("custom-id"),
     createCustomPerspective: () => r.createCustomPerspective({ name: "test" }),
+    updateCustomPerspective: () => r.updateCustomPerspective("custom-id", { name: "new" }),
     listAttachments: () => r.listAttachments({ taskId: T_ID }),
     addAttachment: () => r.addAttachment({ taskId: T_ID, filePath: "/tmp/x.txt" }),
     removeAttachment: () => r.removeAttachment({ taskId: T_ID, attachmentId: ATT_ID }),
@@ -315,6 +317,7 @@ describe("TransportRouter — table integrity", () => {
       "setForecastTag", // Database.forecastTag is OmniJS-only (#465)
       "setTaskAlarms", // Task.addNotification is OmniJS-only (#461)
       "undoLastMutation", // Database.undo() is OmniJS-only (#526)
+      "updateCustomPerspective", // OmniJS-only: archivedFilterRules / iconColor mutation (#577)
     ]);
   });
 });

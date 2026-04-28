@@ -55,6 +55,7 @@ import type {
   SyncStatus,
   TaskFilter,
   TaskPosition,
+  UpdateCustomPerspectiveInput,
   UpdateFolderInput,
   UpdateProjectInput,
   UpdateTagInput,
@@ -157,6 +158,7 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   getCustomPerspective: "omnijs",
   deleteCustomPerspective: "omnijs",
   createCustomPerspective: "omnijs",
+  updateCustomPerspective: "omnijs",
 
   // -- Sync -----------------------------------------------------------------
   syncTrigger: "jxa",
@@ -495,6 +497,10 @@ export class TransportRouter implements OmniFocusAdapter {
 
   createCustomPerspective(input: CreateCustomPerspectiveInput): Promise<string> {
     return this.pick("createCustomPerspective").createCustomPerspective(input);
+  }
+
+  updateCustomPerspective(identifier: string, patch: UpdateCustomPerspectiveInput): Promise<void> {
+    return this.pick("updateCustomPerspective").updateCustomPerspective(identifier, patch);
   }
 
   syncTrigger(): Promise<SyncStatus> {

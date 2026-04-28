@@ -95,6 +95,7 @@ import { registerPerspectiveDeleteTool } from "../tools/perspective/delete.js";
 import { registerPerspectiveEvaluateTool } from "../tools/perspective/evaluate.js";
 import { registerPerspectiveGetTool } from "../tools/perspective/get.js";
 import { registerPerspectiveListTool } from "../tools/perspective/list.js";
+import { registerPerspectiveUpdateTool } from "../tools/perspective/update.js";
 import { registerPluginInvokeTool } from "../tools/plugin/invoke.js";
 import { registerProjectBatchCompleteTool } from "../tools/project/batchComplete.js";
 import { registerProjectBatchDropTool } from "../tools/project/batchDrop.js";
@@ -387,6 +388,7 @@ export async function startServer(): Promise<void> {
     makeMeta,
   });
   registerPerspectiveCreateTool(server, { adapter, cache: services.cache, makeMeta });
+  registerPerspectiveUpdateTool(server, { adapter, cache: services.cache, makeMeta });
 
   // Plugin invoke.
   registerPluginInvokeTool(server, { adapter, makeMeta });

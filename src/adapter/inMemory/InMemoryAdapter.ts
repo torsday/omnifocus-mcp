@@ -1360,6 +1360,47 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     return id;
   }
 
+  async updateCustomPerspective(
+    identifier: string,
+    patch: import("../OmniFocusAdapter.js").UpdateCustomPerspectiveInput,
+  ): Promise<void> {
+    const existing = this.customPerspectiveDetails.get(identifier);
+    if (existing === undefined) {
+      throw new NotFound(`Custom perspective not found: ${identifier}`, {
+        details: { resource: "perspective", id: identifier },
+      });
+    }
+    if (patch.name !== undefined) {
+      if (patch.name.length === 0) {
+        throw new ValidationError("name must be non-empty", {
+          details: { field: "name" },
+        });
+      }
+      // Reject duplicate names — match the production OmniFocus behavior.
+      for (const other of this.customPerspectiveDetails.values()) {
+        if (other.id !== identifier && other.name === patch.name) {
+          throw new ValidationError(`Duplicate perspective name: ${patch.name}`, {
+            details: { field: "name", existingId: other.id },
+          });
+        }
+      }
+    }
+    const updated: import("../../domain/perspective.js").PerspectiveDetail = {
+      id: existing.id,
+      name: patch.name ?? existing.name,
+      aggregation: patch.aggregation ?? existing.aggregation,
+      rules: patch.rules ?? existing.rules,
+      // patch.iconColor: undefined → leave alone, null → clear, object → write.
+      iconColor:
+        patch.iconColor === undefined
+          ? existing.iconColor
+          : patch.iconColor === null
+            ? null
+            : patch.iconColor,
+    };
+    this.customPerspectiveDetails.set(identifier, updated);
+  }
+
   async evaluatePerspective(id: BuiltinPerspectiveId): Promise<Task[]> {
     const all = Array.from(this.tasks.values());
     if (id === "review" || id === "nearby") return [];

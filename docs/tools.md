@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 132 tools registered.
+> Auto-generated from source. 133 tools registered.
 
 ## Table of contents
 
@@ -44,6 +44,7 @@
 - [perspective_evaluate](#perspective_evaluate)
 - [perspective_get](#perspective_get)
 - [perspective_list](#perspective_list)
+- [perspective_update](#perspective_update)
 - [plugin_invoke](#plugin_invoke)
 - [project_batch_complete](#project_batch_complete)
 - [project_batch_drop](#project_batch_drop)
@@ -1450,6 +1451,43 @@ _No parameters._
 ```json
 {
   "toolName": "perspective_list",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## perspective_update
+
+Partial-patch update of a custom OmniFocus perspective. Only fields present in the input are written — omitting a field leaves the existing value unchanged. Passing iconColor: null clears the custom color back to the OmniFocus default; passing rules: [] clears the rule tree to 'show everything'. Use to rename a perspective, retune its rule tree, swap the aggregation, or recolor the icon. Do NOT use to create a new perspective (prefer `perspective_create`) or to alter built-in perspectives — built-in ids (Inbox, Forecast, Flagged, Projects, Tags, Nearby, Review) are rejected with VALIDATION_ERROR. rules is the same shape `perspective_get` returns (atom | aggregate | disabled wrapper) — round-trips are lossless. Each rule atom may set at most one action* predicate; combine predicates by wrapping atoms in a RuleAggregate with aggregateType all/any/none. Returns { id } — the persistent identifier of the patched perspective. Side effects: writes to OmniFocus; invalidates the perspective cache; sets meta.syncPending = true. Custom perspectives require OmniFocus Pro — without it, the adapter throws FeatureRequiresPro. Example: perspective_update({ perspectiveId: "abc123", name: "Today's plate", aggregation: "all" }) Example: perspective_update({ perspectiveId: "abc123", iconColor: null })
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `perspectiveId` | string | Yes | Persistent identifier of the custom perspective to patch. Get from `perspective_list`. Built-in perspective ids are rejected with VALIDATION_ERROR. |
+| `name` | string | No | New display name. Must be non-empty when provided. OmniFocus rejects duplicate names. |
+| `aggregation` | one of: all | any | none | No | New top-level rule aggregation. One of "all", "any", "none". |
+| `rules` | unknown[] | No | New top-level rule list. Empty array clears the rule tree to 'show everything'. Each rule is an atom (single action* predicate), an aggregate (compound rule with aggregateType + aggregateRules), or a disabled wrapper around either. |
+| `iconColor` | unknown | No | New custom icon color, or null to clear back to the OmniFocus default. Omit to leave the existing color unchanged. |
+
+### Example call
+
+```json
+{
+  "toolName": "perspective_update",
   "arguments": {}
 }
 ```

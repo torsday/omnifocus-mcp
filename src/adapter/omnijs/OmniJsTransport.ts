@@ -46,6 +46,7 @@ import {
   type PerspectiveDeleteScriptResult,
   type PerspectiveEvaluateScriptResult,
   type PerspectiveGetScriptResult,
+  type PerspectiveUpdateScriptResult,
   type TaskBatchMoveScriptResult,
   type TaskConvertToProjectScriptResult,
   type TaskMoveScriptResult,
@@ -60,6 +61,7 @@ import perspectiveCreateScript from "../../scripts/omnijs/perspective_create.js"
 import perspectiveDeleteScript from "../../scripts/omnijs/perspective_delete.js";
 import perspectiveEvaluateScript from "../../scripts/omnijs/perspective_evaluate.js";
 import perspectiveGetScript from "../../scripts/omnijs/perspective_get.js";
+import perspectiveUpdateScript from "../../scripts/omnijs/perspective_update.js";
 import pluginInvokeScript from "../../scripts/omnijs/plugin_invoke.js";
 import taskBatchMoveScript from "../../scripts/omnijs/task_batch_move.js";
 import taskClearAlarmsScript from "../../scripts/omnijs/task_clear_alarms.js";
@@ -79,6 +81,7 @@ import type {
   SyncStatus,
   TaskFilter,
   TaskPosition,
+  UpdateCustomPerspectiveInput,
   UpdateFolderInput,
   UpdateProjectInput,
   UpdateTagInput,
@@ -776,6 +779,51 @@ export class OmniJsTransport implements OmniFocusAdapter {
     }
 
     return result.id;
+  }
+
+  async updateCustomPerspective(
+    identifier: string,
+    patch: UpdateCustomPerspectiveInput,
+  ): Promise<void> {
+    // Patch fields are forwarded verbatim — `iconColor: null` is preserved
+    // (it means "clear back to default"), distinct from omitting iconColor
+    // entirely (which leaves the existing color in place).
+    const args: Record<string, unknown> = { identifier };
+    if (patch.name !== undefined) args.name = patch.name;
+    if (patch.aggregation !== undefined) args.aggregation = patch.aggregation;
+    if (patch.rules !== undefined) args.rules = patch.rules;
+    if (patch.iconColor !== undefined) args.iconColor = patch.iconColor;
+
+    const result = await runOmniJsScript<PerspectiveUpdateScriptResult>(
+      perspectiveUpdateScript,
+      args,
+      { ...this.runOpts, scriptName: "perspective_update" },
+    );
+
+    if (isScriptError(result)) {
+      if (result.error.code === "FEATURE_REQUIRES_PRO") {
+        throw new FeatureRequiresPro(result.error.message, {
+          details: { feature: "custom-perspectives" },
+        });
+      }
+      if (result.error.code === "NOT_FOUND") {
+        throw new NotFound(result.error.message, {
+          details: { resource: "perspective", id: identifier },
+        });
+      }
+      if (result.error.code === "VALIDATION_ERROR") {
+        throw new ValidationError(result.error.message, {
+          details: { id: identifier },
+        });
+      }
+      throw new ScriptError(result.error.message, {
+        details: {
+          transport: "omnijs",
+          script: "perspective_update",
+          id: identifier,
+        },
+      });
+    }
   }
 
   // -- Sync -----------------------------------------------------------------
