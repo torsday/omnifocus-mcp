@@ -17,8 +17,10 @@ import {
   BUILTIN_PERSPECTIVE_IDS,
   type BuiltinPerspectiveId,
   type Perspective,
+  type PerspectiveDetail,
 } from "../domain/perspective.js";
 import type { Task } from "../domain/task.js";
+import { ValidationError } from "../errors/index.js";
 
 function isBuiltin(id: string): id is BuiltinPerspectiveId {
   return (BUILTIN_PERSPECTIVE_IDS as readonly string[]).includes(id);
@@ -73,5 +75,35 @@ export class PerspectiveService {
       ? await this.adapter.evaluatePerspective(perspectiveId)
       : await this.adapter.evaluateCustomPerspective(perspectiveId);
     return { tasks, cacheHit: false };
+  }
+
+  /**
+   * Read full configuration of a custom perspective — name, top-level
+   * aggregation, rule tree, and icon color. Built-in perspectives have no
+   * rule tree and are rejected with `ValidationError` rather than reaching
+   * the adapter (which would surface a less actionable `NotFound`).
+   */
+  async get(perspectiveId: string): Promise<PerspectiveDetail> {
+    if (isBuiltin(perspectiveId)) {
+      throw new ValidationError(
+        `perspective_get only supports custom perspectives; got built-in id "${perspectiveId}"`,
+        { details: { field: "perspectiveId", value: perspectiveId, kind: "builtin" } },
+      );
+    }
+    return this.adapter.getCustomPerspective(perspectiveId);
+  }
+
+  /**
+   * Delete a custom perspective by id. Built-in perspectives are rejected
+   * with `ValidationError` — they cannot be deleted.
+   */
+  async delete(perspectiveId: string): Promise<void> {
+    if (isBuiltin(perspectiveId)) {
+      throw new ValidationError(
+        `perspective_delete cannot delete built-in perspectives; got "${perspectiveId}"`,
+        { details: { field: "perspectiveId", value: perspectiveId, kind: "builtin" } },
+      );
+    }
+    await this.adapter.deleteCustomPerspective(perspectiveId);
   }
 }

@@ -39,7 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-_Nothing yet — see [GitHub Issues](https://github.com/torsday/omnifocus-mcp/issues) and [Project #4](https://github.com/users/torsday/projects/4) for the live backlog and status._
+### Added
+
+- **`perspective_get` — read a custom perspective's full configuration** — returns `{ id, name, aggregation, rules, iconColor }` for a custom perspective by identifier. Surfaces the structured rule tree (`archivedFilterRules`) so agents can introspect what a perspective filters on without evaluating it. Routes via OmniJS — JXA exposes only `id`/`name`/`class` on perspective specifiers. Built-in perspective ids are rejected with a typed validation error since they have no rule tree. Custom perspectives require OmniFocus Pro. ([#523](https://github.com/torsday/omnifocus-mcp/issues/523))
+- **`perspective_delete` — delete a custom perspective by id** — removes a custom perspective via OmniJS `deleteObject` (JXA cannot delete custom perspectives). Built-in perspectives are rejected with a typed validation error. The tool invalidates the `perspective:*` cache scope so subsequent `perspective_list` reads return fresh state. ([#523](https://github.com/torsday/omnifocus-mcp/issues/523))
 
 ---
 

@@ -2,7 +2,11 @@ import type { Attachment } from "../domain/attachment.js";
 import type { BatchOutcome } from "../domain/batch.js";
 import type { Folder } from "../domain/folder.js";
 import type { AttachmentId, FolderId, ProjectId, TagId, TaskId } from "../domain/ids.js";
-import type { BuiltinPerspectiveId, Perspective } from "../domain/perspective.js";
+import type {
+  BuiltinPerspectiveId,
+  Perspective,
+  PerspectiveDetail,
+} from "../domain/perspective.js";
 import type { Project } from "../domain/project.js";
 import type { Tag, TagLocation } from "../domain/tag.js";
 import type { RepetitionRule, Task } from "../domain/task.js";
@@ -463,6 +467,31 @@ export interface OmniFocusAdapter {
    * @throws NotFound — when no custom perspective with the given id exists.
    */
   evaluateCustomPerspective(identifier: string): Promise<Task[]>;
+
+  /**
+   * Read the full configuration of a custom perspective — name, aggregation,
+   * rule tree, and icon color. Routes to OmniJS exclusively (the JXA
+   * dictionary exposes only id/name/class on perspective specifiers).
+   *
+   * @throws FeatureRequiresPro — when the OmniFocus edition lacks the custom-
+   *         perspective runtime (Standard without Pro).
+   * @throws NotFound — when no custom perspective with the given identifier
+   *         exists. Built-in perspective ids also report NotFound — they have
+   *         no rule-tree to read.
+   */
+  getCustomPerspective(identifier: string): Promise<PerspectiveDetail>;
+
+  /**
+   * Delete a custom perspective by identifier. Routes to OmniJS — JXA cannot
+   * delete custom perspectives. Built-in perspective ids report NotFound and
+   * are left untouched.
+   *
+   * @throws FeatureRequiresPro — when the OmniFocus edition lacks the custom-
+   *         perspective runtime.
+   * @throws NotFound — when no custom perspective with the given identifier
+   *         exists.
+   */
+  deleteCustomPerspective(identifier: string): Promise<void>;
 
   // -- Search ----------------------------------------------------------------
 

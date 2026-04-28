@@ -42,7 +42,9 @@ import {
   type AppWindowNewScriptResult,
   isScriptError,
   mapBatchScriptResult,
+  type PerspectiveDeleteScriptResult,
   type PerspectiveEvaluateScriptResult,
+  type PerspectiveGetScriptResult,
   type TaskBatchMoveScriptResult,
   type TaskConvertToProjectScriptResult,
   type TaskMoveScriptResult,
@@ -53,7 +55,9 @@ import databaseRedoScript from "../../scripts/omnijs/database_redo.js";
 import databaseUndoScript from "../../scripts/omnijs/database_undo.js";
 import forecastGetTagScript from "../../scripts/omnijs/forecast_get_tag.js";
 import forecastSetTagScript from "../../scripts/omnijs/forecast_set_tag.js";
+import perspectiveDeleteScript from "../../scripts/omnijs/perspective_delete.js";
 import perspectiveEvaluateScript from "../../scripts/omnijs/perspective_evaluate.js";
+import perspectiveGetScript from "../../scripts/omnijs/perspective_get.js";
 import pluginInvokeScript from "../../scripts/omnijs/plugin_invoke.js";
 import taskBatchMoveScript from "../../scripts/omnijs/task_batch_move.js";
 import taskClearAlarmsScript from "../../scripts/omnijs/task_clear_alarms.js";
@@ -679,6 +683,57 @@ export class OmniJsTransport implements OmniFocusAdapter {
     }
 
     return result.tasks.map((t) => ({ ...t, id: TaskIdCtor.of(t.id as unknown as string) }));
+  }
+
+  async getCustomPerspective(
+    identifier: string,
+  ): Promise<import("../../domain/perspective.js").PerspectiveDetail> {
+    const result = await runOmniJsScript<PerspectiveGetScriptResult>(
+      perspectiveGetScript,
+      { identifier },
+      { ...this.runOpts, scriptName: "perspective_get" },
+    );
+
+    if (isScriptError(result)) {
+      if (result.error.code === "FEATURE_REQUIRES_PRO") {
+        throw new FeatureRequiresPro(result.error.message, {
+          details: { feature: "custom-perspectives" },
+        });
+      }
+      throw new NotFound(result.error.message, {
+        details: { resource: "perspective", id: identifier },
+      });
+    }
+
+    return result.perspective;
+  }
+
+  async deleteCustomPerspective(identifier: string): Promise<void> {
+    const result = await runOmniJsScript<PerspectiveDeleteScriptResult>(
+      perspectiveDeleteScript,
+      { identifier },
+      { ...this.runOpts, scriptName: "perspective_delete" },
+    );
+
+    if (isScriptError(result)) {
+      if (result.error.code === "FEATURE_REQUIRES_PRO") {
+        throw new FeatureRequiresPro(result.error.message, {
+          details: { feature: "custom-perspectives" },
+        });
+      }
+      if (result.error.code === "NOT_FOUND") {
+        throw new NotFound(result.error.message, {
+          details: { resource: "perspective", id: identifier },
+        });
+      }
+      throw new ScriptError(result.error.message, {
+        details: {
+          transport: "omnijs",
+          script: "perspective_delete",
+          id: identifier,
+        },
+      });
+    }
   }
 
   // -- Sync -----------------------------------------------------------------
