@@ -42,7 +42,7 @@ export const TASK_BATCH_ASSIGN_DESCRIPTION =
   "Atomicity: best-effort, per-item — OF has no transactional batch. An item succeeds only if " +
   "both its move (if requested) AND its non-move update succeed. Failures are reported with " +
   "errorCode prefixed 'move:' or 'update:'. " +
-  "Returns { assigned: [{index, value: taskId}], failed: [{index, errorCode, message}] }. " +
+  "Returns { assigned: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name so the agent can describe each assignment without a follow-up read. " +
   "Do NOT use this tool for full task replacement — use task_update or task_batch_update for those. " +
   "Prefer task_batch_assign over a sequence of single task_update calls when you have a confirmed " +
   "triage plan for multiple tasks. " +
@@ -166,6 +166,19 @@ export async function handleTaskBatchAssign(
 ) {
   const assignments = input.assignments;
 
+  // Pre-fetch all task names so the success rows can pair { id, name }
+  // per #597 (lever 4). Single round trip; one task fetch covers the whole
+  // batch regardless of which phases each item touches.
+  const allIds = assignments.map((a) => a.taskId);
+  const allTasks = await ctx.adapter.getTasksMany(allIds);
+  const nameById = new Map<string, string>();
+  for (let i = 0; i < allIds.length; i++) {
+    const t = allTasks[i];
+    if (t !== null && t !== undefined) {
+      nameById.set(allIds[i] as string, t.name);
+    }
+  }
+
   // Phase 0: pre-read current tagIds for additive-diff items.
   const tagPrereadIdxs = indicesNeedingTagPreread(assignments);
   const currentTagsByOrigIdx = new Map<number, TagId[]>();
@@ -267,7 +280,12 @@ export async function handleTaskBatchAssign(
     }
   }
 
-  return ok({ assigned: succeeded, failed }, ctx.makeMeta({ syncPending: succeeded.length > 0 }));
+  const assigned = succeeded.map((s) => ({
+    index: s.index,
+    value: { id: s.value, name: nameById.get(s.value as string) ?? "" },
+  }));
+
+  return ok({ assigned, failed }, ctx.makeMeta({ syncPending: succeeded.length > 0 }));
 }
 
 // ---------------------------------------------------------------------------

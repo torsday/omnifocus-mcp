@@ -122,6 +122,24 @@ describe("task_batch_move — handler", () => {
     expect(result.data.failed[0]?.index).toBe(1);
   });
 
+  it("pairs name with id in each succeeded value (#597)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const project = await adapter.createProject({ name: "P" });
+    const id1 = await adapter.createTask({ name: "Roaming A" });
+    const id2 = await adapter.createTask({ name: "Roaming B" });
+    const result = await handleTaskBatchMove(
+      {
+        items: [
+          { id: id1, destination: { projectId: project } },
+          { id: id2, destination: { projectId: project } },
+        ],
+      },
+      ctx,
+    );
+    expect(result.data.moved[0]?.value).toEqual({ id: id1, name: "Roaming A" });
+    expect(result.data.moved[1]?.value).toEqual({ id: id2, name: "Roaming B" });
+  });
+
   it("sets syncPending=true when at least one task moved", async () => {
     const { ctx, adapter } = makeCtx();
     const project = await adapter.createProject({ name: "P" });

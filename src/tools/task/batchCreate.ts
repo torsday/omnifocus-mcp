@@ -27,7 +27,7 @@ export const TASK_BATCH_CREATE_DESCRIPTION =
   "Prefer this tool over repeated task_create calls whenever you are creating more than one task. " +
   "Each item accepts the same shape as task_create (name, optional projectId or parentTaskId, note, " +
   "flagged, dueDate, deferDate, estimatedMinutes, tagIds, sequential, completedByChildren). " +
-  "Returns { created: [{index, value: taskId}], failed: [{index, errorCode, message}] }. " +
+  "Returns { created: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name (echoed from the input) so the agent can describe each new task without a follow-up read. " +
   "Side effects: creates tasks in OmniFocus, sets meta.syncPending = true. " +
   "Call sync_trigger when you need the tasks to appear on other devices.";
 
@@ -106,8 +106,14 @@ export async function handleTaskBatchCreate(
     if (seen.size === 0) invalidateTaskMutation(ctx.cache, {});
   }
 
+  // Names come from the input — no fetch needed for this verb.
+  const created = outcome.succeeded.map((s) => ({
+    index: s.index,
+    value: { id: s.value, name: input.items[s.index]?.name ?? "" },
+  }));
+
   return ok(
-    { created: outcome.succeeded, failed: outcome.failed },
+    { created, failed: outcome.failed },
     ctx.makeMeta({
       syncPending: outcome.succeeded.length > 0,
       humanReadableSummary: summaryBatchCreate(outcome.succeeded.length),

@@ -147,6 +147,21 @@ describe("handleTaskBatchAssign — move only", () => {
     const moved = await adapter.getTask(taskId);
     expect(String(moved.projectId)).toBe(String(projId));
   });
+
+  it("pairs name with id in each succeeded value (#597)", async () => {
+    const adapter = new InMemoryAdapter();
+    const projId = await adapter.createProject({ name: "P" });
+    const taskId = await adapter.createTask({ name: "Triaged thing" });
+    const env = await handleTaskBatchAssign(
+      { assignments: [{ taskId, projectId: projId }] },
+      makeCtx(adapter),
+    );
+    if (!("data" in env)) {
+      expect.fail("expected ok envelope");
+      return;
+    }
+    expect(env.data.assigned[0]?.value).toEqual({ id: taskId, name: "Triaged thing" });
+  });
 });
 
 // ---------------------------------------------------------------------------
