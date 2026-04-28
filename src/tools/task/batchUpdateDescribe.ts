@@ -14,7 +14,8 @@ export const TASK_BATCH_UPDATE_DESCRIBE_DESCRIPTION =
   "Preview what task_batch_update would do without making any changes. " +
   "Do NOT use to actually update tasks — use task_batch_update instead. " +
   "Returns { description, plannedChanges } summarising all patches that would be applied. " +
-  "No side effects: read-only by contract — never mutates OmniFocus.";
+  "No side effects: read-only by contract — never mutates OmniFocus. " +
+  "Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.";
 
 export interface TaskBatchUpdateDescribeContext {
   adapter: OmniFocusAdapter;

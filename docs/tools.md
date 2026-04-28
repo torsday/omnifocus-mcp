@@ -2,15 +2,19 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 114 tools registered.
+> Auto-generated from source. 128 tools registered.
 
 ## Table of contents
 
 - [app_launch](#app_launch)
+- [app_window_new](#app_window_new)
+- [app_window_new_tab](#app_window_new_tab)
 - [attachment_add](#attachment_add)
 - [attachment_list](#attachment_list)
 - [attachment_remove](#attachment_remove)
 - [attachment_save_to_path](#attachment_save_to_path)
+- [database_redo](#database_redo)
+- [database_undo](#database_undo)
 - [export_opml](#export_opml)
 - [export_taskpaper](#export_taskpaper)
 - [folder_create](#folder_create)
@@ -35,7 +39,9 @@
 - [note_get_html](#note_get_html)
 - [note_set](#note_set)
 - [note_set_html](#note_set_html)
+- [perspective_delete](#perspective_delete)
 - [perspective_evaluate](#perspective_evaluate)
+- [perspective_get](#perspective_get)
 - [perspective_list](#perspective_list)
 - [plugin_invoke](#plugin_invoke)
 - [project_batch_complete](#project_batch_complete)
@@ -92,9 +98,12 @@
 - [task_batch_undrop](#task_batch_undrop)
 - [task_batch_update](#task_batch_update)
 - [task_batch_update_describe](#task_batch_update_describe)
+- [task_clear_alarms](#task_clear_alarms)
 - [task_clear_repetition](#task_clear_repetition)
+- [task_clear_waiting_on](#task_clear_waiting_on)
 - [task_complete](#task_complete)
 - [task_complete_describe](#task_complete_describe)
+- [task_convert_to_project](#task_convert_to_project)
 - [task_create](#task_create)
 - [task_create_describe](#task_create_describe)
 - [task_delete](#task_delete)
@@ -102,17 +111,22 @@
 - [task_drop](#task_drop)
 - [task_drop_describe](#task_drop_describe)
 - [task_duplicate](#task_duplicate)
+- [task_extract_from_image](#task_extract_from_image)
 - [task_extract_from_note](#task_extract_from_note)
 - [task_find_by_name](#task_find_by_name)
+- [task_find_similar](#task_find_similar)
 - [task_get](#task_get)
 - [task_get_many](#task_get_many)
 - [task_list](#task_list)
 - [task_move](#task_move)
 - [task_move_describe](#task_move_describe)
 - [task_parse_transport_text](#task_parse_transport_text)
+- [task_reclassify](#task_reclassify)
 - [task_reorder](#task_reorder)
 - [task_search](#task_search)
+- [task_set_alarms](#task_set_alarms)
 - [task_set_repetition](#task_set_repetition)
+- [task_set_waiting_on](#task_set_waiting_on)
 - [task_uncomplete](#task_uncomplete)
 - [task_undrop](#task_undrop)
 - [task_update](#task_update)
@@ -135,6 +149,68 @@ _No parameters._
 ```json
 {
   "toolName": "app_launch",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## app_window_new
+
+Open a new OmniFocus window via OmniJS document.newWindow(). **UI-affecting tool** — only meaningful when OmniFocus is running. Headless agents should not fire this. Use when the user asks 'open a new window' or a flow needs a fresh, unfocused OmniFocus window. Do NOT use to read task or project data — prefer task_list or project_list instead. Takes no arguments. Returns { perspectiveName: string | null, focusContainerIds: string[] } describing the new window's initial state. Errors: WINDOW_OPEN_FAILED when the window could not be created. Side effects: opens a new OmniFocus window; no data caches invalidated.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "app_window_new",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## app_window_new_tab
+
+Open a new tab on the front OmniFocus window via OmniJS document.newTabOnWindow(). **UI-affecting tool** — only meaningful when OmniFocus has an open window. Headless agents should not fire this. Use when the user asks 'open a new tab' or a flow needs an additional view in the existing window. Do NOT use to open a standalone window — prefer app_window_new instead. Takes no arguments. Returns { perspectiveName: string | null, focusContainerIds: string[] } describing the new tab's initial state. Errors: WINDOW_UNAVAILABLE when there is no open OmniFocus window; WINDOW_OPEN_FAILED when the tab could not be created. Side effects: opens a new tab in the front OmniFocus window; no data caches invalidated.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "app_window_new_tab",
   "arguments": {}
 }
 ```
@@ -293,6 +369,68 @@ Copy an attachment's content to a local file path. Do not use to list or remove 
 ```
 ---
 
+## database_redo
+
+Re-apply the most recently undone mutation, identical to ⌘⇧Z in OmniFocus. Advances one entry on the document's redo stack. Any mutation between an undo and a redo invalidates the redo stack (matching UI semantics). Mandatory `confirm: true` mirrors database_undo's destructive-write pattern. Returns { redid: boolean } — true when an entry was redone, false when the stack was empty. Do NOT use this tool to re-apply a specific operation — the redo stack is opaque. Prefer database_redo only as a direct counterpart to database_undo when an undo was issued in error. Side effects: re-applies whatever entry is at the top of the document's redo stack; fully invalidates the read cache; does NOT trigger sync. Call sync_trigger when you need the change to appear on other devices.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "database_redo",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## database_undo
+
+Reverse the most recent document mutation, identical to ⌘Z in OmniFocus. Walks back one entry on the document's undo stack regardless of mutation source — an MCP undo can revert a manual UI edit if that was the most recent change. Mandatory `confirm: true` mirrors task_batch_delete's destructive-write pattern, since undo can silently revert changes the agent or another caller just made. Returns { undid: boolean } — true when an entry was undone, false when the stack was empty. Do NOT use this tool to roll back specific operations — the undo stack is opaque and you cannot inspect what would be reverted before calling. Prefer database_undo for: post-batch error recovery, retry-after-partial-failure cleanup, and integration-test teardown. Side effects: reverts whatever entry is at the top of the document's undo stack; fully invalidates the read cache (we don't know what was reverted); does NOT trigger sync. Call sync_trigger when you need the change to appear on other devices.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "database_undo",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
 ## export_opml
 
 Export OmniFocus data as OPML XML — a structured outline format OmniFocus can import. Do NOT use to export a single task; OPML scope is project-level or broader. Three scopes: 'project' (one project + its tasks), 'folder' (all projects in a folder), or 'all' (all active projects). Returns { opml, projectCount, taskCount } where opml is a complete XML string. Safe to call repeatedly; no side effects.
@@ -402,7 +540,7 @@ Create a new folder in OmniFocus. Optionally nest it inside an existing parent f
 
 ## folder_create_describe
 
-Preview what folder_create would do without making any changes. Do NOT use to actually create a folder — use folder_create instead. Returns { description, plannedChanges } describing the folder that would be created. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what folder_create would do without making any changes. Do NOT use to actually create a folder — use folder_create instead. Returns { description, plannedChanges } describing the folder that would be created. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -472,7 +610,7 @@ Delete a folder from OmniFocus. By default returns ValidationError when the fold
 
 ## folder_delete_describe
 
-Preview what folder_delete would do without making any changes. Do NOT use to actually delete a folder — use folder_delete instead. Returns { description, plannedChanges } describing the deletion that would occur. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what folder_delete would do without making any changes. Do NOT use to actually delete a folder — use folder_delete instead. Returns { description, plannedChanges } describing the deletion that would occur. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -628,7 +766,7 @@ Move a folder to a new parent, or promote it to a root folder by passing parentI
 
 ## folder_move_describe
 
-Preview what folder_move would do without making any changes. Do NOT use to actually move a folder — use folder_move instead. Returns { description, plannedChanges } describing the reparenting that would occur. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what folder_move would do without making any changes. Do NOT use to actually move a folder — use folder_move instead. Returns { description, plannedChanges } describing the reparenting that would occur. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -702,7 +840,7 @@ Rename a folder (partial patch — only supplied fields are changed). To move a 
 
 ## folder_update_describe
 
-Preview what folder_update would do without making any changes. Do NOT use to actually update a folder — use folder_update instead. Returns { description, plannedChanges } showing the fields that would be patched. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what folder_update would do without making any changes. Do NOT use to actually update a folder — use folder_update instead. Returns { description, plannedChanges } showing the fields that would be patched. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -1160,6 +1298,39 @@ Replace the HTML fragment note on a task or project. Overwrites the existing not
 ```
 ---
 
+## perspective_delete
+
+Delete a custom OmniFocus perspective by id. Use when a perspective is no longer needed — e.g. cleaning up after a templated workflow, or rotating out a stale view. Do not use on built-in perspectives (inbox, projects, tags, forecast, flagged, nearby, review) — they cannot be deleted; the call returns a validation error. Custom perspectives require OmniFocus Pro; without it the call returns OF_FEATURE_REQUIRES_PRO. Deletion is permanent — there is no undo for perspective removal in OmniFocus, so confirm with the user before invoking on a perspective they may want to keep. Recommend a sync_trigger after deletion so other devices observe the change. Returns { id } echoing the deleted identifier. Side effects: writes to OmniFocus (removes the perspective from the document), sets meta.syncPending = true. Example: { "perspectiveId": "fOpKrtZBLaZ" } → { id: "fOpKrtZBLaZ" }.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `perspectiveId` | string | Yes | Identifier of the custom perspective to delete. Obtain from perspective_list (look for kind: "custom"). Built-in ids are rejected with a validation error — built-ins are immutable. |
+
+### Example call
+
+```json
+{
+  "toolName": "perspective_delete",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
 ## perspective_evaluate
 
 Evaluate an OmniFocus perspective and return its task list. Accepts both built-in ids (inbox, projects, tags, forecast, flagged, nearby, review) and custom-perspective ids obtained from perspective_list — the tool selects the correct transport internally (JXA for built-in, OmniJS for custom). Custom perspectives require OmniFocus Pro; otherwise returns an error with code OF_FEATURE_REQUIRES_PRO. Returns { tasks: Task[] }. For 'review', returns [] — use review_list_due instead. For 'nearby', returns [] (location unavailable). No side effects; read-only.
@@ -1175,6 +1346,39 @@ Evaluate an OmniFocus perspective and return its task list. Accepts both built-i
 ```json
 {
   "toolName": "perspective_evaluate",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## perspective_get
+
+Read the full configuration of a custom OmniFocus perspective — name, top-level rule aggregation (all/any/none), the structured rule tree, and icon color (when set). Use to introspect what a perspective filters on before evaluating it, or as a building block for cloning / duplicating perspectives. Do not use on built-in perspectives (inbox, projects, tags, forecast, flagged, nearby, review) — they have no rule tree and the call returns a validation error. Use perspective_list instead to enumerate available perspectives. Custom perspectives require OmniFocus Pro; without it the call returns OF_FEATURE_REQUIRES_PRO. Returns { perspective: { id, name, aggregation, rules, iconColor } }. Safe to call repeatedly; no side effects, no writes. Example: { "perspectiveId": "fOpKrtZBLaZ" } → { perspective: { id, name: "Daily Triage", aggregation: "any", rules: [...], iconColor: { r: 0.2, g: 0.5, b: 0.9, a: 1 } } }.
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `perspectiveId` | string | Yes | Identifier of the custom perspective to read. Obtain from perspective_list (look for kind: "custom"). Built-in ids (inbox, projects, tags, forecast, flagged, nearby, review) are rejected with a validation error — built-ins have no rule tree. |
+
+### Example call
+
+```json
+{
+  "toolName": "perspective_get",
   "arguments": {}
 }
 ```
@@ -1352,7 +1556,7 @@ Complete an OmniFocus project — marks it done with today's date and moves it o
 
 ## project_complete_describe
 
-Preview what project_complete would do without making any changes. Do NOT use to actually complete a project — use project_complete instead. Returns { description, plannedChanges } describing the completion that would occur. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what project_complete would do without making any changes. Do NOT use to actually complete a project — use project_complete instead. Returns { description, plannedChanges } describing the completion that would occur. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -1392,8 +1596,8 @@ Create a new OmniFocus project. Optionally place it in a folder, assign tags, se
 | `name` | string | Yes | Project name. Required, must be non-empty. |
 | `folderId` | string | No | Folder ID to place the project in. Omit for root. |
 | `note` | string | No | Plain-text note for the project. |
-| `status` | one of: active | on-hold | No | Initial project status. Default: active. |
-| `completionCriterion` | one of: parallel | sequential | singleActions | No | How the project's tasks are completed: parallel (any order), sequential (in order), or singleActions. |
+| `status` | unknown | No |  |
+| `completionCriterion` | unknown | No |  |
 | `deferDate` | string | No | Defer date as ISO-8601 with UTC offset. |
 | `deferDateFloating` | boolean | No | When true, the defer time is floating (follows the user across time zones). |
 | `dueDate` | string | No | Due date as ISO-8601 with UTC offset. |
@@ -1429,7 +1633,7 @@ Create a new OmniFocus project. Optionally place it in a folder, assign tags, se
 
 ## project_create_describe
 
-Preview what project_create would do without making any changes. Do NOT use to actually create a project — use project_create instead. Returns { description, plannedChanges } describing the project that would be created. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what project_create would do without making any changes. Do NOT use to actually create a project — use project_create instead. Returns { description, plannedChanges } describing the project that would be created. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -1501,7 +1705,7 @@ Permanently delete an OmniFocus project and ALL its contained tasks. IRREVERSIBL
 
 ## project_delete_describe
 
-Preview what project_delete would do without making any changes. Do NOT use to actually delete a project — use project_delete instead. Returns { description, plannedChanges } describing the permanent deletion that would occur. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what project_delete would do without making any changes. Do NOT use to actually delete a project — use project_delete instead. Returns { description, plannedChanges } describing the permanent deletion that would occur. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -1565,7 +1769,7 @@ Drop an OmniFocus project — marks it as on-hold/dropped and removes it from th
 
 ## project_drop_describe
 
-Preview what project_drop would do without making any changes. Do NOT use to actually drop a project — use project_drop instead. Returns { description, plannedChanges } describing the status change that would occur. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what project_drop would do without making any changes. Do NOT use to actually drop a project — use project_drop instead. Returns { description, plannedChanges } describing the status change that would occur. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -1668,7 +1872,7 @@ List projects in OmniFocus with optional filters. Use for queries across project
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `folderId` | string | No | Restrict to projects inside this folder. Get the ID from folder_list. Omit for all folders. |
-| `status` | one of: active | on-hold | done | dropped | No | Restrict to projects with this status. 'active' = available; 'on-hold' = paused; 'done' = completed; 'dropped' = abandoned. Omit for any status. |
+| `status` | unknown | No |  |
 | `flagged` | boolean | No | true = flagged only; false = unflagged only; omit = both. |
 | `reviewDueBefore` | string | No | Restrict to projects whose next review date is strictly before this moment. ISO-8601 with offset (e.g. '2026-05-01T00:00:00-07:00'). Projects without a review interval are excluded. |
 | `limit` | number | No | Max projects per page (1..1000). Default 200. Use `cursor` to fetch subsequent pages. |
@@ -1766,7 +1970,7 @@ Move an OmniFocus project to a different folder. Pass folderId to move into a fo
 
 ## project_move_describe
 
-Preview what project_move would do without making any changes. Do NOT use to actually move a project — use project_move instead. Returns { description, plannedChanges } describing the folder change that would occur. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what project_move would do without making any changes. Do NOT use to actually move a project — use project_move instead. Returns { description, plannedChanges } describing the folder change that would occur. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -1838,8 +2042,8 @@ Partially update mutable fields on an OmniFocus project. Only supplied fields ar
 | `name` | string | No | New project name. Must be non-empty if supplied. |
 | `note` | string | null | No | Plain-text note. Pass null to clear. |
 | `noteHtml` | string | null | No | HTML note. Pass null to clear. Prefer note for plain-text edits. |
-| `status` | one of: active | on-hold | No | Project status. Use project_complete or project_drop to close a project. |
-| `completionCriterion` | one of: parallel | sequential | singleActions | No | How the project's tasks are completed. |
+| `status` | unknown | No |  |
+| `completionCriterion` | unknown | No |  |
 | `deferDate` | string | null | No | ISO-8601 defer date with UTC offset. Pass null to clear. |
 | `deferDateFloating` | boolean | No | When true, the defer time is floating (follows the user across time zones). |
 | `dueDate` | string | null | No | ISO-8601 due date with UTC offset. Pass null to clear. |
@@ -1877,7 +2081,7 @@ Partially update mutable fields on an OmniFocus project. Only supplied fields ar
 
 ## project_update_describe
 
-Preview what project_update would do without making any changes. Do NOT use to actually update a project — use project_update instead. Returns { description, plannedChanges } showing the fields that would be patched. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what project_update would do without making any changes. Do NOT use to actually update a project — use project_update instead. Returns { description, plannedChanges } showing the fields that would be patched. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -2231,7 +2435,7 @@ Create a new tag in OmniFocus. Optionally nest it under an existing parent tag (
 |-----------|------|----------|-------------|
 | `name` | string | Yes | Tag name. Must be non-empty. |
 | `parentId` | string | No | Parent tag ID to nest under. Omit for a root tag. Get from tag_list. |
-| `status` | one of: active | on-hold | No | Initial status. Defaults to 'active'. Cannot create a tag in 'dropped' state. |
+| `status` | unknown | No |  |
 | `allowsNextAction` | boolean | No | Whether the tag allows next-action selection. Defaults to true. |
 
 ### Example call
@@ -2267,7 +2471,7 @@ Create a new tag in OmniFocus. Optionally nest it under an existing parent tag (
 
 ## tag_create_describe
 
-Preview what tag_create would do without making any changes. Do NOT use to actually create a tag — use tag_create instead. Returns { description, plannedChanges } describing the tag that would be created. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what tag_create would do without making any changes. Do NOT use to actually create a tag — use tag_create instead. Returns { description, plannedChanges } describing the tag that would be created. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -2336,7 +2540,7 @@ Hard-delete a tag from OmniFocus. IRREVERSIBLE — the tag and all its children 
 
 ## tag_delete_describe
 
-Preview what tag_delete would do without making any changes. Do NOT use to actually delete a tag — use tag_delete instead. Returns { description, plannedChanges } describing the permanent deletion that would occur. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what tag_delete would do without making any changes. Do NOT use to actually delete a tag — use tag_delete instead. Returns { description, plannedChanges } describing the permanent deletion that would occur. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -2487,7 +2691,7 @@ List all tags in OmniFocus, optionally filtered by parent tag or status. Do not 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `parentId` | string | No | Return only direct children of this tag. Get the ID from a previous tag_list call. Omit for root tags. |
-| `status` | one of: active | on-hold | dropped | No | Filter by tag status. Omit to return tags of all statuses. |
+| `status` | unknown | No |  |
 
 ### Example call
 
@@ -2565,7 +2769,7 @@ Move a tag to a new parent, or promote it to a root tag by passing parentId=null
 
 ## tag_move_describe
 
-Preview what tag_move would do without making any changes. Do NOT use to actually move a tag — use tag_move instead. Returns { description, plannedChanges } describing the reparenting that would occur. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what tag_move would do without making any changes. Do NOT use to actually move a tag — use tag_move instead. Returns { description, plannedChanges } describing the reparenting that would occur. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -2697,7 +2901,7 @@ Set the lifecycle status of a tag to active, on-hold, or dropped. Dropped tags a
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `id` | string | Yes | Persistent tag ID. Get from tag_list. |
-| `status` | one of: active | on-hold | dropped | Yes | New lifecycle status for the tag. |
+| `status` | unknown | Yes | New lifecycle status for the tag. Accepts: 'paused' → on-hold, 'cancelled' → dropped, 'archived' → dropped. |
 
 ### Example call
 
@@ -2741,7 +2945,7 @@ Update mutable fields on an existing tag (partial patch). Only supplied fields a
 | `id` | string | Yes | Persistent tag ID. Get from tag_list. |
 | `name` | string | No | New tag name. Must be non-empty if supplied. |
 | `parentId` | string | null | No | New parent tag ID. Pass null to promote to root. Get from tag_list. |
-| `status` | one of: active | on-hold | dropped | No | New lifecycle status. |
+| `status` | unknown | No |  |
 | `allowsNextAction` | boolean | No | Whether the tag allows next-action selection in OmniFocus. |
 
 ### Example call
@@ -2777,7 +2981,7 @@ Update mutable fields on an existing tag (partial patch). Only supplied fields a
 
 ## tag_update_describe
 
-Preview what tag_update would do without making any changes. Do NOT use to actually update a tag — use tag_update instead. Returns { description, plannedChanges } showing the fields that would be patched. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what tag_update would do without making any changes. Do NOT use to actually update a tag — use tag_update instead. Returns { description, plannedChanges } showing the fields that would be patched. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -2901,7 +3105,7 @@ _No parameters._
 
 ## task_batch_create_describe
 
-Preview what task_batch_create would do without making any changes. Do NOT use to actually create tasks — use task_batch_create instead. Returns { description, plannedChanges } summarising all tasks that would be created. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what task_batch_create would do without making any changes. Do NOT use to actually create tasks — use task_batch_create instead. Returns { description, plannedChanges } summarising all tasks that would be created. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -3118,7 +3322,7 @@ _No parameters._
 
 ## task_batch_update_describe
 
-Preview what task_batch_update would do without making any changes. Do NOT use to actually update tasks — use task_batch_update instead. Returns { description, plannedChanges } summarising all patches that would be applied. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what task_batch_update would do without making any changes. Do NOT use to actually update tasks — use task_batch_update instead. Returns { description, plannedChanges } summarising all patches that would be applied. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -3129,6 +3333,37 @@ _No parameters._
 ```json
 {
   "toolName": "task_batch_update_describe",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_clear_alarms
+
+Remove all alarms/notifications from an OmniFocus task. After clearing, the task has no scheduled notifications. Use task_set_alarms to install a new alarm set. Returns the updated task. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_clear_alarms",
   "arguments": {}
 }
 ```
@@ -3185,6 +3420,37 @@ Remove the repetition rule from an OmniFocus task. After clearing, the task beco
 ```
 ---
 
+## task_clear_waiting_on
+
+Clear waiting-on tracking from an OmniFocus task. Strips the `waiting-on` fenced block from the task note (preserving any other user prose) and removes the configured @waiting tag from the task. Idempotent: returns noChange:true when the task has no waiting-on data. Do NOT use to delete the task or remove unrelated tags — prefer task_delete or task_update instead. Returns { id, cleared:true } or { id, noChange:true }. Side effects: writes tag + note; sets meta.syncPending = true. Example: { "taskId": "abc123" }
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_clear_waiting_on",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
 ## task_complete
 
 Complete an OmniFocus task — marks it done with a completion timestamp. Accepts an optional ISO-8601 date for the completion time; defaults to now. Idempotent: returns noChange: true if the task is already completed. Do not use to drop or delete a task. Returns { done: true, id } or { noChange: true, id }. Side effects: sets completedAt, sets meta.syncPending = true.
@@ -3221,7 +3487,7 @@ Complete an OmniFocus task — marks it done with a completion timestamp. Accept
 
 ## task_complete_describe
 
-Preview what task_complete would do without making any changes. Do NOT use to actually complete a task — use task_complete instead. Returns { description, plannedChanges } describing the completion that would occur. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what task_complete would do without making any changes. Do NOT use to actually complete a task — use task_complete instead. Returns { description, plannedChanges } describing the completion that would occur. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -3232,6 +3498,37 @@ _No parameters._
 ```json
 {
   "toolName": "task_complete_describe",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_convert_to_project
+
+Promote an OmniFocus task to a first-class project via OmniJS Database.convertTasksToProjects(). The task's persistent identifier is preserved on the resulting project — agents can continue using the same ID as a project ID after conversion. Subtasks, notes, tags, and dates are carried over by OmniFocus automatically. Use this when a task has grown in scope and needs its own review interval, subtask hierarchy, or project-level metadata. Do NOT use on tasks already in a project — use task_move instead for reparenting; use project_create when starting from scratch. Returns { converted: true, projectId, taskId } on success. Side effects: removes the task from the task list and adds a project; sets meta.syncPending = true.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_convert_to_project",
   "arguments": {}
 }
 ```
@@ -3298,7 +3595,7 @@ Create a new task in OmniFocus — in the inbox, inside a project, or as a subta
 
 ## task_create_describe
 
-Preview what task_create would do without making any changes. Do NOT use to actually create a task — use task_create instead. Returns { description, plannedChanges } describing the task that would be created. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what task_create would do without making any changes. Do NOT use to actually create a task — use task_create instead. Returns { description, plannedChanges } describing the task that would be created. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -3371,7 +3668,7 @@ Permanently delete an OmniFocus task. IRREVERSIBLE — uses OmniFocus deleteObje
 
 ## task_delete_describe
 
-Preview what task_delete would do without making any changes. Do NOT use to actually delete a task — use task_delete instead. Returns { description, plannedChanges } describing the permanent deletion that would occur. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what task_delete would do without making any changes. Do NOT use to actually delete a task — use task_delete instead. Returns { description, plannedChanges } describing the permanent deletion that would occur. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -3436,7 +3733,7 @@ Drop an OmniFocus task — marks it as dropped/deferred and removes it from acti
 
 ## task_drop_describe
 
-Preview what task_drop would do without making any changes. Do NOT use to actually drop a task — use task_drop instead. Returns { description, plannedChanges } describing the drop that would occur. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what task_drop would do without making any changes. Do NOT use to actually drop a task — use task_drop instead. Returns { description, plannedChanges } describing the drop that would occur. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -3478,6 +3775,37 @@ _No parameters._
 ```json
 {
   "toolName": "task_duplicate",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_extract_from_image
+
+Capture tasks from an image — agent does vision, tool does plumbing. Source is a path or existing OF attachment; agent supplies proposed: ProposedTask[]. Two-phase: dryRun=true validates+echoes; dryRun=false with confirmation[] writes. attachSourceTo: 'parent-task' (default), 'each-task' (path-mode only), or 'none'. Path-mode: PNG/JPEG/HEIC/HEIF/GIF/WEBP/PDF; respects attachment-path-scope + size cap. Do NOT use when you already have structured tasks — call task_batch_create. Returns { phase, proposed?, parent?, created?, outcome? }. Side effects: dryRun=false creates tasks; call sync_trigger for cross-device.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_extract_from_image",
   "arguments": {}
 }
 ```
@@ -3566,6 +3894,37 @@ Find tasks in OmniFocus by name. Returns ALL matching tasks (names are not uniqu
     ],
     "total": 1
   },
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_find_similar
+
+Lexical nearest-neighbour search for de-duplicating tasks. Pass a candidate name (and optional note) and receive the top-K most-similar existing tasks ranked by a deterministic [0, 1] lexical-signal score (Jaccard token-overlap + prefix bonus + exact-name boost). Title-dominant: a perfect title match outranks a perfect note match. Use BEFORE task_create when you suspect a duplicate; the agent inspects the candidates and decides whether to create new, link to existing, or merge. Excludes completed and dropped tasks by default; opt-in via includeCompleted: true. Optional scope { projectId } or { tagId } narrows the candidate set. Returns { candidates: [{ taskId, name, score, projectId, tags }] } sorted by score descending; an empty result is { candidates: [] }, not an error. Do NOT use this tool for general full-text search — call task_search for that. Prefer this helper when the question is 'is this task already in the system?'. No model calls; no side effects. Read-only.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_find_similar",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
   "meta": {
     "requestId": "req_01ABC",
     "durationMs": 5
@@ -3762,7 +4121,7 @@ _No parameters._
 
 ## task_move_describe
 
-Preview what task_move would do without making any changes. Do NOT use to actually move a task — use task_move instead. Returns { description, plannedChanges } describing the reparenting that would occur. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what task_move would do without making any changes. Do NOT use to actually move a task — use task_move instead. Returns { description, plannedChanges } describing the reparenting that would occur. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 
@@ -3804,6 +4163,37 @@ _No parameters._
 ```json
 {
   "toolName": "task_parse_transport_text",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_reclassify
+
+Predicate-driven bulk task reclassification with a mandatory two-phase contract. Phase 1 (dryRun: true): match tasks by predicate, return { matched, proposed: [{taskId, before, after}] } with no mutations. Phase 2 (dryRun: false): require `confirmation` echoing the matched count from the prior dry-run; mismatch fails fast. Hard cap: dryRun: false rejects > 200 matches (use task_batch_update with explicit IDs for larger sets). Predicate is a discriminated-union AST: { kind: 'title-contains', value, caseSensitive? } | { kind: 'tag', tagId } | { kind: 'project', projectId } | { kind: 'and', predicates: [] } | { kind: 'or', predicates: [] } | { kind: 'not', predicate }. Changes apply uniformly to every match: addTags, removeTags, setProject, setFlagged. Do NOT use this tool when you have explicit task IDs — call task_batch_update directly. Prefer task_reclassify whenever the targets are described by a rule rather than a list, so the dry-run diff surfaces to the user before any write. Side effects (apply phase only): writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_reclassify",
   "arguments": {}
 }
 ```
@@ -3896,6 +4286,37 @@ Search OmniFocus tasks by keyword and/or structured filters, with cursor paginat
 ```
 ---
 
+## task_set_alarms
+
+Replace the alarm/notification set on an OmniFocus task atomically. Pass an array of alarms; this overwrites any existing alarms in full. Each alarm is one of: {kind:'due-relative', offsetSeconds:N} (positive = before due date, negative = after), {kind:'defer-relative', offsetSeconds:N} (relative to defer date), or {kind:'absolute', fireAt:ISO-8601 string}. Relative kinds require the task to already have the corresponding date set, or the call returns a VALIDATION error. Use task_clear_alarms to remove all alarms with no payload. Returns the updated task. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_set_alarms",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
 ## task_set_repetition
 
 Set the repetition rule on an OmniFocus task. Overwrites any existing rule. Use task_clear_repetition to remove a rule entirely. Returns the updated task ID; call task_get for the full object. Mutations do not sync automatically — call sync_trigger if cross-device visibility matters.
@@ -3936,6 +4357,37 @@ Set the repetition rule on an OmniFocus task. Overwrites any existing rule. Use 
       "steps": 1
     }
   },
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_set_waiting_on
+
+Record that an OmniFocus task is waiting on someone or something. Tags the task with the configured @waiting tag (creating the tag if absent) and writes a structured `waiting-on` fenced block to the top of the task note. The fence preserves any existing user prose in the note. Round-trips through task_get / task_get_many as a structured `waitingOn` field. Surfaces in the omnifocus://waiting-on resource sorted by days overdue. Use to systematize follow-ups; do NOT use for task completion or scheduling. Returns { id, waitingOn } with the persisted entry. Side effects: writes tag + note; sets meta.syncPending = true. Example: { "taskId": "abc123", "whom": "Alex", "what": "design review", "followUpAfter": "2026-05-05T17:00:00Z" }
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "task_set_waiting_on",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
   "meta": {
     "requestId": "req_01ABC",
     "durationMs": 5
@@ -4072,7 +4524,7 @@ Partially update mutable fields on an OmniFocus task. Only supplied fields are c
 
 ## task_update_describe
 
-Preview what task_update would do without making any changes. Do NOT use to actually update a task — use task_update instead. Returns { description, plannedChanges } showing the fields that would be patched. No side effects: read-only by contract — never mutates OmniFocus.
+Preview what task_update would do without making any changes. Do NOT use to actually update a task — use task_update instead. Returns { description, plannedChanges } showing the fields that would be patched. No side effects: read-only by contract — never mutates OmniFocus. Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.
 
 ### Input
 

@@ -14,7 +14,8 @@ export const FOLDER_DELETE_DESCRIBE_DESCRIPTION =
   "Preview what folder_delete would do without making any changes. " +
   "Do NOT use to actually delete a folder — use folder_delete instead. " +
   "Returns { description, plannedChanges } describing the deletion that would occur. " +
-  "No side effects: read-only by contract — never mutates OmniFocus.";
+  "No side effects: read-only by contract — never mutates OmniFocus. " +
+  "Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.";
 
 export interface FolderDeleteDescribeContext {
   adapter: OmniFocusAdapter;

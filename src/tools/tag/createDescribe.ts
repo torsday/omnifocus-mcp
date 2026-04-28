@@ -15,7 +15,8 @@ export const TAG_CREATE_DESCRIBE_DESCRIPTION =
   "Preview what tag_create would do without making any changes. " +
   "Do NOT use to actually create a tag — use tag_create instead. " +
   "Returns { description, plannedChanges } describing the tag that would be created. " +
-  "No side effects: read-only by contract — never mutates OmniFocus.";
+  "No side effects: read-only by contract — never mutates OmniFocus. " +
+  "Example: dry-run companion — pass the same args you would to the write tool, inspect plannedChanges, then call the write tool once approved.";
 
 export interface TagCreateDescribeContext {
   adapter: OmniFocusAdapter;
