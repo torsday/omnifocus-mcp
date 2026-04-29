@@ -84,6 +84,16 @@ export class WebhookRegistry {
     return this.filePath;
   }
 
+  /**
+   * Internal-only list including URLs and secrets. Used by the orchestrator
+   * for dispatch lookups. **MUST NOT** be exposed through any tool, resource,
+   * or log line — see ADR-0016 §4d. The public `list()` method returns the
+   * sanitized `WebhookSummary` form for tools and the capability resource.
+   */
+  listFull(): readonly Webhook[] {
+    return this.webhooks;
+  }
+
   /** Public-facing list — never includes URLs or secrets. */
   list(): WebhookSummary[] {
     return this.webhooks.map(summarizeWebhook);

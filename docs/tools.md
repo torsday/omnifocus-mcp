@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 141 tools registered.
+> Auto-generated from source. 142 tools registered.
 
 ## Table of contents
 
@@ -144,6 +144,7 @@
 - [webhook_delete](#webhook_delete)
 - [webhook_list](#webhook_list)
 - [webhook_register](#webhook_register)
+- [webhook_test](#webhook_test)
 - [window_get_state](#window_get_state)
 - [window_set_focus](#window_set_focus)
 - [window_set_perspective](#window_set_perspective)
@@ -4989,6 +4990,39 @@ Register an outbound webhook that fires when an OmniFocus state change matches t
 ```json
 {
   "toolName": "webhook_register",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## webhook_test
+
+Fire a synthetic event through a registered webhook to verify it's wired correctly. Goes through the same HTTPS POST + HMAC + retry + circuit-breaker path as a real delivery — if the receiver doesn't see this event, it won't see real ones either. Off by default — requires OMNIFOCUS_WEBHOOKS_ENABLED=1. Do NOT use this for load testing — circuit-breaker counters apply to synthetic events too. Returns { name, delivered: true } on dispatch success, { name, error } when the webhook is not registered. Note: 'delivered' means the dispatcher attempted delivery; the receiver's actual response is not surfaced (per ADR-0016 §4e: failures log to stderr, never throw upward). Side effects: makes one outbound HTTPS POST to the registered URL with a synthetic event payload. Example: webhook_test({ name: "slack-billing" })
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Name of the registered webhook to fire a synthetic event through. |
+
+### Example call
+
+```json
+{
+  "toolName": "webhook_test",
   "arguments": {}
 }
 ```
