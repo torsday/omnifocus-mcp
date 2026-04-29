@@ -18,6 +18,7 @@ import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { Capabilities } from "../../resources/capabilities.js";
 import { probeCalendarAccess } from "../../resources/capabilities.js";
 import type { CircuitState } from "../../server/circuitBreaker.js";
+import { type MutationScoreSnapshot, probeMutationScore } from "./mutationScore.js";
 
 // ---------------------------------------------------------------------------
 // Tool description
@@ -26,7 +27,7 @@ import type { CircuitState } from "../../server/circuitBreaker.js";
 export const INTERNAL_STATUS_DESCRIPTION =
   "Return a health snapshot of the running omnifocus-mcp server. " +
   "Do NOT use this to read OmniFocus data — prefer task_list, project_list, sync_status, etc. " +
-  "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, cache, circuits, queueDepth }. " +
+  "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth }. " +
   "uptimeMs is the milliseconds since the server process started. " +
   "circuits lists each circuit-breaker name and state (closed/open/half_open). " +
   "lastSync mirrors sync_status data; null if getLastSync throws. " +
@@ -34,6 +35,9 @@ export const INTERNAL_STATUS_DESCRIPTION =
   "available is true when the Swift binary is callable and permission is the live EventKit " +
   "authorization status (granted | denied | restricted | not-determined), or 'unknown' when " +
   "available is false. Read-only — does NOT trigger the macOS Calendar TCC prompt. " +
+  "mutation surfaces Stryker calibration freshness — { score, lastRunAt } where score is the " +
+  "latest mutation-testing score (0–100) per ADR-0017 and lastRunAt is the report's mtime. " +
+  "Returns null when no report file is present (the published npm tarball ships without one). " +
   "Read-only; no side effects. " +
   "Example: internal_status()";
 
@@ -63,6 +67,12 @@ export interface InternalStatusData {
    * failing the whole status read.
    */
   calendarAccess: Capabilities["calendarAccess"] | null;
+  /**
+   * Stryker mutation-testing calibration freshness (per ADR-0017). `null` when
+   * no `reports/mutation/mutation.json` is present — published npm tarballs do
+   * not ship the report, so end-user installs degrade to `null` cleanly.
+   */
+  mutation: MutationScoreSnapshot | null;
   cache: { size: number; hits: number; misses: number } | null;
   circuits: CircuitSnapshot[];
   queueDepth: number | null;
@@ -84,6 +94,11 @@ export interface InternalStatusContext {
    * which spawns the Swift bridge and degrades cleanly when it isn't built.
    */
   probeCalendarAccess?: () => Promise<Capabilities["calendarAccess"]>;
+  /**
+   * Override the mutation-score probe. Defaults to `probeMutationScore()`,
+   * which reads the latest Stryker report and degrades to `null` when absent.
+   */
+  probeMutationScore?: () => MutationScoreSnapshot | null;
 }
 
 /**
@@ -116,11 +131,20 @@ export async function handleInternalStatus(
     calendarAccess = null;
   }
 
+  let mutation: MutationScoreSnapshot | null = null;
+  try {
+    const probe = ctx.probeMutationScore ?? probeMutationScore;
+    mutation = probe();
+  } catch {
+    mutation = null;
+  }
+
   const data: InternalStatusData = {
     uptimeMs,
     ofRunning: true,
     lastSync,
     calendarAccess,
+    mutation,
     cache: null,
     circuits,
     queueDepth: null,
