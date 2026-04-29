@@ -198,6 +198,9 @@ import {
   registerTaskClearWaitingOnTool,
   registerTaskSetWaitingOnTool,
 } from "../tools/task/waitingOn.js";
+import { registerWebhookDeleteTool } from "../tools/webhook/delete.js";
+import { registerWebhookListTool } from "../tools/webhook/list.js";
+import { registerWebhookRegisterTool } from "../tools/webhook/register.js";
 import {
   registerAppWindowNewTabTool,
   registerAppWindowNewTool,
@@ -206,6 +209,7 @@ import {
   registerWindowSetPerspectiveTool,
 } from "../tools/window/index.js";
 import { DatabaseWatcher } from "../watcher/DatabaseWatcher.js";
+import { WebhookRegistry } from "../webhooks/registry.js";
 import { circuitBreakerRegistry } from "./circuitBreaker.js";
 import {
   composeAdapter,
@@ -314,10 +318,32 @@ export async function startServer(): Promise<void> {
   // Register MCP prompts (DESIGN §29) — four workflow templates.
   registerOmniFocusPrompts(server);
 
+  // Webhook subsystem (per ADR-0016, #483 slice 1). The registry initializes
+  // unconditionally so `webhooks://capabilities` reads work and `webhook_list`
+  // reflects the on-disk state even when the subsystem is disabled. Mutation
+  // tools enforce the env gate at handler entry.
+  const webhookRegistry = new WebhookRegistry();
+  const webhookCtx = {
+    registry: webhookRegistry,
+    enabled: config.OMNIFOCUS_WEBHOOKS_ENABLED,
+    makeMeta,
+  };
+  registerWebhookRegisterTool(server, webhookCtx);
+  registerWebhookListTool(server, webhookCtx);
+  registerWebhookDeleteTool(server, webhookCtx);
+
   // Register the ten MCP resources (DESIGN §28).
-  registerCapabilitiesResource(server, async () =>
-    buildCapabilities(config, { calendarAccess: await probeCalendarAccess() }),
-  );
+  registerCapabilitiesResource(server, async () => {
+    const summaries = webhookRegistry.list();
+    return buildCapabilities(config, {
+      calendarAccess: await probeCalendarAccess(),
+      webhooks: {
+        enabled: config.OMNIFOCUS_WEBHOOKS_ENABLED,
+        count: summaries.length,
+        names: summaries.map((w) => w.name),
+      },
+    });
+  });
   registerOmniFocusResources(server, {
     adapter,
     projectService: services.projectService,

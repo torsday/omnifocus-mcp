@@ -53,6 +53,10 @@ const envSchema = z.object({
     .string()
     .prefault("")
     .transform((v) => v === "1"),
+  OMNIFOCUS_WEBHOOKS_ENABLED: z
+    .string()
+    .prefault("")
+    .transform((v) => v === "1"),
   OMNIFOCUS_CACHE_TTL_MS: z.coerce.number().int().positive().default(30000),
   OMNIFOCUS_CACHE_CAPACITY: z.coerce.number().int().positive().default(256),
   OMNIFOCUS_READ_POOL_SIZE: z.coerce.number().int().min(1).max(8).default(2),
@@ -98,6 +102,7 @@ export function parseConfig(
     OMNIFOCUS_E2E: processEnv.OMNIFOCUS_E2E,
     OMNIFOCUS_E2E_USE_MEMORY: processEnv.OMNIFOCUS_E2E_USE_MEMORY,
     OMNIFOCUS_ALLOW_RAW_SCRIPT: processEnv.OMNIFOCUS_ALLOW_RAW_SCRIPT,
+    OMNIFOCUS_WEBHOOKS_ENABLED: processEnv.OMNIFOCUS_WEBHOOKS_ENABLED,
     OMNIFOCUS_CACHE_TTL_MS: processEnv.OMNIFOCUS_CACHE_TTL_MS,
     OMNIFOCUS_CACHE_CAPACITY: processEnv.OMNIFOCUS_CACHE_CAPACITY,
     OMNIFOCUS_READ_POOL_SIZE: processEnv.OMNIFOCUS_READ_POOL_SIZE,
@@ -141,6 +146,7 @@ export function redactConfig(config: Config): Record<string, unknown> {
     OMNIFOCUS_E2E: config.OMNIFOCUS_E2E,
     OMNIFOCUS_E2E_USE_MEMORY: config.OMNIFOCUS_E2E_USE_MEMORY,
     OMNIFOCUS_ALLOW_RAW_SCRIPT: config.OMNIFOCUS_ALLOW_RAW_SCRIPT,
+    OMNIFOCUS_WEBHOOKS_ENABLED: config.OMNIFOCUS_WEBHOOKS_ENABLED,
     OMNIFOCUS_CACHE_TTL_MS: config.OMNIFOCUS_CACHE_TTL_MS,
     OMNIFOCUS_CACHE_CAPACITY: config.OMNIFOCUS_CACHE_CAPACITY,
     OMNIFOCUS_READ_POOL_SIZE: config.OMNIFOCUS_READ_POOL_SIZE,
