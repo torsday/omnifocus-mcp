@@ -635,20 +635,41 @@ Tools are organized by domain — tasks, projects, tags, folders, perspectives, 
 
 ## Resources
 
-Ten MCP resources are registered under the `omnifocus://` scheme. Resources are read-only, URI-addressable, and enumerable via `resources/list`.
+The server registers resources under the `omnifocus://` scheme. Resources are read-only, URI-addressable, and enumerable via `resources/list`. Templated URIs follow [RFC 6570](https://www.rfc-editor.org/rfc/rfc6570) and accept the listed parameters as query strings or path segments.
+
+**Static URIs** — read with no parameters:
 
 | URI | Returns |
 |---|---|
-| `omnifocus://capabilities` | Server capabilities: OF version, edition, transport status, feature flags |
-| `omnifocus://snapshot` | Five-count orientation object: inbox, flagged, overdue, dueToday, projectsDueForReview |
+| `omnifocus://capabilities` | Server capabilities: OF version, edition, transport status, feature flags, calendar-bridge availability |
+| `omnifocus://snapshot` | Orientation counts: inbox, flagged, overdue, dueToday, reviewDue, syncStatus |
 | `omnifocus://inbox` | Inbox tasks as `Task[]` |
-| `omnifocus://forecast/today` | Today's forecast grouped by overdue / due today / due later / inbox |
+| `omnifocus://tasks/inbox` | Inbox tasks (alias of `omnifocus://inbox`) |
+| `omnifocus://forecast/today` | Today's forecast grouped by overdue / dueToday / deferredToday / flagged |
 | `omnifocus://overdue` | All overdue tasks sorted by dueDate ASC |
 | `omnifocus://flagged` | All flagged available tasks |
 | `omnifocus://review-due` | Projects with nextReviewDate ≤ today |
-| `omnifocus://project/{id}` | Single project + full task tree |
-| `omnifocus://tag/{id}` | Single tag + its tasks |
-| `omnifocus://perspective/{id}` | Perspective evaluation result (same shape as `perspective_evaluate`) |
+| `omnifocus://intents` | User-phrase → tool-sequence map; "feel like 8 verbs, not 80 tools" |
+| `omnifocus://stats` | Database-wide rollup: counts by project, tag, completion state |
+| `omnifocus://taxonomy-audit` | Structural audit — inconsistent tag/folder usage, orphans, drift signals |
+| `omnifocus://waiting-on` | Every task carrying a `waiting-on` fence, sorted by daysOverdue DESC |
+
+**Templated URIs** — accept parameters:
+
+| URI Template | Parameters | Returns |
+|---|---|---|
+| `omnifocus://project/{id}` | `id` | Single project + full task tree |
+| `omnifocus://tag/{id}` | `id` | Single tag + its active tasks |
+| `omnifocus://perspective/{id}` | `id` | Perspective evaluation result (same shape as `perspective_evaluate`); Pro only |
+| `omnifocus://tasks/project/{projectId}` | `projectId` | Active tasks under a project |
+| `omnifocus://tasks/tag/{tagId}` | `tagId` | Active tasks carrying a tag |
+| `omnifocus://recent-activity{?hours}` | `hours` (default: 24) | Tasks completed/dropped/created in the last N hours |
+| `omnifocus://retrospective{?from,to}` | `from`, `to` (ISO-8601) | Closed-task aggregation for a date range — weekly review fuel |
+| `omnifocus://velocity{?weeks}` | `weeks` (default: 4) | Per-week throughput: completed counts, completion rate trend |
+| `omnifocus://burndown/{projectId}` | `projectId` | Per-project burndown vs naive linear ideal; needs project dueDate |
+| `omnifocus://project-health{?staleDays}` | `staleDays` (default: 14) | Triage list: stalled projects, no-activity, review-overdue |
+| `omnifocus://calendar{?from,to}` | `from`, `to` (ISO-8601, defaults to today local) | macOS Calendar events from EventKit; needs Calendar TCC grant |
+| `omnifocus://agenda{?date}` | `date` (ISO-8601, defaults to today local) | Merged daily timeline: calendar events + OF forecast, kind-tagged |
 
 ---
 
