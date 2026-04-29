@@ -20,17 +20,20 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 BUNDLE="dist/index.js"
-# 680 KiB. Bumped 660 → 680 KiB on 2026-04-29 alongside #483 slice 1
+# 700 KiB. Bumped 680 → 700 KiB on 2026-04-29 alongside #681
+# (project_create routed through OmniJS per ADR-0019: ~150 lines of
+# OmniJS plus the wrapper / typing / contracts entry). Measured 698477
+# bytes against the 696320 (680 KiB) ceiling — 2.1 KiB over. Bumping by
+# 20 KiB to leave headroom for the matching #680 createTask migration
+# (similar shape, similar cost). Previously 680 KiB alongside #483 slice 1
 # (webhooks: registry + register/list/delete tools + types + capability
-# resource integration + env-flag wiring per ADR-0016). The slice 1 surface
-# measured ~4.5 KiB over the 660 KiB ceiling; bumping by 20 KiB to leave
-# headroom for slice 2's cache-refresh diff observer and slice 3's HTTPS
-# delivery + retry / circuit-breaker code. Previously 660 KiB alongside
-# #485 slice 1 (decision-journal); 640 KiB alongside the final slice of
-# #484 (omnifocus://agenda); 625 KiB alongside #577 (perspective CRUD
-# slice B/C); 610 KiB alongside #570 (Example: sweep); 580 KiB alongside
-# #494; 540, 525, originally 500 KiB. Keep in sync with DESIGN §20.
-BUDGET=696320
+# resource integration + env-flag wiring per ADR-0016). Earlier: 660 KiB
+# alongside #485 slice 1 (decision-journal); 640 KiB alongside the final
+# slice of #484 (omnifocus://agenda); 625 KiB alongside #577 (perspective
+# CRUD slice B/C); 610 KiB alongside #570 (Example: sweep); 580 KiB
+# alongside #494; 540, 525, originally 500 KiB. Keep in sync with DESIGN
+# §20.
+BUDGET=716800
 
 if [ ! -f "$BUNDLE" ]; then
   echo "::error::$BUNDLE not found — run 'pnpm build' first." >&2
