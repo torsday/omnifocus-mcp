@@ -44,6 +44,17 @@ export class WebhookOrchestrator {
   }
 
   /**
+   * True iff at least one webhook is currently registered. The
+   * cache-observation hook calls this *before* fetching a fresh full
+   * snapshot — when no hooks are registered the snapshot fetch would be
+   * pure overhead, since `observeSnapshot` would no-op anyway. Cheap:
+   * peeks the in-memory registry view, no I/O.
+   */
+  shouldObserve(): boolean {
+    return this.registry.listFull().length > 0;
+  }
+
+  /**
    * Feed a fresh snapshot of tasks + projects. The first call seeds the
    * baseline (no events fire — the orchestrator can't tell what was
    * "previous" before it had a starting point); every subsequent call

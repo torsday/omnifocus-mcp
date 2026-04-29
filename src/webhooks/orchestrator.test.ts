@@ -93,6 +93,47 @@ function makeProject(over: Record<string, unknown> = {}): Project {
   } as unknown as Project;
 }
 
+describe("WebhookOrchestrator — shouldObserve", () => {
+  let filePath: string;
+
+  beforeEach(() => {
+    filePath = tmpFile();
+  });
+  afterEach(() => {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  });
+
+  it("returns false when the registry is empty (cache hook can skip its fetch)", () => {
+    const registry = new WebhookRegistry({ filePath });
+    const orch = new WebhookOrchestrator({ registry, dispatcher: new CapturingDispatcher() });
+    expect(orch.shouldObserve()).toBe(false);
+  });
+
+  it("returns true once any webhook is registered", () => {
+    const registry = new WebhookRegistry({ filePath });
+    const orch = new WebhookOrchestrator({ registry, dispatcher: new CapturingDispatcher() });
+    registry.register({
+      name: "wh",
+      url: "https://example.com/x",
+      trigger: { on: "task-completed" },
+    });
+    expect(orch.shouldObserve()).toBe(true);
+  });
+
+  it("flips back to false when the only webhook is deleted", () => {
+    const registry = new WebhookRegistry({ filePath });
+    const orch = new WebhookOrchestrator({ registry, dispatcher: new CapturingDispatcher() });
+    registry.register({
+      name: "wh",
+      url: "https://example.com/x",
+      trigger: { on: "task-completed" },
+    });
+    expect(orch.shouldObserve()).toBe(true);
+    registry.delete("wh");
+    expect(orch.shouldObserve()).toBe(false);
+  });
+});
+
 describe("WebhookOrchestrator — observeSnapshot", () => {
   let filePath: string;
 

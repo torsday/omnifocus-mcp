@@ -1,4 +1,9 @@
-import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { InMemoryAdapter } from "../adapter/inMemory/InMemoryAdapter.js";
 import { JxaTransport } from "../adapter/jxa/JxaTransport.js";
 import { OmniJsTransport } from "../adapter/omnijs/OmniJsTransport.js";
 import { ROUTING_TABLE, TransportRouter } from "../adapter/router.js";
@@ -15,10 +20,16 @@ import { ReviewService } from "../services/reviewService.js";
 import { SearchService } from "../services/searchService.js";
 import { TagService } from "../services/tagService.js";
 import { TaskService } from "../services/taskService.js";
+import type { ChangeContext } from "../watcher/types.js";
+import type { WebhookDispatcher } from "../webhooks/dispatcher.js";
+import type { WebhookEvent } from "../webhooks/events.js";
+import { WebhookOrchestrator } from "../webhooks/orchestrator.js";
+import { WebhookRegistry } from "../webhooks/registry.js";
 import {
   composeAdapter,
   composeResourceServices,
   composeServices,
+  makeDatabaseChangeHandler,
   makeMeta,
 } from "./composition.js";
 
@@ -176,5 +187,140 @@ describe("makeMeta", () => {
   it("lets callers override correlationId (e.g. echoing an inbound id)", () => {
     const meta = makeMeta({ correlationId: "01JBZK7PDR6XSYVMWT5YYVH8VQ" });
     expect(meta.correlationId).toBe("01JBZK7PDR6XSYVMWT5YYVH8VQ");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// makeDatabaseChangeHandler — webhook observation hook (#668, ADR-0016 §1)
+// ---------------------------------------------------------------------------
+//
+// The handler runs on every DatabaseWatcher event. When a webhook is
+// registered, it must fetch a fresh full snapshot of tasks + projects
+// from the adapter and feed it to `orchestrator.observeSnapshot`. The
+// orchestrator owns the diff and dispatch.
+
+class CapturingDispatcher implements WebhookDispatcher {
+  delivered: WebhookEvent[] = [];
+  async deliver(event: WebhookEvent): Promise<void> {
+    this.delivered.push(event);
+  }
+}
+
+function tmpRegistry(): string {
+  return path.join(
+    tmpdir(),
+    `omnifocus-mcp-composition-test-${Date.now()}-${Math.floor(Math.random() * 1e9).toString(36)}.json`,
+  );
+}
+
+// Minimal stand-in for McpServer's notification surface — the handler only
+// calls `server.server.sendResourceUpdated`, never anything else. The
+// real `McpServer` is heavyweight and pulls in transport setup we don't
+// need for handler-shape tests.
+function stubServer(): McpServer {
+  const calls: string[] = [];
+  const stub = {
+    server: {
+      sendResourceUpdated: async ({ uri }: { uri: string }) => {
+        calls.push(uri);
+      },
+    },
+  };
+  return stub as unknown as McpServer;
+}
+
+describe("makeDatabaseChangeHandler — webhook observation", () => {
+  let registryPath: string;
+  let registry: WebhookRegistry;
+  let dispatcher: CapturingDispatcher;
+  let orchestrator: WebhookOrchestrator;
+  let adapter: InMemoryAdapter;
+  let cache: OmniFocusLruCache;
+  let server: McpServer;
+
+  beforeEach(() => {
+    registryPath = tmpRegistry();
+    registry = new WebhookRegistry({ filePath: registryPath });
+    dispatcher = new CapturingDispatcher();
+    orchestrator = new WebhookOrchestrator({ registry, dispatcher });
+    adapter = new InMemoryAdapter();
+    cache = new OmniFocusLruCache({ ttlMs: 30000, capacity: 64 });
+    server = stubServer();
+  });
+
+  afterEach(() => {
+    if (fs.existsSync(registryPath)) fs.unlinkSync(registryPath);
+  });
+
+  function fireChange(): Promise<void> {
+    const handler = makeDatabaseChangeHandler({
+      adapter,
+      cache,
+      server,
+      aggregateUris: [],
+      orchestrator,
+    });
+    const ctx: ChangeContext = {
+      detectedAt: new Date().toISOString(),
+      source: "node",
+    };
+    return handler(ctx);
+  }
+
+  it("calls observeSnapshot on every fired change when a webhook is registered (drives end-to-end dispatch on second observation)", async () => {
+    registry.register({
+      name: "wh",
+      url: "https://example.com/x",
+      trigger: { on: "task-completed" },
+    });
+    const taskId = await adapter.createTask({ name: "t1" });
+    await fireChange(); // seed
+    await adapter.completeTask(taskId);
+    await fireChange(); // diff → fire
+    expect(dispatcher.delivered).toHaveLength(1);
+    expect(dispatcher.delivered[0]?.kind).toBe("task-completed");
+  });
+
+  it("does NOT fetch the snapshot when no webhook is registered (shouldObserve fast path)", async () => {
+    let listCalls = 0;
+    const realListTasks = adapter.listTasks.bind(adapter);
+    adapter.listTasks = async (filter) => {
+      listCalls += 1;
+      return realListTasks(filter);
+    };
+    await adapter.createTask({ name: "t1" });
+    await fireChange();
+    expect(listCalls).toBe(0);
+    expect(dispatcher.delivered).toEqual([]);
+  });
+
+  it("never propagates errors from the snapshot fetch — record-class reads stay clean (ADR-0016 §4e)", async () => {
+    registry.register({
+      name: "wh",
+      url: "https://example.com/x",
+      trigger: { on: "task-completed" },
+    });
+    adapter.listTasks = async () => {
+      throw new Error("simulated transport failure");
+    };
+    await expect(fireChange()).resolves.toBeUndefined();
+    expect(dispatcher.delivered).toEqual([]);
+  });
+
+  it("skips the snapshot fetch when no orchestrator is wired (back-compat shape)", async () => {
+    let listCalls = 0;
+    adapter.listTasks = async () => {
+      listCalls += 1;
+      return [];
+    };
+    const handler = makeDatabaseChangeHandler({
+      adapter,
+      cache,
+      server,
+      aggregateUris: [],
+      // no orchestrator
+    });
+    await handler({ detectedAt: new Date().toISOString(), source: "node" });
+    expect(listCalls).toBe(0);
   });
 });
