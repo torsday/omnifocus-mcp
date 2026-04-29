@@ -5,6 +5,63 @@ All notable changes to `@torsday/omnifocus-mcp` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [ADR-0011](./docs/adr/0011-versioning-and-stability.md) for the explicit definition of breaking vs additive changes in this project.
 
 
+## [1.2.0](https://github.com/torsday/omnifocus-mcp/compare/v1.1.0...v1.2.0) (2026-04-29)
+
+
+### Added
+
+* **agenda:** omnifocus://agenda merged calendar+forecast view ([#635](https://github.com/torsday/omnifocus-mcp/issues/635)) ([89d657b](https://github.com/torsday/omnifocus-mcp/commit/89d657b79c5eda122bccdad96c791e7cc6d8da37))
+* **calendar:** calendar event-read subcommand (next slice of [#484](https://github.com/torsday/omnifocus-mcp/issues/484)) ([d9cd6dd](https://github.com/torsday/omnifocus-mcp/commit/d9cd6dd664d0aaa3e196a836543ec774b8818639))
+* **calendar:** EventKit import + authorization probe (next slice of [#484](https://github.com/torsday/omnifocus-mcp/issues/484)) ([e7f657a](https://github.com/torsday/omnifocus-mcp/commit/e7f657ac9adb8ec81f501f0a58c6f051fa8c7cb8))
+* **calendar:** node-side typescript wrapper (next slice of [#484](https://github.com/torsday/omnifocus-mcp/issues/484)) ([#632](https://github.com/torsday/omnifocus-mcp/issues/632)) ([d4a22c7](https://github.com/torsday/omnifocus-mcp/commit/d4a22c752a021ef510c069480bcf9cb160766c05))
+* **calendar:** omnifocus://calendar resource (next slice of [#484](https://github.com/torsday/omnifocus-mcp/issues/484)) ([#634](https://github.com/torsday/omnifocus-mcp/issues/634)) ([aa3217e](https://github.com/torsday/omnifocus-mcp/commit/aa3217e622e2e223886f8ebbcf2df7b0465d6cfb))
+* **calendar:** request-access async authorization flow (next slice of [#484](https://github.com/torsday/omnifocus-mcp/issues/484)) ([018af14](https://github.com/torsday/omnifocus-mcp/commit/018af14fada14c2201ed93ef91e5a0c0e1d5ef0b))
+* **calendar:** scaffold the EventKit Swift bridge (first slice of [#484](https://github.com/torsday/omnifocus-mcp/issues/484)) ([700f4ac](https://github.com/torsday/omnifocus-mcp/commit/700f4acd71f55d06a71963b820708adaa55e8561))
+* **capabilities:** surface calendarAccess via bridge probe (next slice of [#484](https://github.com/torsday/omnifocus-mcp/issues/484)) ([#633](https://github.com/torsday/omnifocus-mcp/issues/633)) ([0116c06](https://github.com/torsday/omnifocus-mcp/commit/0116c06a017d565e1ddf1dbdc71aeaa491ea86ab))
+* **decision-journal:** record + honor user judgment via fenced note metadata (slice 1 of [#485](https://github.com/torsday/omnifocus-mcp/issues/485)) ([#656](https://github.com/torsday/omnifocus-mcp/issues/656)) ([b64e572](https://github.com/torsday/omnifocus-mcp/commit/b64e5722fd85ecf9fbf110890866e056eeaa3ab6))
+* **envelope:** clarification-needed response kind with replay tokens ([#493](https://github.com/torsday/omnifocus-mcp/issues/493)) ([db06077](https://github.com/torsday/omnifocus-mcp/commit/db0607779145ca83424ee825e0e58d8840009a31))
+* **nl-quality:** add .describe() to inner fields in batch tool schemas ([#571](https://github.com/torsday/omnifocus-mcp/issues/571)) ([74a182b](https://github.com/torsday/omnifocus-mcp/commit/74a182b7becd7a18466ae54f76b7a43080fe4d76))
+* **nl-quality:** pair candidate ids with names in task_find_similar ([#608](https://github.com/torsday/omnifocus-mcp/issues/608) slice 4) ([b14b721](https://github.com/torsday/omnifocus-mcp/commit/b14b72129e140afe088edd703035c07edcfd3280))
+* **nl-quality:** pair name + dates with id in review_* / project_mark_reviewed / project_set_next_review_date ([#607](https://github.com/torsday/omnifocus-mcp/issues/607) slice 3) ([9a19746](https://github.com/torsday/omnifocus-mcp/commit/9a19746bf361a2ac24cc19a79b1a89846cec7f54))
+* **nl-quality:** pair owner names with ids in import_opml / import_taskpaper ([#609](https://github.com/torsday/omnifocus-mcp/issues/609) slice 5; closes [#601](https://github.com/torsday/omnifocus-mcp/issues/601)) ([734351e](https://github.com/torsday/omnifocus-mcp/commit/734351e953d33912a535892a07239f19733eeefe))
+* **observability:** expose calendarAccess in internal_status ([#638](https://github.com/torsday/omnifocus-mcp/issues/638)) ([d45142e](https://github.com/torsday/omnifocus-mcp/commit/d45142e5202c2f13c6ddecd5f3f999b3c550d658))
+* **observability:** surface stryker mutation score on internal_status (slice 1D of [#502](https://github.com/torsday/omnifocus-mcp/issues/502)) ([#653](https://github.com/torsday/omnifocus-mcp/issues/653)) ([6d7ae71](https://github.com/torsday/omnifocus-mcp/commit/6d7ae71c5eccf3a07c768413b4cf55498472cd62))
+* **perspective:** add perspective_evaluate_dry_run for unsaved rule trees (closes [#659](https://github.com/torsday/omnifocus-mcp/issues/659)) ([#660](https://github.com/torsday/omnifocus-mcp/issues/660)) ([1e3498c](https://github.com/torsday/omnifocus-mcp/commit/1e3498c99ef7a143f881d6caf1931b0d91980a36))
+* **perspective:** perspective_create tool + OmniJS create script with atomic rollback ([#617](https://github.com/torsday/omnifocus-mcp/issues/617) slice B of [#577](https://github.com/torsday/omnifocus-mcp/issues/577)) ([96101ce](https://github.com/torsday/omnifocus-mcp/commit/96101ce4347afcc4e2364953f2bb713bfca80e3c))
+* **perspective:** perspective_update tool + OmniJS update script ([#618](https://github.com/torsday/omnifocus-mcp/issues/618) slice C of [#577](https://github.com/torsday/omnifocus-mcp/issues/577)) ([34d85c2](https://github.com/torsday/omnifocus-mcp/commit/34d85c225a786292df2955edaf5c5e6636af56e2))
+* **perspective:** rule input schema with disjointness + strict-shape refinements ([#619](https://github.com/torsday/omnifocus-mcp/issues/619) slice A of [#577](https://github.com/torsday/omnifocus-mcp/issues/577)) ([b5d90b8](https://github.com/torsday/omnifocus-mcp/commit/b5d90b82eb28c4464003db74c3d7062cf8b8ec59))
+* **project-health:** honor decision-journal entries via acknowledged array (slice 2 of [#485](https://github.com/torsday/omnifocus-mcp/issues/485)) ([#657](https://github.com/torsday/omnifocus-mcp/issues/657)) ([240d64f](https://github.com/torsday/omnifocus-mcp/commit/240d64fa53939af74087ecc4bb6741c97995668b))
+* **project:** add project_template_delete tool ([#588](https://github.com/torsday/omnifocus-mcp/issues/588)) ([638ab3b](https://github.com/torsday/omnifocus-mcp/commit/638ab3b976da82f5b32287742623a4381bb550c2))
+* **prompts:** natural-language perspective authoring (closes [#476](https://github.com/torsday/omnifocus-mcp/issues/476)) ([#661](https://github.com/torsday/omnifocus-mcp/issues/661)) ([30409ed](https://github.com/torsday/omnifocus-mcp/commit/30409edcf28a3341843a1b33676b01aa8d6df69a))
+* **quality:** calibrate Stryker baseline + set thresholds.break (slice 1B of [#502](https://github.com/torsday/omnifocus-mcp/issues/502)) ([#651](https://github.com/torsday/omnifocus-mcp/issues/651)) ([67972de](https://github.com/torsday/omnifocus-mcp/commit/67972de70fd8c5927822238502d525544ac41db7))
+* **quality:** install Stryker + minimal config (slice 1A of [#502](https://github.com/torsday/omnifocus-mcp/issues/502)) ([#650](https://github.com/torsday/omnifocus-mcp/issues/650)) ([573a0f4](https://github.com/torsday/omnifocus-mcp/commit/573a0f4076cef4f3d032185f24a63da6adf05b58))
+* **task:** add task_defer_smart with intent-bearing defer grammar (closes [#479](https://github.com/torsday/omnifocus-mcp/issues/479)) ([#655](https://github.com/torsday/omnifocus-mcp/issues/655)) ([4658a97](https://github.com/torsday/omnifocus-mcp/commit/4658a971dff9458615d5925aafbb6ce734cd4a6a))
+* **webhooks:** add orchestrator + webhook_test (slice 4 of [#483](https://github.com/torsday/omnifocus-mcp/issues/483)) ([3938146](https://github.com/torsday/omnifocus-mcp/commit/3938146c0c310e75ca9ca747dd61fcf55ba2792f))
+* **webhooks:** event diff + dispatcher interface (slice 2 of [#483](https://github.com/torsday/omnifocus-mcp/issues/483)) ([#665](https://github.com/torsday/omnifocus-mcp/issues/665)) ([fdb2474](https://github.com/torsday/omnifocus-mcp/commit/fdb247456ef7559c13896864145bfeada8711844))
+* **webhooks:** https dispatcher with hmac + retry + circuit breaker (slice 3 of [#483](https://github.com/torsday/omnifocus-mcp/issues/483)) ([#666](https://github.com/torsday/omnifocus-mcp/issues/666)) ([1ca3300](https://github.com/torsday/omnifocus-mcp/commit/1ca3300e5dfcd0899bd2c7d95180026faa428afb))
+* **webhooks:** registry + register/list/delete tools (slice 1 of [#483](https://github.com/torsday/omnifocus-mcp/issues/483)) ([#664](https://github.com/torsday/omnifocus-mcp/issues/664)) ([17c279f](https://github.com/torsday/omnifocus-mcp/commit/17c279fc8a4f701df4169a1c95aabc2416a74a89))
+* **webhooks:** wire orchestrator into database-change handler (closes [#668](https://github.com/torsday/omnifocus-mcp/issues/668)) ([609428d](https://github.com/torsday/omnifocus-mcp/commit/609428d78bb151e868c353ecbac9666ff5f2a4c6))
+
+
+### Fixed
+
+* **lint:** suppress noNonNullAssertion + useOptionalChain in test helpers ([3bf3c9a](https://github.com/torsday/omnifocus-mcp/commit/3bf3c9adbe57d8d5683a4d6f9e7c311af4f7720f))
+* **readme:** drop tool-count from intents row (closes [#645](https://github.com/torsday/omnifocus-mcp/issues/645)) ([#646](https://github.com/torsday/omnifocus-mcp/issues/646)) ([48fedb9](https://github.com/torsday/omnifocus-mcp/commit/48fedb9be6e1709444ce22d32441c25e43708722))
+
+
+### Changed
+
+* **task:** tighten task_extract_from_image schema discipline (closes [#574](https://github.com/torsday/omnifocus-mcp/issues/574)) ([#658](https://github.com/torsday/omnifocus-mcp/issues/658)) ([95e3b12](https://github.com/torsday/omnifocus-mcp/commit/95e3b12d791373b95dd3f7cec3577f4a73f15f6d))
+
+
+### Documentation
+
+* **adr:** adr-0016 — webhook delivery for omnifocus state changes (closes [#662](https://github.com/torsday/omnifocus-mcp/issues/662)) ([#663](https://github.com/torsday/omnifocus-mcp/issues/663)) ([e95585a](https://github.com/torsday/omnifocus-mcp/commit/e95585ac2d28b78230b9eca811aff8c775e03a00))
+* **design:** add §31 — fenced note metadata convention ([#589](https://github.com/torsday/omnifocus-mcp/issues/589)) ([ad521b3](https://github.com/torsday/omnifocus-mcp/commit/ad521b31454a83ad0ec8776b71fbc09e80a70659))
+* **readme:** lead with agent-native value-add (closes [#477](https://github.com/torsday/omnifocus-mcp/issues/477)) ([#636](https://github.com/torsday/omnifocus-mcp/issues/636)) ([78531a2](https://github.com/torsday/omnifocus-mcp/commit/78531a28f719b1614875619d8d132b1d600532d7))
+* **readme:** update Resources table — 24 URIs, not 10 (closes [#643](https://github.com/torsday/omnifocus-mcp/issues/643)) ([#644](https://github.com/torsday/omnifocus-mcp/issues/644)) ([de20b02](https://github.com/torsday/omnifocus-mcp/commit/de20b02353ff3660bcc1ace2cc8d85cdf707a205))
+* **stryker:** README badge + CONTRIBUTING mutation-testing section (slice 1E of [#502](https://github.com/torsday/omnifocus-mcp/issues/502)) ([#654](https://github.com/torsday/omnifocus-mcp/issues/654)) ([78d5651](https://github.com/torsday/omnifocus-mcp/commit/78d565154dbd99b70834bbc7b1b34ba7070d7dc6))
+
 ## [1.1.0](https://github.com/torsday/omnifocus-mcp/compare/v1.0.2...v1.1.0) (2026-04-28)
 
 **Summary** — The headline additions are project templates, waiting-on tracking, and several new analytics resources. Alongside new tools, the entire tool surface went through a focused NL-quality pass: every description now carries a worked `Example:` line, every mutation response pairs a human-readable name alongside the opaque ID, and enum inputs accept common aliases so loosely-worded agent inputs succeed rather than bounce. Agents calling this server cold will be able to compose correct calls with substantially less trial-and-error. No breaking changes; all v1.0.x call shapes are unchanged.
