@@ -265,7 +265,21 @@ function classifyJxaStderr(stderr: string, scriptName?: string): Error | null {
   // Covers: `Task not found: abc`, `Project not found: xyz`,
   //         `Folder not found: ...`, `Tag not found: ...`, `Parent X not found: ...`,
   //         `OF_NOT_FOUND: parent task abc` (batch scripts).
-  if (/\bnot found\b/i.test(stderr) || /^OF_NOT_FOUND\b/m.test(stderr)) {
+  //
+  // Also maps OmniFocus's native missing-id error (#674): JXA's `byId(...)`
+  // returns a *lazy* specifier that's always truthy, so guards like
+  // `if (!byIdResult) throw "X not found"` are dead code. The actual lookup
+  // fires on the next method call (e.g. `.id()` or `.tasks.push(...)`) and
+  // throws `Error: Can't get object. (-1728)` (errAENoSuchObject). Any
+  // JXA-routed mutation that takes a target id surfaces this on a missing
+  // lookup. Without this regex, callers got opaque ScriptError instead of
+  // typed NotFound.
+  if (
+    /\bnot found\b/i.test(stderr) ||
+    /^OF_NOT_FOUND\b/m.test(stderr) ||
+    /Can['’]t get object\.?\s*\(-1728\)/i.test(stderr) ||
+    /\(-1728\)/.test(stderr)
+  ) {
     return new NotFound(stderr, {
       details: {
         transport: "jxa",

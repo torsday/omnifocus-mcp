@@ -200,6 +200,29 @@ describe("runJxaScript — error taxonomy: NotFound", () => {
     const spawner = fakeSpawner({ exitCode: 1, stderr: "OF_NOT_FOUND: project abc" });
     await expect(runJxaScript("s", {}, { spawner })).rejects.toBeInstanceOf(NotFound);
   });
+
+  // #674: OmniFocus's native missing-id surface. JXA's `byId(...)` returns a
+  // lazy specifier; the lookup fires on the first method call and throws
+  // `Can't get object. (-1728)`. Without this mapping, every JXA-routed
+  // mutation that takes a target id (project, task, folder, tag) returned
+  // opaque ScriptError instead of typed NotFound — surfaced live by the
+  // integration suite which has been red since v1.0.0 on the `createTask
+  // with an unknown projectId throws NotFound` contract.
+  it("maps 'Error: Can't get object. (-1728)' to NotFound (JXA byId miss)", async () => {
+    const spawner = fakeSpawner({
+      exitCode: 1,
+      stderr: "execution error: Error: Error: Can't get object. (-1728)",
+    });
+    await expect(runJxaScript("s", {}, { spawner })).rejects.toBeInstanceOf(NotFound);
+  });
+
+  it("maps the bare error code (-1728) without the prose to NotFound", async () => {
+    const spawner = fakeSpawner({
+      exitCode: 1,
+      stderr: "OmniFocus got an error: AppleEvent failed (-1728)",
+    });
+    await expect(runJxaScript("s", {}, { spawner })).rejects.toBeInstanceOf(NotFound);
+  });
 });
 
 describe("runJxaScript — error taxonomy: ValidationError", () => {
