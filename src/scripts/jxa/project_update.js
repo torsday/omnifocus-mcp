@@ -180,7 +180,14 @@ function run(argv) {
     target.deferDate = args.deferDate ? new Date(args.deferDate) : null;
   if (args.dueDate !== undefined) target.dueDate = args.dueDate ? new Date(args.dueDate) : null;
   if (args.status !== undefined) {
-    const jxaStatus = args.status === "on-hold" ? "on hold" : args.status;
+    // OmniFocus 4.8.8+ silently no-ops `target.status = "on hold"` (without
+    // the " status" suffix). The verbose form is required for assignment
+    // even though reads return the verbose form too. Map both wire values
+    // to their suffixed JXA equivalents. Note: only "active" and "on-hold"
+    // are valid here — the wire contract excludes "done" / "dropped",
+    // which JXA refuses anyway and which use markComplete / markDropped
+    // verbs instead.
+    const jxaStatus = args.status === "on-hold" ? "on hold status" : "active status";
     target.status = jxaStatus;
   }
   if (args.folderId !== undefined) {

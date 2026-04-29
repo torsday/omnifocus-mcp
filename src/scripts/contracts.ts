@@ -17,6 +17,7 @@
  */
 
 import type { BatchOutcome } from "../domain/batch.js";
+import type { Project } from "../domain/project.js";
 import type { Task } from "../domain/task.js";
 
 // ---------------------------------------------------------------------------
@@ -112,6 +113,17 @@ export type TaskBatchMoveScriptResult = RawBatchScriptResult | ScriptErrorEnvelo
 export type TaskConvertToProjectScriptResult =
   | { projectId: string }
   | ScriptErrorEnvelope<"NOT_FOUND" | "VALIDATION" | "CONVERSION_FAILED">;
+
+/**
+ * Result type for `project_create.js` (OmniJS).
+ *
+ * Per ADR-0019, project creation routes through OmniJS so the returned
+ * `id.primaryKey` is a persistent identifier interoperable with both
+ * transports (vs JXA's transient specifier IDs).
+ */
+export type ProjectCreateScriptResult =
+  | { project: Project }
+  | ScriptErrorEnvelope<"NOT_FOUND" | "VALIDATION">;
 
 /** Result type for `app_window_new.js` and `app_window_new_tab.js`. */
 export type AppWindowNewScriptResult =

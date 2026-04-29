@@ -117,7 +117,10 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   listProjects: "jxa",
   getProject: "jxa",
   getProjectsMany: "jxa",
-  createProject: "jxa",
+  // Per ADR-0019: routes through OmniJS so the returned id is a persistent
+  // primaryKey interoperable with both transports (vs JXA's transient
+  // specifier IDs that can't be resolved by OmniJS-routed downstream ops).
+  createProject: "omnijs",
   updateProject: "jxa",
   completeProject: "jxa",
   batchCompleteProjects: "jxa",

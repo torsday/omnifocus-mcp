@@ -48,6 +48,7 @@ import {
   type PerspectiveEvaluateScriptResult,
   type PerspectiveGetScriptResult,
   type PerspectiveUpdateScriptResult,
+  type ProjectCreateScriptResult,
   type TaskBatchMoveScriptResult,
   type TaskConvertToProjectScriptResult,
   type TaskMoveScriptResult,
@@ -65,6 +66,7 @@ import perspectiveEvaluateDryRunScript from "../../scripts/omnijs/perspective_ev
 import perspectiveGetScript from "../../scripts/omnijs/perspective_get.js";
 import perspectiveUpdateScript from "../../scripts/omnijs/perspective_update.js";
 import pluginInvokeScript from "../../scripts/omnijs/plugin_invoke.js";
+import projectCreateScript from "../../scripts/omnijs/project_create.js";
 import taskBatchMoveScript from "../../scripts/omnijs/task_batch_move.js";
 import taskClearAlarmsScript from "../../scripts/omnijs/task_clear_alarms.js";
 import taskConvertToProjectScript from "../../scripts/omnijs/task_convert_to_project.js";
@@ -338,8 +340,40 @@ export class OmniJsTransport implements OmniFocusAdapter {
   async getProjectsMany(_ids: ProjectId[]): Promise<(Project | null)[]> {
     return notYetWired("getProjectsMany");
   }
-  async createProject(_input: CreateProjectInput): Promise<ProjectId> {
-    return notYetWired("createProject");
+  async createProject(input: CreateProjectInput): Promise<ProjectId> {
+    // Routes through OmniJS per ADR-0019: JXA's `Project(props) + push()`
+    // returns a transient specifier ID that doesn't match OmniFocus's
+    // persistent `id.primaryKey`, so subsequent OmniJS-routed operations
+    // (moveTask, reorderTask, etc.) fail to resolve the project.
+    // OmniJS's `new Project(name, position)` returns IDs both transports
+    // accept.
+    const result = await runOmniJsScript<ProjectCreateScriptResult>(
+      projectCreateScript,
+      {
+        name: input.name,
+        folderId: input.folderId ?? null,
+        note: input.note ?? null,
+        deferDate: input.deferDate ?? null,
+        dueDate: input.dueDate ?? null,
+        estimatedMinutes: input.estimatedMinutes ?? null,
+        flagged: input.flagged ?? false,
+        status: input.status ?? null,
+        completionCriterion: input.completionCriterion ?? null,
+        reviewIntervalDays: input.reviewIntervalDays ?? null,
+      },
+      { ...this.runOpts, scriptName: "project_create" },
+    );
+    if (isScriptError(result)) {
+      if (result.error.code === "NOT_FOUND") {
+        throw new NotFound(result.error.message, {
+          details: { transport: "omnijs", scriptName: "project_create" },
+        });
+      }
+      throw new ValidationError(result.error.message, {
+        details: { transport: "omnijs", scriptName: "project_create" },
+      });
+    }
+    return ProjectIdCtor.of(result.project.id);
   }
   async updateProject(_id: ProjectId, _patch: UpdateProjectInput): Promise<void> {
     return notYetWired("updateProject");
