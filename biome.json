@@ -81,6 +81,16 @@
       }
     },
     {
+      "includes": ["**/src/webhooks/**/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["**/src/scripts/**/*.js"],
       "linter": {
         "rules": {

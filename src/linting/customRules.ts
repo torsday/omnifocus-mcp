@@ -96,10 +96,19 @@ export const EXCLUDED_FILES_RE =
  * and dynamic `import(...)` calls.
  *
  * `node:http` and `node:https` are also banned — the server speaks only to
- * OmniFocus via JXA/OmniJS; there is no legitimate outbound HTTP use case.
+ * OmniFocus via JXA/OmniJS; the one legitimate outbound HTTP use case is
+ * the webhook subsystem under `src/webhooks/` (per ADR-0016, #483), which
+ * is allowlisted by `WEBHOOKS_ALLOWLIST_RE` below.
  */
 export const NETWORK_IMPORT_RE =
   /\bimport\s*(?:\([^)]*['"]|[^'"]*['"])(node:https?|https?|node-fetch|axios|undici|cross-fetch)['"]/;
+
+/**
+ * Files under `src/webhooks/` are allowed to import `node:https` — the
+ * webhook subsystem makes outbound HTTPS POSTs to user-registered URLs
+ * per ADR-0016. No other path may import network libraries.
+ */
+export const WEBHOOKS_ALLOWLIST_RE = /(^|[/\\])src[/\\]webhooks[/\\]/;
 
 // ---------------------------------------------------------------------------
 // Rule 5: no-layer-violation
@@ -198,8 +207,8 @@ export function checkFileContent(filePath: string, content: string): Violation[]
       });
     }
 
-    // Rule 4: no-network-import
-    if (NETWORK_IMPORT_RE.test(line)) {
+    // Rule 4: no-network-import (with src/webhooks/ allowlist per ADR-0016)
+    if (NETWORK_IMPORT_RE.test(line) && !WEBHOOKS_ALLOWLIST_RE.test(filePath)) {
       violations.push({
         file: filePath,
         line: i + 1,
