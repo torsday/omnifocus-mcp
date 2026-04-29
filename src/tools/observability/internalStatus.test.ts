@@ -33,6 +33,7 @@ function makeCtx(
       available: boolean;
       permission: "granted" | "denied" | "restricted" | "not-determined" | "unknown";
     }>;
+    probeMutationScore?: () => { score: number; lastRunAt: string } | null;
   } = {},
 ) {
   const adapter = {
@@ -56,6 +57,9 @@ function makeCtx(
     probeCalendarAccess:
       overrides.probeCalendarAccess ??
       vi.fn().mockResolvedValue({ available: false, permission: "unknown" as const }),
+    // Default to "no report present" so tests don't depend on the live
+    // reports/mutation/mutation.json file from the calibration run.
+    probeMutationScore: overrides.probeMutationScore ?? vi.fn().mockReturnValue(null),
   };
 }
 
@@ -173,5 +177,34 @@ describe("internal_status — calendarAccess", () => {
     });
     const envelope = await handleInternalStatus({}, ctx);
     expect(envelope.data.calendarAccess).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Handler — mutation
+// ---------------------------------------------------------------------------
+
+describe("internal_status — mutation", () => {
+  it("forwards the probe result verbatim when a mutation report is present", async () => {
+    const snapshot = { score: 62.74, lastRunAt: "2026-04-29T14:09:28.000Z" };
+    const ctx = makeCtx({ probeMutationScore: vi.fn().mockReturnValue(snapshot) });
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.mutation).toEqual(snapshot);
+  });
+
+  it("returns null when no mutation report is present", async () => {
+    const ctx = makeCtx({ probeMutationScore: vi.fn().mockReturnValue(null) });
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.mutation).toBeNull();
+  });
+
+  it("surfaces null when the probe throws unexpectedly", async () => {
+    const ctx = makeCtx({
+      probeMutationScore: vi.fn().mockImplementation(() => {
+        throw new Error("unexpected");
+      }),
+    });
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.mutation).toBeNull();
   });
 });
