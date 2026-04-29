@@ -164,11 +164,7 @@ describe("project_template_save — handler", () => {
   it("propagates NotFound when the source project does not exist", async () => {
     const { ctx } = makeCtx();
     await expect(
-      handleProjectTemplateSave(
-        // biome-ignore lint/suspicious/noExplicitAny: deliberately invalid id for the negative test
-        { projectId: "project_999999" as any, templateName: "T1" },
-        ctx,
-      ),
+      handleProjectTemplateSave({ projectId: "project_999999" as any, templateName: "T1" }, ctx),
     ).rejects.toBeInstanceOf(NotFound);
   });
 
