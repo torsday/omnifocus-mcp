@@ -141,6 +141,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Documentation
 
 - **ADR-0018 — Calendar bridge: EventKit only, Swift-binary subprocess** — formalises the architecture that unblocks [#484](https://github.com/torsday/omnifocus-mcp/issues/484) (calendar + agenda resources). Decisions: EventKit is the sole calendar substrate (third-party APIs handled by separate MCP servers, composed at the agent layer); access via a tiny Swift binary subprocess bundled in `dist/` (rejecting JXA/Calendar.app shim and direct Node FFI for documented reasons); read-only; permission UX mirrors the existing OF Automation prompt. Status: Accepted. ([#603](https://github.com/torsday/omnifocus-mcp/issues/603))
+- **README — agent-native value-add lead** — new top-of-README section "Agent-native OmniFocus — beyond the app surface" frames the agent-unique capabilities (project-health triage, semantic dedupe, taxonomy audit, NL perspective authoring, time-budget reconciliation, retrospective, project templates, inbox-triage, calendar + agenda) ahead of the existing tool-list content. Honest split between mechanical aggregations the app could have shipped and capabilities only valuable with an LLM in the call path; closes the long-standing narrative gap that the README led with "wrapper" framing rather than the actual value-add. ([#477](https://github.com/torsday/omnifocus-mcp/issues/477))
 
 ### Build
 
