@@ -1068,7 +1068,7 @@ Import tasks from TaskPaper text into OmniFocus. Parses '- Task name @tag @due(2
 
 ## internal_status
 
-Return a health snapshot of the running omnifocus-mcp server. Do NOT use this to read OmniFocus data — prefer task_list, project_list, sync_status, etc. Returns { uptimeMs, ofRunning, lastSync, cache, circuits, queueDepth }. uptimeMs is the milliseconds since the server process started. circuits lists each circuit-breaker name and state (closed/open/half_open). lastSync mirrors sync_status data; null if getLastSync throws. Read-only; no side effects. Example: internal_status()
+Return a health snapshot of the running omnifocus-mcp server. Do NOT use this to read OmniFocus data — prefer task_list, project_list, sync_status, etc. Returns { uptimeMs, ofRunning, lastSync, calendarAccess, cache, circuits, queueDepth }. uptimeMs is the milliseconds since the server process started. circuits lists each circuit-breaker name and state (closed/open/half_open). lastSync mirrors sync_status data; null if getLastSync throws. calendarAccess reports the macOS Calendar bridge state — { available, permission } where available is true when the Swift binary is callable and permission is the live EventKit authorization status (granted | denied | restricted | not-determined), or 'unknown' when available is false. Read-only — does NOT trigger the macOS Calendar TCC prompt. Read-only; no side effects. Example: internal_status()
 
 ### Input
 
