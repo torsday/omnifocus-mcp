@@ -29,10 +29,19 @@ function run(argv) {
   }
 
   function buildTask(task) {
+    // See task_get.js — `cp.class()` throws on real projects in OF 4.x (#673).
     let projectId = null;
     try {
       const cp = task.containingProject();
-      if (cp && cp.class() !== "document") projectId = cp.id();
+      if (cp) {
+        let isDocument = false;
+        try {
+          isDocument = cp.class() === "document";
+        } catch (_classErr) {
+          /* OF 4.x: real projects throw here */
+        }
+        if (!isDocument) projectId = cp.id();
+      }
     } catch (_e) {}
 
     let parentId = null;

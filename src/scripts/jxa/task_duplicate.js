@@ -37,9 +37,21 @@ function run(argv) {
     if (pt) {
       destContainer = pt;
     } else {
+      // See task_get.js — `cp.class()` throws on real projects in OF 4.x
+      // (#673), and the throw used to escape this if-condition unhandled,
+      // exiting the whole script with `JXA script failed (exit 1)`.
       const cp = source.containingProject();
-      if (cp && cp.class() !== "document") destContainer = cp;
-      else destContainer = doc;
+      if (cp) {
+        let isDocument = false;
+        try {
+          isDocument = cp.class() === "document";
+        } catch (_classErr) {
+          /* OF 4.x: real projects throw here */
+        }
+        destContainer = isDocument ? doc : cp;
+      } else {
+        destContainer = doc;
+      }
     }
   }
 

@@ -29,10 +29,26 @@ function run(argv) {
   }
 
   function buildTask(task) {
+    // OmniFocus 4.x note (#673): on a real Project specifier returned by
+    // `task.containingProject()`, calling `.class()` throws "Can't convert
+    // types". Only the document responds to `.class()` successfully. So:
+    // treat a `.class()` throw as "is a real project", a successful return
+    // as "is something else (document) — skip". The previous one-liner
+    // (`cp.class() !== "document"`) let the throw escape the if-condition
+    // and the outer try/catch swallowed the whole block, leaving projectId
+    // null even when the task was correctly assigned to a project.
     let projectId = null;
     try {
       const cp = task.containingProject();
-      if (cp && cp.class() !== "document") projectId = cp.id();
+      if (cp) {
+        let isDocument = false;
+        try {
+          isDocument = cp.class() === "document";
+        } catch (_classErr) {
+          /* OF 4.x: real projects throw here — leave isDocument false */
+        }
+        if (!isDocument) projectId = cp.id();
+      }
     } catch (_e) {}
 
     let parentId = null;
