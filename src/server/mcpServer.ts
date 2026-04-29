@@ -334,9 +334,10 @@ export async function startServer(): Promise<void> {
   registerWebhookRegisterTool(server, webhookCtx);
   registerWebhookListTool(server, webhookCtx);
   registerWebhookDeleteTool(server, webhookCtx);
-  // Slice 4 of #483: orchestrator + webhook_test. The cache-observation
-  // hook that calls orchestrator.observeSnapshot() is a separate
-  // follow-up — slice 4 ships the user-facing test surface only.
+  // Slice 4+5 of #483: orchestrator + webhook_test + cache-observation
+  // hook (the orchestrator is threaded into makeDatabaseChangeHandler
+  // below so observeSnapshot fires whenever the database watcher
+  // detects an OF state change — see ADR-0016 §1).
   const webhookOrchestrator = new WebhookOrchestrator({
     registry: webhookRegistry,
     dispatcher: new HttpsDispatcher(),
@@ -659,6 +660,7 @@ export async function startServer(): Promise<void> {
       FLAGGED_URI,
       REVIEW_DUE_URI,
     ],
+    orchestrator: webhookOrchestrator,
   });
 
   const dbWatcher = new DatabaseWatcher((ctx) => {

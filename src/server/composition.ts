@@ -36,6 +36,7 @@ import { SearchService } from "../services/searchService.js";
 import { TagService } from "../services/tagService.js";
 import { TaskService } from "../services/taskService.js";
 import type { ChangeContext } from "../watcher/types.js";
+import type { WebhookOrchestrator } from "../webhooks/orchestrator.js";
 
 // ---------------------------------------------------------------------------
 // Adapter chain
@@ -240,8 +241,21 @@ export function makeDatabaseChangeHandler(deps: {
   cache: OmniFocusLruCache;
   server: McpServer;
   aggregateUris: readonly string[];
+  /**
+   * Optional webhook orchestrator (per ADR-0016 §1). When supplied AND at
+   * least one webhook is registered, the handler fetches a fresh full
+   * snapshot of tasks + projects after the change is detected and feeds
+   * it to `orchestrator.observeSnapshot`. The orchestrator diffs against
+   * its previous snapshot and dispatches matching events.
+   *
+   * Failures during the snapshot fetch or the observe call are caught
+   * and logged — webhook delivery never blocks or breaks the OF read
+   * path (ADR-0016 §4e: "webhooks are signal class, OF reads are record
+   * class").
+   */
+  orchestrator?: WebhookOrchestrator;
 }): (ctx: ChangeContext) => Promise<void> {
-  const { adapter, cache, server, aggregateUris } = deps;
+  const { adapter, cache, server, aggregateUris, orchestrator } = deps;
 
   return async (ctx: ChangeContext): Promise<void> => {
     // Safety buffer: subtract 200 ms from detectedAt to guard against
@@ -273,6 +287,26 @@ export function makeDatabaseChangeHandler(deps: {
       // Unknown what changed (query failed, or nothing found with new timestamp).
       // Clear everything conservatively.
       cache.clear();
+    }
+
+    // Webhook observation (ADR-0016 §1). Skip when no orchestrator is
+    // wired or no webhooks are registered — the snapshot fetch is real
+    // work (two adapter calls) and there's no point paying for it when
+    // there is no consumer. The fetch deliberately bypasses the cache
+    // we just invalidated so the orchestrator sees ground-truth state.
+    if (orchestrator?.shouldObserve()) {
+      try {
+        const [tasks, projects] = await Promise.all([
+          adapter.listTasks({}),
+          adapter.listProjects(),
+        ]);
+        await orchestrator.observeSnapshot(tasks, projects);
+      } catch (err) {
+        // ADR-0016 §4e: webhook failures must never propagate into the
+        // OF read path. Cache invalidation and resource notifications
+        // below still fire normally.
+        logger.debug({ event: "database.changed.webhook_observe_failed", err });
+      }
     }
 
     // Per-object resource notifications (agents subscribed to specific tasks/projects)

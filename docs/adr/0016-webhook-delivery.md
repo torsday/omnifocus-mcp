@@ -37,6 +37,8 @@ Rejected alternatives:
 
 Consequence: webhook delivery has a **lag bound by cache TTL** (30s). For users who want sub-second fan-out, that's the wrong tool — they should run a dedicated automation observer outside this server. For the GTD-style "Slack me when this billing task completes" use case, 30 seconds is well below human-perceptible latency and matches the cadence the rest of the surface already uses.
 
+> **Implementation note (added with #668).** The hook lives at `makeDatabaseChangeHandler` in [`src/server/composition.ts`](../../src/server/composition.ts), not at the LRU cache's `wrap()` callback. The handler runs on every `DatabaseWatcher` event — i.e. every time OF reports a real state change to the Swift sidecar — so each fired observation corresponds to a genuine OF mutation rather than an arbitrary cache miss. The handler asks the orchestrator `shouldObserve()` first; if no webhook is registered, it skips the snapshot fetch entirely (zero overhead for the default case). Failure-mode discipline (§4e) is enforced at this seam: snapshot-fetch and observe errors are caught and logged, never propagate into the read path.
+
 ### 2. Persistence: JSON config file at platform-standard path
 
 Webhook registrations persist to `~/Library/Application Support/omnifocus-mcp/webhooks.json` on macOS (the only supported runtime per `package.json`'s `os: ["darwin"]`). File mode `0600` — read/write owner only. Schema versioned with a top-level `version: 1` field for forward compatibility.
