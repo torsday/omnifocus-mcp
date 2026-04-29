@@ -201,6 +201,7 @@ import {
 import { registerWebhookDeleteTool } from "../tools/webhook/delete.js";
 import { registerWebhookListTool } from "../tools/webhook/list.js";
 import { registerWebhookRegisterTool } from "../tools/webhook/register.js";
+import { registerWebhookTestTool } from "../tools/webhook/test.js";
 import {
   registerAppWindowNewTabTool,
   registerAppWindowNewTool,
@@ -209,6 +210,8 @@ import {
   registerWindowSetPerspectiveTool,
 } from "../tools/window/index.js";
 import { DatabaseWatcher } from "../watcher/DatabaseWatcher.js";
+import { HttpsDispatcher } from "../webhooks/httpsDispatcher.js";
+import { WebhookOrchestrator } from "../webhooks/orchestrator.js";
 import { WebhookRegistry } from "../webhooks/registry.js";
 import { circuitBreakerRegistry } from "./circuitBreaker.js";
 import {
@@ -331,6 +334,18 @@ export async function startServer(): Promise<void> {
   registerWebhookRegisterTool(server, webhookCtx);
   registerWebhookListTool(server, webhookCtx);
   registerWebhookDeleteTool(server, webhookCtx);
+  // Slice 4 of #483: orchestrator + webhook_test. The cache-observation
+  // hook that calls orchestrator.observeSnapshot() is a separate
+  // follow-up — slice 4 ships the user-facing test surface only.
+  const webhookOrchestrator = new WebhookOrchestrator({
+    registry: webhookRegistry,
+    dispatcher: new HttpsDispatcher(),
+  });
+  registerWebhookTestTool(server, {
+    orchestrator: webhookOrchestrator,
+    enabled: config.OMNIFOCUS_WEBHOOKS_ENABLED,
+    makeMeta,
+  });
 
   // Register the ten MCP resources (DESIGN §28).
   registerCapabilitiesResource(server, async () => {

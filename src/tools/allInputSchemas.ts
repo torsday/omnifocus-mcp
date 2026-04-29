@@ -86,6 +86,7 @@ import { taskUpdateInputBaseSchema } from "./task/update.js";
 import { webhookDeleteInputSchema } from "./webhook/delete.js";
 import { webhookListInputSchema } from "./webhook/list.js";
 import { webhookRegisterInputSchema } from "./webhook/register.js";
+import { webhookTestInputSchema } from "./webhook/test.js";
 
 export const ALL_INPUT_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   attachment_list: attachmentListInputSchema,
@@ -161,4 +162,5 @@ export const ALL_INPUT_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   webhook_delete: webhookDeleteInputSchema,
   webhook_list: webhookListInputSchema,
   webhook_register: webhookRegisterInputSchema,
+  webhook_test: webhookTestInputSchema,
 };
