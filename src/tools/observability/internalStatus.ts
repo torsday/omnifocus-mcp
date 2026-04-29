@@ -15,6 +15,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import type { Capabilities } from "../../resources/capabilities.js";
+import { probeCalendarAccess } from "../../resources/capabilities.js";
 import type { CircuitState } from "../../server/circuitBreaker.js";
 
 // ---------------------------------------------------------------------------
@@ -24,10 +26,14 @@ import type { CircuitState } from "../../server/circuitBreaker.js";
 export const INTERNAL_STATUS_DESCRIPTION =
   "Return a health snapshot of the running omnifocus-mcp server. " +
   "Do NOT use this to read OmniFocus data — prefer task_list, project_list, sync_status, etc. " +
-  "Returns { uptimeMs, ofRunning, lastSync, cache, circuits, queueDepth }. " +
+  "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, cache, circuits, queueDepth }. " +
   "uptimeMs is the milliseconds since the server process started. " +
   "circuits lists each circuit-breaker name and state (closed/open/half_open). " +
   "lastSync mirrors sync_status data; null if getLastSync throws. " +
+  "calendarAccess reports the macOS Calendar bridge state — { available, permission } where " +
+  "available is true when the Swift binary is callable and permission is the live EventKit " +
+  "authorization status (granted | denied | restricted | not-determined), or 'unknown' when " +
+  "available is false. Read-only — does NOT trigger the macOS Calendar TCC prompt. " +
   "Read-only; no side effects. " +
   "Example: internal_status()";
 
@@ -51,6 +57,12 @@ export interface InternalStatusData {
   uptimeMs: number;
   ofRunning: boolean;
   lastSync: { lastSyncAt: string | null; inFlight: boolean } | null;
+  /**
+   * macOS Calendar bridge state (per ADR-0018). `null` when the probe throws
+   * for an unexpected reason — callers should treat that as "unknown" without
+   * failing the whole status read.
+   */
+  calendarAccess: Capabilities["calendarAccess"] | null;
   cache: { size: number; hits: number; misses: number } | null;
   circuits: CircuitSnapshot[];
   queueDepth: number | null;
@@ -67,6 +79,11 @@ export interface InternalStatusContext {
   /** Narrow interface — only the snapshot method is required. */
   circuitRegistry: { snapshot(): Array<{ name: string; state: string }> };
   makeMeta: (partial?: Partial<ResponseMeta>) => ResponseMeta;
+  /**
+   * Override the calendar-access probe. Defaults to `probeCalendarAccess()`,
+   * which spawns the Swift bridge and degrades cleanly when it isn't built.
+   */
+  probeCalendarAccess?: () => Promise<Capabilities["calendarAccess"]>;
 }
 
 /**
@@ -89,10 +106,21 @@ export async function handleInternalStatus(
 
   const circuits = ctx.circuitRegistry.snapshot() as CircuitSnapshot[];
 
+  let calendarAccess: Capabilities["calendarAccess"] | null = null;
+  try {
+    const probe = ctx.probeCalendarAccess ?? probeCalendarAccess;
+    calendarAccess = await probe();
+  } catch {
+    // Unexpected probe failure should not block the status read — surface
+    // null so the caller knows the field is unavailable rather than wrong.
+    calendarAccess = null;
+  }
+
   const data: InternalStatusData = {
     uptimeMs,
     ofRunning: true,
     lastSync,
+    calendarAccess,
     cache: null,
     circuits,
     queueDepth: null,

@@ -29,6 +29,10 @@ function makeCtx(
     getLastSync?: () => Promise<{ lastSyncAt: string | null; inFlight: boolean }>;
     snapshot?: () => Array<{ name: string; state: string }>;
     startedAt?: number;
+    probeCalendarAccess?: () => Promise<{
+      available: boolean;
+      permission: "granted" | "denied" | "restricted" | "not-determined" | "unknown";
+    }>;
   } = {},
 ) {
   const adapter = {
@@ -47,6 +51,11 @@ function makeCtx(
     adapter,
     circuitRegistry,
     makeMeta,
+    // Default to a degraded-friendly stub so tests don't spawn the Swift
+    // bridge (and aren't sensitive to whether the binary is built).
+    probeCalendarAccess:
+      overrides.probeCalendarAccess ??
+      vi.fn().mockResolvedValue({ available: false, permission: "unknown" as const }),
   };
 }
 
@@ -134,5 +143,35 @@ describe("internal_status — error resilience", () => {
     expect(envelope.data.uptimeMs).toBeGreaterThanOrEqual(0);
     expect(envelope.data.ofRunning).toBe(true);
     expect(Array.isArray(envelope.data.circuits)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Handler — calendarAccess
+// ---------------------------------------------------------------------------
+
+describe("internal_status — calendarAccess", () => {
+  it("forwards the probe result verbatim when the bridge is available", async () => {
+    const ctx = makeCtx({
+      probeCalendarAccess: vi.fn().mockResolvedValue({ available: true, permission: "granted" }),
+    });
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.calendarAccess).toEqual({ available: true, permission: "granted" });
+  });
+
+  it("returns the degraded shape when the bridge binary is missing", async () => {
+    const ctx = makeCtx({
+      probeCalendarAccess: vi.fn().mockResolvedValue({ available: false, permission: "unknown" }),
+    });
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.calendarAccess).toEqual({ available: false, permission: "unknown" });
+  });
+
+  it("surfaces null when the probe throws unexpectedly", async () => {
+    const ctx = makeCtx({
+      probeCalendarAccess: vi.fn().mockRejectedValue(new Error("unexpected")),
+    });
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.calendarAccess).toBeNull();
   });
 });
