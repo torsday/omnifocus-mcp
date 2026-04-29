@@ -9,6 +9,8 @@
  *   {"ready":false,"reason":"awaiting-resource-implementation","permission":"granted"}
  *   $ calendar-bridge permission
  *   {"permission":"granted"}
+ *   $ calendar-bridge request-access
+ *   {"granted":true,"permission":"granted"}
  *
  * Output: one JSON line per invocation, written to stdout. Stderr receives
  * diagnostic messages (startup, errors). Stdout is strictly newline-delimited
@@ -16,16 +18,19 @@
  *
  * Subcommands:
  *
- *   ping        — health check + current authorization state. Read-only;
- *                 does NOT trigger the macOS Calendar TCC prompt.
- *   permission  — emit just the authorization state. Read-only; does NOT
- *                 trigger the prompt. Useful for the future Node-side
- *                 capability resource that surfaces `calendarAccess`
- *                 without forcing the user through TCC.
+ *   ping           — health check + current authorization state. Read-only;
+ *                    does NOT trigger the macOS Calendar TCC prompt.
+ *   permission     — emit just the authorization state. Read-only; does NOT
+ *                    trigger the prompt.
+ *   request-access — request Calendar access. **Triggers the macOS TCC
+ *                    prompt on first call** (when current state is
+ *                    `not-determined`); subsequent calls return immediately
+ *                    with the cached state. Async — the binary blocks on a
+ *                    DispatchSemaphore until the EventKit completion handler
+ *                    fires. Emits `{"granted": bool, "permission": "..."}`.
  *
  * `permission` values mirror EventKit's `EKAuthorizationStatus`:
- *   - "not-determined"  — never asked; calling EKEventStore.requestAccess
- *                          would trigger the TCC prompt (separate slice)
+ *   - "not-determined"  — never asked; `request-access` triggers the prompt
  *   - "denied"          — user denied; user must re-grant in System Settings
  *   - "restricted"      — denied at the OS level (parental controls, MDM)
  *   - "granted"         — permission granted; reads will succeed
@@ -33,13 +38,13 @@
  * Subsequent slices of #484 add:
  *   - the `calendar` subcommand: read events in a [from, to] range
  *   - the `agenda` subcommand: merge calendar events with OF forecast data
- *   - explicit `requestAccess` flow that triggers the TCC prompt
  *
  * Lifecycle:
- *   - argv[1] = "ping"     → emit health + permission JSON, exit 0
- *   - argv[1] = "permission" → emit just permission JSON, exit 0
- *   - argv[1] = anything else → diagnostic on stderr, exit 1
- *   - argv[1] missing      → diagnostic on stderr, exit 1
+ *   - argv[1] = "ping"           → emit health + permission JSON, exit 0
+ *   - argv[1] = "permission"     → emit just permission JSON, exit 0
+ *   - argv[1] = "request-access" → trigger prompt (or return cached), exit 0
+ *   - argv[1] = anything else    → diagnostic on stderr, exit 1
+ *   - argv[1] missing            → diagnostic on stderr, exit 1
  *
  * Build:
  *   swiftc tools/calendar-bridge/calendar-bridge.swift -o bin/calendar-bridge-darwin-$(uname -m)
@@ -82,6 +87,45 @@ func authorizationStatusString(_ status: EKAuthorizationStatus) -> String {
     }
 }
 
+/// Trigger the macOS Calendar TCC prompt (or return cached state if already
+/// answered) and emit the result. Uses `requestFullAccessToEvents` on
+/// macOS 14+ and falls back to the deprecated `requestAccess(to:completion:)`
+/// for older targets — both call the same TCC machinery underneath, so the
+/// result is identical for our read-only use case.
+///
+/// The subprocess blocks on a `DispatchSemaphore` until the completion
+/// handler fires, then exits. EventKit dispatches the callback on a
+/// background thread, so we don't need a RunLoop pump — the semaphore is
+/// sufficient to keep the main thread alive.
+func requestAccessAndEmit() -> Never {
+    let store = EKEventStore()
+    let semaphore = DispatchSemaphore(value: 0)
+    var grantedFlag = false
+
+    let completion: (Bool, Error?) -> Void = { granted, error in
+        grantedFlag = granted
+        if let error = error {
+            diagnostic("requestAccess error: \(error.localizedDescription)")
+        }
+        semaphore.signal()
+    }
+
+    if #available(macOS 14.0, *) {
+        store.requestFullAccessToEvents(completion: completion)
+    } else {
+        store.requestAccess(to: .event, completion: completion)
+    }
+
+    semaphore.wait()
+
+    // Re-query authorization status after the prompt resolves: `granted` is
+    // the boolean result, but the EKAuthorizationStatus is the stable
+    // surface we report alongside it.
+    let resolved = authorizationStatusString(EKEventStore.authorizationStatus(for: .event))
+    emit(#"{"granted":\#(grantedFlag),"permission":"\#(resolved)"}"#)
+    exit(0)
+}
+
 let permission = authorizationStatusString(EKEventStore.authorizationStatus(for: .event))
 
 switch argv1 {
@@ -98,13 +142,16 @@ case "permission":
     emit(#"{"permission":"\#(permission)"}"#)
     exit(0)
 
+case "request-access":
+    requestAccessAndEmit()
+
 case "":
     diagnostic("missing subcommand. Usage: calendar-bridge <subcommand>")
-    diagnostic("subcommands: ping, permission")
+    diagnostic("subcommands: ping, permission, request-access")
     exit(1)
 
 default:
     diagnostic("unknown subcommand: \(argv1)")
-    diagnostic("subcommands: ping, permission")
+    diagnostic("subcommands: ping, permission, request-access")
     exit(1)
 }
