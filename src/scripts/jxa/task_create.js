@@ -195,15 +195,28 @@ function run(argv) {
   // The working pattern mirrors the inbox-task fix in #275 and the
   // project/folder/tag fix in #319: construct a specifier via the class name
   // and push it onto the target collection.
+  // JXA's `byId(...)` returns a lazy specifier that's always truthy; the
+  // actual lookup happens on the first method call (#674). Force it early
+  // by calling `.id()` so a missing target produces a structured
+  // "X not found: <id>" message that the classifier maps to NotFound, not
+  // an opaque "Can't get object. (-1728)" surfaced as ScriptError.
   let newTask;
   if (args.parentId) {
     const parent = ofApp.defaultDocument.flattenedTasks.byId(args.parentId);
-    if (!parent) throw new Error(`Parent task not found: ${args.parentId}`);
+    try {
+      parent.id();
+    } catch (_e) {
+      throw new Error(`Parent task not found: ${args.parentId}`);
+    }
     newTask = ofApp.Task(props);
     parent.tasks.push(newTask);
   } else if (args.projectId) {
     const proj = ofApp.defaultDocument.flattenedProjects.byId(args.projectId);
-    if (!proj) throw new Error(`Project not found: ${args.projectId}`);
+    try {
+      proj.id();
+    } catch (_e) {
+      throw new Error(`Project not found: ${args.projectId}`);
+    }
     newTask = ofApp.Task(props);
     proj.tasks.push(newTask);
   } else {
