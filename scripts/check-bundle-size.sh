@@ -20,14 +20,15 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 BUNDLE="dist/index.js"
-# 625 KiB. Bumped 610 → 625 KiB on 2026-04-28 alongside #577 because the
-# perspective_create + perspective_update pair (slices B/C of the
-# custom-perspective CRUD work) added ~12 KiB: two OmniJS scripts inlined
-# verbatim, an input rule schema with refinements, and two tools whose
-# descriptions document the patch semantics. Previously 610 KiB on
-# 2026-04-28 alongside #570 (Example: sweep, ~7 KiB of strings); 580 KiB
-# alongside #494; 540, 525, originally 500 KiB. Keep in sync with DESIGN §20.
-BUDGET=640000
+# 640 KiB. Bumped 625 → 640 KiB on 2026-04-29 alongside the final slice of
+# #484 (omnifocus://agenda — calendar + forecast merge). The agenda module
+# adds the merge logic, the AgendaItem discriminated union, and the wire-shape
+# resource description; together with calendarBridge + calendar resource the
+# slice surface from #484 totals ~10 KiB. Previously 625 KiB on 2026-04-28
+# alongside #577 (perspective CRUD slice B/C); 610 KiB alongside #570
+# (Example: sweep); 580 KiB alongside #494; 540, 525, originally 500 KiB.
+# Keep in sync with DESIGN §20.
+BUDGET=655360
 
 if [ ! -f "$BUNDLE" ]; then
   echo "::error::$BUNDLE not found — run 'pnpm build' first." >&2
@@ -35,9 +36,9 @@ if [ ! -f "$BUNDLE" ]; then
 fi
 
 SIZE=$(wc -c < "$BUNDLE" | tr -d ' ')
-echo "$BUNDLE: ${SIZE} bytes (budget: ${BUDGET} bytes / 625 KiB)"
+echo "$BUNDLE: ${SIZE} bytes (budget: ${BUDGET} bytes / 640 KiB)"
 
 if [ "$SIZE" -gt "$BUDGET" ]; then
-  echo "::error::bundle exceeds 625 KiB budget (${SIZE} > ${BUDGET})" >&2
+  echo "::error::bundle exceeds 640 KiB budget (${SIZE} > ${BUDGET})" >&2
   exit 1
 fi
