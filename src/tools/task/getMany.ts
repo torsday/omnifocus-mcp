@@ -24,6 +24,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
+import { type Decision, parseDecision } from "../../domain/decisionJournal.js";
 import { TaskId } from "../../domain/ids.js";
 import { parseWaitingOn, type WaitingOn } from "../../domain/waitingOn.js";
 import { ok, type ResponseMeta, toolResponse, warnIdsNotFound } from "../../envelope/index.js";
@@ -100,19 +101,31 @@ export async function handleTaskGetMany(input: TaskGetManyInput, ctx: TaskGetMan
   const tasks = raw.filter((t): t is NonNullable<typeof t> => t !== null);
   const missing = input.ids.filter((_id, i) => raw[i] === null);
 
-  // Surface parsed waiting-on data as a sibling field keyed by task id so the
-  // Task domain object stays the canonical wire shape (#482).
+  // Surface parsed waiting-on and decision-journal data as sibling fields
+  // keyed by task id so the Task domain object stays the canonical wire shape
+  // (#482, #485).
   const waitingOn: Record<string, WaitingOn> = {};
+  const decisions: Record<string, Decision> = {};
   for (const t of tasks) {
-    const entry = parseWaitingOn(t.note);
-    if (entry !== undefined) waitingOn[t.id] = entry;
+    const w = parseWaitingOn(t.note);
+    if (w !== undefined) waitingOn[t.id] = w;
+    const d = parseDecision(t.note);
+    if (d !== undefined) decisions[t.id] = d;
   }
   const hasWaitingOn = Object.keys(waitingOn).length > 0;
+  const hasDecisions = Object.keys(decisions).length > 0;
 
   const warnings = missing.length > 0 ? [warnIdsNotFound(missing)] : undefined;
   const meta = ctx.makeMeta({ ...(warnings !== undefined ? { warnings } : {}) });
 
-  return ok({ tasks, ...(hasWaitingOn && { waitingOn }) }, meta);
+  return ok(
+    {
+      tasks,
+      ...(hasWaitingOn && { waitingOn }),
+      ...(hasDecisions && { decisions }),
+    },
+    meta,
+  );
 }
 
 // ---------------------------------------------------------------------------

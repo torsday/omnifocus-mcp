@@ -70,6 +70,8 @@ import { registerAttachmentTools } from "../tools/attachment/index.js";
 import { registerClarifyTool } from "../tools/clarify.js";
 import { registerDatabaseRedoTool } from "../tools/database/redo.js";
 import { registerDatabaseUndoTool } from "../tools/database/undo.js";
+import { registerDecisionClearTool } from "../tools/decision/clear.js";
+import { registerDecisionRecordTool } from "../tools/decision/record.js";
 import { registerExportOpmlTool } from "../tools/export/opml.js";
 import { registerImportOpmlTool } from "../tools/export/opml_import.js";
 import { registerTaskPaperTools } from "../tools/export/taskpaper.js";
@@ -502,6 +504,8 @@ export async function startServer(): Promise<void> {
   registerTaskParseTransportTextTool(server, { makeMeta });
   registerClarifyTool(server, { makeMeta });
   registerRepetitionFromProseTool(server, { makeMeta, replayStore });
+  registerDecisionRecordTool(server, taskMutationCtx);
+  registerDecisionClearTool(server, taskMutationCtx);
   registerTaskDeferSmartTool(server, taskMutationCtx);
   registerTaskBatchDeferSmartTool(server, taskMutationCtx);
   registerTaskReclassifyTool(server, taskMutationCtx);

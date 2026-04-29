@@ -836,7 +836,7 @@ Coverage is not enforced because it's gameable. Test *fidelity* is enforced at r
 - `pnpm lint` — zero errors; biome config enforces `coding.md` standards
 - `pnpm test` — zero failures; execution < 10s
 - `pnpm build` — single-file bundle emitted to `dist/index.js`
-- Bundle size budget: < 640 KiB (tsup --minify); above that blocks release. Bumped 500 → 525 → 540 → 580 → 610 → 625 → 640 KiB as the tool surface grew — per-tool string and Zod-schema overhead became the dominant bundle cost. The 625 → 640 bump landed alongside the final slice of [#484](https://github.com/torsday/omnifocus-mcp/issues/484) (calendar + agenda — bridge wrapper, calendar resource, agenda merge module, AgendaItem union, capabilities probe). The 610 → 625 bump landed alongside [#577](https://github.com/torsday/omnifocus-mcp/issues/577) (perspective_create + perspective_update added two OmniJS scripts inlined verbatim plus a recursive input rule schema). The 580 → 610 bump landed alongside [#570](https://github.com/torsday/omnifocus-mcp/issues/570) (Example: sweep added ~7 KiB of description strings). Further bumps should NOT be flat increases: [#578](https://github.com/torsday/omnifocus-mcp/issues/578) tracks the tree-shaking / code-splitting investigation that should replace the next bump.
+- Bundle size budget: < 660 KiB (tsup --minify); above that blocks release. Bumped 500 → 525 → 540 → 580 → 610 → 625 → 640 → 660 KiB as the tool surface grew — per-tool string and Zod-schema overhead became the dominant bundle cost. The 640 → 660 bump landed alongside slice 1 of [#485](https://github.com/torsday/omnifocus-mcp/issues/485) (decision-journal: decision_record + decision_clear tools, parser, read-side integration on get/get_many for both tasks and projects). The 625 → 640 bump landed alongside the final slice of [#484](https://github.com/torsday/omnifocus-mcp/issues/484) (calendar + agenda — bridge wrapper, calendar resource, agenda merge module, AgendaItem union, capabilities probe). The 610 → 625 bump landed alongside [#577](https://github.com/torsday/omnifocus-mcp/issues/577) (perspective_create + perspective_update added two OmniJS scripts inlined verbatim plus a recursive input rule schema). The 580 → 610 bump landed alongside [#570](https://github.com/torsday/omnifocus-mcp/issues/570) (Example: sweep added ~7 KiB of description strings). Further bumps should NOT be flat increases: [#578](https://github.com/torsday/omnifocus-mcp/issues/578) tracks the tree-shaking / code-splitting investigation that should replace the next bump.
 
 ### Required status checks (branch protection on `main`)
 
@@ -1343,5 +1343,23 @@ key2: value2
 |---|---|---|---|
 | Waiting-on tracking | `waiting-on` | `src/domain/waitingOn.ts` | #482 |
 | Project templates | `project-template` | `src/domain/projectTemplates.ts` | #472 |
+| Decision journal | `decision-journal` | `src/domain/decisionJournal.ts` | #485 |
 
 New features that need structured per-item state should adopt this convention rather than inventing a new storage mechanism. See §30 for the project-templates use case as a reference implementation.
+
+### Decision journal — agent memory of user judgment
+
+When `project_health` (or any agent-driven scan) flags an anomaly and the user replies "that's deliberate," the agent records the judgment as a `decision-journal` fence on the target's note. Future scans honor the decision until it's cleared (`decision_clear`) or its `until` expiry passes.
+
+The fence carries:
+
+| Field | Type | Required | Notes |
+|---|---|:-:|---|
+| `kind` | enum | yes | One of `stall-is-intentional`, `deferred-by-choice`, `blocked-on-external`, `awaiting-decision`, `acknowledged-zombie`. Closed at write time but extensible across releases. |
+| `reason` | string | yes | Human-readable explanation surfaced when a future scan asks "why is this still here?" |
+| `recordedAt` | ISO-8601 with offset | yes | Set automatically by `decision_record`. |
+| `until` | ISO-8601 with offset | no | Auto-expiry. When in the past, `isDecisionActive` returns false and downstream consumers re-surface the target. |
+
+Both targets — tasks and projects — accept decisions; `decision_record` discriminates on `targetKind`. The fence sits alongside other fences (e.g. `waiting-on`) in the same note without conflict; `noteFences` operations are tag-scoped.
+
+Read-side integration surfaces a `decision` field on `task_get`, `task_get_many`, `project_get`, `project_get_many` whenever a fence is present. The `project_health` integration (slice 2 of #485) honors active decisions by partitioning stalled projects into a separate `acknowledged` array — auditable, not invisible.

@@ -12,6 +12,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { type Decision, parseDecision } from "../../domain/decisionJournal.js";
 import { ProjectId } from "../../domain/ids.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { ProjectService } from "../../services/projectService.js";
@@ -65,10 +66,16 @@ export async function handleProjectGet(input: ProjectGetToolInput, ctx: ProjectG
     ...(input.includeTaskTree !== undefined ? { includeTaskTree: input.includeTaskTree } : {}),
   });
   const meta = ctx.makeMeta({ cacheHit: result.cacheHit });
-  const data: { project: typeof result.project; tasks?: typeof result.tasks } = {
+  const decision = parseDecision(result.project.note);
+  const data: {
+    project: typeof result.project;
+    tasks?: typeof result.tasks;
+    decision?: Decision;
+  } = {
     project: result.project,
   };
   if (result.tasks !== undefined) data.tasks = result.tasks;
+  if (decision !== undefined) data.decision = decision;
   return ok(data, meta);
 }
 

@@ -20,15 +20,17 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 BUNDLE="dist/index.js"
-# 640 KiB. Bumped 625 → 640 KiB on 2026-04-29 alongside the final slice of
-# #484 (omnifocus://agenda — calendar + forecast merge). The agenda module
-# adds the merge logic, the AgendaItem discriminated union, and the wire-shape
-# resource description; together with calendarBridge + calendar resource the
-# slice surface from #484 totals ~10 KiB. Previously 625 KiB on 2026-04-28
-# alongside #577 (perspective CRUD slice B/C); 610 KiB alongside #570
-# (Example: sweep); 580 KiB alongside #494; 540, 525, originally 500 KiB.
-# Keep in sync with DESIGN §20.
-BUDGET=655360
+# 660 KiB. Bumped 640 → 660 KiB on 2026-04-29 alongside #485 slice 1
+# (decision-journal: decision_record + decision_clear tools + parser +
+# read-side integration on get/get_many for tasks and projects + DESIGN.md
+# §31 expansion). The slice 1 surface measured ~1.7 KiB over the 640 KiB
+# ceiling; bumping by a full 20 KiB to leave headroom for slice 2's
+# project_health integration (acknowledged-array partition + active-decision
+# filter). Previously 640 KiB on 2026-04-29 alongside the final slice of
+# #484 (omnifocus://agenda); 625 KiB alongside #577 (perspective CRUD
+# slice B/C); 610 KiB alongside #570 (Example: sweep); 580 KiB alongside
+# #494; 540, 525, originally 500 KiB. Keep in sync with DESIGN §20.
+BUDGET=675840
 
 if [ ! -f "$BUNDLE" ]; then
   echo "::error::$BUNDLE not found — run 'pnpm build' first." >&2
@@ -36,9 +38,9 @@ if [ ! -f "$BUNDLE" ]; then
 fi
 
 SIZE=$(wc -c < "$BUNDLE" | tr -d ' ')
-echo "$BUNDLE: ${SIZE} bytes (budget: ${BUDGET} bytes / 640 KiB)"
+echo "$BUNDLE: ${SIZE} bytes (budget: ${BUDGET} bytes / 660 KiB)"
 
 if [ "$SIZE" -gt "$BUDGET" ]; then
-  echo "::error::bundle exceeds 640 KiB budget (${SIZE} > ${BUDGET})" >&2
+  echo "::error::bundle exceeds 660 KiB budget (${SIZE} > ${BUDGET})" >&2
   exit 1
 fi
