@@ -374,3 +374,126 @@ describe("PROJECT_HEALTH_URI_TEMPLATE", () => {
     expect(PROJECT_HEALTH_URI_TEMPLATE).toBe("omnifocus://project-health{?staleDays}");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Decision-journal honoring (#485 slice 2)
+// ---------------------------------------------------------------------------
+
+describe("buildProjectHealthPayload — decision-journal honoring", () => {
+  function decisionFence(opts: {
+    kind: string;
+    reason: string;
+    recordedAt: string;
+    until?: string;
+  }): string {
+    const lines = [
+      "```decision-journal",
+      `kind: ${opts.kind}`,
+      `reason: ${opts.reason}`,
+      `recordedAt: ${opts.recordedAt}`,
+    ];
+    if (opts.until !== undefined) lines.push(`until: ${opts.until}`);
+    lines.push("```");
+    return lines.join("\n");
+  }
+
+  it("partitions a flagged project with an active decision into `acknowledged`, not `projects`", async () => {
+    const adapter = new InMemoryAdapter();
+    await adapter.createProject({ name: "no-action-no-decision" });
+    await adapter.createProject({
+      name: "deliberately-stalled",
+      note: decisionFence({
+        kind: "stall-is-intentional",
+        reason: "Strategic pause until Q3 budget cycle",
+        recordedAt: "2026-04-01T10:00:00Z",
+      }),
+    });
+
+    const payload = await buildProjectHealthPayload(adapter, undefined, NOW);
+
+    expect(payload.projects.find((p) => p.name === "deliberately-stalled")).toBeUndefined();
+    const inAcknowledged = payload.acknowledged.find((p) => p.name === "deliberately-stalled");
+    expect(inAcknowledged).toBeDefined();
+    expect(inAcknowledged?.decision?.kind).toBe("stall-is-intentional");
+    expect(inAcknowledged?.decision?.reason).toContain("Strategic pause");
+
+    expect(payload.projects.find((p) => p.name === "no-action-no-decision")).toBeDefined();
+  });
+
+  it("expired decisions (until in the past) re-emerge in `projects`", async () => {
+    const adapter = new InMemoryAdapter();
+    await adapter.createProject({
+      name: "expired-decision",
+      note: decisionFence({
+        kind: "deferred-by-choice",
+        reason: "Wait for Alice's review",
+        recordedAt: "2026-01-01T10:00:00Z",
+        until: "2026-03-01T10:00:00Z", // before NOW = 2026-04-01
+      }),
+    });
+
+    const payload = await buildProjectHealthPayload(adapter, undefined, NOW);
+
+    expect(payload.acknowledged.find((p) => p.name === "expired-decision")).toBeUndefined();
+    expect(payload.projects.find((p) => p.name === "expired-decision")).toBeDefined();
+  });
+
+  it("active decisions with future `until` keep the project in `acknowledged`", async () => {
+    const adapter = new InMemoryAdapter();
+    await adapter.createProject({
+      name: "future-until",
+      note: decisionFence({
+        kind: "blocked-on-external",
+        reason: "Waiting on vendor SDK",
+        recordedAt: "2026-04-01T10:00:00Z",
+        until: "2099-01-01T10:00:00Z",
+      }),
+    });
+
+    const payload = await buildProjectHealthPayload(adapter, undefined, NOW);
+    expect(payload.acknowledged.find((p) => p.name === "future-until")).toBeDefined();
+    expect(payload.projects.find((p) => p.name === "future-until")).toBeUndefined();
+  });
+
+  it("a project with a malformed decision fence is treated as no-decision (still flagged)", async () => {
+    const adapter = new InMemoryAdapter();
+    await adapter.createProject({
+      name: "malformed",
+      note: "```decision-journal\nthis is not valid yaml at all\n```",
+    });
+
+    const payload = await buildProjectHealthPayload(adapter, undefined, NOW);
+    expect(payload.acknowledged.find((p) => p.name === "malformed")).toBeUndefined();
+    expect(payload.projects.find((p) => p.name === "malformed")).toBeDefined();
+  });
+
+  it("returns empty `acknowledged` array (never undefined) when no decisions are present", async () => {
+    const adapter = new InMemoryAdapter();
+    const payload = await buildProjectHealthPayload(adapter, undefined, NOW);
+    expect(payload.acknowledged).toEqual([]);
+  });
+
+  it("acknowledged entries are sorted by name within equal severity", async () => {
+    const adapter = new InMemoryAdapter();
+    await adapter.createProject({
+      name: "beta",
+      note: decisionFence({
+        kind: "stall-is-intentional",
+        reason: "y",
+        recordedAt: "2026-04-01T10:00:00Z",
+      }),
+    });
+    await adapter.createProject({
+      name: "alpha",
+      note: decisionFence({
+        kind: "stall-is-intentional",
+        reason: "x",
+        recordedAt: "2026-04-01T10:00:00Z",
+      }),
+    });
+
+    const payload = await buildProjectHealthPayload(adapter, undefined, NOW);
+    const names = payload.acknowledged.map((p) => p.name);
+    expect(names).toEqual(["alpha", "beta"]);
+  });
+});

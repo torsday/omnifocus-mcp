@@ -23,6 +23,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import type { OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
+import { type Decision, isDecisionActive, parseDecision } from "../domain/decisionJournal.js";
 import { isProjectStalled, STALLED_DAYS } from "../domain/health.js";
 import type { Task } from "../domain/task.js";
 
@@ -62,11 +63,31 @@ export interface ProjectHealthEntry {
   name: string;
   status: string;
   signals: ProjectHealthSignals;
+  /**
+   * Active decision-journal entry from the project's note (per #485). Present
+   * when the project would otherwise be flagged but the user has recorded a
+   * deliberate judgment via `decision_record` and the `until` (if any) has
+   * not passed. Entries with a `decision` field appear under `acknowledged`,
+   * not `projects` — the partition is the user-judgment honoring.
+   */
+  decision?: Decision;
 }
 
 export interface ProjectHealthPayload {
-  /** Triage list — projects flagged by ≥1 health condition, sorted by severity. */
+  /**
+   * Triage list — flagged projects with no active decision recorded,
+   * sorted by severity. These are the projects the user has not yet
+   * acknowledged as "deliberately stalled."
+   */
   projects: readonly ProjectHealthEntry[];
+  /**
+   * Per #485: flagged projects with an active decision-journal entry land
+   * here instead of `projects`. Auditable, not invisible — the agent can
+   * surface "X projects on hold by your judgment" without re-litigating
+   * each one. When a decision's `until` passes, the project re-emerges in
+   * `projects`; the fence itself is preserved as audit history.
+   */
+  acknowledged: readonly ProjectHealthEntry[];
   /** The threshold used for "stale activity" — echoes back `staleDays` or the default. */
   staleDays: number;
   /** ISO-8601 generation timestamp. */
@@ -210,6 +231,7 @@ export async function buildProjectHealthPayload(
   const tasksByProject = groupTasksByProject(allTasks);
 
   const flagged: Array<ProjectHealthEntry & { _severity: number }> = [];
+  const acknowledged: Array<ProjectHealthEntry & { _severity: number }> = [];
 
   for (const project of allProjects) {
     const isActive = project.status === "active" && !project.completed && !project.dropped;
@@ -223,23 +245,40 @@ export async function buildProjectHealthPayload(
 
     if (!isFlagged(signals, stalled, isActive)) continue;
 
-    flagged.push({
+    // Per #485: a flagged project with an *active* decision-journal entry
+    // is partitioned into `acknowledged` instead of `projects`. Expired
+    // decisions (`until` in the past) are ignored — the fence stays on the
+    // note as audit history but the project re-surfaces in `projects`.
+    const decision = parseDecision(project.note);
+    const isAcknowledged = decision !== undefined && isDecisionActive(decision, now);
+
+    const entry: ProjectHealthEntry & { _severity: number } = {
       projectId: String(project.id),
       name: project.name,
       status: project.status,
       signals,
+      ...(decision !== undefined && { decision }),
       _severity: severityScore(signals),
-    });
+    };
+
+    if (isAcknowledged) acknowledged.push(entry);
+    else flagged.push(entry);
   }
 
-  // Sort descending by severity, then by name as a stable tiebreaker.
-  flagged.sort((a, b) => {
+  // Sort each partition independently — descending severity, name tiebreak.
+  const bySeverity = (
+    a: ProjectHealthEntry & { _severity: number },
+    b: ProjectHealthEntry & { _severity: number },
+  ): number => {
     if (a._severity !== b._severity) return b._severity - a._severity;
     return a.name.localeCompare(b.name);
-  });
+  };
+  flagged.sort(bySeverity);
+  acknowledged.sort(bySeverity);
 
   return {
     projects: flagged.map(({ _severity, ...entry }) => entry),
+    acknowledged: acknowledged.map(({ _severity, ...entry }) => entry),
     staleDays,
     generatedAt: now.toISOString(),
   };
@@ -276,6 +315,9 @@ export function registerProjectHealthResource(server: McpServer, adapter: OmniFo
         "availableTaskCount, blockedTaskCount, hasNoActions, deferredFutureTasks, lastReviewedAt, daysSinceReview, " +
         "overdueForReview), filtered to projects matching ≥1 of: ≥ staleDays since last activity (default 14, " +
         "override with ?staleDays=N), zero available tasks, overdue for review, all tasks deferred into the future. " +
+        "Projects with an active decision-journal entry (#485) are partitioned into a separate `acknowledged` array " +
+        "rather than `projects` — auditable, not invisible. When a decision's `until` passes, the project re-emerges " +
+        "in `projects` automatically. " +
         "Sorted by severity (review-overdue first, then longest no-activity, then no-available-tasks). " +
         "Granular signals — leaves the judgment (blocked vs abandoned) to the agent. Read-only.",
       mimeType: "application/json",
