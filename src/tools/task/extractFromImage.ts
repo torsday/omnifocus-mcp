@@ -131,19 +131,39 @@ const proposedTaskSchema = z.object({
 
 const sourceSchema = z
   .discriminatedUnion("kind", [
-    z.object({
-      kind: z.literal("path"),
-      imagePath: z
-        .string()
-        .min(1)
-        .describe("Absolute path; within attachment-path-scope + size cap."),
-    }),
-    z.object({
-      kind: z.literal("attachment"),
-      attachmentId: AttachmentId.schema,
-      ownerTaskId: TaskId.schema.optional(),
-      ownerProjectId: ProjectId.schema.optional(),
-    }),
+    z
+      .object({
+        kind: z.literal("path"),
+        imagePath: z
+          .string()
+          .min(1)
+          .describe(
+            "Absolute path within attachment-path-scope, with one of the supported image " +
+              `extensions (${IMAGE_EXTENSIONS.join(",")}). Subject to the configured size cap.`,
+          )
+          .refine(hasImageExtension, {
+            message: `imagePath must use one of ${IMAGE_EXTENSIONS.join(",")}`,
+          }),
+      })
+      .describe("Image read from a filesystem path."),
+    z
+      .object({
+        kind: z.literal("attachment"),
+        attachmentId: AttachmentId.schema.describe(
+          "Persistent ID of the OF attachment carrying the image.",
+        ),
+        ownerTaskId: TaskId.schema
+          .optional()
+          .describe(
+            "Owner task that holds the attachment. Mutually exclusive with ownerProjectId.",
+          ),
+        ownerProjectId: ProjectId.schema
+          .optional()
+          .describe(
+            "Owner project that holds the attachment. Mutually exclusive with ownerTaskId.",
+          ),
+      })
+      .describe("Image referenced via an existing OF attachment ID."),
   ])
   .describe("Image source. attachment requires exactly one owner.");
 
@@ -158,7 +178,9 @@ const attachSourceToSchema = z
  */
 const taskExtractFromImageInputBaseSchema = z.object({
   source: sourceSchema,
-  targetProjectId: ProjectId.schema,
+  targetProjectId: ProjectId.schema.describe(
+    "Project that receives the captured tasks (and the wrapper, if `parent-task` mode).",
+  ),
   proposed: z.array(proposedTaskSchema).min(1).describe("Agent-supplied extraction."),
   attachSourceTo: attachSourceToSchema,
   parentTaskName: z
@@ -190,7 +212,11 @@ export const taskExtractFromImageInputSchema = taskExtractFromImageInputBaseSche
         "attachment source requires exactly one of source.ownerTaskId or source.ownerProjectId",
       path: ["source"],
     },
-  );
+  )
+  .refine((v) => v.source.kind !== "attachment" || v.attachSourceTo === "none", {
+    message: "attachment-mode source requires attachSourceTo='none' (v1 limitation)",
+    path: ["attachSourceTo"],
+  });
 
 export type TaskExtractFromImageInput = z.infer<typeof taskExtractFromImageInputSchema>;
 
@@ -226,12 +252,9 @@ async function resolveSource(
   ctx: TaskExtractFromImageContext,
 ): Promise<ResolvedSource> {
   if (source.kind === "path") {
-    if (!hasImageExtension(source.imagePath)) {
-      throw new ValidationError(
-        `Unsupported image extension: ${source.imagePath}. Allowed: ${IMAGE_EXTENSIONS.join(",")}`,
-        { details: { field: "source.imagePath" } },
-      );
-    }
+    // Image-extension check is now enforced at the Zod boundary
+    // (see sourceSchema.path.imagePath.refine). Reaching this branch means
+    // the path is already validated.
     return { kind: "path", imagePath: source.imagePath };
   }
   const owner = source.ownerTaskId
@@ -291,12 +314,8 @@ export async function handleTaskExtractFromImage(
     );
   }
 
-  if (resolved.kind === "attachment" && input.attachSourceTo !== "none") {
-    throw new ValidationError("attachment-mode source requires attachSourceTo='none' only in v1.", {
-      details: { field: "attachSourceTo", attachSourceTo: input.attachSourceTo },
-    });
-  }
-
+  // The (resolved.kind === "attachment" && attachSourceTo !== "none")
+  // exclusion is now enforced at the Zod boundary (see input-schema refine).
   const confirmation = input.confirmation;
   const sourcePath = resolved.kind === "path" ? resolved.imagePath : undefined;
   let parent: ParentTaskRecord | undefined;

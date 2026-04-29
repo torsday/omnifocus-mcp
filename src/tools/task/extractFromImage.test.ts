@@ -142,8 +142,9 @@ describe("handleTaskExtractFromImage — dry run", () => {
     const txtPath = join(tmpdir(), `omnifocus-mcp-486-${randomUUID()}.txt`);
     await writeFile(txtPath, "not an image");
 
-    await expect(
-      handleTaskExtractFromImage(
+    let caught: unknown;
+    try {
+      await handleTaskExtractFromImage(
         {
           source: { kind: "path", imagePath: txtPath },
           targetProjectId: projId,
@@ -152,8 +153,14 @@ describe("handleTaskExtractFromImage — dry run", () => {
           dryRun: true,
         },
         makeCtx(adapter),
-      ),
-    ).rejects.toThrow(/Unsupported image extension/);
+      );
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    const failures = (caught as { details?: { failures?: Array<{ expected: string }> } }).details
+      ?.failures;
+    expect(failures?.some((f) => /imagePath must use one of/.test(f.expected))).toBe(true);
   });
 });
 
@@ -370,6 +377,16 @@ describe("handleTaskExtractFromImage — attachment-mode source", () => {
         },
         makeCtx(adapter),
       ),
-    ).rejects.toThrow(/attachSourceTo='none'/);
+    ).rejects.toMatchObject({
+      details: {
+        failures: expect.arrayContaining([
+          expect.objectContaining({
+            expected: expect.stringMatching(
+              /attachment-mode source requires attachSourceTo='none'/,
+            ),
+          }),
+        ]),
+      },
+    });
   });
 });
