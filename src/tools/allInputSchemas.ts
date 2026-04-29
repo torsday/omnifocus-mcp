@@ -16,6 +16,8 @@ import {
   attachmentRemoveInputSchema,
   attachmentSaveToPathInputSchema,
 } from "./attachment/index.js";
+import { decisionClearInputSchema } from "./decision/clear.js";
+import { decisionRecordInputSchema } from "./decision/record.js";
 import { importOpmlInputSchema } from "./export/opml_import.js";
 import { exportTaskPaperInputSchema, importTaskPaperInputSchema } from "./export/taskpaper.js";
 import { folderCreateInputSchema } from "./folder/create.js";
@@ -86,6 +88,8 @@ export const ALL_INPUT_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   attachment_add: attachmentAddInputSchema,
   attachment_remove: attachmentRemoveInputSchema,
   attachment_save_to_path: attachmentSaveToPathInputSchema,
+  decision_clear: decisionClearInputSchema,
+  decision_record: decisionRecordInputSchema,
   export_taskpaper: exportTaskPaperInputSchema,
   folder_create: folderCreateInputSchema,
   folder_delete: folderDeleteInputSchema,

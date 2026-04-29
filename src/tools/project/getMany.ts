@@ -22,6 +22,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
+import { type Decision, parseDecision } from "../../domain/decisionJournal.js";
 import { ProjectId } from "../../domain/ids.js";
 import { ok, type ResponseMeta, toolResponse, warnIdsNotFound } from "../../envelope/index.js";
 import { ValidationError } from "../../errors/index.js";
@@ -89,10 +90,17 @@ export async function handleProjectGetMany(input: ProjectGetManyInput, ctx: Proj
   const projects = raw.filter((p): p is NonNullable<typeof p> => p !== null);
   const missing = input.ids.filter((_id, i) => raw[i] === null);
 
+  const decisions: Record<string, Decision> = {};
+  for (const p of projects) {
+    const d = parseDecision(p.note);
+    if (d !== undefined) decisions[p.id] = d;
+  }
+  const hasDecisions = Object.keys(decisions).length > 0;
+
   const warnings = missing.length > 0 ? [warnIdsNotFound(missing)] : undefined;
   const meta = ctx.makeMeta({ ...(warnings !== undefined ? { warnings } : {}) });
 
-  return ok({ projects }, meta);
+  return ok({ projects, ...(hasDecisions && { decisions }) }, meta);
 }
 
 // ---------------------------------------------------------------------------

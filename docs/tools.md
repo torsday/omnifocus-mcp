@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 135 tools registered.
+> Auto-generated from source. 137 tools registered.
 
 ## Table of contents
 
@@ -15,6 +15,8 @@
 - [attachment_save_to_path](#attachment_save_to_path)
 - [database_redo](#database_redo)
 - [database_undo](#database_undo)
+- [decision_clear](#decision_clear)
+- [decision_record](#decision_record)
 - [export_opml](#export_opml)
 - [export_taskpaper](#export_taskpaper)
 - [folder_create](#folder_create)
@@ -420,6 +422,75 @@ _No parameters._
 ```json
 {
   "toolName": "database_undo",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## decision_clear
+
+Clear the decision-journal entry from a task or project's note. Strips only the `decision-journal` fenced block; any other user prose and sibling fences (e.g. waiting-on) are preserved. Idempotent: returns noChange:true when the target has no decision recorded. Do NOT use this to delete the target — prefer task_delete / project_delete. Returns { targetKind, targetId, cleared:true } or { targetKind, targetId, noChange:true }. Side effects: writes the target's note via task_update / project_update; sets meta.syncPending = true. Example: { "targetKind": "project", "targetId": "abc" }
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `targetKind` | one of: task | project | Yes | Whether the target is a task or a project. |
+| `targetId` | string | Yes | ID of the task or project. |
+
+### Example call
+
+```json
+{
+  "toolName": "decision_clear",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## decision_record
+
+Record agent memory of user judgment on a task or project — kind, reason, and an optional auto-expiry. Writes a `decision-journal` fenced block to the target's note (preserving any existing user prose), so future scans (e.g. project_health) can honor the decision instead of re-litigating it. Discriminates on `targetKind`: 'task' or 'project'. Do NOT use this for short-lived state — prefer waiting-on for follow-ups, or task_update for routine field changes. Returns { targetKind, targetId, decision } with the persisted entry. Side effects: writes the target's note via task_update / project_update; sets meta.syncPending = true. Example: { "targetKind": "project", "targetId": "abc", "decision": { "kind": "stall-is-intentional", "reason": "Strategic pause until Q3" } }
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `targetKind` | one of: task | project | Yes | Whether the decision attaches to a task or a project. |
+| `targetId` | string | Yes | ID of the task or project. Must match `targetKind` — agent-side validation, but the adapter call surfaces NotFound if the ID is wrong. |
+| `decision` | object | Yes | The decision payload. `recordedAt` is set automatically on write. |
+
+### Example call
+
+```json
+{
+  "toolName": "decision_record",
   "arguments": {}
 }
 ```
