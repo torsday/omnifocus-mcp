@@ -39,6 +39,12 @@ jobs:
     permissions:
       contents: write   # needed to create a GitHub Release
       id-token: write   # needed for npm provenance (and future OIDC publish)
+    env:
+      # Lifted to the job level so the Homebrew step's `if: env.X != ''`
+      # conditional can read it. Step-level env is not in scope for the
+      # same step's `if:` expression — that pattern silently skipped the
+      # Homebrew formula update through every release before #670.
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
     steps:
       - uses: actions/checkout@v6
@@ -119,12 +125,10 @@ jobs:
       - name: Update Homebrew tap formula
         # Patches torsday/homebrew-tap/Formula/omnifocus-mcp.rb with the new
         # version + sha256 so `brew upgrade torsday/tap/omnifocus-mcp` works
-        # immediately after the npm publish settles.
-        # Requires a PAT (HOMEBREW_TAP_TOKEN) with contents:write on the tap
-        # repo — store it in Settings → Secrets → Actions.
+        # immediately after the npm publish settles. Requires the
+        # HOMEBREW_TAP_TOKEN repo secret (PAT with contents:write on the tap
+        # repo) — wired in via the job-level env block above.
         if: env.HOMEBREW_TAP_TOKEN != ''
-        env:
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           bash scripts/update-homebrew-formula.sh "$VERSION"
