@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 137 tools registered.
+> Auto-generated from source. 138 tools registered.
 
 ## Table of contents
 
@@ -44,6 +44,7 @@
 - [perspective_create](#perspective_create)
 - [perspective_delete](#perspective_delete)
 - [perspective_evaluate](#perspective_evaluate)
+- [perspective_evaluate_dry_run](#perspective_evaluate_dry_run)
 - [perspective_get](#perspective_get)
 - [perspective_list](#perspective_list)
 - [perspective_update](#perspective_update)
@@ -1460,6 +1461,40 @@ Evaluate an OmniFocus perspective and return its task list. Accepts both built-i
 ```json
 {
   "toolName": "perspective_evaluate",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## perspective_evaluate_dry_run
+
+Preview a *proposed* OmniFocus perspective rule tree without persisting it. Creates a temporary perspective with the supplied rules, evaluates it, and always deletes the temp perspective inside one OmniJS execution. Pairs with perspective_create for the propose-then-save flow used by the perspective-author prompt: propose rules → preview matched tasks via this tool → commit via perspective_create. Custom perspectives require OmniFocus Pro; otherwise returns OF_FEATURE_REQUIRES_PRO. Do NOT use to evaluate a *saved* perspective — use perspective_evaluate. Returns { tasks: Task[] }. Side effects: creates and immediately deletes a sentinel-named temp perspective inside one OmniJS execution; the database state is unchanged after the call returns. Example: perspective_evaluate_dry_run({ aggregation: 'all', rules: [{ actionStatus: 'flagged' }] })
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `aggregation` | one of: all | any | none | No | Top-level rule aggregation. One of "all", "any", "none". Defaults to "all" when omitted. |
+| `rules` | unknown[] | Yes | Top-level rule list to evaluate. Empty array means 'show everything' (matches every available task). Each rule is an atom (single action* predicate), an aggregate (compound rule with aggregateType + aggregateRules), or a disabled wrapper around either. |
+
+### Example call
+
+```json
+{
+  "toolName": "perspective_evaluate_dry_run",
   "arguments": {}
 }
 ```

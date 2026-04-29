@@ -44,6 +44,7 @@ import {
   mapBatchScriptResult,
   type PerspectiveCreateScriptResult,
   type PerspectiveDeleteScriptResult,
+  type PerspectiveEvaluateDryRunScriptResult,
   type PerspectiveEvaluateScriptResult,
   type PerspectiveGetScriptResult,
   type PerspectiveUpdateScriptResult,
@@ -60,6 +61,7 @@ import forecastSetTagScript from "../../scripts/omnijs/forecast_set_tag.js";
 import perspectiveCreateScript from "../../scripts/omnijs/perspective_create.js";
 import perspectiveDeleteScript from "../../scripts/omnijs/perspective_delete.js";
 import perspectiveEvaluateScript from "../../scripts/omnijs/perspective_evaluate.js";
+import perspectiveEvaluateDryRunScript from "../../scripts/omnijs/perspective_evaluate_dry_run.js";
 import perspectiveGetScript from "../../scripts/omnijs/perspective_get.js";
 import perspectiveUpdateScript from "../../scripts/omnijs/perspective_update.js";
 import pluginInvokeScript from "../../scripts/omnijs/plugin_invoke.js";
@@ -685,6 +687,30 @@ export class OmniJsTransport implements OmniFocusAdapter {
       }
       throw new NotFound(result.error.message, {
         details: { resource: "perspective", id: identifier },
+      });
+    }
+
+    return result.tasks.map((t) => ({ ...t, id: TaskIdCtor.of(t.id as unknown as string) }));
+  }
+
+  async evaluatePerspectiveRules(
+    rules: import("../../domain/perspective.js").PerspectiveRule[],
+    aggregation?: import("../../domain/perspective.js").PerspectiveAggregation,
+  ): Promise<import("../../domain/task.js").Task[]> {
+    const result = await runOmniJsScript<PerspectiveEvaluateDryRunScriptResult>(
+      perspectiveEvaluateDryRunScript,
+      { rules, ...(aggregation !== undefined && { aggregation }) },
+      { ...this.runOpts, scriptName: "perspective_evaluate_dry_run" },
+    );
+
+    if (isScriptError(result)) {
+      if (result.error.code === "FEATURE_REQUIRES_PRO") {
+        throw new FeatureRequiresPro(result.error.message, {
+          details: { feature: "custom-perspectives" },
+        });
+      }
+      throw new ScriptError(result.error.message, {
+        details: { script: "perspective_evaluate_dry_run" },
       });
     }
 

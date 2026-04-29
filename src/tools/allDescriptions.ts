@@ -35,6 +35,7 @@ import { INTERNAL_STATUS_DESCRIPTION } from "./observability/internalStatus.js";
 import { PERSPECTIVE_CREATE_DESCRIPTION } from "./perspective/create.js";
 import { PERSPECTIVE_DELETE_DESCRIPTION } from "./perspective/delete.js";
 import { PERSPECTIVE_EVALUATE_DESCRIPTION } from "./perspective/evaluate.js";
+import { PERSPECTIVE_EVALUATE_DRY_RUN_DESCRIPTION } from "./perspective/evaluateDryRun.js";
 import { PERSPECTIVE_GET_DESCRIPTION } from "./perspective/get.js";
 import { PERSPECTIVE_LIST_DESCRIPTION } from "./perspective/list.js";
 import { PERSPECTIVE_UPDATE_DESCRIPTION } from "./perspective/update.js";
@@ -178,6 +179,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   perspective_create: PERSPECTIVE_CREATE_DESCRIPTION,
   perspective_delete: PERSPECTIVE_DELETE_DESCRIPTION,
   perspective_evaluate: PERSPECTIVE_EVALUATE_DESCRIPTION,
+  perspective_evaluate_dry_run: PERSPECTIVE_EVALUATE_DRY_RUN_DESCRIPTION,
   perspective_get: PERSPECTIVE_GET_DESCRIPTION,
   perspective_list: PERSPECTIVE_LIST_DESCRIPTION,
   perspective_update: PERSPECTIVE_UPDATE_DESCRIPTION,

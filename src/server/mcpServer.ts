@@ -98,6 +98,7 @@ import { registerInternalStatusTool } from "../tools/observability/internalStatu
 import { registerPerspectiveCreateTool } from "../tools/perspective/create.js";
 import { registerPerspectiveDeleteTool } from "../tools/perspective/delete.js";
 import { registerPerspectiveEvaluateTool } from "../tools/perspective/evaluate.js";
+import { registerPerspectiveEvaluateDryRunTool } from "../tools/perspective/evaluateDryRun.js";
 import { registerPerspectiveGetTool } from "../tools/perspective/get.js";
 import { registerPerspectiveListTool } from "../tools/perspective/list.js";
 import { registerPerspectiveUpdateTool } from "../tools/perspective/update.js";
@@ -391,6 +392,7 @@ export async function startServer(): Promise<void> {
   const perspectiveCtx = { perspectiveService: services.perspectiveService, makeMeta };
   registerPerspectiveListTool(server, perspectiveCtx);
   registerPerspectiveEvaluateTool(server, perspectiveCtx);
+  registerPerspectiveEvaluateDryRunTool(server, perspectiveCtx);
   registerPerspectiveGetTool(server, perspectiveCtx);
   registerPerspectiveDeleteTool(server, {
     perspectiveService: services.perspectiveService,

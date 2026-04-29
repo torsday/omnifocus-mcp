@@ -123,6 +123,11 @@ export type PerspectiveEvaluateScriptResult =
   | { tasks: Task[] }
   | ScriptErrorEnvelope<"FEATURE_REQUIRES_PRO" | "NOT_FOUND">;
 
+/** Result type for `perspective_evaluate_dry_run.js`. */
+export type PerspectiveEvaluateDryRunScriptResult =
+  | { tasks: Task[] }
+  | ScriptErrorEnvelope<"FEATURE_REQUIRES_PRO" | "SCRIPT_ERROR">;
+
 /** Result type for `perspective_get.js`. */
 export type PerspectiveGetScriptResult =
   | { perspective: import("../domain/perspective.js").PerspectiveDetail }
