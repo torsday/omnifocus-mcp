@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 133 tools registered.
+> Auto-generated from source. 135 tools registered.
 
 ## Table of contents
 
@@ -96,6 +96,7 @@
 - [task_batch_complete](#task_batch_complete)
 - [task_batch_create](#task_batch_create)
 - [task_batch_create_describe](#task_batch_create_describe)
+- [task_batch_defer_smart](#task_batch_defer_smart)
 - [task_batch_delete](#task_batch_delete)
 - [task_batch_drop](#task_batch_drop)
 - [task_batch_move](#task_batch_move)
@@ -111,6 +112,7 @@
 - [task_convert_to_project](#task_convert_to_project)
 - [task_create](#task_create)
 - [task_create_describe](#task_create_describe)
+- [task_defer_smart](#task_defer_smart)
 - [task_delete](#task_delete)
 - [task_delete_describe](#task_delete_describe)
 - [task_drop](#task_drop)
@@ -3305,6 +3307,41 @@ _No parameters._
 ```
 ---
 
+## task_batch_defer_smart
+
+Batch variant of task_defer_smart: accepts an array of { taskId, intent } and resolves each intent independently. Same intent grammar as task_defer_smart. Do NOT use this for a single task — prefer task_defer_smart for one entry. Returns { results: [{ taskId, ok: true, resolvedDeferDate, reason } | { taskId, ok: false, error }] } — per-entry failures surface inline so one malformed entry does not abort the others. Side effects: writes the resolved deferDate to each successful task; dry_run skips writes. Triggers a sync when any entry succeeds. Example: task_batch_defer_smart({ entries: [{ taskId: '...', intent: { kind: 'next-work-day' } }] })
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `entries` | object[] | Yes | Array of { taskId, intent } pairs. Per-entry failures surface in the results array; one bad entry does not abort siblings. |
+| `dry_run` | boolean | No | When true, resolves every intent but does NOT write to OmniFocus. Useful for previewing the batch's resolved dates before committing. |
+| `idempotency_key` | string | No | Idempotency key. Identical subsequent calls within the TTL window replay the original results envelope with meta.idempotentReplay = true. |
+
+### Example call
+
+```json
+{
+  "toolName": "task_batch_defer_smart",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
 ## task_batch_delete
 
 Permanently delete many OmniFocus tasks in a single JXA round trip. IRREVERSIBLE — deleted tasks cannot be recovered. REQUIRED: pass confirm=true at the top level to acknowledge this action is irreversible; the entire batch is rejected without it. Validation is atomic: if any input fails schema, the whole batch is rejected before any mutation. Execution is best-effort: each deletion succeeds or fails independently, and the response reports per-index outcomes. Prefer this tool over repeated task_delete calls whenever deleting more than one task. Each item is { id }. Returns { deleted: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name (captured pre-delete) so the agent can describe each removal without a follow-up read. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need changes to appear on other devices. Example: task_batch_delete({ confirm: true, items: [{ id: "abc123" }, { id: "abc456" }] })
@@ -3777,6 +3814,43 @@ _No parameters._
 ```json
 {
   "toolName": "task_create_describe",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## task_defer_smart
+
+Defer a task to a date computed from a high-level intent (e.g. 'next work morning', 'skip weekends', 'in 3 business days'), instead of guessing an ISO date that may land on a weekend or off-hours. Variants: next-work-day, next-weekday, in-business-days, after-event (gated on calendar bridge), next-month-start, explicit-with-skip-weekends. Morning/afternoon defaults are configurable via OMNIFOCUS_MORNING_HOUR / OMNIFOCUS_AFTERNOON_HOUR env (default 09:00 / 14:00). Do NOT use this for unconditional ISO-date defers — prefer task_update with deferDate. Returns { taskId, resolvedDeferDate, reason } so the agent can echo the resolved date verbatim. Side effects: writes the resolved deferDate via task_update; supports dry_run, idempotency_key, and expectedModifiedAt for safety. Triggers a sync. Example: task_defer_smart({ taskId: '...', intent: { kind: 'next-work-day' } })
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `taskId` | string | Yes | ID of the task to defer. |
+| `intent` | unknown | Yes | High-level defer intent. Discriminated union on `kind` — see tool description for variants. |
+| `expectedModifiedAt` | string | No | Optimistic-concurrency guard: ISO-8601 timestamp from a recent task_get. If the task's current modifiedAt differs, the call fails with OF_CONFLICT and no update is performed. Omit to skip the check. |
+| `dry_run` | boolean | No | When true, validates input and resolves the intent but does NOT write to OmniFocus. Returns the resolved date + reason in the response with meta.dryRun = true. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe defers. Identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of re-applying. |
+
+### Example call
+
+```json
+{
+  "toolName": "task_defer_smart",
   "arguments": {}
 }
 ```

@@ -87,6 +87,7 @@ import { TASK_BATCH_ASSIGN_DESCRIPTION } from "./task/batchAssign.js";
 import { TASK_BATCH_COMPLETE_DESCRIPTION } from "./task/batchComplete.js";
 import { TASK_BATCH_CREATE_DESCRIPTION } from "./task/batchCreate.js";
 import { TASK_BATCH_CREATE_DESCRIBE_DESCRIPTION } from "./task/batchCreateDescribe.js";
+import { TASK_BATCH_DEFER_SMART_DESCRIPTION } from "./task/batchDeferSmart.js";
 import { TASK_BATCH_DELETE_DESCRIPTION } from "./task/batchDelete.js";
 import { TASK_BATCH_DROP_DESCRIPTION } from "./task/batchDrop.js";
 import { TASK_BATCH_MOVE_DESCRIPTION } from "./task/batchMove.js";
@@ -101,6 +102,7 @@ import { TASK_COMPLETE_DESCRIBE_DESCRIPTION } from "./task/completeDescribe.js";
 import { TASK_CONVERT_TO_PROJECT_DESCRIPTION } from "./task/convertToProject.js";
 import { TASK_CREATE_DESCRIPTION } from "./task/create.js";
 import { TASK_CREATE_DESCRIBE_DESCRIPTION } from "./task/createDescribe.js";
+import { TASK_DEFER_SMART_DESCRIPTION } from "./task/deferSmart.js";
 import { TASK_DELETE_DESCRIPTION } from "./task/delete.js";
 import { TASK_DELETE_DESCRIBE_DESCRIPTION } from "./task/deleteDescribe.js";
 import { TASK_DROP_DESCRIPTION } from "./task/drop.js";
@@ -226,6 +228,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   task_batch_complete: TASK_BATCH_COMPLETE_DESCRIPTION,
   task_batch_create: TASK_BATCH_CREATE_DESCRIPTION,
   task_batch_create_describe: TASK_BATCH_CREATE_DESCRIBE_DESCRIPTION,
+  task_batch_defer_smart: TASK_BATCH_DEFER_SMART_DESCRIPTION,
   task_batch_delete: TASK_BATCH_DELETE_DESCRIPTION,
   task_batch_drop: TASK_BATCH_DROP_DESCRIPTION,
   task_batch_move: TASK_BATCH_MOVE_DESCRIPTION,
@@ -237,6 +240,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   task_complete_describe: TASK_COMPLETE_DESCRIBE_DESCRIPTION,
   task_create: TASK_CREATE_DESCRIPTION,
   task_create_describe: TASK_CREATE_DESCRIBE_DESCRIPTION,
+  task_defer_smart: TASK_DEFER_SMART_DESCRIPTION,
   task_drop: TASK_DROP_DESCRIPTION,
   task_drop_describe: TASK_DROP_DESCRIBE_DESCRIPTION,
   task_clear_alarms: TASK_CLEAR_ALARMS_DESCRIPTION,
