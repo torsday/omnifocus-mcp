@@ -1,0 +1,28 @@
+{
+  "$comment": [
+    "Equivalent-mutant registry per ADR-0017 §5.",
+    "",
+    "Each entry MUST carry a one-line `rationale` explaining why this",
+    "specific mutation is observably equivalent to the original (no test",
+    "could distinguish them). Bare entries are forbidden — if there's no",
+    "rationale, write the missing test instead.",
+    "",
+    "Quarterly review: a maintainer audits entries and removes any whose",
+    "rationale no longer holds. Reflexive additions (silence a survivor)",
+    "are the wrong default; the right default is to write the test.",
+    "",
+    "Format (when populated):",
+    "  {",
+    "    \"mutantId\": \"<Stryker-emitted id>\",",
+    "    \"file\": \"<path/to/file.ts>\",",
+    "    \"location\": \"<line:col>\",",
+    "    \"rationale\": \"<one-line reason this mutation is observably equivalent>\",",
+    "    \"addedAt\": \"<ISO-8601>\",",
+    "    \"addedBy\": \"<github-handle>\"",
+    "  }",
+    "",
+    "Initial state: empty. Populated as calibration and subsequent",
+    "release runs surface bona-fide equivalent mutants."
+  ],
+  "equivalents": []
+}

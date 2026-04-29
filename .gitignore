@@ -28,3 +28,9 @@ bin/omnifocus-watcher-darwin-x64
 bin/calendar-bridge
 bin/calendar-bridge-darwin-arm64
 bin/calendar-bridge-darwin-x64
+
+# Stryker mutation testing artifacts (per ADR-0017).
+# Reports are uploaded as release artifacts; the temp dir is sandbox state.
+.stryker-tmp/
+reports/mutation/
+stryker.log

@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": [
+    "Stryker mutation-testing config per ADR-0017.",
+    "",
+    "Slice 1A (this commit): config in place, no calibration thresholds.",
+    "Initial run produces a baseline; thresholds get set in slice 1B.",
+    "Until calibrated, the gate cannot fail-the-build (no `break` threshold) —",
+    "it produces the score for inspection only.",
+    "",
+    "Allowlist follows ADR-0017 §2 exactly. Excluded paths (jxa/omnijs scripts,",
+    "adapter, prompts, *.data.ts) are not in the mutate glob and are also",
+    "explicitly listed in the issue body's exclusion notes."
+  ],
+  "packageManager": "pnpm",
+  "testRunner": "vitest",
+  "checkers": ["typescript"],
+  "tsconfigFile": "tsconfig.json",
+  "reporters": ["html", "progress", "json"],
+  "htmlReporter": { "fileName": "reports/mutation/mutation.html" },
+  "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
+  "mutate": [
+    "src/domain/**/*.ts",
+    "!src/domain/**/*.test.ts",
+    "src/errors/**/*.ts",
+    "!src/errors/**/*.test.ts",
+    "src/middleware/**/*.ts",
+    "!src/middleware/**/*.test.ts",
+    "src/server/**/*.ts",
+    "!src/server/**/*.test.ts",
+    "src/tools/**/schema.ts"
+  ],
+  "ignorers": ["console-log", "no-empty"],
+  "concurrency": 4,
+  "timeoutMS": 60000,
+  "_thresholds_pending_calibration": "Slice 1B captures the baseline run output and writes thresholds here. Until then, no `thresholds.break` is set so the gate is informational only."
+}
