@@ -25,7 +25,18 @@ function run(argv) {
   if (!target) throw new Error(`Project not found: ${args.id}`);
 
   if (args.folderId) {
-    const folder = ofApp.defaultDocument.folders.byId(args.folderId);
+    // Resolve via flattenedFolders iteration (top-level `folders` excludes
+    // nested ones; `byId(...)` returns a lazy specifier whose subsequent
+    // `.projects.end` is nil — same JXA quirk as #674's lookupOrThrow).
+    // Mirroring the same iteration the project lookup above uses.
+    const allFolders = ofApp.defaultDocument.flattenedFolders();
+    let folder = null;
+    for (let i = 0; i < allFolders.length; i++) {
+      if (allFolders[i].id() === args.folderId) {
+        folder = allFolders[i];
+        break;
+      }
+    }
     if (!folder) throw new Error(`Folder not found: ${args.folderId}`);
     target.move({ to: folder.projects.end });
   } else {

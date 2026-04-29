@@ -172,7 +172,12 @@ function run(argv) {
   if (args.estimatedMinutes != null) props.estimatedMinutes = args.estimatedMinutes;
   if (args.flagged != null) props.flagged = args.flagged;
   if (args.status != null) {
-    props.status = args.status === "on-hold" ? "on hold" : args.status;
+    // OmniFocus 4.8.8+ requires the " status" suffix on assignment values
+    // (without it the assignment silently no-ops on `on hold`). Same as the
+    // fix in project_update.js. Note: createProject now routes through
+    // OmniJS per ADR-0019, so this JXA path is effectively dead code; the
+    // fix is here for defense in depth in case the routing flips back.
+    props.status = args.status === "on-hold" ? "on hold status" : "active status";
   }
 
   // OmniFocus 4.x rejects `doc.make({ new: "project", withProperties })` with

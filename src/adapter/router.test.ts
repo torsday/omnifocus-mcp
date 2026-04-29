@@ -307,6 +307,7 @@ describe("TransportRouter — table integrity", () => {
       "clearTaskAlarms", // Task.notifications mutation is OmniJS-only (#461)
       "convertTaskToProject", // OmniJS-only: Database.convertTasksToProjects()
       "createCustomPerspective", // OmniJS-only: rule-tree write + atomic rollback contract (#577)
+      "createProject", // ADR-0019: persistent id.primaryKey from creation, interoperable with both transports
       "deleteCustomPerspective", // OmniJS deleteObject — JXA cannot delete custom perspectives (#523)
       "evaluateCustomPerspective",
       "evaluatePerspectiveRules", // OmniJS-only: temp-perspective lifecycle + walk (#659)
