@@ -12,6 +12,7 @@
 
 ## Table of contents
 
+- [Agent-native OmniFocus — beyond the app surface](#agent-native-omnifocus--beyond-the-app-surface)
 - [Why this exists](#why-this-exists)
 - [Quick start](#quick-start)
 - [Security & trust](#security--trust)
@@ -30,6 +31,26 @@
 - [Design documents](#design-documents)
 - [Contributing](#contributing)
 - [License](#license)
+
+---
+
+## Agent-native OmniFocus — beyond the app surface
+
+A plain MCP wrapper would be a one-to-one mirror of the OmniFocus app. This server is more than that. It exposes a small set of capabilities that exist *because* an LLM is the caller — capabilities the app itself doesn't ship and probably never will, because they're only worth the effort when the consumer is an agent that can reason over structured input and act on the result.
+
+These are the agent-native capabilities, framed in the user outcome they enable:
+
+- **Stalled-project triage** — `omnifocus://project-health` returns granular signals (last activity, available task count, deferred-future tasks, review-overdue) so an agent can identify projects worth a status nudge without the user opening the app. Mechanical aggregation; the app could do it but doesn't.
+- **Semantic dedupe** — [`task_find_similar`](docs/tools.md#task_find_similar) does lexical similarity search across task names so an agent confirms intent ("is this a duplicate of X?") before creating a new task. Possible without an LLM, but only useful with one in the loop.
+- **Taxonomy audit** — `omnifocus://taxonomy-audit` flags inconsistent tag/folder usage so an agent can propose cleanup grounded in the actual structure of the database. Mechanical.
+- **NL perspective authoring** *(in development — [#476](https://github.com/torsday/omnifocus-mcp/issues/476))* — describe a perspective in prose; the agent compiles a rule tree and writes it via `perspective_create`. Exists *because* of the agent — the rule tree is a non-trivial structure most users won't compose by hand.
+- **Time-budget reconciliation** — [`forecast_pack`](docs/tools.md#forecast_pack) takes a daily minute budget and packs the forecast into it, surfacing overloaded days. Asking "I have 90 minutes, what should I do?" gets a structured answer.
+- **Retrospective resource** — `omnifocus://retrospective?from=…&to=…` aggregates the closed-task surface so an agent can write the user's weekly review against real data instead of asking them to recap.
+- **Project templates** — [`project_template_save`](docs/tools.md#project_template_save) / [`_instantiate`](docs/tools.md#project_template_instantiate) capture and replay project structures with parameter substitution and date shifting. The agent fills the parameters from conversation context.
+- **Inbox-triage prompt** — the bundled `inbox-triage` MCP prompt sequences the tool calls for a full GTD-style processing sweep. Intentionally a prompt, not a tool — the value is in orchestrating the existing surface.
+- **Calendar + agenda** — `omnifocus://calendar` and `omnifocus://agenda` merge macOS Calendar events with the OF forecast so an agent can answer "what does my day actually look like?" without the user holding two windows side by side.
+
+> **How this is different from a plain wrapper.** A wrapper exposes the app's verbs. This server adds verbs the app doesn't have, because LLMs change what's worth building. Some of the additions (project-health, taxonomy-audit) are mechanical aggregations the app *could* ship and never has — they sit unbuilt because no human wants to click through them. Others (NL perspective authoring, semantic dedupe, time-budget reconciliation) are only valuable with an LLM in the call path. Both kinds belong here. The split is honest: don't pretend the mechanical stuff is novel, and don't pretend the agent-only stuff is just sugar.
 
 ---
 
