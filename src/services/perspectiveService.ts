@@ -78,6 +78,23 @@ export class PerspectiveService {
   }
 
   /**
+   * Evaluate a *proposed* rule tree without persisting a perspective (per
+   * #659). Composes naturally with the `perspective-author` prompt's middle
+   * step (#476): propose rules → preview → save via `createCustomPerspective`.
+   *
+   * The adapter creates a temp perspective with a sentinel name, evaluates
+   * it, and always deletes it inside one OmniJS execution. No caching —
+   * dry-runs are inherently transient.
+   */
+  async evaluateRules(
+    rules: import("../domain/perspective.js").PerspectiveRule[],
+    aggregation?: import("../domain/perspective.js").PerspectiveAggregation,
+  ): Promise<PerspectiveEvaluateResult> {
+    const tasks = await this.adapter.evaluatePerspectiveRules(rules, aggregation);
+    return { tasks, cacheHit: false };
+  }
+
+  /**
    * Read full configuration of a custom perspective — name, top-level
    * aggregation, rule tree, and icon color. Built-in perspectives have no
    * rule tree and are rejected with `ValidationError` rather than reaching

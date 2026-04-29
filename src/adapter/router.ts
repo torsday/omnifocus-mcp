@@ -155,6 +155,7 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   listPerspectives: "jxa",
   evaluatePerspective: "jxa",
   evaluateCustomPerspective: "omnijs",
+  evaluatePerspectiveRules: "omnijs",
   getCustomPerspective: "omnijs",
   deleteCustomPerspective: "omnijs",
   createCustomPerspective: "omnijs",
@@ -483,6 +484,13 @@ export class TransportRouter implements OmniFocusAdapter {
 
   evaluateCustomPerspective(identifier: string): Promise<import("../domain/task.js").Task[]> {
     return this.pick("evaluateCustomPerspective").evaluateCustomPerspective(identifier);
+  }
+
+  evaluatePerspectiveRules(
+    rules: import("../domain/perspective.js").PerspectiveRule[],
+    aggregation?: import("../domain/perspective.js").PerspectiveAggregation,
+  ): Promise<import("../domain/task.js").Task[]> {
+    return this.pick("evaluatePerspectiveRules").evaluatePerspectiveRules(rules, aggregation);
   }
 
   getCustomPerspective(

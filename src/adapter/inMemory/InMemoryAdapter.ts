@@ -1289,6 +1289,38 @@ export class InMemoryAdapter implements OmniFocusAdapter {
   }
 
   /**
+   * Test-only seed for {@link evaluatePerspectiveRules}. Tests register a
+   * `(rules, aggregation) → tasks` mapping by JSON-stringifying the input so
+   * the adapter can return the expected list deterministically without a
+   * live OmniFocus database. Production uses the OmniJS transport directly.
+   */
+  private readonly dryRunRulesResults = new Map<string, TaskId[]>();
+
+  /** Test-only helper: pre-seed a rules-tree → task-id mapping. */
+  seedPerspectiveRulesEvaluation(
+    rules: import("../../domain/perspective.js").PerspectiveRule[],
+    taskIds: TaskId[],
+    aggregation?: import("../../domain/perspective.js").PerspectiveAggregation,
+  ): void {
+    const key = JSON.stringify({ aggregation: aggregation ?? null, rules });
+    this.dryRunRulesResults.set(key, [...taskIds]);
+  }
+
+  async evaluatePerspectiveRules(
+    rules: import("../../domain/perspective.js").PerspectiveRule[],
+    aggregation?: import("../../domain/perspective.js").PerspectiveAggregation,
+  ): Promise<Task[]> {
+    const key = JSON.stringify({ aggregation: aggregation ?? null, rules });
+    const ids = this.dryRunRulesResults.get(key) ?? [];
+    const out: Task[] = [];
+    for (const tid of ids) {
+      const t = this.tasks.get(tid);
+      if (t !== undefined) out.push(t);
+    }
+    return out;
+  }
+
+  /**
    * Seed map consulted by {@link getCustomPerspective}. Tests call
    * {@link seedCustomPerspectiveDetail} to register a known identifier →
    * `PerspectiveDetail`. Production uses the OmniJS transport directly.

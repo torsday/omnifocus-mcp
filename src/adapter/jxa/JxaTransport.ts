@@ -761,6 +761,19 @@ export class JxaTransport implements OmniFocusAdapter {
     });
   }
 
+  async evaluatePerspectiveRules(
+    _rules: import("../../domain/perspective.js").PerspectiveRule[],
+    _aggregation?: import("../../domain/perspective.js").PerspectiveAggregation,
+  ): Promise<Task[]> {
+    throw new ScriptError("evaluatePerspectiveRules requires the OmniJS transport", {
+      details: {
+        transport: "jxa",
+        reason: "omnijs-only",
+        method: "evaluatePerspectiveRules",
+      },
+    });
+  }
+
   async getCustomPerspective(
     _identifier: string,
   ): Promise<import("../../domain/perspective.js").PerspectiveDetail> {

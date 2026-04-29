@@ -513,6 +513,26 @@ export interface OmniFocusAdapter {
   evaluateCustomPerspective(identifier: string): Promise<Task[]>;
 
   /**
+   * Evaluate a *proposed* perspective rule tree without persisting it (per #659).
+   *
+   * Used by the `perspective-author` prompt's middle step (per #476): the
+   * agent proposes rules → the user previews matched tasks → confirms a save
+   * via `createCustomPerspective`. Implementation creates a temporary
+   * perspective with a sentinel name, evaluates it, and always deletes it
+   * inside the same OmniJS execution so a transport-level retry cannot
+   * leave an orphan perspective behind.
+   *
+   * @throws FeatureRequiresPro — when the OmniFocus edition lacks the
+   *         custom-perspective runtime (Standard without Pro).
+   * @throws ScriptError — when the temp-perspective lifecycle fails (rare;
+   *         covers JXA `make` failure, configure failure, or walk failure).
+   */
+  evaluatePerspectiveRules(
+    rules: import("../domain/perspective.js").PerspectiveRule[],
+    aggregation?: import("../domain/perspective.js").PerspectiveAggregation,
+  ): Promise<Task[]>;
+
+  /**
    * Read the full configuration of a custom perspective — name, aggregation,
    * rule tree, and icon color. Routes to OmniJS exclusively (the JXA
    * dictionary exposes only id/name/class on perspective specifiers).

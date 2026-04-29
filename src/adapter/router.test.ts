@@ -101,6 +101,7 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     listPerspectives: record("listPerspectives"),
     evaluatePerspective: record("evaluatePerspective"),
     evaluateCustomPerspective: record("evaluateCustomPerspective"),
+    evaluatePerspectiveRules: record("evaluatePerspectiveRules"),
     getCustomPerspective: record("getCustomPerspective"),
     deleteCustomPerspective: record("deleteCustomPerspective"),
     createCustomPerspective: record("createCustomPerspective"),
@@ -194,6 +195,7 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
     listPerspectives: () => r.listPerspectives(),
     evaluatePerspective: () => r.evaluatePerspective("inbox"),
     evaluateCustomPerspective: () => r.evaluateCustomPerspective("custom-id"),
+    evaluatePerspectiveRules: () => r.evaluatePerspectiveRules([]),
     getCustomPerspective: () => r.getCustomPerspective("custom-id"),
     deleteCustomPerspective: () => r.deleteCustomPerspective("custom-id"),
     createCustomPerspective: () => r.createCustomPerspective({ name: "test" }),
@@ -307,6 +309,7 @@ describe("TransportRouter — table integrity", () => {
       "createCustomPerspective", // OmniJS-only: rule-tree write + atomic rollback contract (#577)
       "deleteCustomPerspective", // OmniJS deleteObject — JXA cannot delete custom perspectives (#523)
       "evaluateCustomPerspective",
+      "evaluatePerspectiveRules", // OmniJS-only: temp-perspective lifecycle + walk (#659)
       "getCustomPerspective", // archivedFilterRules / iconColor are OmniJS-only reads (#523)
       "getForecastTag", // Database.forecastTag is OmniJS-only (#465)
       "moveTask", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works
