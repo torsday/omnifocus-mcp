@@ -838,6 +838,24 @@ Coverage is not enforced because it's gameable. Test *fidelity* is enforced at r
 - `pnpm build` — single-file bundle emitted to `dist/index.js`
 - Bundle size budget: < 640 KiB (tsup --minify); above that blocks release. Bumped 500 → 525 → 540 → 580 → 610 → 625 → 640 KiB as the tool surface grew — per-tool string and Zod-schema overhead became the dominant bundle cost. The 625 → 640 bump landed alongside the final slice of [#484](https://github.com/torsday/omnifocus-mcp/issues/484) (calendar + agenda — bridge wrapper, calendar resource, agenda merge module, AgendaItem union, capabilities probe). The 610 → 625 bump landed alongside [#577](https://github.com/torsday/omnifocus-mcp/issues/577) (perspective_create + perspective_update added two OmniJS scripts inlined verbatim plus a recursive input rule schema). The 580 → 610 bump landed alongside [#570](https://github.com/torsday/omnifocus-mcp/issues/570) (Example: sweep added ~7 KiB of description strings). Further bumps should NOT be flat increases: [#578](https://github.com/torsday/omnifocus-mcp/issues/578) tracks the tree-shaking / code-splitting investigation that should replace the next bump.
 
+### Required status checks (branch protection on `main`)
+
+Every PR must pass these CI contexts before merge — `gh pr merge --auto` waits for them, and `--auto` cannot race past a failure. Promoted from soft gates to required after [#647](https://github.com/torsday/omnifocus-mcp/issues/647), triggered by the [#644](https://github.com/torsday/omnifocus-mcp/pull/644) → [#645](https://github.com/torsday/omnifocus-mcp/issues/645) regression where `no-tool-counts` failed and the merge went through anyway.
+
+| Context | What it gates | Source |
+|---|---|---|
+| `actionlint` | GitHub Actions workflow YAML correctness | `.github/workflows/meta-lint.yml` |
+| `build (Node 24)` | `pnpm typecheck` + `pnpm test` + bundle size; the load-bearing test gate | `.github/workflows/ci.yml` |
+| `lint` | biome + `pnpm lint` (covers nl-quality + docs:check + lint-custom) | `.github/workflows/ci.yml` |
+| `nl-quality` | NL-quality lint per `docs/nl-quality-standards.md`, surfaced as PR annotations | `.github/workflows/meta-lint.yml` |
+| `no-hosted-runners` | Forbids GitHub-hosted runners; this repo runs `[self-hosted, macos]` exclusively | `.github/workflows/meta-lint.yml` |
+| `no-tool-counts` | Fails if any living doc restates the count of registered MCP tools (per [#478](https://github.com/torsday/omnifocus-mcp/issues/478)) | `.github/workflows/meta-lint.yml` |
+| `pr` | PR shape (title format, label invariants) | `.github/workflows/pr-shape.yml` |
+| `require-issue-link` | PR body contains `Closes #N` (or fix/resolve variants) so post-merge close-out can flip the issue | `.github/workflows/pr-link.yml` |
+| `shellcheck` | Shell scripts under `scripts/` lint clean | `.github/workflows/meta-lint.yml` |
+
+`strict` is intentionally `false` (PR branches don't need to be up-to-date with `main`) — that's friction for solo dev that buys nothing the rest of the gate set isn't already covering. `enforce_admins` is also `false` (admin override is a deliberate escape hatch, not a default gate).
+
 ---
 
 ## 21. Observability contract
