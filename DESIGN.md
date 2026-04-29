@@ -1362,4 +1362,4 @@ The fence carries:
 
 Both targets — tasks and projects — accept decisions; `decision_record` discriminates on `targetKind`. The fence sits alongside other fences (e.g. `waiting-on`) in the same note without conflict; `noteFences` operations are tag-scoped.
 
-Read-side integration surfaces a `decision` field on `task_get`, `task_get_many`, `project_get`, `project_get_many` whenever a fence is present. The `project_health` integration (slice 2 of #485) honors active decisions by partitioning stalled projects into a separate `acknowledged` array — auditable, not invisible.
+Read-side integration surfaces a `decision` field on `task_get`, `task_get_many`, `project_get`, `project_get_many` whenever a fence is present. The `omnifocus://project-health` resource honors active decisions by partitioning flagged projects into a separate `acknowledged` array — auditable, not invisible. Expired decisions (`until` in the past) re-emerge in `projects` automatically; the fence stays as audit history.
