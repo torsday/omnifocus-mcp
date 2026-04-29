@@ -39,6 +39,7 @@ import type { PerspectiveService } from "../services/perspectiveService.js";
 import type { ProjectService } from "../services/projectService.js";
 import type { ReviewService } from "../services/reviewService.js";
 import { registerBurndownResource } from "./burndown.js";
+import { registerCalendarResource } from "./calendar.js";
 import { registerIntentsResource } from "./intents.js";
 import { registerProjectHealthResource } from "./projectHealth.js";
 import { registerRecentActivityResource } from "./recentActivity.js";
@@ -49,6 +50,7 @@ import { registerVelocityResource } from "./velocity.js";
 import { registerWaitingOnResource } from "./waitingOn.js";
 
 export { BURNDOWN_URI_TEMPLATE } from "./burndown.js";
+export { CALENDAR_URI_TEMPLATE } from "./calendar.js";
 export { INTENTS_URI } from "./intents.js";
 export { PROJECT_HEALTH_URI_TEMPLATE } from "./projectHealth.js";
 export { RECENT_ACTIVITY_URI_TEMPLATE } from "./recentActivity.js";
@@ -411,6 +413,9 @@ export function registerOmniFocusResources(server: McpServer, deps: OmniFocusRes
 
   // ── omnifocus://burndown/{projectId} ─────────────────────────────────────
   registerBurndownResource(server, adapter);
+
+  // ── omnifocus://calendar{?from,to} ───────────────────────────────────────
+  registerCalendarResource(server);
 
   // ── omnifocus://intents ──────────────────────────────────────────────────
   registerIntentsResource(server);
