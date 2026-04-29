@@ -48,6 +48,7 @@ import { ToolRateLimiter } from "../rateLimit/ToolRateLimiter.js";
 import {
   buildCapabilities,
   CAPABILITIES_URI,
+  probeCalendarAccess,
   registerCapabilitiesResource,
 } from "../resources/capabilities.js";
 import {
@@ -309,7 +310,9 @@ export async function startServer(): Promise<void> {
   registerOmniFocusPrompts(server);
 
   // Register the ten MCP resources (DESIGN §28).
-  registerCapabilitiesResource(server, () => buildCapabilities(config));
+  registerCapabilitiesResource(server, async () =>
+    buildCapabilities(config, { calendarAccess: await probeCalendarAccess() }),
+  );
   registerOmniFocusResources(server, {
     adapter,
     projectService: services.projectService,

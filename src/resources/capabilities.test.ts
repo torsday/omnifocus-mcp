@@ -5,9 +5,11 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { describe, expect, it, vi } from "vitest";
 import type { Config } from "../config/env.js";
+import { CalendarBridgeUnavailable, OmniFocusError } from "../errors/index.js";
 import {
   buildCapabilities,
   CAPABILITIES_URI,
+  probeCalendarAccess,
   registerCapabilitiesResource,
 } from "./capabilities.js";
 
@@ -110,6 +112,57 @@ describe("buildCapabilities", () => {
   it("sets idempotencyTtlMs to 86_400_000 (24h)", () => {
     const caps = buildCapabilities(makeConfig());
     expect(caps.idempotencyTtlMs).toBe(86_400_000);
+  });
+
+  it("defaults calendarAccess to { available: false, permission: 'unknown' }", () => {
+    const caps = buildCapabilities(makeConfig());
+    expect(caps.calendarAccess).toEqual({ available: false, permission: "unknown" });
+  });
+
+  it("accepts calendarAccess override", () => {
+    const caps = buildCapabilities(makeConfig(), {
+      calendarAccess: { available: true, permission: "granted" },
+    });
+    expect(caps.calendarAccess).toEqual({ available: true, permission: "granted" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// probeCalendarAccess
+// ---------------------------------------------------------------------------
+
+describe("probeCalendarAccess", () => {
+  it("returns the bridge's permission state with available: true", async () => {
+    const bridge = { getPermission: vi.fn().mockResolvedValue({ permission: "granted" }) };
+    const result = await probeCalendarAccess(bridge);
+    expect(result).toEqual({ available: true, permission: "granted" });
+  });
+
+  it("forwards each EventKit permission state verbatim", async () => {
+    for (const permission of ["not-determined", "denied", "restricted", "granted"] as const) {
+      const bridge = { getPermission: vi.fn().mockResolvedValue({ permission }) };
+      expect(await probeCalendarAccess(bridge)).toEqual({ available: true, permission });
+    }
+  });
+
+  it("degrades to { available: false, permission: 'unknown' } when bridge binary missing", async () => {
+    const bridge = {
+      getPermission: vi.fn().mockRejectedValue(new CalendarBridgeUnavailable("missing")),
+    };
+    expect(await probeCalendarAccess(bridge)).toEqual({
+      available: false,
+      permission: "unknown",
+    });
+  });
+
+  it("rethrows non-CalendarBridgeUnavailable errors so genuine bugs surface", async () => {
+    class OtherError extends OmniFocusError {
+      constructor() {
+        super("OF_SCRIPT_ERROR", "boom", { remediationClass: "infrastructure" });
+      }
+    }
+    const bridge = { getPermission: vi.fn().mockRejectedValue(new OtherError()) };
+    await expect(probeCalendarAccess(bridge)).rejects.toBeInstanceOf(OtherError);
   });
 });
 
