@@ -14,11 +14,13 @@ import {
   buildCaptureMeetingMessage,
   buildDailyReviewMessage,
   buildInboxTriageMessage,
+  buildPerspectiveAuthorMessage,
   buildProjectPlanningMessage,
   buildWeeklyReviewMessage,
   CAPTURE_MEETING_PROMPT,
   DAILY_REVIEW_PROMPT,
   INBOX_TRIAGE_PROMPT,
+  PERSPECTIVE_AUTHOR_PROMPT,
   PROJECT_PLANNING_PROMPT,
   registerOmniFocusPrompts,
   WEEKLY_REVIEW_PROMPT,
@@ -80,6 +82,7 @@ describe("registerOmniFocusPrompts — registration", () => {
     expect(names).toContain(CAPTURE_MEETING_PROMPT);
     expect(names).toContain(PROJECT_PLANNING_PROMPT);
     expect(names).toContain(INBOX_TRIAGE_PROMPT);
+    expect(names).toContain(PERSPECTIVE_AUTHOR_PROMPT);
   });
 
   it("every prompt has a non-empty description", () => {
@@ -267,5 +270,79 @@ describe("inbox-triage prompt", () => {
 
   it("message text matches snapshot", () => {
     expect(buildInboxTriageMessage()).toMatchSnapshot();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// perspective-author
+// ---------------------------------------------------------------------------
+
+describe("perspective-author prompt", () => {
+  it("returns a messages array with one user message", async () => {
+    const { find } = makeHarness();
+    const result = (await find(PERSPECTIVE_AUTHOR_PROMPT).callback({
+      description: "everything I could do at home, on a phone, with under 15 minutes",
+    })) as { messages: Array<{ role: string; content: { type: string; text: string } }> };
+    expect(result.messages).toHaveLength(1);
+    expect(result.messages[0]?.role).toBe("user");
+    expect(result.messages[0]?.content.type).toBe("text");
+  });
+
+  it("embeds the user's description verbatim in the message", () => {
+    const description = "everything I could do at home, on a phone, with under 15 minutes";
+    const text = buildPerspectiveAuthorMessage(description);
+    expect(text).toContain(description);
+  });
+
+  it("includes the proposed name when provided", () => {
+    const text = buildPerspectiveAuthorMessage("flagged tasks", "Quick wins");
+    expect(text).toContain("Quick wins");
+  });
+
+  it("references all three flow steps: dry-run, create, list", () => {
+    const text = buildPerspectiveAuthorMessage("anything");
+    expect(text).toContain("perspective_evaluate_dry_run");
+    expect(text).toContain("perspective_create");
+    expect(text).toContain("perspective_list");
+  });
+
+  it("documents the rule-tree atom vocabulary so the agent does not need web access", () => {
+    const text = buildPerspectiveAuthorMessage("anything");
+    // Spot-check a representative subset of atom keys from PerspectiveRuleAtom.
+    expect(text).toContain("actionAvailability");
+    expect(text).toContain("actionStatus");
+    expect(text).toContain("actionHasAnyOfTags");
+    expect(text).toContain("actionHasNoProject");
+    expect(text).toContain("actionWithinFocus");
+  });
+
+  it("instructs the agent to ask exactly ONE disambiguating question if ambiguous", () => {
+    const text = buildPerspectiveAuthorMessage("nearby tasks");
+    expect(text.toLowerCase()).toContain("one disambiguating question");
+    // The "do not guess" guarantee is the load-bearing UX signal.
+    expect(text.toLowerCase()).toContain("do not guess");
+  });
+
+  it("instructs the agent NOT to skip the dry-run preview", () => {
+    const text = buildPerspectiveAuthorMessage("anything");
+    expect(text.toLowerCase()).toMatch(/do not skip the preview/);
+  });
+
+  it("flags Pro requirement and OF_FEATURE_REQUIRES_PRO error code", () => {
+    const text = buildPerspectiveAuthorMessage("anything");
+    expect(text).toContain("OmniFocus Pro");
+    expect(text).toContain("OF_FEATURE_REQUIRES_PRO");
+  });
+
+  it("message text (no name) matches snapshot", () => {
+    expect(
+      buildPerspectiveAuthorMessage(
+        "everything I could do at home, on a phone, with under 15 minutes",
+      ),
+    ).toMatchSnapshot();
+  });
+
+  it("message text (with name) matches snapshot", () => {
+    expect(buildPerspectiveAuthorMessage("flagged + available", "Quick wins")).toMatchSnapshot();
   });
 });
