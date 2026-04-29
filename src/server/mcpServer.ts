@@ -151,6 +151,7 @@ import { registerTaskBatchAssignTool } from "../tools/task/batchAssign.js";
 import { registerTaskBatchCompleteTool } from "../tools/task/batchComplete.js";
 import { registerTaskBatchCreateTool } from "../tools/task/batchCreate.js";
 import { registerTaskBatchCreateDescribeTool } from "../tools/task/batchCreateDescribe.js";
+import { registerTaskBatchDeferSmartTool } from "../tools/task/batchDeferSmart.js";
 import { registerTaskBatchDeleteTool } from "../tools/task/batchDelete.js";
 import { registerTaskBatchDropTool } from "../tools/task/batchDrop.js";
 import { registerTaskBatchMoveTool } from "../tools/task/batchMove.js";
@@ -165,6 +166,7 @@ import { registerTaskCompleteDescribeTool } from "../tools/task/completeDescribe
 import { registerTaskConvertToProjectTool } from "../tools/task/convertToProject.js";
 import { registerTaskCreateTool } from "../tools/task/create.js";
 import { registerTaskCreateDescribeTool } from "../tools/task/createDescribe.js";
+import { registerTaskDeferSmartTool } from "../tools/task/deferSmart.js";
 import { registerTaskDeleteTool } from "../tools/task/delete.js";
 import { registerTaskDeleteDescribeTool } from "../tools/task/deleteDescribe.js";
 import { registerTaskDropTool } from "../tools/task/drop.js";
@@ -500,6 +502,8 @@ export async function startServer(): Promise<void> {
   registerTaskParseTransportTextTool(server, { makeMeta });
   registerClarifyTool(server, { makeMeta });
   registerRepetitionFromProseTool(server, { makeMeta, replayStore });
+  registerTaskDeferSmartTool(server, taskMutationCtx);
+  registerTaskBatchDeferSmartTool(server, taskMutationCtx);
   registerTaskReclassifyTool(server, taskMutationCtx);
   registerTaskBatchAssignTool(server, taskMutationCtx);
   registerTaskBatchCompleteTool(server, taskMutationCtx);

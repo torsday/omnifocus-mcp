@@ -62,9 +62,11 @@ import { tagSetAllowsNextActionInputSchema } from "./tag/setAllowsNextAction.js"
 import { tagSetLocationInputSchema } from "./tag/setLocation.js";
 import { tagSetStatusInputSchema } from "./tag/setStatus.js";
 import { tagUpdateInputSchema } from "./tag/update.js";
+import { taskBatchDeferSmartInputSchema } from "./task/batchDeferSmart.js";
 import { taskClearRepetitionInputSchema } from "./task/clearRepetition.js";
 import { taskCompleteInputSchema } from "./task/complete.js";
 import { taskCreateInputSchema } from "./task/create.js";
+import { taskDeferSmartInputSchema } from "./task/deferSmart.js";
 import { taskDeleteInputSchema } from "./task/delete.js";
 import { taskDropInputSchema } from "./task/drop.js";
 import { taskFindByNameInputSchema } from "./task/findByName.js";
@@ -133,7 +135,9 @@ export const ALL_INPUT_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   tag_update: tagUpdateInputSchema,
   task_clear_repetition: taskClearRepetitionInputSchema,
   task_complete: taskCompleteInputSchema,
+  task_batch_defer_smart: taskBatchDeferSmartInputSchema,
   task_create: taskCreateInputSchema,
+  task_defer_smart: taskDeferSmartInputSchema,
   task_delete: taskDeleteInputSchema,
   task_drop: taskDropInputSchema,
   task_find_by_name: taskFindByNameInputSchema,
