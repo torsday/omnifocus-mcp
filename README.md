@@ -649,7 +649,7 @@ The server registers resources under the `omnifocus://` scheme. Resources are re
 | `omnifocus://overdue` | All overdue tasks sorted by dueDate ASC |
 | `omnifocus://flagged` | All flagged available tasks |
 | `omnifocus://review-due` | Projects with nextReviewDate ≤ today |
-| `omnifocus://intents` | User-phrase → tool-sequence map; "feel like 8 verbs, not 80 tools" |
+| `omnifocus://intents` | User-phrase → tool-sequence map: a small set of human-meaningful verbs that compose the full tool surface |
 | `omnifocus://stats` | Database-wide rollup: counts by project, tag, completion state |
 | `omnifocus://taxonomy-audit` | Structural audit — inconsistent tag/folder usage, orphans, drift signals |
 | `omnifocus://waiting-on` | Every task carrying a `waiting-on` fence, sorted by daysOverdue DESC |
