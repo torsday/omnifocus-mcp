@@ -46,6 +46,8 @@
     "build": "tsup",
     "build:watcher": "bash scripts/build-watcher.sh",
     "build:watcher:all": "bash scripts/build-watcher.sh --all",
+    "build:calendar-bridge": "bash scripts/build-calendar-bridge.sh",
+    "build:calendar-bridge:all": "bash scripts/build-calendar-bridge.sh --all",
     "dev": "tsx watch src/index.ts",
     "typecheck": "tsc --noEmit",
     "docs:generate": "tsx scripts/generate-tool-docs.ts",

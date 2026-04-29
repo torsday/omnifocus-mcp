@@ -139,6 +139,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **ADR-0018 — Calendar bridge: EventKit only, Swift-binary subprocess** — formalises the architecture that unblocks [#484](https://github.com/torsday/omnifocus-mcp/issues/484) (calendar + agenda resources). Decisions: EventKit is the sole calendar substrate (third-party APIs handled by separate MCP servers, composed at the agent layer); access via a tiny Swift binary subprocess bundled in `dist/` (rejecting JXA/Calendar.app shim and direct Node FFI for documented reasons); read-only; permission UX mirrors the existing OF Automation prompt. Status: Accepted. ([#603](https://github.com/torsday/omnifocus-mcp/issues/603))
 
+### Build
+
+- **Calendar bridge — Swift scaffold + build pipeline** — first slice of [#484](https://github.com/torsday/omnifocus-mcp/issues/484): adds `tools/calendar-bridge/calendar-bridge.swift` (a stub that responds to a `ping` subcommand with stable scaffold JSON and exits) and `scripts/build-calendar-bridge.sh` (mirroring `build-watcher.sh` — single-arch / `--all` for fat universal binary / `--verify` for typecheck-only). Build hooks: `pnpm build:calendar-bridge` and `pnpm build:calendar-bridge:all`. Binaries gitignored. No EventKit calls yet — that lands in subsequent slices of #484, along with the permission flow and the `omnifocus://calendar` / `omnifocus://agenda` resources. Per ADR-0018.
+
 ---
 
 ## [1.0.0] — 2026-04-25
