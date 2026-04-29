@@ -59,6 +59,26 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+
+      # Mutation-testing release gate (per ADR-0017 §4).
+      #
+      # The gate runs once per release tag — between unit tests and publish — and
+      # fails the release when the mutation score drops below the calibrated
+      # `thresholds.break` in stryker.conf.json (currently 57.74 = baseline − 5
+      # per ADR §3). The HTML + JSON reports are uploaded as workflow artifacts
+      # for post-mortem on a fail and for traceability on a pass.
+      - name: Stryker mutation testing (release gate)
+        run: pnpm mutation
+
+      - name: Upload mutation report
+        if: always() # upload on fail too — the HTML report is how you triage
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report-${{ github.ref_name }}
+          path: reports/mutation/
+          if-no-files-found: error
+          retention-days: 90
+
       - run: pnpm build
 
       - name: Bundle-size budget (< 500 KB per DESIGN §20)
