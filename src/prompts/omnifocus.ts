@@ -26,6 +26,7 @@ export const WEEKLY_REVIEW_PROMPT = "weekly-review";
 export const CAPTURE_MEETING_PROMPT = "capture-meeting";
 export const PROJECT_PLANNING_PROMPT = "project-planning";
 export const INBOX_TRIAGE_PROMPT = "inbox-triage";
+export const PERSPECTIVE_AUTHOR_PROMPT = "perspective-author";
 
 // ---------------------------------------------------------------------------
 // Message builders (pure functions — testable in isolation)
@@ -229,6 +230,105 @@ inbox in one user confirmation, not ten clicks. Follow these steps in order:
    whether to retry, skip, or hand off.`;
 }
 
+/**
+ * Build the `perspective-author` message.
+ *
+ * Three-step propose → preview → save flow that turns a free-text request
+ * ("everything I could do at home, on a phone, with under 15 minutes") into
+ * a saved custom perspective. The agent never writes the perspective until
+ * the user confirms the dry-run preview.
+ *
+ * Embeds a reference card of common rule-tree atoms so the agent has the
+ * vocabulary it needs without web access — the rule-tree shape is defined
+ * by `archivedFilterRules` and is OF-version-stable.
+ */
+export function buildPerspectiveAuthorMessage(description: string, name?: string): string {
+  return `You are translating a natural-language request into a saved OmniFocus custom perspective.
+
+User's description: "${description}"${name ? `\n\nProposed name: "${name}"` : ""}
+
+Follow these steps in order. Do NOT skip the preview step — saving without a dry-run is the failure mode this flow exists to prevent.
+
+## 1. Propose a rule tree
+
+Translate the description into a \`PerspectiveRule[]\` tree. The shape is the same one \`perspective_create\` accepts. **If the description is genuinely ambiguous, ask exactly ONE disambiguating question and stop — do not guess.** Examples of ambiguity worth asking about:
+- "nearby tasks" → nearby what? Location-based filtering is unsupported; clarify whether the user means *available* (\`actionAvailability: "available"\`) or something else.
+- "due this week" → today only, or any time before Sunday?
+- "high priority" → flagged, or due-soon, or both?
+
+When the description is clear, propose the tree directly without asking.
+
+### Rule-tree atom reference
+
+Each atom is a single-key object. Combine atoms inside a top-level array — \`aggregation\` (\`"all"\` | \`"any"\` | \`"none"\`) controls how they combine. Use a nested \`{ aggregateType, aggregateRules }\` for compound logic.
+
+| Atom key | Meaning |
+|---|---|
+| \`actionAvailability\` | \`"available"\` (not blocked, not deferred-future), \`"remaining"\` (not done), \`"completed"\`, \`"dropped"\`, \`"firstAvailable"\` |
+| \`actionStatus\` | \`"flagged"\` or \`"due"\` |
+| \`actionHasAllOfTags\` | \`string[]\` of tag IDs — task must carry every tag |
+| \`actionHasAnyOfTags\` | \`string[]\` of tag IDs — task must carry at least one |
+| \`actionHasNoProject\` | \`true\` for inbox-style filter |
+| \`actionHasDueDate\` | \`true\` / \`false\` |
+| \`actionHasDeferDate\` | \`true\` / \`false\` |
+| \`actionIsLeaf\` | \`true\` for tasks with no children |
+| \`actionIsProject\` | \`true\` to restrict to project-equivalent items |
+| \`actionMatchingSearch\` | \`string[]\` substrings — searches name + note |
+| \`actionWithinFocus\` | \`string[]\` of project / folder IDs — restrict to descendants |
+
+Wrap a single atom in \`{ disabledRule: <atom> }\` to keep it in the tree but skip it during evaluation (useful when the user asks to toggle a constraint on/off).
+
+### Common patterns
+
+- **Available + flagged** (high-priority "actionable now" view):
+  \`\`\`json
+  { "aggregation": "all", "rules": [{ "actionAvailability": "available" }, { "actionStatus": "flagged" }] }
+  \`\`\`
+- **Inbox-only**:
+  \`\`\`json
+  { "aggregation": "all", "rules": [{ "actionHasNoProject": true }] }
+  \`\`\`
+- **At-home-or-phone, no due date, available** (the ticket's example shape):
+  \`\`\`json
+  {
+    "aggregation": "all",
+    "rules": [
+      { "actionAvailability": "available" },
+      { "actionHasAnyOfTags": ["<home-tag-id>", "<phone-tag-id>"] }
+    ]
+  }
+  \`\`\`
+  Resolve the tag IDs via \`tag_list\` first if you don't have them.
+
+## 2. Preview via dry-run
+
+Call \`perspective_evaluate_dry_run({ aggregation, rules })\` with the proposed tree. Report the count of matched tasks and 3–5 sample names. **Do not advance to step 3 if:**
+- The count is 0 (the rules don't match anything — re-propose, don't save an empty view).
+- The count is suspiciously broad (e.g. > 100 when the user asked for "today's actionable tasks") — re-propose with tighter constraints.
+
+Show the agent-friendly summary inline; the user can read the count and decide.
+
+## 3. Save on user confirm
+
+After the user confirms the preview matches their intent, call:
+
+\`\`\`
+perspective_create({ name: "<name>", aggregation: "<all|any|none>", rules: [...] })
+\`\`\`
+
+The \`rules\` value is the same tree you passed to \`perspective_evaluate_dry_run\` — pass it verbatim, no re-validation needed. \`perspective_create\` returns \`{ id }\`; surface that id to the user so they can reference it later (\`perspective_evaluate({ perspectiveId: "<id>" })\`).
+
+After save, call \`perspective_list\` to confirm the new perspective is visible. Report the resulting count + name + id.
+
+## Failure modes
+
+- **OF Pro required.** Custom perspectives need OmniFocus Pro. \`perspective_evaluate_dry_run\` and \`perspective_create\` both return \`OF_FEATURE_REQUIRES_PRO\` on Standard. Surface that to the user — they cannot save a perspective without upgrading.
+- **Duplicate name.** \`perspective_create\` rejects duplicate names with a typed validation error. Either ask the user for a different name or append a disambiguator (e.g. \` - 2\`).
+- **Don't save without a name.** If the user did not supply a name, ask for one before step 3 — don't invent one.
+
+Read-only verification first; mutation only on explicit user approval.`;
+}
+
 // ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
@@ -342,6 +442,50 @@ export function registerOmniFocusPrompts(server: McpServer): void {
     },
     async () => ({
       messages: [{ role: "user", content: { type: "text", text: buildInboxTriageMessage() } }],
+    }),
+  );
+
+  // ── perspective-author ───────────────────────────────────────────────────
+  server.registerPrompt(
+    PERSPECTIVE_AUTHOR_PROMPT,
+    {
+      description:
+        "Translate a free-text description into a saved OmniFocus custom perspective. " +
+        "Walks the agent through three steps: (1) propose a PerspectiveRule[] tree from the prose " +
+        "(asking ONE disambiguation question if genuinely ambiguous, else proposing directly), " +
+        "(2) preview the matched tasks via perspective_evaluate_dry_run, " +
+        "(3) save via perspective_create only after user confirmation. " +
+        "Embeds a reference card of common rule-tree atoms so the agent has the vocabulary " +
+        "without web access. Custom perspectives require OmniFocus Pro.",
+      argsSchema: {
+        description: z
+          .string()
+          .min(1)
+          .describe(
+            "Free-text description of the perspective the user wants. " +
+              "Examples: 'everything I could do at home, on a phone, with under 15 minutes', " +
+              "'flagged tasks that are available right now', 'inbox items with no defer date'.",
+          ),
+        name: z
+          .string()
+          .min(1)
+          .optional()
+          .describe(
+            "Optional display name for the new perspective. When omitted, the agent asks " +
+              "the user for one before the save step.",
+          ),
+      },
+    },
+    async ({ description, name }) => ({
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: buildPerspectiveAuthorMessage(description, name),
+          },
+        },
+      ],
     }),
   );
 }
