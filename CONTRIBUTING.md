@@ -162,6 +162,34 @@ bash scripts/check-automation-permission.sh
 
 If it exits 1, re-grant permission in System Settings as above.
 
+## Mutation testing (release-time hard gate)
+
+Releases are gated on a Stryker mutation-testing run that fails the publish if the score regresses below `thresholds.break = 57.74` (= calibration baseline − 5). Per [ADR-0017](./docs/adr/0017-mutation-testing-release-gate.md). The gate fires once per `v*.*.*` tag push in [`.github/workflows/release.yml`](./.github/workflows/release.yml); reports upload as `mutation-report-<tag>` workflow artifact (90-day retention).
+
+### Running locally
+
+```bash
+pnpm mutation
+```
+
+Wall-clock is roughly 6–7 minutes against the slice-1B calibration baseline (2740 mutants, allowlist scoped to `src/domain`, `src/errors`, `src/server`). Reports land at `reports/mutation/mutation.html` (open in a browser) and `reports/mutation/mutation.json` (consumed by `internal_status` if the running server's package root has the file).
+
+### Handling survivors
+
+A surviving mutant is unambiguous evidence that the test suite doesn't pin down the behaviour the mutated line is responsible for. The default response is **write the test that kills it.**
+
+Only when a mutation is observably equivalent to the original — meaning no test could ever distinguish them, e.g. an algebraic identity or a dead-store elimination — should it go in [`stryker-equivalents.json`](./stryker-equivalents.json), and only with a one-line `rationale` explaining why no test could distinguish it. Bare entries (no rationale) are forbidden. Reflexive additions to silence a survivor are the wrong default; the right default is to write the test. Maintainers audit the registry quarterly and remove entries whose rationale no longer holds. Per ADR-0017 §5.
+
+### Checking calibration freshness
+
+The running server surfaces the live mutation score via [`internal_status`](./src/tools/observability/internalStatus.ts):
+
+```ts
+internal_status() // → { mutation: { score: 62.74, lastRunAt: "..." } | null, ... }
+```
+
+`null` means no `reports/mutation/mutation.json` exists in the package root — published npm tarballs always show `null` since `reports/` is gitignored. For a dev clone, `null` after a recent `pnpm mutation` run means the report file was moved or deleted.
+
 ## Ask before
 
 - Introducing a new runtime dependency ([`DESIGN.md §25`](./DESIGN.md#25-dependency-inventory) inventory requires justification)
