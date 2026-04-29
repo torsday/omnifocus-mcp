@@ -16,7 +16,7 @@
 #   --size        XS|S|M|L|XL
 #   --phase       M0|M1|M2|M3|M4|M5|v1
 #   --domain      "<comma-separated list>"        — e.g. "task,tag"
-#   --model       opus|sonnet
+#   --model       sonnet-low|opus-med|opus-high|opus-1m-max
 #
 # Optional flags:
 #   --risk        high|medium                     — omit for low/none
@@ -39,7 +39,7 @@
 #     --title "feat(tags): implement create_tag tool" \
 #     --body-file /tmp/body.md \
 #     --type feature --priority P1 --size M --phase M1 \
-#     --domain tag --model opus
+#     --domain tag --model opus-med
 # =============================================================================
 set -euo pipefail
 
@@ -93,14 +93,14 @@ done
 [ -n "$SIZE" ]       || die "--size required"
 [ -n "$PHASE" ]      || die "--phase required"
 [ -n "$DOMAIN" ]     || die "--domain required (at least one)"
-[ -n "$MODEL" ]      || die "--model required (opus|sonnet)"
+[ -n "$MODEL" ]      || die "--model required (sonnet-low|opus-med|opus-high|opus-1m-max)"
 
 # Enumerations — fail fast on typos rather than producing a half-wired issue
 case "$TYPE"     in feature|bug|chore|refactor|perf|docs|test|infra|spike|epic) ;; *) die "--type invalid: $TYPE" ;; esac
 case "$PRIORITY" in P0|P1|P2|P3) ;;                          *) die "--priority invalid: $PRIORITY" ;; esac
 case "$SIZE"     in XS|S|M|L|XL) ;;                          *) die "--size invalid: $SIZE" ;; esac
 case "$PHASE"    in M0|M1|M2|M3|M4|M5|v1) ;;                 *) die "--phase invalid: $PHASE" ;; esac
-case "$MODEL"    in opus|sonnet) ;;                          *) die "--model invalid: $MODEL" ;; esac
+case "$MODEL"    in sonnet-low|opus-med|opus-high|opus-1m-max) ;; *) die "--model invalid: $MODEL (use sonnet-low|opus-med|opus-high|opus-1m-max — see ~/.claude/skills/shared/model-tiers.md)" ;; esac
 if [ -n "$RISK" ]; then
   case "$RISK" in high|medium) ;; *) die "--risk invalid: $RISK (use high|medium or omit)" ;; esac
 fi
