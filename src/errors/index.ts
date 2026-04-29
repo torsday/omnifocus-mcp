@@ -26,6 +26,8 @@ export type ErrorCode =
   | "OF_FEATURE_REQUIRES_PRO"
   | "OF_FEATURE_REQUIRES_VERSION"
   | "OF_WINDOW_UNAVAILABLE"
+  | "OF_CALENDAR_PERMISSION_DENIED"
+  | "OF_CALENDAR_BRIDGE_UNAVAILABLE"
   // Input — agent should fix the input before retrying
   | "OF_VALIDATION"
   | "OF_NOT_FOUND"
@@ -154,6 +156,30 @@ export class PermissionDenied extends OmniFocusError {
       remediationClass: "environment",
       suggestion:
         "Open System Settings → Privacy & Security → Automation; grant this terminal or client access to OmniFocus. See docs/troubleshooting.md for step-by-step recovery.",
+      ...options,
+    });
+  }
+}
+
+/** Thrown when macOS Calendar (TCC) access has not been granted. Mirrors `PermissionDenied` for the calendar bridge. */
+export class CalendarPermissionDenied extends OmniFocusError {
+  constructor(options: ErrorOptions = {}) {
+    super("OF_CALENDAR_PERMISSION_DENIED", "Calendar access has not been granted.", {
+      remediationClass: "environment",
+      suggestion:
+        "Open System Settings → Privacy & Security → Calendars; grant this terminal or client access. Or invoke the calendar-bridge `request-access` flow to trigger the macOS prompt.",
+      ...options,
+    });
+  }
+}
+
+/** Thrown when the compiled calendar-bridge Swift binary is missing or fails to start. */
+export class CalendarBridgeUnavailable extends OmniFocusError {
+  constructor(message: string, options: ErrorOptions = {}) {
+    super("OF_CALENDAR_BRIDGE_UNAVAILABLE", message, {
+      remediationClass: "infrastructure",
+      suggestion:
+        "Run `pnpm build:calendar-bridge` to compile the Swift binary. The published npm tarball includes a prebuilt binary; if you're running from source, the binary is built on demand.",
       ...options,
     });
   }
