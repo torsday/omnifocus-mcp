@@ -134,6 +134,9 @@ import {
   TASK_CLEAR_WAITING_ON_DESCRIPTION,
   TASK_SET_WAITING_ON_DESCRIPTION,
 } from "./task/waitingOn.js";
+import { WEBHOOK_DELETE_DESCRIPTION } from "./webhook/delete.js";
+import { WEBHOOK_LIST_DESCRIPTION } from "./webhook/list.js";
+import { WEBHOOK_REGISTER_DESCRIPTION } from "./webhook/register.js";
 import {
   APP_WINDOW_NEW_DESCRIPTION,
   APP_WINDOW_NEW_TAB_DESCRIPTION,
@@ -281,4 +284,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   window_set_focus: WINDOW_SET_FOCUS_DESCRIPTION,
   window_set_perspective: WINDOW_SET_PERSPECTIVE_DESCRIPTION,
   task_update_describe: TASK_UPDATE_DESCRIBE_DESCRIPTION,
+  webhook_delete: WEBHOOK_DELETE_DESCRIPTION,
+  webhook_list: WEBHOOK_LIST_DESCRIPTION,
+  webhook_register: WEBHOOK_REGISTER_DESCRIPTION,
 };

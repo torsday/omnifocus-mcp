@@ -12,6 +12,7 @@ describe("parseConfig", () => {
         OMNIFOCUS_E2E: false,
         OMNIFOCUS_E2E_USE_MEMORY: false,
         OMNIFOCUS_ALLOW_RAW_SCRIPT: false,
+        OMNIFOCUS_WEBHOOKS_ENABLED: false,
         OMNIFOCUS_CACHE_TTL_MS: 30000,
         OMNIFOCUS_CACHE_CAPACITY: 256,
         OMNIFOCUS_READ_POOL_SIZE: 2,

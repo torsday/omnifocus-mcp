@@ -83,6 +83,9 @@ import { taskUncompleteInputSchema } from "./task/uncomplete.js";
 import { taskUndropInputSchema } from "./task/undrop.js";
 // task_update uses the base schema (ZodObject) — the exported schema is ZodEffects
 import { taskUpdateInputBaseSchema } from "./task/update.js";
+import { webhookDeleteInputSchema } from "./webhook/delete.js";
+import { webhookListInputSchema } from "./webhook/list.js";
+import { webhookRegisterInputSchema } from "./webhook/register.js";
 
 export const ALL_INPUT_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   attachment_list: attachmentListInputSchema,
@@ -155,4 +158,7 @@ export const ALL_INPUT_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   task_uncomplete: taskUncompleteInputSchema,
   task_undrop: taskUndropInputSchema,
   task_update: taskUpdateInputBaseSchema,
+  webhook_delete: webhookDeleteInputSchema,
+  webhook_list: webhookListInputSchema,
+  webhook_register: webhookRegisterInputSchema,
 };

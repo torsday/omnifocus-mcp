@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 138 tools registered.
+> Auto-generated from source. 141 tools registered.
 
 ## Table of contents
 
@@ -141,6 +141,9 @@
 - [task_undrop](#task_undrop)
 - [task_update](#task_update)
 - [task_update_describe](#task_update_describe)
+- [webhook_delete](#webhook_delete)
+- [webhook_list](#webhook_list)
+- [webhook_register](#webhook_register)
 - [window_get_state](#window_get_state)
 - [window_set_focus](#window_set_focus)
 - [window_set_perspective](#window_set_perspective)
@@ -4886,6 +4889,106 @@ _No parameters._
 ```json
 {
   "toolName": "task_update_describe",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## webhook_delete
+
+Delete a registered outbound webhook by name. Idempotent — returns noChange:true when the named webhook does not exist. Off by default — requires OMNIFOCUS_WEBHOOKS_ENABLED=1. Do NOT use this for bulk-clear operations; this tool removes exactly one entry. Returns { name, deleted:true } or { name, noChange:true }. Side effects: rewrites the registry config file at ~/Library/Application Support/omnifocus-mcp/webhooks.json. Example: webhook_delete({ name: "slack-billing" })
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Name of the registered webhook to delete. Idempotent — unknown names return noChange:true. |
+
+### Example call
+
+```json
+{
+  "toolName": "webhook_delete",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## webhook_list
+
+List every registered outbound webhook by name, trigger, and createdAt timestamp. URLs and secrets are NEVER surfaced — only metadata safe to display. Use this to confirm what's wired up; delete unwanted entries via webhook_delete. Off by default — requires OMNIFOCUS_WEBHOOKS_ENABLED=1. Do NOT use this to retrieve URLs or secrets — by design they remain on-disk only. Returns { webhooks: WebhookSummary[] } in registration order. Read-only; safe to call repeatedly. Example: webhook_list()
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "webhook_list",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## webhook_register
+
+Register an outbound webhook that fires when an OmniFocus state change matches the supplied trigger. Off by default — requires OMNIFOCUS_WEBHOOKS_ENABLED=1 in the environment, mirroring the raw-script gating. URLs must use https:// (http:// is rejected at registration). An optional secret enables HMAC-SHA256 signature verification by the receiver via X-OmniFocus-Signature: sha256=<hex>; the secret is stored on disk only and is never echoed back through any tool response. Do NOT use this to call this MCP server itself — webhooks are outbound only. Returns { webhook: WebhookSummary } where the summary omits both URL and secret. Side effects: writes to the registry config file at ~/Library/Application Support/omnifocus-mcp/webhooks.json (mode 0600). Example: webhook_register({ name: "slack-billing", url: "https://hooks.slack.com/services/...", trigger: { on: "task-completed", filter: { tagId: "tag_xyz" } } })
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Stable name for the webhook. Unique within the registry; used as the lookup key. ≤64 chars, no whitespace. |
+| `url` | string | Yes | Outbound HTTPS URL. http:// is rejected at registration (per ADR-0016 §4b). |
+| `trigger` | unknown | Yes | What triggers a webhook fire — one of task-completed, task-created, or project-status-changed. Each variant accepts an optional filter narrowing which entities count. |
+| `secret` | string | No | Optional HMAC seed (8–256 chars). When set, every delivery includes an X-OmniFocus-Signature: sha256=<hex> header so the receiver can verify authenticity. Stored on disk only; never echoed. |
+
+### Example call
+
+```json
+{
+  "toolName": "webhook_register",
   "arguments": {}
 }
 ```

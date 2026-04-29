@@ -65,6 +65,18 @@ export interface Capabilities {
     available: boolean;
     permission: CalendarPermission | "unknown";
   };
+  /**
+   * Outbound webhook subsystem state (per ADR-0016, #483). `enabled` is true
+   * when `OMNIFOCUS_WEBHOOKS_ENABLED=1`; `count` and `names` reflect the
+   * current registry contents. **URLs and secrets are NEVER surfaced here**
+   * (per ADR-0016 §4d) — the names exist so a debugging agent can correlate
+   * stderr logs with registrations; everything else stays disk-only.
+   */
+  webhooks: {
+    enabled: boolean;
+    count: number;
+    names: string[];
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -88,6 +100,7 @@ export function buildCapabilities(
     ofVersion?: string;
     ofEdition?: "standard" | "pro";
     calendarAccess?: Capabilities["calendarAccess"];
+    webhooks?: Capabilities["webhooks"];
   } = {},
 ): Capabilities {
   const { limit, windowSeconds } = config.OMNIFOCUS_TOOL_RATE_LIMIT;
@@ -115,6 +128,11 @@ export function buildCapabilities(
     },
     idempotencyTtlMs: DEFAULT_IDEMPOTENCY_TTL_MS,
     calendarAccess: overrides.calendarAccess ?? { available: false, permission: "unknown" },
+    webhooks: overrides.webhooks ?? {
+      enabled: config.OMNIFOCUS_WEBHOOKS_ENABLED,
+      count: 0,
+      names: [],
+    },
   };
 }
 
