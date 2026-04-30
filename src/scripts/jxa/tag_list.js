@@ -18,7 +18,24 @@ function run(argv) {
     let parentId = null;
     try {
       const p = tag.parent();
-      if (p && p.class() !== "document") parentId = p.id();
+      if (p) {
+        // OF 4.x: p.class() may throw on container objects (same pattern as
+        // containingProject().class() fix in task_list.js — see #673).
+        // When it throws we assume the parent is a real tag (not the document
+        // root) and fall through to p.id(); if p.id() also throws the outer
+        // catch leaves parentId = null, which is the safe default.
+        let isDocument = false;
+        try {
+          isDocument = p.class() === "document";
+        } catch (_classErr) {}
+        if (!isDocument) {
+          try {
+            parentId = p.id();
+          } catch (_idErr) {
+            parentId = null; // id() threw — treat as no parent (document root)
+          }
+        }
+      }
     } catch (_e) {}
 
     let location = null;
