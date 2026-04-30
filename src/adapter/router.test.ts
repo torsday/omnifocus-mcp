@@ -310,6 +310,7 @@ describe("TransportRouter — table integrity", () => {
       "createProject", // ADR-0019: persistent id.primaryKey from creation, interoperable with both transports
       "createTask", // ADR-0019: persistent id.primaryKey from creation, interoperable with both transports (sibling of createProject)
       "deleteCustomPerspective", // OmniJS deleteObject — JXA cannot delete custom perspectives (#523)
+      "duplicateTask", // ADR-0019: cloned task.id.primaryKey interoperable with both transports (sibling of createTask, #692)
       "evaluateCustomPerspective",
       "evaluatePerspectiveRules", // OmniJS-only: temp-perspective lifecycle + walk (#659)
       "getCustomPerspective", // archivedFilterRules / iconColor are OmniJS-only reads (#523)

@@ -52,6 +52,7 @@ import {
   type TaskBatchMoveScriptResult,
   type TaskConvertToProjectScriptResult,
   type TaskCreateScriptResult,
+  type TaskDuplicateOmniJsScriptResult,
   type TaskMoveScriptResult,
 } from "../../scripts/contracts.js";
 import appWindowNewScript from "../../scripts/omnijs/app_window_new.js";
@@ -72,6 +73,7 @@ import taskBatchMoveScript from "../../scripts/omnijs/task_batch_move.js";
 import taskClearAlarmsScript from "../../scripts/omnijs/task_clear_alarms.js";
 import taskConvertToProjectScript from "../../scripts/omnijs/task_convert_to_project.js";
 import taskCreateScript from "../../scripts/omnijs/task_create.js";
+import taskDuplicateScript from "../../scripts/omnijs/task_duplicate.js";
 import taskMoveScript from "../../scripts/omnijs/task_move.js";
 import taskReorderScript from "../../scripts/omnijs/task_reorder.js";
 import taskSetAlarmsScript from "../../scripts/omnijs/task_set_alarms.js";
@@ -315,13 +317,48 @@ export class OmniJsTransport implements OmniFocusAdapter {
     }
   }
   async duplicateTask(
-    _id: TaskId,
-    _opts: {
+    id: TaskId,
+    opts: {
       recursive: boolean;
       destination?: { projectId: ProjectId } | { parentId: TaskId } | { toInbox: true };
     },
   ): Promise<{ newId: TaskId; descendantCount: number }> {
-    return notYetWired("duplicateTask");
+    // Routes through OmniJS per ADR-0019 (sibling to createTask in #680).
+    // JXA's `task.duplicate()` and `container.make()` produce specifier IDs
+    // that don't round-trip through the OmniJS persistent-id space; OmniJS's
+    // `duplicateTasks([source], position)` and `new Task(name, position)`
+    // produce IDs both transports accept.
+    const destination =
+      opts.destination === undefined
+        ? null
+        : "projectId" in opts.destination
+          ? { projectId: opts.destination.projectId }
+          : "parentId" in opts.destination
+            ? { parentId: opts.destination.parentId }
+            : { toInbox: true as const };
+    const result = await runOmniJsScript<TaskDuplicateOmniJsScriptResult>(
+      taskDuplicateScript,
+      {
+        id,
+        recursive: opts.recursive,
+        destination,
+      },
+      { ...this.runOpts, scriptName: "task_duplicate" },
+    );
+    if (isScriptError(result)) {
+      if (result.error.code === "NOT_FOUND") {
+        throw new NotFound(result.error.message, {
+          details: { transport: "omnijs", scriptName: "task_duplicate" },
+        });
+      }
+      throw new ValidationError(result.error.message, {
+        details: { transport: "omnijs", scriptName: "task_duplicate" },
+      });
+    }
+    return {
+      newId: TaskIdCtor.of(result.newId),
+      descendantCount: result.descendantCount,
+    };
   }
   async batchCreateTasks(
     _inputs: CreateTaskInput[],
