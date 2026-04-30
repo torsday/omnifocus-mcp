@@ -132,7 +132,10 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   batchCompleteProjects: "jxa",
   dropProject: "jxa",
   batchDropProjects: "jxa",
-  moveProject: "jxa",
+  // Per ADR-0019: routes through OmniJS because JXA's `target.move()`
+  // silently fails on OmniJS-created projects (which is every project
+  // after #681's createProject migration). Sibling of moveTask.
+  moveProject: "omnijs",
   deleteProject: "jxa",
   markProjectReviewed: "jxa",
   listProjectsDueForReview: "jxa",

@@ -49,6 +49,7 @@ import {
   type PerspectiveGetScriptResult,
   type PerspectiveUpdateScriptResult,
   type ProjectCreateScriptResult,
+  type ProjectMoveScriptResult,
   type TaskBatchMoveScriptResult,
   type TaskConvertToProjectScriptResult,
   type TaskCreateScriptResult,
@@ -69,6 +70,7 @@ import perspectiveGetScript from "../../scripts/omnijs/perspective_get.js";
 import perspectiveUpdateScript from "../../scripts/omnijs/perspective_update.js";
 import pluginInvokeScript from "../../scripts/omnijs/plugin_invoke.js";
 import projectCreateScript from "../../scripts/omnijs/project_create.js";
+import projectMoveScript from "../../scripts/omnijs/project_move.js";
 import taskBatchMoveScript from "../../scripts/omnijs/task_batch_move.js";
 import taskClearAlarmsScript from "../../scripts/omnijs/task_clear_alarms.js";
 import taskConvertToProjectScript from "../../scripts/omnijs/task_convert_to_project.js";
@@ -465,8 +467,27 @@ export class OmniJsTransport implements OmniFocusAdapter {
   ): Promise<import("../../domain/batch.js").BatchOutcome<ProjectId>> {
     return notYetWired("batchDropProjects");
   }
-  async moveProject(_id: ProjectId, _destination: { folderId: FolderId | null }): Promise<void> {
-    return notYetWired("moveProject");
+  async moveProject(id: ProjectId, destination: { folderId: FolderId | null }): Promise<void> {
+    // Routes through OmniJS per ADR-0019. JXA's `target.move({ to: ... })`
+    // silently fails with "Attempted to move data objects to a nil
+    // container" on OmniJS-created projects (which is every project after
+    // #681's createProject migration). OmniJS's `moveSections([proj], dest)`
+    // works with persistent primaryKey lookups.
+    const result = await runOmniJsScript<ProjectMoveScriptResult>(
+      projectMoveScript,
+      { id, folderId: destination.folderId ?? null },
+      { ...this.runOpts, scriptName: "project_move" },
+    );
+    if (isScriptError(result)) {
+      if (result.error.code === "NOT_FOUND") {
+        throw new NotFound(result.error.message, {
+          details: { transport: "omnijs", scriptName: "project_move" },
+        });
+      }
+      throw new ValidationError(result.error.message, {
+        details: { transport: "omnijs", scriptName: "project_move" },
+      });
+    }
   }
   async deleteProject(_id: ProjectId): Promise<void> {
     return notYetWired("deleteProject");

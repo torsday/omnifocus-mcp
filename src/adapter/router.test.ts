@@ -315,6 +315,7 @@ describe("TransportRouter — table integrity", () => {
       "evaluatePerspectiveRules", // OmniJS-only: temp-perspective lifecycle + walk (#659)
       "getCustomPerspective", // archivedFilterRules / iconColor are OmniJS-only reads (#523)
       "getForecastTag", // Database.forecastTag is OmniJS-only (#465)
+      "moveProject", // ADR-0019: JXA target.move() silently fails on OmniJS-created projects (#681 follow-up)
       "moveTask", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works
       "pluginInvoke",
       "redoLastMutation", // Database.redo() is OmniJS-only (#526)

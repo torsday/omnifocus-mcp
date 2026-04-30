@@ -24,10 +24,19 @@ function run(argv) {
   }
 
   function buildProject(proj) {
+    // See project_get.js — `f.class()` throws on real folders in OF 4.x (#681 follow-up).
     let folderId = null;
     try {
       const f = proj.folder();
-      if (f && f.class() !== "document") folderId = f.id();
+      if (f) {
+        let isDocument = false;
+        try {
+          isDocument = f.class() === "document";
+        } catch (_classErr) {
+          /* OF 4.x: real folders throw here */
+        }
+        if (!isDocument) folderId = f.id();
+      }
     } catch (_e) {}
 
     const tagIds = [];
