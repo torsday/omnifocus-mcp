@@ -32,6 +32,7 @@ function run(argv) {
   const dueAfter = args.dueAfter ? new Date(args.dueAfter) : null;
 
   // @inline _helpers/build_task.js
+  // @inline _helpers/lookup_or_throw.js
 
   // ---------------------------------------------------------------------------
   // Collect candidate tasks
@@ -39,11 +40,12 @@ function run(argv) {
 
   let tasks;
   if (args.projectId) {
-    try {
-      tasks = ofApp.defaultDocument.flattenedProjects.byId(args.projectId).flattenedTasks();
-    } catch (_e) {
-      throw new Error(`Project not found: ${args.projectId}`);
-    }
+    const proj = lookupOrThrow(
+      ofApp.defaultDocument.flattenedProjects.byId(args.projectId),
+      "Project",
+      args.projectId,
+    );
+    tasks = proj.flattenedTasks();
   } else {
     tasks = ofApp.defaultDocument.flattenedTasks();
   }

@@ -21,26 +21,29 @@ function run(argv) {
   ofApp.includeStandardAdditions = false;
 
   // @inline _helpers/build_task.js
+  // @inline _helpers/lookup_or_throw.js
 
   let tasks;
   if (args.inbox) {
     // inboxTasks() returns only tasks with no project assignment — exactly the Inbox scope.
     tasks = ofApp.defaultDocument.inboxTasks();
   } else if (args.projectId) {
-    try {
-      tasks = ofApp.defaultDocument.flattenedProjects.byId(args.projectId).flattenedTasks();
-    } catch (_e) {
-      throw new Error(`Project not found: ${args.projectId}`);
-    }
+    const proj = lookupOrThrow(
+      ofApp.defaultDocument.flattenedProjects.byId(args.projectId),
+      "Project",
+      args.projectId,
+    );
+    tasks = proj.flattenedTasks();
   } else if (args.parentId) {
-    try {
-      // Use .tasks() (direct children only) not .flattenedTasks() (all descendants).
-      // flattenedTasks() would include grandchildren and deeper, violating the
-      // direct-children contract documented on OmniFocusAdapter.listTasks — see #695.
-      tasks = ofApp.defaultDocument.flattenedTasks.byId(args.parentId).tasks();
-    } catch (_e) {
-      throw new Error(`Parent task not found: ${args.parentId}`);
-    }
+    const parent = lookupOrThrow(
+      ofApp.defaultDocument.flattenedTasks.byId(args.parentId),
+      "Parent task",
+      args.parentId,
+    );
+    // Use .tasks() (direct children only) not .flattenedTasks() (all descendants).
+    // flattenedTasks() would include grandchildren and deeper, violating the
+    // direct-children contract documented on OmniFocusAdapter.listTasks — see #695.
+    tasks = parent.tasks();
   } else {
     tasks = ofApp.defaultDocument.flattenedTasks();
   }

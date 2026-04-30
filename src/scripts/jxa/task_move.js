@@ -23,13 +23,21 @@ function run(argv) {
   }
   if (!found) throw new Error(`Task not found: ${args.id}`);
 
+  // @inline _helpers/lookup_or_throw.js
+
   if (args.parentId) {
-    const parent = ofApp.defaultDocument.flattenedTasks.byId(args.parentId);
-    if (!parent) throw new Error(`Parent task not found: ${args.parentId}`);
+    const parent = lookupOrThrow(
+      ofApp.defaultDocument.flattenedTasks.byId(args.parentId),
+      "Parent task",
+      args.parentId,
+    );
     found.move({ to: parent });
   } else if (args.projectId) {
-    const proj = ofApp.defaultDocument.flattenedProjects.byId(args.projectId);
-    if (!proj) throw new Error(`Project not found: ${args.projectId}`);
+    const proj = lookupOrThrow(
+      ofApp.defaultDocument.flattenedProjects.byId(args.projectId),
+      "Project",
+      args.projectId,
+    );
     found.move({ to: proj });
   } else {
     found.move({ to: ofApp.defaultDocument });

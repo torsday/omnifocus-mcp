@@ -18,6 +18,8 @@ function run(argv) {
   ofApp.includeStandardAdditions = false;
   const doc = ofApp.defaultDocument;
 
+  // @inline _helpers/lookup_or_throw.js
+
   const succeeded = [];
   const failed = [];
 
@@ -61,8 +63,7 @@ function run(argv) {
   for (let i = 0; i < args.updates.length; i++) {
     const u = args.updates[i];
     try {
-      const task = doc.flattenedTasks.byId(u.id);
-      if (!task) throw new Error(`OF_NOT_FOUND: task ${u.id}`);
+      const task = lookupOrThrow(doc.flattenedTasks.byId(u.id), "OF_NOT_FOUND: task", u.id);
       applyPatch(task, u.patch || {});
       succeeded.push({ index: i, value: u.id });
     } catch (e) {

@@ -228,10 +228,15 @@ function run(argv) {
   // OmniFocus 4.x rejects `doc.make({ new: "project", withProperties })` with
   // error -10024. The working pattern mirrors the inbox-task fix in #275:
   // construct a specifier via the class name and push it onto the collection.
+  // @inline _helpers/lookup_or_throw.js
+
   let newProj;
   if (args.folderId) {
-    const folder = ofApp.defaultDocument.folders.byId(args.folderId);
-    if (!folder) throw new Error(`Folder not found: ${args.folderId}`);
+    const folder = lookupOrThrow(
+      ofApp.defaultDocument.folders.byId(args.folderId),
+      "Folder",
+      args.folderId,
+    );
     newProj = ofApp.Project(props);
     folder.projects.push(newProj);
   } else {
