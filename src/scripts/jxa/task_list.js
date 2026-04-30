@@ -193,7 +193,10 @@ function run(argv) {
     }
   } else if (args.parentId) {
     try {
-      tasks = ofApp.defaultDocument.flattenedTasks.byId(args.parentId).flattenedTasks();
+      // Use .tasks() (direct children only) not .flattenedTasks() (all descendants).
+      // flattenedTasks() would include grandchildren and deeper, violating the
+      // direct-children contract documented on OmniFocusAdapter.listTasks — see #695.
+      tasks = ofApp.defaultDocument.flattenedTasks.byId(args.parentId).tasks();
     } catch (_e) {
       throw new Error(`Parent task not found: ${args.parentId}`);
     }
