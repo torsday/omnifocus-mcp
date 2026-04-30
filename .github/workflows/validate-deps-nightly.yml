@@ -57,6 +57,10 @@ jobs:
         if: steps.validate.outputs.rc != '0'
         env:
           REPORT: ${{ steps.validate.outputs.report }}
+          # PROJECT_TOKEN is a fine-grained PAT with Projects read/write — same
+          # secret used by board-sync.yml. Falls back to GITHUB_TOKEN (issues
+          # only); project wiring is non-fatal so the fallback is acceptable.
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           TITLE="[audit] Dependency-graph drift"
           BODY=$(cat <<EOF
@@ -84,9 +88,17 @@ jobs:
             gh issue edit "$EXISTING" --body "$BODY"
             echo "Refreshed #$EXISTING"
           else
-            gh issue create \
+            ISSUE_URL=$(gh issue create \
               --title "$TITLE" \
               --body "$BODY" \
               --label "$AUDIT_LABEL" \
-              --label "type: chore"
+              --label "type: chore" \
+              --label "model: sonnet-low" \
+              | tail -n1)
+            echo "Created $ISSUE_URL"
+            # Wire into project #4 so it appears on the board.
+            # Failures here are non-fatal — the issue itself was created.
+            gh project item-add 4 --owner torsday --url "$ISSUE_URL" 2>/dev/null \
+              && echo "Added to project #4" \
+              || echo "Warning: could not add $ISSUE_URL to project #4 (non-fatal)"
           fi
