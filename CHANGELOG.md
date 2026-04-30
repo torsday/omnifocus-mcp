@@ -5,6 +5,14 @@ All notable changes to `@torsday/omnifocus-mcp` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [ADR-0011](./docs/adr/0011-versioning-and-stability.md) for the explicit definition of breaking vs additive changes in this project.
 
 
+## [1.2.2](https://github.com/torsday/omnifocus-mcp/compare/v1.2.1...v1.2.2) (2026-04-30)
+
+**Summary** — Fixes a startup failure on Macs where OmniFocus runs in the macOS sandbox (App Store installs). The server now probes both the sandbox container path and the legacy Application Support path, preferring the sandbox location when both exist.
+
+### Fixed
+
+- **Sandboxed OmniFocus database path detected automatically ([#709](https://github.com/torsday/omnifocus-mcp/issues/709))** — On App Store installs of OmniFocus, the database lives under `~/Library/Containers/com.omnigroup.OmniFocus3/Data/Library/Application Support/OmniFocus/` rather than the legacy `~/Library/Application Support/OmniFocus/`. The server now probes both locations at startup and selects the correct one automatically — no configuration required. Previously the server would fail silently on sandboxed machines. ([ab4cc25](https://github.com/torsday/omnifocus-mcp/commit/ab4cc25e4c631f5321dbcb13ffc59e7e4a828a93))
+
 ## [1.2.1](https://github.com/torsday/omnifocus-mcp/compare/v1.2.0...v1.2.1) (2026-04-30)
 
 **Summary** — A focused reliability patch for OmniFocus 4.x compatibility and cross-transport ID interoperability. Seven bug fixes address real failure modes surfaced since v1.2.0: JXA scripts now correctly handle OF 4.x's quirky `class()` exceptions on tag parents and containing projects; `byId` misses are mapped to typed `NotFound` errors instead of leaking the raw `-1728` osascript code; and four write-path operations (`task_create`, `task_duplicate`, `task_reorder`, `project_move`) are routed through OmniJS to guarantee ID interoperability across all transport paths per ADR-0019. The `parentId` subtask filter also works correctly again after a `tasks()` vs `flattenedTasks()` regression. No breaking changes; all v1.2.0 call shapes are unchanged.
