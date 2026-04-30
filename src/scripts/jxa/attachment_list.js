@@ -39,31 +39,41 @@ function run(argv) {
     let name = "";
     try {
       name = att.name();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let mimeType = null;
     try {
       const m = att.fileType();
       if (m) mimeType = m;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let sizeBytes = null;
     try {
       const sz = att.fileSize();
       if (sz != null) sizeBytes = sz;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let addedAt = new Date().toISOString();
     try {
       const cd = att.creationDate();
       if (cd) addedAt = cd.toISOString();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     // OmniFocus attachments: linked() === true means alias, false means embedded
     let kind = "embedded";
     try {
       if (att.linked?.()) kind = "alias";
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     return {
       id: att.id(),

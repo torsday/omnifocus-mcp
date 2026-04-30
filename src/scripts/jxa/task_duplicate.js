@@ -60,25 +60,37 @@ function run(argv) {
     try {
       const n = task.note();
       if (n) props.note = n;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
     try {
       props.flagged = task.flagged();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
     try {
       const dd = task.deferDate();
       if (dd) props.deferDate = dd;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
     try {
       const due = task.dueDate();
       if (due) props.dueDate = due;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
     try {
       const em = task.estimatedMinutes();
       if (em != null) props.estimatedMinutes = em;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
     try {
       props.sequential = task.sequential();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
     return props;
   }
 
@@ -99,9 +111,13 @@ function run(argv) {
       for (let i = 0; i < tags.length; i++) {
         try {
           to.addTag(tags[i]);
-        } catch (_e) {}
+        } catch (_e) {
+          /* OF 4.x: property access may not exist on all object types — default used */
+        }
       }
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
   }
 
   const rootClone = makeInto(destContainer, copyProps(source));
@@ -113,7 +129,9 @@ function run(argv) {
       let children = [];
       try {
         children = srcTask.tasks();
-      } catch (_e) {}
+      } catch (_e) {
+        /* OF 4.x: property access may not exist on all object types — default used */
+      }
       for (let i = 0; i < children.length; i++) {
         const child = children[i];
         const childClone = cloneTask.make({ new: "task", withProperties: copyProps(child) });

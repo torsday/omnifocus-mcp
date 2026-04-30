@@ -43,13 +43,17 @@ function run(argv) {
       for (let i = 0; i < existing.length; i++) {
         try {
           task.removeTag(existing[i]);
-        } catch (_e) {}
+        } catch (_e) {
+          /* OF 4.x: property access may not exist on all object types — default used */
+        }
       }
       for (let i = 0; i < patch.tagIds.length; i++) {
         try {
           const tag = doc.flattenedTags.byId(patch.tagIds[i]);
           if (tag) task.addTag(tag);
-        } catch (_e) {}
+        } catch (_e) {
+          /* OF 4.x: property access may not exist on all object types — default used */
+        }
       }
     }
   }

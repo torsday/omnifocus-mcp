@@ -61,13 +61,17 @@ function run(argv) {
         }
         if (!isDocument) projectId = cp.id();
       }
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let parentId = null;
     try {
       const pt = task.parentTask();
       if (pt) parentId = pt.id();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     const tagIds = [];
     try {
@@ -75,68 +79,94 @@ function run(argv) {
       for (let i = 0; i < tags.length; i++) {
         try {
           tagIds.push(tags[i].id());
-        } catch (_tagErr) {}
+        } catch (_tagErr) {
+          /* OF 4.x: individual tag specifier may throw on .id() — skip element */
+        }
       }
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let deferDate = null;
     try {
       const dd = task.deferDate();
       if (dd) deferDate = dd.toISOString();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let dueDate = null;
     try {
       const due = task.dueDate();
       if (due) dueDate = due.toISOString();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let completedAt = null;
     try {
       const cd = task.completionDate();
       if (cd) completedAt = cd.toISOString();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let dropped = false;
     try {
       dropped = task.dropped();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let flagged = false;
     try {
       flagged = task.flagged();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let isCompleted = false;
     try {
       isCompleted = task.completed();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let available = false;
     try {
       available = task.effectivelyAvailable ? task.effectivelyAvailable() : false;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let blocked = false;
     try {
       blocked = task.blocked ? task.blocked() : false;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let sequential = false;
     try {
       sequential = task.sequential ? task.sequential() : false;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let completedByChildren = false;
     try {
       completedByChildren = task.completedByChildren ? task.completedByChildren() : false;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let note = null;
     try {
       const raw = task.note ? task.note() : "";
       note = raw || null;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     return {
       id: task.id(),

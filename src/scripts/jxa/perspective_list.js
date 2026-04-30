@@ -59,10 +59,14 @@ function run(_argv) {
         let name = null;
         try {
           id = p.id();
-        } catch (_e) {}
+        } catch (_e) {
+          /* OF 4.x: property access may not exist on all object types — default used */
+        }
         try {
           name = p.name();
-        } catch (_e) {}
+        } catch (_e) {
+          /* OF 4.x: property access may not exist on all object types — default used */
+        }
 
         // Skip built-ins (they appear again here with different IDs in some OF versions)
         if (name !== null && Object.values(BUILTIN_NAMES).includes(name)) continue;

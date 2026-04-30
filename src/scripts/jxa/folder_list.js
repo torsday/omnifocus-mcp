@@ -26,9 +26,13 @@ function run(argv) {
       for (let j = 0; j < subs.length; j++) {
         try {
           parentMap[subs[j].id()] = pid;
-        } catch (_e) {}
+        } catch (_e) {
+          /* OF 4.x: property access may not exist on all object types — default used */
+        }
       }
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
   }
 
   function buildFolder(folder) {

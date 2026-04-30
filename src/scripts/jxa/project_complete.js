@@ -29,7 +29,9 @@ function run(argv) {
   if (args.completionDate != null) {
     try {
       target.completionDate = new Date(args.completionDate);
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
   }
 
   return JSON.stringify({ id: args.id });

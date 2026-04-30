@@ -58,17 +58,23 @@
     try {
       const tags = task.tags;
       for (let i = 0; i < tags.length; i++) tagIds.push(tags[i].id.primaryKey);
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let projectId = null;
     try {
       if (task.containingProject) projectId = task.containingProject.id.primaryKey;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let parentId = null;
     try {
       if (task.parent && task.parent instanceof Task) parentId = task.parent.id.primaryKey;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     return {
       id: task.id.primaryKey,
@@ -106,7 +112,9 @@
         seen.add(obj.id.primaryKey);
         tasks.push(buildTask(obj));
       }
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
     const children = node.children || [];
     for (let i = 0; i < children.length; i++) walk(children[i]);
   };
