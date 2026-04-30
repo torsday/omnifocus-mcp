@@ -93,7 +93,10 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   listTasks: "jxa",
   getTask: "jxa",
   getTasksMany: "jxa",
-  createTask: "jxa",
+  // Per ADR-0019: routes through OmniJS so the returned id is a persistent
+  // primaryKey interoperable with both transports (vs JXA's transient
+  // specifier IDs). Sibling of createProject (#681).
+  createTask: "omnijs",
   updateTask: "jxa",
   completeTask: "jxa",
   uncompleteTask: "jxa",
