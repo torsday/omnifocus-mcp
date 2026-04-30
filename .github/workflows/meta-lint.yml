@@ -25,6 +25,13 @@ on:
       # nl-quality job below scans every tool description + Zod input schema —
       # rerun on any src/tools/** change.
       - "src/tools/**"
+      # Required status checks bind to job names from this workflow. If a PR
+      # touches only src/scripts/** (e.g. a JXA helper extraction like #703)
+      # without any of the paths above, branch protection blocks the merge
+      # waiting for jobs that never fired. Include src/scripts/** so the
+      # regression guards run on script-only PRs too — they're cheap on
+      # unchanged inputs, and #703 hit this exact gap.
+      - "src/scripts/**"
 
 permissions:
   contents: read
