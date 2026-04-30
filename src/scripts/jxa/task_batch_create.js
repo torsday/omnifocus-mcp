@@ -53,14 +53,18 @@ function run(argv) {
           try {
             const tag = doc.flattenedTags.byId(input.tagIds[t]);
             newTask.addTag(tag);
-          } catch (_e) {}
+          } catch (_e) {
+            /* OF 4.x: property access may not exist on all object types — default used */
+          }
         }
       }
 
       if (input.completedByChildren != null) {
         try {
           newTask.containsSingletonActions = input.completedByChildren;
-        } catch (_e) {}
+        } catch (_e) {
+          /* OF 4.x: property access may not exist on all object types — default used */
+        }
       }
 
       succeeded.push({ index: i, value: newTask.id() });

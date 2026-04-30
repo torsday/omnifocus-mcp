@@ -19,7 +19,9 @@ function run(argv) {
     try {
       const p = folder.parent();
       if (p && p.class() !== "document") parentId = p.id();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     return {
       id: folder.id(),

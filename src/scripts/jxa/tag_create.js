@@ -23,7 +23,9 @@ function run(argv) {
         let isDocument = false;
         try {
           isDocument = p.class() === "document";
-        } catch (_classErr) {}
+        } catch (_classErr) {
+          /* OF 4.x: .class() throws on real project/tag specifiers — treat as non-document */
+        }
         if (!isDocument) {
           try {
             parentId = p.id();
@@ -32,7 +34,9 @@ function run(argv) {
           }
         }
       }
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let location = null;
     try {
@@ -46,12 +50,16 @@ function run(argv) {
           trigger: "both",
         };
       }
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let rawStatus = "active";
     try {
       rawStatus = tag.status();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
     const status = rawStatus === "on hold" ? "on-hold" : rawStatus;
 
     return {

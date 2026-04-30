@@ -286,6 +286,41 @@ describe("no-layer-violation rule", () => {
   });
 });
 
+describe("no-empty-catch-in-scripts rule", () => {
+  it("flags empty catch in src/scripts/", () => {
+    const v = checkFileContent("src/scripts/jxa/task_get.js", "} catch (_e) {}");
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-empty-catch-in-scripts");
+  });
+
+  it("does NOT flag empty catch outside src/scripts/", () => {
+    const v = checkFileContent("src/adapter/jxa/foo.ts", "} catch (_e) {}");
+    expect(v).toHaveLength(0);
+  });
+
+  it("does NOT flag catch with a comment body", () => {
+    const v = checkFileContent(
+      "src/scripts/jxa/task_get.js",
+      "} catch (_e) { /* OF 4.x: may throw */ }",
+    );
+    expect(v).toHaveLength(0);
+  });
+
+  it("does NOT flag catch with a re-throw", () => {
+    const v = checkFileContent(
+      "src/scripts/jxa/task_get.js",
+      '} catch (_e) { throw new Error("ctx"); }',
+    );
+    expect(v).toHaveLength(0);
+  });
+
+  it("flags named variant: catch (_tagErr) {}", () => {
+    const v = checkFileContent("src/scripts/jxa/task_list.js", "} catch (_tagErr) {}");
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("no-empty-catch-in-scripts");
+  });
+});
+
 describe("multi-rule", () => {
   it("reports both violations in the same file", () => {
     const content = 'const id = x as TaskId;\nthrow new Error("bad");';

@@ -35,7 +35,9 @@ function run(argv) {
         }
         if (!isDocument) folderId = f.id();
       }
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     const tagIds = [];
     try {
@@ -43,88 +45,120 @@ function run(argv) {
       for (let i = 0; i < tags.length; i++) {
         try {
           tagIds.push(tags[i].id());
-        } catch (_tagErr) {}
+        } catch (_tagErr) {
+          /* OF 4.x: individual tag specifier may throw on .id() — skip element */
+        }
       }
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let rawStatus = "active";
     try {
       rawStatus = proj.status();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
     const status = normalizeStatus(rawStatus);
 
     let deferDate = null;
     try {
       const dd = proj.deferDate();
       if (dd) deferDate = dd.toISOString();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let dueDate = null;
     try {
       const due = proj.dueDate();
       if (due) dueDate = due.toISOString();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let completedAt = null;
     try {
       const cd = proj.completionDate();
       if (cd) completedAt = cd.toISOString();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let estimatedMinutes = null;
     try {
       const em = proj.estimatedMinutes();
       if (em != null) estimatedMinutes = em;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let note = null;
     try {
       note = proj.note() || null;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let noteHtml = null;
     try {
       if (proj.noteHtml) noteHtml = proj.noteHtml() || null;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let flagged = false;
     try {
       flagged = proj.flagged();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let reviewIntervalDays = null;
     try {
       const ri = proj.reviewInterval();
       if (ri?.steps) reviewIntervalDays = ri.steps();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let nextReviewDate = null;
     try {
       const nrd = proj.nextReviewDate();
       if (nrd) nextReviewDate = nrd.toISOString();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let lastReviewDate = null;
     try {
       const lrd = proj.lastReviewDate ? proj.lastReviewDate() : null;
       if (lrd) lastReviewDate = lrd.toISOString();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let taskCount = 0;
     try {
       taskCount = proj.numberOfTasks();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let completedTaskCount = 0;
     try {
       completedTaskCount = proj.numberOfCompletedTasks();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let completionCriterion = "parallel";
     try {
       const cc = proj.completionCriterion ? proj.completionCriterion() : "parallel";
       completionCriterion = cc;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     return {
       id: proj.id(),

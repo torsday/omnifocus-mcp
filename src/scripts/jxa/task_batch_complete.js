@@ -32,7 +32,9 @@ function run(argv) {
         task.completed = true;
         try {
           task.completionDate = when;
-        } catch (_e2) {}
+        } catch (_e2) {
+          /* OF 4.x: property access may not exist on all object types — default used */
+        }
       }
       succeeded.push({ index: i, value: it.id });
     } catch (e) {

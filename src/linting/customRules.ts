@@ -33,6 +33,12 @@
  *    `domain/`, `errors/`, `envelope/`, `logging/`, `rateLimit/`, `concurrency/`,
  *    and `linting/` are utility layers reachable from everywhere.
  *
+ * 6. **no-empty-catch-in-scripts** — empty `catch` bodies (`catch (...) {}`) are
+ *    forbidden in `src/scripts/`. They silently swallow errors and are the primary
+ *    reason JXA/OmniJS failures go undetected. Each catch must either re-throw,
+ *    log to stderr, or carry a non-empty comment explaining why the error is
+ *    deliberately ignored (`/* OF 4.x: … *\/`).
+ *
  * @see DESIGN.md §6.7 — error taxonomy
  * @see DESIGN.md §18 — security posture / prompt injection containment
  * @see docs/adr/0008-branded-id-types.md
@@ -150,6 +156,24 @@ export const IN_TOOLS_RE = /src[/\\]tools[/\\]/;
 // Violation type
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Rule 6: no-empty-catch-in-scripts
+// ---------------------------------------------------------------------------
+
+/**
+ * Match a catch clause whose body is empty (only whitespace between the braces).
+ * This detects the single-line form: `catch (...) {}`.
+ *
+ * A body consisting solely of a block comment (`/* … *\/`) is the accepted
+ * escape hatch — it forces authors to write down why the error is ignored.
+ * The checker allows comment-only bodies by requiring a non-empty character
+ * between `{` and `}` other than pure whitespace.
+ */
+export const EMPTY_CATCH_RE = /catch\s*\([^)]*\)\s*\{\s*\}/;
+
+/** Files in `src/scripts/` where empty catches are banned */
+export const IN_SCRIPTS_RE = /src[/\\]scripts[/\\]/;
+
 export interface Violation {
   file: string;
   line: number;
@@ -158,7 +182,8 @@ export interface Violation {
     | "no-generic-error"
     | "no-metadata-interpolation"
     | "no-network-import"
-    | "no-layer-violation";
+    | "no-layer-violation"
+    | "no-empty-catch-in-scripts";
   excerpt: string;
 }
 
@@ -213,6 +238,17 @@ export function checkFileContent(filePath: string, content: string): Violation[]
         file: filePath,
         line: i + 1,
         rule: "no-network-import",
+        excerpt: line.trim(),
+      });
+    }
+
+    // Rule 6: no-empty-catch-in-scripts
+    // catch bodies in src/scripts/ must not be empty — require a comment rationale
+    if (IN_SCRIPTS_RE.test(filePath) && EMPTY_CATCH_RE.test(line)) {
+      violations.push({
+        file: filePath,
+        line: i + 1,
+        rule: "no-empty-catch-in-scripts",
         excerpt: line.trim(),
       });
     }

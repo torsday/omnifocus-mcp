@@ -48,13 +48,17 @@ function run(argv) {
         }
         if (!isDocument) projectId = cp.id();
       }
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let parentId = null;
     try {
       const pt = task.parentTask();
       if (pt) parentId = pt.id();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     const tagIds = [];
     try {
@@ -65,79 +69,109 @@ function run(argv) {
         // from tagId-filter results (see #682).
         try {
           tagIds.push(tags[i].id());
-        } catch (_tagErr) {}
+        } catch (_tagErr) {
+          /* OF 4.x: individual tag specifier may throw on .id() — skip element */
+        }
       }
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let deferDate = null;
     try {
       const dd = task.deferDate();
       if (dd) deferDate = dd.toISOString();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let dueDate = null;
     try {
       const due = task.dueDate();
       if (due) dueDate = due.toISOString();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let completedAt = null;
     try {
       const cd = task.completionDate();
       if (cd) completedAt = cd.toISOString();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     const droppedAt = null;
     let dropped = false;
     try {
       dropped = task.dropped();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let estimatedMinutes = null;
     try {
       const em = task.estimatedMinutes();
       if (em != null) estimatedMinutes = em;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let note = null;
     try {
       note = task.note() || null;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let noteHtml = null;
     try {
       if (task.noteHtml) noteHtml = task.noteHtml() || null;
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let flagged = false;
     try {
       flagged = task.flagged();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let completed = false;
     try {
       completed = task.completed();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let sequential = false;
     try {
       sequential = task.sequential();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let completedByChildren = false;
     try {
       completedByChildren = task.containsSingletonActions();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let available = false;
     try {
       available = task.available();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     let blocked = false;
     try {
       blocked = task.blocked();
-    } catch (_e) {}
+    } catch (_e) {
+      /* OF 4.x: property access may not exist on all object types — default used */
+    }
 
     // See #498 — JXA reports creationDate/modificationDate as truthy
     // functions even on tasks where invocation throws "Can't get object."
