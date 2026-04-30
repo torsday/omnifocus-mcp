@@ -73,7 +73,9 @@ function run(argv) {
     try {
       const tags = task.tags();
       for (let i = 0; i < tags.length; i++) {
-        tagIds.push(tags[i].id());
+        try {
+          tagIds.push(tags[i].id());
+        } catch (_tagErr) {}
       }
     } catch (_e) {}
 

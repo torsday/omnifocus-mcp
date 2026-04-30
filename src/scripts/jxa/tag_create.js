@@ -18,7 +18,20 @@ function run(argv) {
     let parentId = null;
     try {
       const p = tag.parent();
-      if (p && p.class() !== "document") parentId = p.id();
+      if (p) {
+        // OF 4.x: p.class() may throw — same defensive pattern as task_list.js #673.
+        let isDocument = false;
+        try {
+          isDocument = p.class() === "document";
+        } catch (_classErr) {}
+        if (!isDocument) {
+          try {
+            parentId = p.id();
+          } catch (_idErr) {
+            parentId = null;
+          }
+        }
+      }
     } catch (_e) {}
 
     let location = null;

@@ -60,7 +60,12 @@ function run(argv) {
     try {
       const tags = task.tags();
       for (let i = 0; i < tags.length; i++) {
-        tagIds.push(tags[i].id());
+        // Guard per-element: a single bad tag object must not abort the loop
+        // and zero-out all tagIds, which would silently exclude this task
+        // from tagId-filter results (see #682).
+        try {
+          tagIds.push(tags[i].id());
+        } catch (_tagErr) {}
       }
     } catch (_e) {}
 
