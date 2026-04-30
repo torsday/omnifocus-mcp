@@ -7,29 +7,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [1.2.1](https://github.com/torsday/omnifocus-mcp/compare/v1.2.0...v1.2.1) (2026-04-30)
 
+**Summary** — A focused reliability patch for OmniFocus 4.x compatibility and cross-transport ID interoperability. Seven bug fixes address real failure modes surfaced since v1.2.0: JXA scripts now correctly handle OF 4.x's quirky `class()` exceptions on tag parents and containing projects; `byId` misses are mapped to typed `NotFound` errors instead of leaking the raw `-1728` osascript code; and four write-path operations (`task_create`, `task_duplicate`, `task_reorder`, `project_move`) are routed through OmniJS to guarantee ID interoperability across all transport paths per ADR-0019. The `parentId` subtask filter also works correctly again after a `tasks()` vs `flattenedTasks()` regression. No breaking changes; all v1.2.0 call shapes are unchanged.
 
 ### Fixed
 
-* **jxa:** guard tag parent class() and per-element tag id() against OF 4.x exceptions ([bcaefb9](https://github.com/torsday/omnifocus-mcp/commit/bcaefb9de9bdef4ce92876bf580eb2a48927c45f))
-* **jxa:** map -1728 byId-miss to NotFound at the boundary (closes [#674](https://github.com/torsday/omnifocus-mcp/issues/674)) ([ec53b88](https://github.com/torsday/omnifocus-mcp/commit/ec53b88e9733a3eaa24568da896d8a3da5ff377c))
-* **jxa:** preserve projectId read when containingProject().class() throws ([b40a4a0](https://github.com/torsday/omnifocus-mcp/commit/b40a4a0d77c0165c4d2ae6305ecfddf1efb49e18))
-* **jxa:** use tasks() not flattenedTasks() for parentId filter (closes [#695](https://github.com/torsday/omnifocus-mcp/issues/695)) ([2796b30](https://github.com/torsday/omnifocus-mcp/commit/2796b30b9cf82090c67a4cbb0631f9e19712aaaf))
-* **omnijs:** route createTask through OmniJS for ID interoperability (closes [#680](https://github.com/torsday/omnifocus-mcp/issues/680)) ([0c9959a](https://github.com/torsday/omnifocus-mcp/commit/0c9959abae2bb0e4afb0bdeb76bd60310ee141de))
-* **omnijs:** route duplicateTask through OmniJS for ID interoperability (closes [#692](https://github.com/torsday/omnifocus-mcp/issues/692)) ([972ee8c](https://github.com/torsday/omnifocus-mcp/commit/972ee8c79154f523554e7e642a0262df1502dacb))
-* **omnijs:** route moveProject through OmniJS + fix JXA folder readback (closes [#681](https://github.com/torsday/omnifocus-mcp/issues/681)) ([a1bf707](https://github.com/torsday/omnifocus-mcp/commit/a1bf70729738f3b1ec3534f0e82fdea7f72f5818))
-* **omnijs:** validate parent match in task_reorder before reorder (closes [#676](https://github.com/torsday/omnifocus-mcp/issues/676)) ([dc28308](https://github.com/torsday/omnifocus-mcp/commit/dc283086946d9418f7ea194136d5e91cb0e148a2))
-* **project:** route createProject through OmniJS + fix JXA status/move setters (refs [#681](https://github.com/torsday/omnifocus-mcp/issues/681)) ([509a6bd](https://github.com/torsday/omnifocus-mcp/commit/509a6bd4d4bdca71ae3d9b889f42ec44db55d195))
-* **release:** lift HOMEBREW_TAP_TOKEN to job-level env (closes [#670](https://github.com/torsday/omnifocus-mcp/issues/670)) ([9bb9fc6](https://github.com/torsday/omnifocus-mcp/commit/9bb9fc6f0e4aa9140385f7d80fd60b5b03ca4083))
+- **JXA tag parent `class()` guard — OF 4.x exception safety** — `tag_list` and `tag_get` now guard the `parent.class()` call and per-element `tag.id()` calls against the `Can't convert types` exception that OmniFocus 4.x throws on certain specifier types. Previously these would surface as opaque JXA errors; they now degrade gracefully and return the tag without parent info rather than crashing the response. ([bcaefb9](https://github.com/torsday/omnifocus-mcp/commit/bcaefb9de9bdef4ce92876bf580eb2a48927c45f))
 
+- **`byId` miss mapped to `NotFound` at the JXA boundary (closes [#674](https://github.com/torsday/omnifocus-mcp/issues/674))** — JXA's `flattenedTasks.byId()` returns a specifier with error code `-1728` ("Can't get object") when the ID doesn't exist, rather than `null`. This raw code was leaking through to callers. It is now intercepted at the transport boundary and converted to the typed `NotFoundError` the rest of the stack expects. ([ec53b88](https://github.com/torsday/omnifocus-mcp/commit/ec53b88e9733a3eaa24568da896d8a3da5ff377c))
 
-### Changed
+- **`containingProject().class()` exception preserves `projectId`** — In OF 4.x, calling `.class()` on a real project specifier throws rather than returning a class name. A prior guard was catching the exception but resetting `projectId` to `null` as a side effect. Fixed: the exception path now correctly leaves `projectId` set to the project's ID. ([b40a4a0](https://github.com/torsday/omnifocus-mcp/commit/b40a4a0d77c0165c4d2ae6305ecfddf1efb49e18))
 
-* **jxa:** inline shared buildTask helper via [@inline](https://github.com/inline) directive ([f6749ab](https://github.com/torsday/omnifocus-mcp/commit/f6749ab0486dfd07ec32cd489560fcd16f71017c))
+- **`parentId` subtask filter returns direct children only (closes [#695](https://github.com/torsday/omnifocus-mcp/issues/695))** — `task_list` with a `parentId` filter was calling `flattenedTasks()` on the parent, which recursively includes all descendants. Corrected to `tasks()` so only direct children are returned, matching the documented behavior. ([2796b30](https://github.com/torsday/omnifocus-mcp/commit/2796b30b9cf82090c67a4cbb0631f9e19712aaaf))
 
+- **`task_create` routed through OmniJS for ID interoperability (closes [#680](https://github.com/torsday/omnifocus-mcp/issues/680))** — `task_create` previously used JXA, which assigns a different ID namespace than OmniJS. The returned task ID could not be reliably round-tripped through OmniJS write operations. Routed through OmniJS per ADR-0019 to guarantee ID interoperability across all transport paths. ([0c9959a](https://github.com/torsday/omnifocus-mcp/commit/0c9959abae2bb0e4afb0bdeb76bd60310ee141de))
 
-### Documentation
+- **`task_duplicate` routed through OmniJS for ID interoperability (closes [#692](https://github.com/torsday/omnifocus-mcp/issues/692))** — Same cross-transport ID issue as `task_create`. `task_duplicate` now runs via OmniJS and returns an ID that is valid for all subsequent operations regardless of transport. ([972ee8c](https://github.com/torsday/omnifocus-mcp/commit/972ee8c79154f523554e7e642a0262df1502dacb))
 
-* **adr:** adr-0019 — cross-transport ID interoperability (closes [#684](https://github.com/torsday/omnifocus-mcp/issues/684)) ([25da456](https://github.com/torsday/omnifocus-mcp/commit/25da4569394fc1acd6e4868217ad48a56b63e29d))
+- **`project_move` and `project_create` routed through OmniJS + JXA folder readback fixed (closes [#681](https://github.com/torsday/omnifocus-mcp/issues/681))** — Both operations now run through OmniJS, fixing cross-transport ID interoperability failures. A secondary bug — JXA folder status/move setters silently no-oping — is also fixed. ([a1bf707](https://github.com/torsday/omnifocus-mcp/commit/a1bf70729738f3b1ec3534f0e82fdea7f72f5818), [509a6bd](https://github.com/torsday/omnifocus-mcp/commit/509a6bd4d4bdca71ae3d9b889f42ec44db55d195))
+
+- **`task_reorder` validates parent before mutating (closes [#676](https://github.com/torsday/omnifocus-mcp/issues/676))** — `task_reorder` was applying the reorder even when the supplied `taskIds` belonged to different parent containers, producing silent data corruption. It now validates that all task IDs share the declared parent before any mutation. ([dc28308](https://github.com/torsday/omnifocus-mcp/commit/dc283086946d9418f7ea194136d5e91cb0e148a2))
 
 ## [1.2.0](https://github.com/torsday/omnifocus-mcp/compare/v1.1.0...v1.2.0) (2026-04-29)
 
