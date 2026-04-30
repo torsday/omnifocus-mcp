@@ -5,6 +5,21 @@ All notable changes to `@torsday/omnifocus-mcp` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [ADR-0011](./docs/adr/0011-versioning-and-stability.md) for the explicit definition of breaking vs additive changes in this project.
 
 
+## [1.2.2](https://github.com/torsday/omnifocus-mcp/compare/v1.2.1...v1.2.2) (2026-04-30)
+
+
+### Fixed
+
+* **release:** clear GH_TOKEN for homebrew-tap step to prevent auth collision ([7cd1873](https://github.com/torsday/omnifocus-mcp/commit/7cd1873650fc357cdd7d1b248230032750f1129e))
+* **release:** set GH_TOKEN to HOMEBREW_TAP_TOKEN for tap update step ([8578707](https://github.com/torsday/omnifocus-mcp/commit/85787076fc902b9bf2a71327ac950b2d0bc26caf))
+* **watcher:** detect sandboxed omnifocus database path (closes [#709](https://github.com/torsday/omnifocus-mcp/issues/709)) ([ab4cc25](https://github.com/torsday/omnifocus-mcp/commit/ab4cc25e4c631f5321dbcb13ffc59e7e4a828a93))
+
+
+### Changed
+
+* **jxa:** inline shared buildProject helper via [@inline](https://github.com/inline) directive ([bb1384e](https://github.com/torsday/omnifocus-mcp/commit/bb1384e74ebc0be7d8c8e6710fb09cd795510c28))
+* **jxa:** replace dead byId guards with lookupOrThrow helper ([1ae1e86](https://github.com/torsday/omnifocus-mcp/commit/1ae1e867b92ff703fee2de14fdbba5c64b2188c8)), closes [#687](https://github.com/torsday/omnifocus-mcp/issues/687)
+
 ## [1.2.1](https://github.com/torsday/omnifocus-mcp/compare/v1.2.0...v1.2.1) (2026-04-30)
 
 **Summary** — A focused reliability patch for OmniFocus 4.x compatibility and cross-transport ID interoperability. Seven bug fixes address real failure modes surfaced since v1.2.0: JXA scripts now correctly handle OF 4.x's quirky `class()` exceptions on tag parents and containing projects; `byId` misses are mapped to typed `NotFound` errors instead of leaking the raw `-1728` osascript code; and four write-path operations (`task_create`, `task_duplicate`, `task_reorder`, `project_move`) are routed through OmniJS to guarantee ID interoperability across all transport paths per ADR-0019. The `parentId` subtask filter also works correctly again after a `tasks()` vs `flattenedTasks()` regression. No breaking changes; all v1.2.0 call shapes are unchanged.
