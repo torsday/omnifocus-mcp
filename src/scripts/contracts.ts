@@ -147,6 +147,17 @@ export type TaskDuplicateOmniJsScriptResult =
   | { newId: string; descendantCount: number }
   | ScriptErrorEnvelope<"NOT_FOUND" | "VALIDATION">;
 
+/**
+ * Result type for `project_move.js` (OmniJS).
+ *
+ * Per ADR-0019, project moves route through OmniJS because JXA's
+ * `target.move()` silently fails on OmniJS-created projects (which is
+ * every project after #681's createProject migration).
+ */
+export type ProjectMoveScriptResult =
+  | { id: string }
+  | ScriptErrorEnvelope<"NOT_FOUND" | "VALIDATION">;
+
 /** Result type for `app_window_new.js` and `app_window_new_tab.js`. */
 export type AppWindowNewScriptResult =
   | { perspectiveName: string | null; focusContainerIds: string[] }

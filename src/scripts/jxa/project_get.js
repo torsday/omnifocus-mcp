@@ -24,10 +24,22 @@ function run(argv) {
   }
 
   function buildProject(proj) {
+    // OmniFocus 4.x JXA quirk (same flavor as #673's containingProject):
+    // `f.class()` throws "Can't convert types" on a real Folder specifier.
+    // Treat the throw as "real folder", a successful return of "document"
+    // as the only skip path.
     let folderId = null;
     try {
       const f = proj.folder();
-      if (f && f.class() !== "document") folderId = f.id();
+      if (f) {
+        let isDocument = false;
+        try {
+          isDocument = f.class() === "document";
+        } catch (_classErr) {
+          /* OF 4.x: real folders throw here */
+        }
+        if (!isDocument) folderId = f.id();
+      }
     } catch (_e) {}
 
     const tagIds = [];
