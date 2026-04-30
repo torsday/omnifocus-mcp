@@ -1,0 +1,22 @@
+name: Fix Homebrew tap for v1.2.1
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to update (without v prefix)'
+        required: true
+        default: '1.2.1'
+
+jobs:
+  update-homebrew:
+    runs-on: ubuntu-latest
+    env:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update Homebrew tap formula
+        env:
+          GH_TOKEN: ""
+        run: |
+          bash scripts/update-homebrew-formula.sh "${{ github.event.inputs.version }}"
