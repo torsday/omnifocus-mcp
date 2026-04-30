@@ -13,9 +13,11 @@
 
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DatabaseWatcher } from "./DatabaseWatcher.js";
+import { DatabaseWatcher, resolveDefaultDbPath } from "./DatabaseWatcher.js";
 import type { ChangeContext } from "./types.js";
 
 vi.mock("../logging/logger.js", () => ({
@@ -409,5 +411,87 @@ describe("DatabaseWatcher — Swift fast path", () => {
     vi.advanceTimersByTime(200);
 
     expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests — resolveDefaultDbPath()
+// ---------------------------------------------------------------------------
+
+describe("resolveDefaultDbPath", () => {
+  const originalEnv = process.env.OF_DB_PATH;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    if (originalEnv === undefined) delete process.env.OF_DB_PATH;
+    else process.env.OF_DB_PATH = originalEnv;
+  });
+
+  const home = os.homedir();
+  const sandboxOf4 = path.join(
+    home,
+    "Library",
+    "Containers",
+    "com.omnigroup.OmniFocus4",
+    "Data",
+    "Library",
+    "Application Support",
+    "OmniFocus",
+    "OmniFocus.ofocus",
+  );
+  const sandboxOf3 = path.join(
+    home,
+    "Library",
+    "Containers",
+    "com.omnigroup.OmniFocus3",
+    "Data",
+    "Library",
+    "Application Support",
+    "OmniFocus",
+    "OmniFocus.ofocus",
+  );
+  const nonSandbox = path.join(
+    home,
+    "Library",
+    "Application Support",
+    "OmniFocus",
+    "OmniFocus.ofocus",
+  );
+
+  it("honors OF_DB_PATH env override above all probing", () => {
+    process.env.OF_DB_PATH = "/custom/loc/My.ofocus";
+    const existsSpy = vi.spyOn(fs, "existsSync");
+    expect(resolveDefaultDbPath()).toBe("/custom/loc/My.ofocus");
+    expect(existsSpy).not.toHaveBeenCalled();
+  });
+
+  it("ignores empty OF_DB_PATH and falls through to probing", () => {
+    process.env.OF_DB_PATH = "";
+    vi.spyOn(fs, "existsSync").mockImplementation((p) => p === sandboxOf4);
+    expect(resolveDefaultDbPath()).toBe(sandboxOf4);
+  });
+
+  it("prefers OmniFocus 4 sandbox container when present", () => {
+    delete process.env.OF_DB_PATH;
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
+    expect(resolveDefaultDbPath()).toBe(sandboxOf4);
+  });
+
+  it("falls back to OmniFocus 3 sandbox when only OF3 exists", () => {
+    delete process.env.OF_DB_PATH;
+    vi.spyOn(fs, "existsSync").mockImplementation((p) => p === sandboxOf3);
+    expect(resolveDefaultDbPath()).toBe(sandboxOf3);
+  });
+
+  it("falls back to non-sandbox path when only it exists", () => {
+    delete process.env.OF_DB_PATH;
+    vi.spyOn(fs, "existsSync").mockImplementation((p) => p === nonSandbox);
+    expect(resolveDefaultDbPath()).toBe(nonSandbox);
+  });
+
+  it("returns the non-sandbox path as a final fallback when nothing exists", () => {
+    delete process.env.OF_DB_PATH;
+    vi.spyOn(fs, "existsSync").mockReturnValue(false);
+    expect(resolveDefaultDbPath()).toBe(nonSandbox);
   });
 });

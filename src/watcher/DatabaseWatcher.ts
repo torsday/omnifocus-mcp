@@ -57,9 +57,9 @@ export interface DatabaseWatcherOptions {
    */
   debounceMs?: number;
   /**
-   * Override the database path. Default:
-   * `~/Library/Application Support/OmniFocus/OmniFocus.ofocus`.
-   * Primarily for testing.
+   * Override the database path. When omitted, the watcher resolves a default
+   * via {@link resolveDefaultDbPath} (env var → sandbox containers →
+   * non-sandbox). Primarily for testing.
    */
   dbPath?: string;
   /**
@@ -74,13 +74,65 @@ export interface DatabaseWatcherOptions {
 // Defaults
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_DB_PATH = path.join(
-  os.homedir(),
-  "Library",
-  "Application Support",
-  "OmniFocus",
-  "OmniFocus.ofocus",
-);
+/**
+ * Candidate database locations, in preference order:
+ *   1. `OF_DB_PATH` env var override (non-standard installs, CI, tests)
+ *   2. OmniFocus 4 sandbox container
+ *   3. OmniFocus 3 sandbox container
+ *   4. Non-sandbox `~/Library/Application Support/OmniFocus`
+ *
+ * App Store / sandboxed builds keep the database under
+ * `~/Library/Containers/<bundle-id>/Data/…`; direct-download builds use
+ * the non-sandbox path. Probing sandbox first means a machine that has
+ * both (e.g. leftover container from a prior install) prefers the live
+ * sandboxed location.
+ *
+ * Returns the first candidate whose `OmniFocus.ofocus` exists, or the
+ * non-sandbox path as a final fallback so the "path not found" warning
+ * surfaces a recognizable location.
+ */
+export function resolveDefaultDbPath(): string {
+  const fromEnv = process.env.OF_DB_PATH;
+  if (fromEnv && fromEnv.length > 0) return fromEnv;
+
+  const home = os.homedir();
+  const nonSandbox = path.join(
+    home,
+    "Library",
+    "Application Support",
+    "OmniFocus",
+    "OmniFocus.ofocus",
+  );
+  const sandbox = (bundleId: string) =>
+    path.join(
+      home,
+      "Library",
+      "Containers",
+      bundleId,
+      "Data",
+      "Library",
+      "Application Support",
+      "OmniFocus",
+      "OmniFocus.ofocus",
+    );
+
+  const candidates = [
+    sandbox("com.omnigroup.OmniFocus4"),
+    sandbox("com.omnigroup.OmniFocus3"),
+    nonSandbox,
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return nonSandbox;
+}
+
+/**
+ * Default DB path resolved once at module load via {@link resolveDefaultDbPath}.
+ * Exported for tests and diagnostics; production code paths through
+ * {@link DatabaseWatcher} which calls the resolver per-construction.
+ */
+export const DEFAULT_DB_PATH = resolveDefaultDbPath();
 
 /**
  * Resolve the default binary path relative to this file's location so it
@@ -118,7 +170,7 @@ export class DatabaseWatcher {
   constructor(onChange: (ctx: ChangeContext) => void, options: DatabaseWatcherOptions = {}) {
     this.onChange = onChange;
     this.debounceMs = options.debounceMs ?? 500;
-    this.dbPath = options.dbPath ?? DEFAULT_DB_PATH;
+    this.dbPath = options.dbPath ?? resolveDefaultDbPath();
     this.binaryPath = options.binaryPath !== undefined ? options.binaryPath : defaultBinaryPath();
   }
 
