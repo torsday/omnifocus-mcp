@@ -55,6 +55,20 @@
         error: { code: "NOT_FOUND", message: `Reference task not found: ${refId}` },
       });
     }
+    // Guard: ref must share the same direct parent as task. In OmniJS the
+    // parent of a task is `task.parent` (the containing task or project).
+    // Compare by primaryKey so we never coerce across specifier types.
+    // Mirrors InMemoryAdapter.resolveReorderDestination — see #676.
+    const taskParentKey = task.parent?.id?.primaryKey ?? null;
+    const refParentKey = ref.parent?.id?.primaryKey ?? null;
+    if (taskParentKey !== refParentKey) {
+      return JSON.stringify({
+        error: {
+          code: "VALIDATION",
+          message: "reorderTask: reference task must share parent with the task being moved",
+        },
+      });
+    }
     location = mode === "before" ? ref.before : ref.after;
   } else if (mode === "start" || mode === "end") {
     let c;
