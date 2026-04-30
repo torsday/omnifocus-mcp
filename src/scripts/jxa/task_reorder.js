@@ -23,26 +23,22 @@ function run(argv) {
   ofApp.includeStandardAdditions = false;
   const doc = ofApp.defaultDocument;
 
-  const task = doc.flattenedTasks.byId(args.id);
-  if (!task) throw new Error(`Task not found: ${args.id}`);
+  // @inline _helpers/lookup_or_throw.js
+
+  const task = lookupOrThrow(doc.flattenedTasks.byId(args.id), "Task", args.id);
 
   if (args.mode === "before" || args.mode === "after") {
     if (!args.refId) throw new Error(`reorderTask: refId required for mode=${args.mode}`);
-    const ref = doc.flattenedTasks.byId(args.refId);
-    if (!ref) throw new Error(`Reference task not found: ${args.refId}`);
+    const ref = lookupOrThrow(doc.flattenedTasks.byId(args.refId), "Reference task", args.refId);
     // OmniFocus JXA: move <task> to <before|after> <reference>
     task.move({ to: ref, positioned: args.mode });
   } else if (args.mode === "start" || args.mode === "end") {
     const c = args.container || {};
     let container;
     if (c.projectId) {
-      const proj = doc.flattenedProjects.byId(c.projectId);
-      if (!proj) throw new Error(`Project not found: ${c.projectId}`);
-      container = proj;
+      container = lookupOrThrow(doc.flattenedProjects.byId(c.projectId), "Project", c.projectId);
     } else if (c.parentId) {
-      const parent = doc.flattenedTasks.byId(c.parentId);
-      if (!parent) throw new Error(`Parent task not found: ${c.parentId}`);
-      container = parent;
+      container = lookupOrThrow(doc.flattenedTasks.byId(c.parentId), "Parent task", c.parentId);
     } else {
       // Inbox: move into the document's inbox.
       container = doc.inboxTasks;

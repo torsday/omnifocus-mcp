@@ -19,16 +19,23 @@ function run(argv) {
   ofApp.includeStandardAdditions = false;
   const doc = ofApp.defaultDocument;
 
-  const source = doc.flattenedTasks.byId(args.id);
-  if (!source) throw new Error(`Task not found: ${args.id}`);
+  // @inline _helpers/lookup_or_throw.js
+
+  const source = lookupOrThrow(doc.flattenedTasks.byId(args.id), "Task", args.id);
 
   let destContainer; // OF object: project | parent task | document (inbox)
   if (args.destination?.projectId) {
-    destContainer = doc.flattenedProjects.byId(args.destination.projectId);
-    if (!destContainer) throw new Error(`Project not found: ${args.destination.projectId}`);
+    destContainer = lookupOrThrow(
+      doc.flattenedProjects.byId(args.destination.projectId),
+      "Project",
+      args.destination.projectId,
+    );
   } else if (args.destination?.parentId) {
-    destContainer = doc.flattenedTasks.byId(args.destination.parentId);
-    if (!destContainer) throw new Error(`Parent task not found: ${args.destination.parentId}`);
+    destContainer = lookupOrThrow(
+      doc.flattenedTasks.byId(args.destination.parentId),
+      "Parent task",
+      args.destination.parentId,
+    );
   } else if (args.destination && args.destination.toInbox === true) {
     destContainer = doc; // inbox = document-level make
   } else {

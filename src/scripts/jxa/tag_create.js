@@ -98,10 +98,16 @@ function run(argv) {
   // with error -10024. Use the Tag(props)+push pattern (mirrors task_create
   // fix in #331 and project/folder/tag fix in #319).
   const doc = ofApp.defaultDocument;
+
+  // @inline _helpers/lookup_or_throw.js
+
   let newTag;
   if (args.parentId) {
-    const parentTag = doc.flattenedTags.byId(args.parentId);
-    if (!parentTag) throw new Error(`Parent tag not found: ${args.parentId}`);
+    const parentTag = lookupOrThrow(
+      doc.flattenedTags.byId(args.parentId),
+      "Parent tag",
+      args.parentId,
+    );
     newTag = ofApp.Tag({ name: args.name });
     parentTag.tags.push(newTag);
   } else {

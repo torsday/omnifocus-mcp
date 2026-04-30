@@ -17,14 +17,15 @@ function run(argv) {
   ofApp.includeStandardAdditions = false;
   const doc = ofApp.defaultDocument;
 
+  // @inline _helpers/lookup_or_throw.js
+
   const succeeded = [];
   const failed = [];
 
   for (let i = 0; i < args.items.length; i++) {
     const it = args.items[i];
     try {
-      const task = doc.flattenedTasks.byId(it.id);
-      if (!task) throw new Error(`OF_NOT_FOUND: task ${it.id}`);
+      const task = lookupOrThrow(doc.flattenedTasks.byId(it.id), "OF_NOT_FOUND: task", it.id);
       const when = it.at ? new Date(it.at) : new Date();
       try {
         task.markComplete({ completionDate: when });

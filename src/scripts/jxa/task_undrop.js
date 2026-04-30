@@ -13,8 +13,9 @@ function run(argv) {
   const ofApp = Application("OmniFocus");
   ofApp.includeStandardAdditions = false;
 
-  const found = ofApp.defaultDocument.flattenedTasks.byId(args.id);
-  if (!found) throw new Error(`Task not found: ${args.id}`);
+  // @inline _helpers/lookup_or_throw.js
+
+  const found = lookupOrThrow(ofApp.defaultDocument.flattenedTasks.byId(args.id), "Task", args.id);
 
   // In OmniFocus 4.x JXA, `task.dropped = false` is rejected with -10003.
   // ofApp.markIncomplete() clears the dropped flag (restores to active status).

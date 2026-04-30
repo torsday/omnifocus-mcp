@@ -18,6 +18,8 @@ function run(argv) {
   ofApp.includeStandardAdditions = false;
   const doc = ofApp.defaultDocument;
 
+  // @inline _helpers/lookup_or_throw.js
+
   const succeeded = [];
   const failed = [];
 
@@ -34,12 +36,18 @@ function run(argv) {
 
       let newTask;
       if (input.parentId) {
-        const parent = doc.flattenedTasks.byId(input.parentId);
-        if (!parent) throw new Error(`OF_NOT_FOUND: parent task ${input.parentId}`);
+        const parent = lookupOrThrow(
+          doc.flattenedTasks.byId(input.parentId),
+          "OF_NOT_FOUND: parent task",
+          input.parentId,
+        );
         newTask = parent.make({ new: "task", withProperties: props });
       } else if (input.projectId) {
-        const proj = doc.flattenedProjects.byId(input.projectId);
-        if (!proj) throw new Error(`OF_NOT_FOUND: project ${input.projectId}`);
+        const proj = lookupOrThrow(
+          doc.flattenedProjects.byId(input.projectId),
+          "OF_NOT_FOUND: project",
+          input.projectId,
+        );
         newTask = proj.make({ new: "task", withProperties: props });
       } else {
         // Inbox creation: `doc.make({ new: "inboxTask" })` fails with -10024
