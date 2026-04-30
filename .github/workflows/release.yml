@@ -128,7 +128,15 @@ jobs:
         # immediately after the npm publish settles. Requires the
         # HOMEBREW_TAP_TOKEN repo secret (PAT with contents:write on the tap
         # repo) — wired in via the job-level env block above.
+        #
+        # GH_TOKEN is unset here because the gh CLI (installed by setup-node)
+        # picks it up from the Actions environment and uses it for auth,
+        # silently ignoring the explicit `Authorization: Bearer` header that
+        # update-homebrew-formula.sh passes. GH_TOKEN (github.token) is
+        # scoped to this repo only and cannot write torsday/homebrew-tap.
         if: env.HOMEBREW_TAP_TOKEN != ''
+        env:
+          GH_TOKEN: ""
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           bash scripts/update-homebrew-formula.sh "$VERSION"
