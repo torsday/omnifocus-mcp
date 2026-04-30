@@ -32,6 +32,10 @@ on:
       # regression guards run on script-only PRs too — they're cheap on
       # unchanged inputs, and #703 hit this exact gap.
       - "src/scripts/**"
+      # Same gap re-surfaced on #709 — a watcher-only diff didn't fire any
+      # meta-lint job, and branch protection blocked the merge. Widen the
+      # net to src/** so any production-code diff fires the regression guards.
+      - "src/**"
 
 permissions:
   contents: read
