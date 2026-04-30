@@ -7,18 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [1.2.2](https://github.com/torsday/omnifocus-mcp/compare/v1.2.1...v1.2.2) (2026-04-30)
 
+**Summary** — Fixes a startup failure on Macs where OmniFocus runs in the macOS sandbox (App Store installs). The server now probes both the sandbox container path and the legacy Application Support path, preferring the sandbox location when both exist.
 
 ### Fixed
 
-* **release:** clear GH_TOKEN for homebrew-tap step to prevent auth collision ([7cd1873](https://github.com/torsday/omnifocus-mcp/commit/7cd1873650fc357cdd7d1b248230032750f1129e))
-* **release:** set GH_TOKEN to HOMEBREW_TAP_TOKEN for tap update step ([8578707](https://github.com/torsday/omnifocus-mcp/commit/85787076fc902b9bf2a71327ac950b2d0bc26caf))
-* **watcher:** detect sandboxed omnifocus database path (closes [#709](https://github.com/torsday/omnifocus-mcp/issues/709)) ([ab4cc25](https://github.com/torsday/omnifocus-mcp/commit/ab4cc25e4c631f5321dbcb13ffc59e7e4a828a93))
-
-
-### Changed
-
-* **jxa:** inline shared buildProject helper via [@inline](https://github.com/inline) directive ([bb1384e](https://github.com/torsday/omnifocus-mcp/commit/bb1384e74ebc0be7d8c8e6710fb09cd795510c28))
-* **jxa:** replace dead byId guards with lookupOrThrow helper ([1ae1e86](https://github.com/torsday/omnifocus-mcp/commit/1ae1e867b92ff703fee2de14fdbba5c64b2188c8)), closes [#687](https://github.com/torsday/omnifocus-mcp/issues/687)
+- **Sandboxed OmniFocus database path detected automatically ([#709](https://github.com/torsday/omnifocus-mcp/issues/709))** — On App Store installs of OmniFocus, the database lives under `~/Library/Containers/com.omnigroup.OmniFocus3/Data/Library/Application Support/OmniFocus/` rather than the legacy `~/Library/Application Support/OmniFocus/`. The server now probes both locations at startup and selects the correct one automatically — no configuration required. Previously the server would fail silently on sandboxed machines. ([ab4cc25](https://github.com/torsday/omnifocus-mcp/commit/ab4cc25e4c631f5321dbcb13ffc59e7e4a828a93))
 
 ## [1.2.1](https://github.com/torsday/omnifocus-mcp/compare/v1.2.0...v1.2.1) (2026-04-30)
 
