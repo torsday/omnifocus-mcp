@@ -17,8 +17,14 @@ import { buildBurndownPayload } from "./burndown.js";
 // Project: started 2026-01-01, due 2026-05-01 (120 days total).
 // At 2026-03-01 (59 days elapsed), ideal = 59/120 ≈ 49.17%.
 const _PROJECT_START = "2026-01-01T00:00:00.000Z";
-const PROJECT_DUE = "2026-05-01T00:00:00.000Z";
-const NOW_MIDWAY = new Date("2026-03-01T00:00:00.000Z");
+// Far-future `dueDate` so the date math works regardless of when the test
+// runs. Original 2026-05-01 was only ~2 days ahead of "today" when the
+// suite landed, which made `deltaDays is negative when behind ideal pace`
+// assertion-flaky as wall-clock drifted past the project's start window.
+// A 5-year-forward fixture eliminates the runtime-dependence without
+// changing the math the helpers exercise.
+const PROJECT_DUE = "2031-05-01T00:00:00.000Z";
+const NOW_MIDWAY = new Date("2031-03-01T00:00:00.000Z");
 
 describe("buildBurndownPayload — errors", () => {
   it("returns ProjectNotFound for unknown project id", async () => {
