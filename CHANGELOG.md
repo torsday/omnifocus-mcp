@@ -5,6 +5,32 @@ All notable changes to `@torsday/omnifocus-mcp` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [ADR-0011](./docs/adr/0011-versioning-and-stability.md) for the explicit definition of breaking vs additive changes in this project.
 
 
+## [1.2.1](https://github.com/torsday/omnifocus-mcp/compare/v1.2.0...v1.2.1) (2026-04-30)
+
+
+### Fixed
+
+* **jxa:** guard tag parent class() and per-element tag id() against OF 4.x exceptions ([bcaefb9](https://github.com/torsday/omnifocus-mcp/commit/bcaefb9de9bdef4ce92876bf580eb2a48927c45f))
+* **jxa:** map -1728 byId-miss to NotFound at the boundary (closes [#674](https://github.com/torsday/omnifocus-mcp/issues/674)) ([ec53b88](https://github.com/torsday/omnifocus-mcp/commit/ec53b88e9733a3eaa24568da896d8a3da5ff377c))
+* **jxa:** preserve projectId read when containingProject().class() throws ([b40a4a0](https://github.com/torsday/omnifocus-mcp/commit/b40a4a0d77c0165c4d2ae6305ecfddf1efb49e18))
+* **jxa:** use tasks() not flattenedTasks() for parentId filter (closes [#695](https://github.com/torsday/omnifocus-mcp/issues/695)) ([2796b30](https://github.com/torsday/omnifocus-mcp/commit/2796b30b9cf82090c67a4cbb0631f9e19712aaaf))
+* **omnijs:** route createTask through OmniJS for ID interoperability (closes [#680](https://github.com/torsday/omnifocus-mcp/issues/680)) ([0c9959a](https://github.com/torsday/omnifocus-mcp/commit/0c9959abae2bb0e4afb0bdeb76bd60310ee141de))
+* **omnijs:** route duplicateTask through OmniJS for ID interoperability (closes [#692](https://github.com/torsday/omnifocus-mcp/issues/692)) ([972ee8c](https://github.com/torsday/omnifocus-mcp/commit/972ee8c79154f523554e7e642a0262df1502dacb))
+* **omnijs:** route moveProject through OmniJS + fix JXA folder readback (closes [#681](https://github.com/torsday/omnifocus-mcp/issues/681)) ([a1bf707](https://github.com/torsday/omnifocus-mcp/commit/a1bf70729738f3b1ec3534f0e82fdea7f72f5818))
+* **omnijs:** validate parent match in task_reorder before reorder (closes [#676](https://github.com/torsday/omnifocus-mcp/issues/676)) ([dc28308](https://github.com/torsday/omnifocus-mcp/commit/dc283086946d9418f7ea194136d5e91cb0e148a2))
+* **project:** route createProject through OmniJS + fix JXA status/move setters (refs [#681](https://github.com/torsday/omnifocus-mcp/issues/681)) ([509a6bd](https://github.com/torsday/omnifocus-mcp/commit/509a6bd4d4bdca71ae3d9b889f42ec44db55d195))
+* **release:** lift HOMEBREW_TAP_TOKEN to job-level env (closes [#670](https://github.com/torsday/omnifocus-mcp/issues/670)) ([9bb9fc6](https://github.com/torsday/omnifocus-mcp/commit/9bb9fc6f0e4aa9140385f7d80fd60b5b03ca4083))
+
+
+### Changed
+
+* **jxa:** inline shared buildTask helper via [@inline](https://github.com/inline) directive ([f6749ab](https://github.com/torsday/omnifocus-mcp/commit/f6749ab0486dfd07ec32cd489560fcd16f71017c))
+
+
+### Documentation
+
+* **adr:** adr-0019 — cross-transport ID interoperability (closes [#684](https://github.com/torsday/omnifocus-mcp/issues/684)) ([25da456](https://github.com/torsday/omnifocus-mcp/commit/25da4569394fc1acd6e4868217ad48a56b63e29d))
+
 ## [1.2.0](https://github.com/torsday/omnifocus-mcp/compare/v1.1.0...v1.2.0) (2026-04-29)
 
 **Summary** — The headline additions are **outbound webhooks** (a full HTTPS + HMAC delivery subsystem that fires when OmniFocus state changes), **macOS Calendar integration** via a Swift EventKit bridge (with new `omnifocus://calendar` and `omnifocus://agenda` resources that merge calendar events with the OF Forecast view), **decision-journal** support (record user judgment on tasks/projects so agent-driven scans stop re-litigating the same anomaly), **natural-language perspective authoring** (a new MCP prompt + `perspective_create`/`update`/`delete`/`evaluate_dry_run` tools), **`task_defer_smart`** (intent-bearing defer-date grammar so agents stop landing tasks on weekends or 11 pm), and **mutation testing** wired in as a release-time hard gate (Stryker, calibrated baseline, fails publish on regression). Several existing surfaces were tightened — `task_extract_from_image` moved its post-parse validation rules into the Zod schema for cleaner error envelopes, several batch tools gained `.describe()` coverage on inner fields, and a handful of read-side responses now pair human-readable names with opaque IDs for the same reason v1.1.0 introduced the convention. Two new ADRs lock the architectures (ADR-0016 webhook delivery, ADR-0018 calendar bridge). No breaking changes; all v1.0.x / v1.1.x call shapes are unchanged.
