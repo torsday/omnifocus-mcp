@@ -50,6 +50,9 @@ function makeSpyAdapter() {
       await enterAndWait(`createTask:${input.name}`);
       return "id-1" as unknown;
     },
+    updateTask: async (id: string) => {
+      await enterAndWait(`updateTask:${id}`);
+    },
     moveTask: async (id: string) => {
       await enterAndWait(`moveTask:${id}`);
     },
@@ -76,7 +79,9 @@ describe("pickGate", () => {
 
   it("routes JXA mutations to the write queue", () => {
     const deps = makeDeps();
-    expect(pickGate("createTask", deps)).toBe(deps.jxaWriteQueue);
+    // updateTask still routes to JXA. createTask was moved to OmniJS in
+    // ADR-0019 / #680.
+    expect(pickGate("updateTask", deps)).toBe(deps.jxaWriteQueue);
   });
 
   it("routes every OmniJS-bound method to the omnijs queue regardless of mutation flag", () => {
@@ -112,18 +117,19 @@ describe("wrapWithConcurrency", () => {
     const spy = makeSpyAdapter();
     const wrapped = wrapWithConcurrency(spy.adapter, deps);
 
-    const p1 = wrapped.createTask({ name: "a" } as never);
-    const p2 = wrapped.createTask({ name: "b" } as never);
+    // updateTask is the JXA-write example (createTask moved to OmniJS in #680).
+    const p1 = wrapped.updateTask("a" as never, {} as never);
+    const p2 = wrapped.updateTask("b" as never, {} as never);
     await new Promise((r) => setImmediate(r));
 
     // Only the first write should be in flight.
-    expect(spy.events).toEqual(["enter:createTask:a"]);
+    expect(spy.events).toEqual(["enter:updateTask:a"]);
 
-    spy.release("createTask:a");
+    spy.release("updateTask:a");
     await new Promise((r) => setImmediate(r));
-    expect(spy.events).toEqual(["enter:createTask:a", "exit:createTask:a", "enter:createTask:b"]);
+    expect(spy.events).toEqual(["enter:updateTask:a", "exit:updateTask:a", "enter:updateTask:b"]);
 
-    spy.release("createTask:b");
+    spy.release("updateTask:b");
     await Promise.all([p1, p2]);
   });
 
@@ -133,14 +139,15 @@ describe("wrapWithConcurrency", () => {
     const wrapped = wrapWithConcurrency(spy.adapter, deps);
 
     // A JXA write and an OmniJS call kicked off back-to-back must NOT block
-    // each other — they live in different queues.
-    const pWrite = wrapped.createTask({ name: "x" } as never);
+    // each other — they live in different queues. updateTask is the JXA-write
+    // example (createTask moved to OmniJS in #680).
+    const pWrite = wrapped.updateTask("x" as never, {} as never);
     const pOmni = wrapped.moveTask("id-1" as never, {} as never);
     await new Promise((r) => setImmediate(r));
 
-    expect(spy.events.sort()).toEqual(["enter:createTask:x", "enter:moveTask:id-1"]);
+    expect(spy.events.sort()).toEqual(["enter:moveTask:id-1", "enter:updateTask:x"]);
 
-    spy.release("createTask:x");
+    spy.release("updateTask:x");
     spy.release("moveTask:id-1");
     await Promise.all([pWrite, pOmni]);
   });

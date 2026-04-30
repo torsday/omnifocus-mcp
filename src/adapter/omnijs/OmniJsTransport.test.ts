@@ -71,10 +71,12 @@ describe("OmniJsTransport — not-yet-wired stubs", () => {
   const t = new OmniJsTransport({ spawner: spawnerReturning("{}") });
 
   // Sample one method per domain group; the per-method shape is uniform.
+  // Note: createTask was wired in #680 (ADR-0019); use updateTask for the
+  // task-domain stub sample. createProject was wired in #681; use updateProject.
   const cases: Array<readonly [string, () => Promise<unknown>]> = [
     ["listTasks", () => t.listTasks({})],
     ["getTask", () => t.getTask("task_000001" as TaskId)],
-    ["createTask", () => t.createTask({ name: "x" })],
+    ["updateTask", () => t.updateTask("task_000001" as TaskId, {})],
     ["listProjects", () => t.listProjects()],
     ["getProject", () => t.getProject("proj_000001" as ProjectId)],
     ["listTags", () => t.listTags()],

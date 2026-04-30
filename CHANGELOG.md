@@ -186,6 +186,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **`createTask` routes through OmniJS for cross-transport ID interoperability (closes #680)** — sibling fix to [#681](https://github.com/torsday/omnifocus-mcp/issues/681). Per [ADR-0019](./docs/adr/0019-cross-transport-id-interoperability.md), JXA's `Task(props) + push()` returned a transient specifier ID that didn't match OmniFocus's persistent `id.primaryKey`, breaking subsequent OmniJS-routed downstream operations (`moveTask`, `reorderTask`, `duplicateTask`) which use the persistent key. New `src/scripts/omnijs/task_create.js` mirrors the JXA props-set surface (parent-task / project / inbox positions, note, flagged, defer/due dates, estimatedMinutes, tagIds, sequential, completedByChildren) and produces a task whose ID round-trips correctly across both transports. Routing-table flip: `createTask: "jxa"` → `createTask: "omnijs"`. Five of the seven named integration tests in #680 now pass: `createTask with projectId places the task in that project`, `moveTask into a project updates projectId`, and four `reorderTask` variants. The three `duplicateTask` failures and the `reorderTask validation when reference has different parent` failure trace to separate root causes (filed as follow-ups). Caller wrappers, OmniJsTransport contract, router exclusivity allowlist, and the routing-domain unit tests all updated to reflect the move; concurrent-test JXA-write fixtures now demonstrate via `updateTask` (still JXA-routed) since `createTask` is no longer the canonical example.
+
 ---
 
 ## [1.0.0] — 2026-04-25

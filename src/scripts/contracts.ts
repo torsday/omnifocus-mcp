@@ -125,6 +125,17 @@ export type ProjectCreateScriptResult =
   | { project: Project }
   | ScriptErrorEnvelope<"NOT_FOUND" | "VALIDATION">;
 
+/**
+ * Result type for `task_create.js` (OmniJS).
+ *
+ * Per ADR-0019 (sibling to project_create above), task creation routes
+ * through OmniJS so the returned `id.primaryKey` is a persistent
+ * identifier both transports resolve.
+ */
+export type TaskCreateScriptResult =
+  | { task: Task }
+  | ScriptErrorEnvelope<"NOT_FOUND" | "VALIDATION">;
+
 /** Result type for `app_window_new.js` and `app_window_new_tab.js`. */
 export type AppWindowNewScriptResult =
   | { perspectiveName: string | null; focusContainerIds: string[] }

@@ -51,6 +51,7 @@ import {
   type ProjectCreateScriptResult,
   type TaskBatchMoveScriptResult,
   type TaskConvertToProjectScriptResult,
+  type TaskCreateScriptResult,
   type TaskMoveScriptResult,
 } from "../../scripts/contracts.js";
 import appWindowNewScript from "../../scripts/omnijs/app_window_new.js";
@@ -70,6 +71,7 @@ import projectCreateScript from "../../scripts/omnijs/project_create.js";
 import taskBatchMoveScript from "../../scripts/omnijs/task_batch_move.js";
 import taskClearAlarmsScript from "../../scripts/omnijs/task_clear_alarms.js";
 import taskConvertToProjectScript from "../../scripts/omnijs/task_convert_to_project.js";
+import taskCreateScript from "../../scripts/omnijs/task_create.js";
 import taskMoveScript from "../../scripts/omnijs/task_move.js";
 import taskReorderScript from "../../scripts/omnijs/task_reorder.js";
 import taskSetAlarmsScript from "../../scripts/omnijs/task_set_alarms.js";
@@ -145,8 +147,40 @@ export class OmniJsTransport implements OmniFocusAdapter {
   async getTasksMany(_ids: TaskId[]): Promise<(Task | null)[]> {
     return notYetWired("getTasksMany");
   }
-  async createTask(_input: CreateTaskInput): Promise<TaskId> {
-    return notYetWired("createTask");
+  async createTask(input: CreateTaskInput): Promise<TaskId> {
+    // Routes through OmniJS per ADR-0019 (sibling to createProject in #681).
+    // JXA's `Task(props) + push()` returns a transient specifier ID that
+    // breaks downstream OmniJS-routed ops (moveTask, reorderTask, etc.);
+    // OmniJS's `new Task(name, position)` returns IDs both transports
+    // accept.
+    const result = await runOmniJsScript<TaskCreateScriptResult>(
+      taskCreateScript,
+      {
+        name: input.name,
+        projectId: input.projectId ?? null,
+        parentId: input.parentId ?? null,
+        note: input.note ?? null,
+        flagged: input.flagged ?? false,
+        deferDate: input.deferDate ?? null,
+        dueDate: input.dueDate ?? null,
+        estimatedMinutes: input.estimatedMinutes ?? null,
+        tagIds: input.tagIds ?? [],
+        sequential: input.sequential ?? false,
+        completedByChildren: input.completedByChildren ?? false,
+      },
+      { ...this.runOpts, scriptName: "task_create" },
+    );
+    if (isScriptError(result)) {
+      if (result.error.code === "NOT_FOUND") {
+        throw new NotFound(result.error.message, {
+          details: { transport: "omnijs", scriptName: "task_create" },
+        });
+      }
+      throw new ValidationError(result.error.message, {
+        details: { transport: "omnijs", scriptName: "task_create" },
+      });
+    }
+    return TaskIdCtor.of(result.task.id);
   }
   async updateTask(_id: TaskId, _patch: UpdateTaskInput): Promise<void> {
     return notYetWired("updateTask");
