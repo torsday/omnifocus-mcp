@@ -107,7 +107,10 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   convertTaskToProject: "omnijs", // OmniJS-only: Database.convertTasksToProjects()
   batchMoveTasks: "omnijs", // same JXA bug; batch variant routes through OmniJS
   reorderTask: "omnijs",
-  duplicateTask: "jxa",
+  // Per ADR-0019: routes through OmniJS so the cloned task's id is a
+  // persistent primaryKey interoperable with both transports. Sibling of
+  // createTask (#680) and createProject (#681).
+  duplicateTask: "omnijs",
   batchCreateTasks: "jxa",
   batchUpdateTasks: "jxa",
   batchCompleteTasks: "jxa",

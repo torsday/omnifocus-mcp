@@ -136,6 +136,17 @@ export type TaskCreateScriptResult =
   | { task: Task }
   | ScriptErrorEnvelope<"NOT_FOUND" | "VALIDATION">;
 
+/**
+ * Result type for `task_duplicate.js` (OmniJS).
+ *
+ * Per ADR-0019 (sibling to task_create above), task duplication routes
+ * through OmniJS so the cloned task's `id.primaryKey` is interoperable
+ * with both transports.
+ */
+export type TaskDuplicateOmniJsScriptResult =
+  | { newId: string; descendantCount: number }
+  | ScriptErrorEnvelope<"NOT_FOUND" | "VALIDATION">;
+
 /** Result type for `app_window_new.js` and `app_window_new_tab.js`. */
 export type AppWindowNewScriptResult =
   | { perspectiveName: string | null; focusContainerIds: string[] }
