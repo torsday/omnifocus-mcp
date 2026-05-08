@@ -820,10 +820,11 @@ Coverage is not enforced because it's gameable. Test *fidelity* is enforced at r
   - No integration / e2e
   - Must all pass to merge; `main` branch protection enforced
 - **Integration workflow (`integration.yml`):**
-  - Manual dispatch (`workflow_dispatch`) or on tag push
+  - Triggers: manual dispatch (`workflow_dispatch`), tag push, or pull_request to `main`
   - Runs on a self-hosted macOS runner with OmniFocus + seeded DB
   - `OMNIFOCUS_INTEGRATION=1 pnpm test:integration`
-  - Self-hosted runner is optional in v1; if not set up, integration tests run locally via `pnpm test:integration`
+  - Fork PRs short-circuit the heavy job (forks lack self-hosted runner access by GitHub's security model); contributors run integration tests locally instead
+  - `integration-gate` job (ubuntu-latest) is the stable required-check name in branch protection — fork skip is acceptable, canonical-repo skip is a failure (gap 2 of [#679](https://github.com/torsday/omnifocus-mcp/issues/679))
 - **Release workflow (`release.yml`):**
   - Trigger: tag push `v*.*.*`
   - Reuses the PR pipeline + builds distribution
