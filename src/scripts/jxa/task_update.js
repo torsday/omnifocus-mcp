@@ -56,22 +56,30 @@ function run(argv) {
   }
 
   if (args.tagIds !== undefined) {
-    try {
-      const currentTags = found.tags();
-      for (let i = 0; i < currentTags.length; i++) {
-        found.removeTag(currentTags[i]);
-      }
-    } catch (_e) {
-      /* OF 4.x: property access may not exist on all object types — default used */
-    }
-    for (let i = 0; i < args.tagIds.length; i++) {
-      try {
-        const tag = ofApp.defaultDocument.flattenedTags.byId(args.tagIds[i]);
-        found.addTag(tag);
-      } catch (_e) {
-        /* OF 4.x: property access may not exist on all object types — default used */
-      }
-    }
+    // OmniFocus 4.x: JXA's task.addTag(tag) / task.removeTag(tag) silently
+    // no-op on existing tasks resolved by id (#716) — the call returns without
+    // error but no row is written to the underlying SQLite TaskToTag table.
+    // OmniJS's Task.addTag / Task.removeTag are reliable, so delegate the
+    // tag-set replacement to OmniJS via evaluateJavascript. Tag IDs missing
+    // from the OmniJS store are silently skipped (matches caller-layer
+    // semantics in src/tools/task/update.ts which validates existence first).
+    const omniJsScript =
+      "(() => {" +
+      "  const t = Task.byIdentifier(" +
+      JSON.stringify(args.id) +
+      ");" +
+      "  if (!t) return;" +
+      "  const desired = " +
+      JSON.stringify(args.tagIds) +
+      ";" +
+      "  const existing = t.tags.slice();" +
+      "  for (let i = 0; i < existing.length; i++) t.removeTag(existing[i]);" +
+      "  for (let i = 0; i < desired.length; i++) {" +
+      "    const tg = Tag.byIdentifier(desired[i]);" +
+      "    if (tg) t.addTag(tg);" +
+      "  }" +
+      "})()";
+    ofApp.evaluateJavascript(omniJsScript);
   }
 
   return JSON.stringify({ task: buildTask(found) });
