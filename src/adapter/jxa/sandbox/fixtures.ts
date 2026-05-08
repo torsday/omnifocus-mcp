@@ -122,6 +122,12 @@ export interface FakeTaskOverrides {
   availabilityStatus?: () => string;
   deferDateFloating?: () => boolean;
   dueDateFloating?: () => boolean;
+  // build_task.js with `effectiveAvailability: true` calls this; the
+  // forecast and search scripts both pass that option.
+  effectivelyAvailable?: () => boolean;
+  // attachment_list reads this on tasks; default empty array, override
+  // with [fakeAttachment(...)] in tests that exercise attachments.
+  fileAttachments?: () => unknown[];
 }
 
 let _taskSeq = 0;
@@ -159,6 +165,8 @@ export function fakeTask(
     availabilityStatus: overrides.availabilityStatus ?? fn("available"),
     deferDateFloating: overrides.deferDateFloating ?? fn(false),
     dueDateFloating: overrides.dueDateFloating ?? fn(false),
+    effectivelyAvailable: overrides.effectivelyAvailable ?? fn(true),
+    fileAttachments: overrides.fileAttachments ?? fn([]),
   };
 }
 
@@ -191,6 +199,8 @@ export interface FakeProjectOverrides {
   lastReviewDate?: () => Date | null;
   deferDateFloating?: () => boolean;
   dueDateFloating?: () => boolean;
+  // attachment_list reads this on projects; default empty array.
+  fileAttachments?: () => unknown[];
 }
 
 let _projectSeq = 0;
@@ -228,6 +238,7 @@ export function fakeProject(
     lastReviewDate: overrides.lastReviewDate ?? fn(null),
     deferDateFloating: overrides.deferDateFloating ?? fn(false),
     dueDateFloating: overrides.dueDateFloating ?? fn(false),
+    fileAttachments: overrides.fileAttachments ?? fn([]),
   };
 }
 
@@ -268,6 +279,70 @@ export function fakeFolder(
     creationDate: overrides.creationDate ?? fn(now),
     modificationDate: overrides.modificationDate ?? fn(now),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Attachment / window / perspective fakes (slice 2b)
+// ---------------------------------------------------------------------------
+
+export interface FakeAttachmentOverrides {
+  id?: () => string;
+  name?: () => string;
+  fileType?: () => string | null;
+  fileSize?: () => number | null;
+  creationDate?: () => Date;
+  /**
+   * `attachment_list.js` calls `att.linked?.()` — pass `undefined` (the
+   * default) to omit the method entirely (script reads `kind: "embedded"`),
+   * or supply `() => true` for the alias path.
+   */
+  linked?: (() => boolean) | undefined;
+}
+
+let _attachmentSeq = 0;
+
+/** Build a fake JXA Attachment object as used by `attachment_list.js`. */
+export function fakeAttachment(overrides: FakeAttachmentOverrides = {}) {
+  const id = overrides.id ?? fn(`att_${++_attachmentSeq}`);
+  const name = overrides.name ?? fn(`Attachment ${_attachmentSeq}`);
+  const now = new Date();
+  const base: Record<string, unknown> = {
+    id,
+    name,
+    fileType: overrides.fileType ?? fn(null),
+    fileSize: overrides.fileSize ?? fn(null),
+    creationDate: overrides.creationDate ?? fn(now),
+  };
+  if (overrides.linked !== undefined) base.linked = overrides.linked;
+  return base;
+}
+
+export interface FakeWindowOverrides {
+  perspectiveName?: () => string;
+  /** Array of focus containers; each must expose `.id()`. */
+  focus?: () => Array<{ id: () => string }>;
+}
+
+/** Build a fake JXA Window object as used by `window_get_state.js`. */
+export function fakeWindow(overrides: FakeWindowOverrides = {}) {
+  return {
+    perspectiveName: overrides.perspectiveName ?? fn("Forecast"),
+    focus: overrides.focus ?? fn([]),
+  };
+}
+
+export interface FakePerspectiveOverrides {
+  id?: () => string;
+  name?: () => string;
+}
+
+let _perspectiveSeq = 0;
+
+/** Build a fake JXA Perspective object as used by `perspective_list.js`. */
+export function fakePerspective(overrides: FakePerspectiveOverrides = {}) {
+  const id = overrides.id ?? fn(`perspective_${++_perspectiveSeq}`);
+  const name = overrides.name ?? fn(`Perspective ${_perspectiveSeq}`);
+  return { id, name };
 }
 
 /** Expose the throwing() helper so test authors can inject faults. */

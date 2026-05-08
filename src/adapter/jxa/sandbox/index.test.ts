@@ -15,9 +15,12 @@
  */
 
 import { describe, expect, it } from "vitest";
+import attachmentListScript from "../../../scripts/jxa/attachment_list.js";
 import changesSinceScript from "../../../scripts/jxa/changes_since.js";
 import folderGetScript from "../../../scripts/jxa/folder_get.js";
 import folderListScript from "../../../scripts/jxa/folder_list.js";
+import forecastGetScript from "../../../scripts/jxa/forecast_get.js";
+import perspectiveListScript from "../../../scripts/jxa/perspective_list.js";
 import projectGetScript from "../../../scripts/jxa/project_get.js";
 import projectGetManyScript from "../../../scripts/jxa/project_get_many.js";
 import projectListScript from "../../../scripts/jxa/project_list.js";
@@ -28,7 +31,18 @@ import tagListScript from "../../../scripts/jxa/tag_list.js";
 import taskGetScript from "../../../scripts/jxa/task_get.js";
 import taskGetManyScript from "../../../scripts/jxa/task_get_many.js";
 import taskListScript from "../../../scripts/jxa/task_list.js";
-import { fakeFolder, fakeProject, fakeTag, fakeTask, throwing } from "./fixtures.js";
+import taskSearchScript from "../../../scripts/jxa/task_search.js";
+import windowGetStateScript from "../../../scripts/jxa/window_get_state.js";
+import {
+  fakeAttachment,
+  fakeFolder,
+  fakePerspective,
+  fakeProject,
+  fakeTag,
+  fakeTask,
+  fakeWindow,
+  throwing,
+} from "./fixtures.js";
 import { runJxaScriptInSandbox } from "./index.js";
 
 // ---------------------------------------------------------------------------
@@ -803,6 +817,343 @@ describe("JXA sandbox — review_list_due", () => {
       projects: { reviewIntervalDays: number | null }[];
     }>(reviewListDueScript, {}, { projects: [p] });
     expect(result.projects[0]?.reviewIntervalDays).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// forecast_get.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — forecast_get", () => {
+  // forecast_get queries via flattenedTasks.whose(predicate)() — the harness
+  // implements only the operators the script actually uses (equality plus
+  // _lessThan / _greaterThanEquals / _lessThanEquals on Date properties).
+  const FROM = new Date("2026-05-08T00:00:00Z");
+  const TO = new Date("2026-05-08T23:59:59Z");
+
+  it("buckets overdue, dueToday, deferredToday, and flagged correctly", () => {
+    const overdue = fakeTask({
+      id: () => "task_overdue",
+      dueDate: () => new Date("2026-05-01T00:00:00Z"),
+    });
+    const dueToday = fakeTask({
+      id: () => "task_today",
+      dueDate: () => new Date("2026-05-08T12:00:00Z"),
+    });
+    const deferredToday = fakeTask({
+      id: () => "task_deferred",
+      deferDate: () => new Date("2026-05-08T09:00:00Z"),
+    });
+    const flag = fakeTask({ id: () => "task_flagged", flagged: () => true });
+    const result = runJxaScriptInSandbox<{
+      overdue: { id: string }[];
+      dueToday: { id: string }[];
+      deferredToday: { id: string }[];
+      flagged: { id: string }[];
+    }>(
+      forecastGetScript,
+      { from: FROM.toISOString(), to: TO.toISOString() },
+      { tasks: [overdue, dueToday, deferredToday, flag] },
+    );
+    expect(result.overdue.map((t) => t.id)).toEqual(["task_overdue"]);
+    expect(result.dueToday.map((t) => t.id)).toEqual(["task_today"]);
+    expect(result.deferredToday.map((t) => t.id)).toEqual(["task_deferred"]);
+    expect(result.flagged.map((t) => t.id)).toEqual(["task_flagged"]);
+  });
+
+  it("excludes completed and dropped tasks from every bucket", () => {
+    const completed = fakeTask({
+      id: () => "task_completed",
+      completed: () => true,
+      dueDate: () => new Date("2026-05-08T09:00:00Z"),
+    });
+    const dropped = fakeTask({
+      id: () => "task_dropped",
+      dropped: () => true,
+      flagged: () => true,
+    });
+    const result = runJxaScriptInSandbox<{
+      overdue: unknown[];
+      dueToday: unknown[];
+      flagged: unknown[];
+    }>(
+      forecastGetScript,
+      { from: FROM.toISOString(), to: TO.toISOString() },
+      { tasks: [completed, dropped] },
+    );
+    expect(result.dueToday).toHaveLength(0);
+    expect(result.flagged).toHaveLength(0);
+  });
+
+  it("respects include* flags by skipping their queries", () => {
+    const flag = fakeTask({ flagged: () => true });
+    const result = runJxaScriptInSandbox<{ flagged: unknown[] }>(
+      forecastGetScript,
+      {
+        from: FROM.toISOString(),
+        to: TO.toISOString(),
+        includeFlagged: false,
+      },
+      { tasks: [flag] },
+    );
+    expect(result.flagged).toHaveLength(0);
+  });
+
+  it("dedups a task that matches multiple buckets via the builtById cache", () => {
+    // A task that is both overdue and flagged should appear in both buckets,
+    // but be built only once (the builtById cache keys on the task id).
+    const t = fakeTask({
+      id: () => "task_dual",
+      dueDate: () => new Date("2026-05-01T00:00:00Z"),
+      flagged: () => true,
+    });
+    const result = runJxaScriptInSandbox<{
+      overdue: { id: string }[];
+      flagged: { id: string }[];
+    }>(forecastGetScript, { from: FROM.toISOString(), to: TO.toISOString() }, { tasks: [t] });
+    expect(result.overdue.map((x) => x.id)).toEqual(["task_dual"]);
+    expect(result.flagged.map((x) => x.id)).toEqual(["task_dual"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// window_get_state.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — window_get_state", () => {
+  it("returns perspectiveName + empty focus by default — regression #466", () => {
+    const w = fakeWindow({ perspectiveName: () => "Forecast" });
+    const result = runJxaScriptInSandbox<{
+      perspectiveName: string;
+      focusContainerIds: string[];
+    }>(windowGetStateScript, {}, { windows: [w] });
+    expect(result.perspectiveName).toBe("Forecast");
+    expect(result.focusContainerIds).toEqual([]);
+  });
+
+  it("returns NO_FRONT_WINDOW error when there are no windows", () => {
+    const result = runJxaScriptInSandbox<{ error: { code: string } }>(
+      windowGetStateScript,
+      {},
+      { windows: [] },
+    );
+    expect(result.error.code).toBe("NO_FRONT_WINDOW");
+  });
+
+  it("collects focus container ids in input order", () => {
+    const w = fakeWindow({
+      focus: () => [{ id: () => "container_a" }, { id: () => "container_b" }],
+    });
+    const result = runJxaScriptInSandbox<{ focusContainerIds: string[] }>(
+      windowGetStateScript,
+      {},
+      { windows: [w] },
+    );
+    expect(result.focusContainerIds).toEqual(["container_a", "container_b"]);
+  });
+
+  it("returns null perspectiveName when the getter throws", () => {
+    const w = fakeWindow({ perspectiveName: throwing() });
+    const result = runJxaScriptInSandbox<{ perspectiveName: string | null }>(
+      windowGetStateScript,
+      {},
+      { windows: [w] },
+    );
+    expect(result.perspectiveName).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// perspective_list.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — perspective_list", () => {
+  it("always returns the seven built-in perspectives", () => {
+    const result = runJxaScriptInSandbox<{
+      perspectives: { id: string; kind: string; requiresPro: boolean }[];
+    }>(perspectiveListScript, {}, {});
+    const builtinIds = result.perspectives.filter((p) => p.kind === "builtin").map((p) => p.id);
+    expect(builtinIds).toEqual([
+      "inbox",
+      "projects",
+      "tags",
+      "forecast",
+      "flagged",
+      "nearby",
+      "review",
+    ]);
+    expect(result.perspectives.every((p) => !p.requiresPro || p.kind === "custom")).toBe(true);
+  });
+
+  it("appends custom perspectives with requiresPro: true", () => {
+    const custom = fakePerspective({ id: () => "perspective_x", name: () => "Weekly Review" });
+    const result = runJxaScriptInSandbox<{
+      perspectives: { id: string; name: string; kind: string; requiresPro: boolean }[];
+    }>(perspectiveListScript, {}, { perspectives: [custom] });
+    const customs = result.perspectives.filter((p) => p.kind === "custom");
+    expect(customs).toHaveLength(1);
+    expect(customs[0]).toMatchObject({
+      id: "perspective_x",
+      name: "Weekly Review",
+      kind: "custom",
+      requiresPro: true,
+    });
+  });
+
+  it("dedups built-in names that the OS reports as custom perspectives", () => {
+    // OF reports built-ins under different ids in some versions; the script
+    // skips any custom whose name matches a built-in.
+    const dup = fakePerspective({ id: () => "weird-id", name: () => "Forecast" });
+    const result = runJxaScriptInSandbox<{ perspectives: { name: string; kind: string }[] }>(
+      perspectiveListScript,
+      {},
+      { perspectives: [dup] },
+    );
+    const customs = result.perspectives.filter((p) => p.kind === "custom");
+    expect(customs).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// attachment_list.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — attachment_list", () => {
+  it("returns attachments for the requested taskId", () => {
+    const att = fakeAttachment({
+      id: () => "att_1",
+      name: () => "design.pdf",
+      fileType: () => "application/pdf",
+      fileSize: () => 12345,
+    });
+    const owner = fakeTask({ id: () => "task_owner", fileAttachments: () => [att] });
+    const result = runJxaScriptInSandbox<{
+      attachments: {
+        id: string;
+        name: string;
+        mimeType: string;
+        sizeBytes: number;
+        kind: string;
+      }[];
+    }>(attachmentListScript, { taskId: "task_owner" }, { tasks: [owner] });
+    expect(result.attachments).toHaveLength(1);
+    expect(result.attachments[0]).toMatchObject({
+      id: "att_1",
+      name: "design.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 12345,
+      kind: "embedded",
+    });
+  });
+
+  it("returns 'alias' kind when the attachment is linked", () => {
+    const att = fakeAttachment({ linked: () => true });
+    const owner = fakeProject({ id: () => "project_owner", fileAttachments: () => [att] });
+    const result = runJxaScriptInSandbox<{ attachments: { kind: string }[] }>(
+      attachmentListScript,
+      { projectId: "project_owner" },
+      { projects: [owner] },
+    );
+    expect(result.attachments[0]?.kind).toBe("alias");
+  });
+
+  it("throws when the requested taskId does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(attachmentListScript, { taskId: "missing" }, { tasks: [fakeTask()] }),
+    ).toThrow("Task not found: missing");
+  });
+
+  it("throws when neither taskId nor projectId is supplied", () => {
+    expect(() => runJxaScriptInSandbox(attachmentListScript, {}, {})).toThrow(
+      "One of taskId or projectId is required",
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_search.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_search", () => {
+  it("filters by keyword in name (default scope: all)", () => {
+    const a = fakeTask({ name: () => "Buy milk" });
+    const b = fakeTask({ name: () => "Pay rent" });
+    const result = runJxaScriptInSandbox<{ tasks: { name: string }[] }>(
+      taskSearchScript,
+      { q: "milk" },
+      { tasks: [a, b] },
+    );
+    expect(result.tasks).toHaveLength(1);
+    expect(result.tasks[0]?.name).toBe("Buy milk");
+  });
+
+  it("scope: 'note' searches only notes", () => {
+    const a = fakeTask({ name: () => "milk", note: () => "" });
+    const b = fakeTask({ name: () => "task", note: () => "remember the milk" });
+    const result = runJxaScriptInSandbox<{ tasks: { name: string }[] }>(
+      taskSearchScript,
+      { q: "milk", scope: "note" },
+      { tasks: [a, b] },
+    );
+    expect(result.tasks).toHaveLength(1);
+    expect(result.tasks[0]?.name).toBe("task");
+  });
+
+  it("excludes completed by default but 'only' returns just completed", () => {
+    const open = fakeTask({ id: () => "task_open" });
+    const done = fakeTask({ id: () => "task_done", completed: () => true });
+    const exclude = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      taskSearchScript,
+      {},
+      { tasks: [open, done] },
+    );
+    expect(exclude.tasks.map((t) => t.id)).toEqual(["task_open"]);
+    const only = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      taskSearchScript,
+      { completed: "only" },
+      { tasks: [open, done] },
+    );
+    expect(only.tasks.map((t) => t.id)).toEqual(["task_done"]);
+  });
+
+  it("requires ALL listed tagIds when filtering by tagIds", () => {
+    const tagA = fakeTag({ id: () => "tag_a" });
+    const tagB = fakeTag({ id: () => "tag_b" });
+    const both = fakeTask({ id: () => "task_both", tags: () => [tagA, tagB] });
+    const onlyA = fakeTask({ id: () => "task_a_only", tags: () => [tagA] });
+    const result = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      taskSearchScript,
+      { tagIds: ["tag_a", "tag_b"] },
+      { tasks: [both, onlyA] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["task_both"]);
+  });
+
+  it("scopes to a project's flattenedTasks via byId — happy path", () => {
+    const projectTasks = [fakeTask({ id: () => "task_inside" })];
+    const project = fakeProject({
+      id: () => "project_target",
+      flattenedTasks: () => projectTasks,
+    });
+    // outsider should not appear because the script reads tasks from the
+    // project, not from the document's flattenedTasks.
+    const outsider = fakeTask({ id: () => "task_outside" });
+    const result = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      taskSearchScript,
+      { projectId: "project_target" },
+      { projects: [project], tasks: [outsider] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["task_inside"]);
+  });
+
+  it("throws via lookupOrThrow when projectId does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(
+        taskSearchScript,
+        { projectId: "missing" },
+        { projects: [fakeProject()] },
+      ),
+    ).toThrow("Project not found: missing");
   });
 });
 
