@@ -15,10 +15,15 @@
  */
 
 import { describe, expect, it } from "vitest";
+import folderGetScript from "../../../scripts/jxa/folder_get.js";
+import folderListScript from "../../../scripts/jxa/folder_list.js";
+import projectGetScript from "../../../scripts/jxa/project_get.js";
 import projectListScript from "../../../scripts/jxa/project_list.js";
+import tagGetScript from "../../../scripts/jxa/tag_get.js";
 import tagListScript from "../../../scripts/jxa/tag_list.js";
+import taskGetScript from "../../../scripts/jxa/task_get.js";
 import taskListScript from "../../../scripts/jxa/task_list.js";
-import { fakeProject, fakeTag, fakeTask, throwing } from "./fixtures.js";
+import { fakeFolder, fakeProject, fakeTag, fakeTask, throwing } from "./fixtures.js";
 import { runJxaScriptInSandbox } from "./index.js";
 
 // ---------------------------------------------------------------------------
@@ -304,6 +309,253 @@ describe("JXA sandbox — project_list", () => {
       { projects: [p1, p2] },
     );
     expect(result.projects).toHaveLength(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// folder_list.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — folder_list", () => {
+  it("returns folders from the fake document", () => {
+    const f = fakeFolder({ name: () => "Areas" });
+    const result = runJxaScriptInSandbox<{ folders: { name: string }[] }>(
+      folderListScript,
+      {},
+      { folders: [f] },
+    );
+    expect(result.folders).toHaveLength(1);
+    expect(result.folders[0]?.name).toBe("Areas");
+  });
+
+  it("returns empty array when the document has no folders", () => {
+    const result = runJxaScriptInSandbox<{ folders: unknown[] }>(folderListScript, {}, {});
+    expect(result.folders).toHaveLength(0);
+  });
+
+  it("resolves sub-folder parentage via the precomputed parentMap — regression #515", () => {
+    // folder.parent() is broken on OF 4.8.8; folder_list builds a reverse
+    // map from each folder's .folders() children. The script must report
+    // child.parentId === parent.id() without ever calling child.parent().
+    const child = fakeFolder({
+      id: () => "folder_child",
+      // child.parent() is intentionally never called by folder_list — make
+      // it throw to prove the script doesn't fall back to it.
+      parent: throwing(),
+    });
+    const parent = fakeFolder({
+      id: () => "folder_parent",
+      folders: () => [child],
+    });
+    const result = runJxaScriptInSandbox<{
+      folders: { id: string; parentId: string | null }[];
+    }>(folderListScript, {}, { folders: [parent, child] });
+    const childOut = result.folders.find((f) => f.id === "folder_child");
+    expect(childOut?.parentId).toBe("folder_parent");
+  });
+
+  it("filters by parentId when provided", () => {
+    const child = fakeFolder({ id: () => "folder_child", parent: throwing() });
+    const parent = fakeFolder({ id: () => "folder_parent", folders: () => [child] });
+    const sibling = fakeFolder({ id: () => "folder_sibling", parent: throwing() });
+    const result = runJxaScriptInSandbox<{ folders: { id: string }[] }>(
+      folderListScript,
+      { parentId: "folder_parent" },
+      { folders: [parent, child, sibling] },
+    );
+    expect(result.folders).toHaveLength(1);
+    expect(result.folders[0]?.id).toBe("folder_child");
+  });
+
+  it("treats null parentId filter as no filter — regression #515", () => {
+    const f1 = fakeFolder();
+    const f2 = fakeFolder();
+    const result = runJxaScriptInSandbox<{ folders: unknown[] }>(
+      folderListScript,
+      { parentId: null },
+      { folders: [f1, f2] },
+    );
+    expect(result.folders).toHaveLength(2);
+  });
+
+  it("falls back to now when creationDate() throws — regression #498", () => {
+    const before = Date.now();
+    const f = fakeFolder({ creationDate: throwing("Can't get object.") });
+    const result = runJxaScriptInSandbox<{ folders: { createdAt: string }[] }>(
+      folderListScript,
+      {},
+      { folders: [f] },
+    );
+    const createdAt = new Date(result.folders[0]?.createdAt ?? "").getTime();
+    expect(createdAt).toBeGreaterThanOrEqual(before);
+  });
+
+  it("defaults projectCount to 0 when projects() throws", () => {
+    const f = fakeFolder({ projects: throwing() });
+    const result = runJxaScriptInSandbox<{ folders: { projectCount: number }[] }>(
+      folderListScript,
+      {},
+      { folders: [f] },
+    );
+    expect(result.folders[0]?.projectCount).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// folder_get.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — folder_get", () => {
+  it("returns the folder when the id matches", () => {
+    const target = fakeFolder({ id: () => "folder_target", name: () => "Target" });
+    const other = fakeFolder({ id: () => "folder_other" });
+    const result = runJxaScriptInSandbox<{ folder: { id: string; name: string } }>(
+      folderGetScript,
+      { id: "folder_target" },
+      { folders: [other, target] },
+    );
+    expect(result.folder.id).toBe("folder_target");
+    expect(result.folder.name).toBe("Target");
+  });
+
+  it("throws `Folder not found: <id>` when no match", () => {
+    expect(() =>
+      runJxaScriptInSandbox(folderGetScript, { id: "missing" }, { folders: [fakeFolder()] }),
+    ).toThrow("Folder not found: missing");
+  });
+
+  it("resolves sub-folder parentage via the precomputed parentMap — regression #515", () => {
+    const child = fakeFolder({ id: () => "folder_child", parent: throwing() });
+    const parent = fakeFolder({ id: () => "folder_parent", folders: () => [child] });
+    const result = runJxaScriptInSandbox<{ folder: { parentId: string | null } }>(
+      folderGetScript,
+      { id: "folder_child" },
+      { folders: [parent, child] },
+    );
+    expect(result.folder.parentId).toBe("folder_parent");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// tag_get.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — tag_get", () => {
+  it("returns the tag when the id matches", () => {
+    const target = fakeTag({ id: () => "tag_target", name: () => "Work" });
+    const other = fakeTag({ id: () => "tag_other" });
+    const result = runJxaScriptInSandbox<{ tag: { id: string; name: string } }>(
+      tagGetScript,
+      { id: "tag_target" },
+      { tags: [other, target] },
+    );
+    expect(result.tag.id).toBe("tag_target");
+    expect(result.tag.name).toBe("Work");
+  });
+
+  it("throws `Tag not found: <id>` when no match", () => {
+    expect(() =>
+      runJxaScriptInSandbox(tagGetScript, { id: "missing" }, { tags: [fakeTag()] }),
+    ).toThrow("Tag not found: missing");
+  });
+
+  it("falls back to now when creationDate() throws — regression #498", () => {
+    const before = Date.now();
+    const t = fakeTag({
+      id: () => "tag_only",
+      creationDate: throwing("Can't get object."),
+    });
+    const result = runJxaScriptInSandbox<{ tag: { createdAt: string } }>(
+      tagGetScript,
+      { id: "tag_only" },
+      { tags: [t] },
+    );
+    expect(new Date(result.tag.createdAt).getTime()).toBeGreaterThanOrEqual(before);
+  });
+
+  it("treats parent.class() throw as 'real tag' so parentId is the parent.id — regression #673", () => {
+    // OF 4.x: p.class() throws "Can't convert types" on real Tag specifiers,
+    // and only the document responds. The script must keep parentId set to
+    // the parent's id() rather than skipping to null.
+    const parentTag = {
+      class: throwing("Can't convert types."),
+      id: () => "tag_parent",
+    };
+    const t = fakeTag({ id: () => "tag_child", parent: () => parentTag });
+    const result = runJxaScriptInSandbox<{ tag: { parentId: string | null } }>(
+      tagGetScript,
+      { id: "tag_child" },
+      { tags: [t] },
+    );
+    expect(result.tag.parentId).toBe("tag_parent");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// project_get.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — project_get", () => {
+  it("returns the project when the id matches", () => {
+    const target = fakeProject({ id: () => "project_target", name: () => "Errands" });
+    const other = fakeProject({ id: () => "project_other" });
+    const result = runJxaScriptInSandbox<{ project: { id: string; name: string } }>(
+      projectGetScript,
+      { id: "project_target" },
+      { projects: [other, target] },
+    );
+    expect(result.project.id).toBe("project_target");
+    expect(result.project.name).toBe("Errands");
+  });
+
+  it("throws `Project not found: <id>` when no match", () => {
+    expect(() =>
+      runJxaScriptInSandbox(projectGetScript, { id: "missing" }, { projects: [fakeProject()] }),
+    ).toThrow("Project not found: missing");
+  });
+
+  it("normalizes 'on hold' status to 'on-hold'", () => {
+    const p = fakeProject({ id: () => "project_only", status: () => "on hold" });
+    const result = runJxaScriptInSandbox<{ project: { status: string } }>(
+      projectGetScript,
+      { id: "project_only" },
+      { projects: [p] },
+    );
+    expect(result.project.status).toBe("on-hold");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_get.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_get", () => {
+  it("returns the task when the id matches", () => {
+    const target = fakeTask({ id: () => "task_target", name: () => "Buy milk" });
+    const other = fakeTask({ id: () => "task_other" });
+    const result = runJxaScriptInSandbox<{ task: { id: string; name: string } }>(
+      taskGetScript,
+      { id: "task_target" },
+      { tasks: [other, target] },
+    );
+    expect(result.task.id).toBe("task_target");
+    expect(result.task.name).toBe("Buy milk");
+  });
+
+  it("throws `Task not found: <id>` when no match", () => {
+    expect(() =>
+      runJxaScriptInSandbox(taskGetScript, { id: "missing" }, { tasks: [fakeTask()] }),
+    ).toThrow("Task not found: missing");
+  });
+
+  it("returns projectId: null when containingProject() throws — regression #673", () => {
+    const t = fakeTask({ id: () => "task_only", containingProject: throwing() });
+    const result = runJxaScriptInSandbox<{ task: { projectId: string | null } }>(
+      taskGetScript,
+      { id: "task_only" },
+      { tasks: [t] },
+    );
+    expect(result.task.projectId).toBeNull();
   });
 });
 

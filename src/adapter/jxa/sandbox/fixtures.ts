@@ -230,6 +230,10 @@ export interface FakeFolderOverrides {
   id?: () => string;
   name?: () => string;
   container?: () => unknown;
+  // build_folder.js falls back to `folder.parent()` when no parentMap is
+  // supplied. Tests that exercise that fallback — or that want to prove it
+  // is not called when a parentMap exists — override this.
+  parent?: () => unknown;
   folders?: () => unknown[];
   projects?: () => unknown[];
   note?: () => string;
@@ -251,6 +255,7 @@ export function fakeFolder(
     id,
     name,
     container: overrides.container ?? throwing(),
+    parent: overrides.parent ?? throwing(),
     folders: overrides.folders ?? fn([]),
     projects: overrides.projects ?? fn([]),
     note: overrides.note ?? fn(""),
