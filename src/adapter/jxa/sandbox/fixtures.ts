@@ -143,37 +143,67 @@ export function fakeTask(
   overrides: FakeTaskOverrides & { id?: () => string; name?: () => string } = {},
 ) {
   const id = overrides.id ?? fn(`task_${++_taskSeq}`);
-  const name = overrides.name ?? fn(`Task ${_taskSeq}`);
   const now = new Date();
-  return {
+  // Children/subtasks: pushable callable so task_create.js's
+  // `parent.tasks.push(newTask)` works. Honour custom `tags()` overrides
+  // verbatim (slice 1 / 2 tests pass a static array there).
+  const childrenArr: unknown[] = [];
+  const childTasks = Object.assign(() => childrenArr, {
+    push: (item: unknown) => childrenArr.push(item),
+  });
+  const task: Record<string, unknown> = {
     id,
-    name,
     containingProject: overrides.containingProject ?? throwing(),
     parentTask: overrides.parentTask ?? throwing(),
     tags: overrides.tags ?? fn([]),
-    deferDate: overrides.deferDate ?? fn(null),
-    dueDate: overrides.dueDate ?? fn(null),
-    completionDate: overrides.completionDate ?? fn(null),
-    dropped: overrides.dropped ?? fn(false),
-    completed: overrides.completed ?? fn(false),
-    flagged: overrides.flagged ?? fn(false),
-    effectivelyDropped: overrides.effectivelyDropped ?? fn(false),
-    blocked: overrides.blocked ?? fn(false),
-    numberOfTasks: overrides.numberOfTasks ?? fn(0),
-    estimatedMinutes: overrides.estimatedMinutes ?? fn(null),
+    tasks: childTasks,
     repetitionRule: overrides.repetitionRule ?? fn(null),
-    note: overrides.note ?? fn(""),
     creationDate: overrides.creationDate ?? fn(now),
     modificationDate: overrides.modificationDate ?? fn(now),
     inInbox: overrides.inInbox ?? fn(false),
-    sequential: overrides.sequential ?? fn(false),
     completedByChildren: overrides.completedByChildren ?? fn(false),
     availabilityStatus: overrides.availabilityStatus ?? fn("available"),
     deferDateFloating: overrides.deferDateFloating ?? fn(false),
     dueDateFloating: overrides.dueDateFloating ?? fn(false),
     effectivelyAvailable: overrides.effectivelyAvailable ?? fn(true),
     fileAttachments: overrides.fileAttachments ?? fn([]),
+    blocked: overrides.blocked ?? fn(false),
+    effectivelyDropped: overrides.effectivelyDropped ?? fn(false),
+    numberOfTasks: overrides.numberOfTasks ?? fn(0),
+    // task_delete.js calls `found.delete()` (instance method, not
+    // ofApp.delete). task_duplicate copies tags via `to.addTag(tag)`.
+    // task_move / task_reorder call `found.move({ to, positioned })`. All
+    // are no-ops; assertions go via the script's return value.
+    delete: () => {
+      /* no-op for tests */
+    },
+    addTag: (_tag: unknown) => {
+      /* no-op for tests */
+    },
+    move: (_args: unknown) => {
+      /* no-op for tests */
+    },
+    // task_duplicate calls `cloneTask.make({new: "task", withProperties})`
+    // when recursing into subtasks. Returning a fresh fake-task is enough
+    // for the script to keep walking; tests assert the script's return
+    // shape, not the produced subtree.
+    make: (_args: unknown) => fakeTask({}),
   };
+  // Mutation scripts (task_update / task_complete / task_drop) assign these
+  // via JXA's property-setter syntax. Use writable accessors so the read
+  // path through build_task.js sees the latest values.
+  defineWritableAccessor(task, "name", overrides.name ?? fn(`Task ${_taskSeq}`));
+  defineWritableAccessor(task, "note", overrides.note ?? fn(""));
+  defineWritableAccessor(task, "flagged", overrides.flagged ?? fn(false));
+  defineWritableAccessor(task, "deferDate", overrides.deferDate ?? fn(null));
+  defineWritableAccessor(task, "dueDate", overrides.dueDate ?? fn(null));
+  defineWritableAccessor(task, "completionDate", overrides.completionDate ?? fn(null));
+  defineWritableAccessor(task, "dropped", overrides.dropped ?? fn(false));
+  defineWritableAccessor(task, "completed", overrides.completed ?? fn(false));
+  defineWritableAccessor(task, "estimatedMinutes", overrides.estimatedMinutes ?? fn(null));
+  defineWritableAccessor(task, "sequential", overrides.sequential ?? fn(false));
+  defineWritableAccessor(task, "containsSingletonActions", false);
+  return task;
 }
 
 export interface FakeProjectOverrides {
@@ -217,10 +247,20 @@ export function fakeProject(
 ) {
   const id = overrides.id ?? fn(`project_${++_projectSeq}`);
   const now = new Date();
+  // task_create.js pushes new tasks onto `proj.tasks`; task_duplicate.js
+  // calls `proj.make({ new: "task", withProperties })`. Honour custom
+  // overrides verbatim — only the default path gets push/make.
+  const tasksArr: unknown[] = [];
+  const tasks = overrides.tasks
+    ? overrides.tasks
+    : Object.assign(() => tasksArr, {
+        push: (item: unknown) => tasksArr.push(item),
+        end: { __end: true },
+      });
   const project: Record<string, unknown> = {
     id,
     containingFolder: overrides.containingFolder ?? throwing(),
-    tasks: overrides.tasks ?? fn([]),
+    tasks,
     flattenedTasks: overrides.flattenedTasks ?? fn([]),
     numberOfTasks: overrides.numberOfTasks ?? fn(0),
     numberOfAvailableTasks: overrides.numberOfAvailableTasks ?? fn(0),
@@ -241,6 +281,10 @@ export function fakeProject(
     move: (_args: unknown) => {
       /* no-op */
     },
+    // task_duplicate.js calls `proj.make({ new: "task", withProperties })`
+    // when the destination container is a project. Returns a fresh fake
+    // task — the script just needs `.id()` callable for the return shape.
+    make: (_args: unknown) => fakeTask({}),
   };
   // Mutation scripts assign these via JXA's property-setter syntax.
   // Use writable accessors so `target.x = y` updates the value AND
