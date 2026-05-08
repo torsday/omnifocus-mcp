@@ -40,7 +40,7 @@ jobs:
     # this workflow only triggers on push to main, which forks can't do
     # directly, but the guard is consistent with other workflows.)
     if: github.repository == 'torsday/omnifocus-mcp'
-    runs-on: [self-hosted, macos]
+    runs-on: ubuntu-latest
     permissions:
       contents: write       # create commits + branches for the Release PR
       pull-requests: write  # open / update the Release PR

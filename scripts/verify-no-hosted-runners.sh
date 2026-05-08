@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
 # Fail if any workflow under .github/workflows/ targets a GitHub-hosted
-# runner, with one documented exception (release.yml — see below).
-# CI / integration / lint workflows all run on `[self-hosted, macos]` per
-# the CI strategy in AGENTS.md — GitHub-hosted runners cost minutes and
-# have been blocked by spending-limit issues in the past.
+# runner, except for documented allowlist entries below.
 #
-# Documented exception: release.yml runs on `ubuntu-latest` because npm
-# rejects `pnpm publish --provenance` from self-hosted runners with a
-# 422 "Unsupported GitHub Actions runner environment" error. Releases
-# are infrequent so the billing impact is negligible. The release job
-# header in release.yml carries the long-form rationale.
+# Policy (see AGENTS.md):
+#   - ci.yml / integration.yml: self-hosted mac — OS parity / OF access required.
+#   - release.yml: ubuntu-latest — npm provenance rejects self-hosted runners.
+#   - Admin workflows (board-sync, meta-lint, pr-link, pr-title, issue-lint,
+#     verify-constants, post-merge-close, release-please): ubuntu-latest — pure
+#     gh CLI / Node admin work; no macOS dependency; free on public repos.
 #
 # Wired into meta-lint.yml's `no-hosted-runners` job so every PR that
 # touches .github/workflows/ catches a regression at PR time.
@@ -25,6 +23,14 @@ cd "$(git rev-parse --show-toplevel)"
 # only with a code comment in the workflow itself explaining why.
 ALLOWLIST=(
   ".github/workflows/release.yml"
+  ".github/workflows/release-please.yml"
+  ".github/workflows/meta-lint.yml"
+  ".github/workflows/board-sync.yml"
+  ".github/workflows/pr-link.yml"
+  ".github/workflows/pr-title.yml"
+  ".github/workflows/issue-lint.yml"
+  ".github/workflows/verify-constants.yml"
+  ".github/workflows/post-merge-close.yml"
 )
 
 # Build a glob of files to scan, skipping the allowlisted ones.
@@ -48,17 +54,14 @@ if [ -z "$hits" ]; then
 fi
 
 cat <<EOF >&2
-GitHub-hosted runner detected. Every workflow in this repo must use
-\`runs-on: [self-hosted, macos]\` so jobs run on the local mac-local
-runner — no GitHub-hosted billing, no spending-limit blocks.
+GitHub-hosted runner detected in a non-allowlisted workflow.
 
 Offending lines:
 $hits
 
-To fix: replace \`runs-on: ubuntu-latest\` (or \`macos-latest\`,
-\`windows-latest\`) with \`runs-on: [self-hosted, macos]\`. If the job
-genuinely needs Linux/Docker, raise it for discussion before merging —
-adding back GitHub-hosted dependencies should be a deliberate choice,
-not a copy-paste accident.
+Policy: ci.yml and integration.yml must use \`runs-on: [self-hosted, macos]\`
+(OS parity / OmniFocus access). Admin workflows (board-sync, meta-lint, etc.)
+use ubuntu-latest — see AGENTS.md. If this workflow genuinely needs a hosted
+runner, add it to ALLOWLIST in this script with a comment explaining why.
 EOF
 exit 1
