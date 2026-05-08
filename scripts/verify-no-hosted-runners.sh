@@ -3,7 +3,11 @@
 # runner, except for documented allowlist entries below.
 #
 # Policy (see AGENTS.md):
-#   - ci.yml / integration.yml: self-hosted mac — OS parity / OF access required.
+#   - ci.yml: self-hosted mac — OS parity required.
+#   - integration.yml: integration job stays on self-hosted mac (OF access);
+#     `integration-gate` job is intentionally on ubuntu-latest so the required
+#     check is reachable even when the self-hosted runner is offline — that's
+#     the exact failure this gate exists to surface (gap 2 of #679).
 #   - release.yml: ubuntu-latest — npm provenance rejects self-hosted runners.
 #   - Admin workflows (board-sync, meta-lint, pr-link, pr-title, issue-lint,
 #     verify-constants, post-merge-close, release-please): ubuntu-latest — pure
@@ -33,6 +37,12 @@ ALLOWLIST=(
   ".github/workflows/post-merge-close.yml"
 )
 
+# Per-line marker: a `runs-on: ubuntu-latest` line is permitted in any
+# scanned workflow if the line contains `# allow-hosted` and the file is
+# documented in the policy comment above (e.g. integration-gate in
+# integration.yml). This keeps the file-level guard active for the rest of
+# the workflow while letting one job opt out with an audit trail.
+
 # Build a glob of files to scan, skipping the allowlisted ones.
 files=()
 for f in .github/workflows/*.yml; do
@@ -45,8 +55,9 @@ done
 
 # Plain string-grep is sufficient: every regression seen so far has been
 # `runs-on: ubuntu-latest` typed verbatim by dependabot or copy-paste.
+# Lines tagged `# allow-hosted` are treated as audited exceptions.
 hits=$(grep -nE 'runs-on:.*(ubuntu-latest|macos-latest|windows-latest)' \
-  "${files[@]}" || true)
+  "${files[@]}" | grep -v '# allow-hosted' || true)
 
 if [ -z "$hits" ]; then
   echo "ok: no GitHub-hosted runners referenced"

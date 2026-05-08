@@ -3,6 +3,8 @@ name: Integration Tests
 # Runs on:
 #   1. Manual dispatch — any branch, any contributor with write access
 #   2. Tag push matching v* — automatically runs before a release
+#   3. Pull requests targeting `main` — gated to canonical-repo branches; fork
+#      PRs short-circuit the heavy job (no self-hosted runner access from forks).
 #
 # Requirements:
 #   A self-hosted runner labeled `macos-omnifocus` with OmniFocus installed
@@ -11,11 +13,12 @@ name: Integration Tests
 #
 #   Runner setup (auto-start, Automation permission, label): docs/runner-setup.md
 #
-# Graceful degradation:
-#   GitHub skips jobs whose runner label has no registered runner in the
-#   Actions runner pool. When no self-hosted runner is available the workflow
-#   appears as "skipped" (yellow) rather than failing the required-check gate.
-#   This is the intended behavior for v1; see DESIGN.md §20.
+# Required-check gate (gap 2 of #679):
+#   The `integration-gate` job runs on ubuntu-latest for every trigger and
+#   reports a single stable check name that branch protection on `main`
+#   requires. On canonical-repo PRs it fails unless the integration job
+#   succeeded; on fork PRs the integration job is intentionally skipped and
+#   the gate accepts the skip so external contributors aren't blocked.
 
 on:
   workflow_dispatch:
@@ -28,6 +31,10 @@ on:
   push:
     tags:
       - "v*"
+
+  pull_request:
+    branches:
+      - main
 
 # Read-only — integration tests run typecheck/build/test against OmniFocus and
 # upload artifacts on failure; nothing writes back to the repo.
@@ -42,6 +49,13 @@ concurrency:
 jobs:
   integration:
     name: Integration tests (OmniFocus ${{ matrix.of-version }})
+    # Skip the heavy job on fork PRs — self-hosted runners are not available
+    # to forked workflows by GitHub's security model. The `integration-gate`
+    # job below tolerates this skip when the PR is from a fork; on canonical-
+    # repo PRs the skip becomes a failure (the runner is expected).
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macos-omnifocus]
 
     strategy:
@@ -118,3 +132,37 @@ jobs:
             test-results/
             *.log
           retention-days: 7
+
+  integration-gate:
+    # Stable required-check name for branch protection on `main`. Always runs
+    # on ubuntu-latest so the gate is reachable even when the self-hosted
+    # `macos-omnifocus` runner is offline — that's exactly the failure mode
+    # this gate is designed to surface (gap 2 of #679).
+    #
+    # Decision matrix (input: integration job result + PR origin):
+    #   success                              → pass
+    #   skipped + fork PR                    → pass  (forks lack runner access by design)
+    #   skipped + canonical PR / push / dispatch → fail (runner expected, didn't run)
+    #   failure / cancelled                  → fail
+    name: integration-gate
+    runs-on: ubuntu-latest  # allow-hosted: gate must be reachable when self-hosted runner is offline (gap 2 of #679)
+    needs: integration
+    if: always()
+    steps:
+      - name: Evaluate integration outcome
+        env:
+          RESULT: ${{ needs.integration.result }}
+          EVENT: ${{ github.event_name }}
+          IS_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          echo "integration result: $RESULT (event=$EVENT is_fork=$IS_FORK)"
+          if [ "$RESULT" = "success" ]; then
+            echo "ok: integration suite passed"
+            exit 0
+          fi
+          if [ "$RESULT" = "skipped" ] && [ "$IS_FORK" = "true" ]; then
+            echo "ok: fork PR — integration skipped is acceptable (no self-hosted runner access)"
+            exit 0
+          fi
+          echo "::error::Integration suite did not pass (result=$RESULT). On canonical-repo PRs this gate requires the macos-omnifocus runner to be online and the suite green."
+          exit 1
