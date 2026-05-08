@@ -17,8 +17,11 @@
 import { describe, expect, it } from "vitest";
 import attachmentListScript from "../../../scripts/jxa/attachment_list.js";
 import changesSinceScript from "../../../scripts/jxa/changes_since.js";
+import folderCreateScript from "../../../scripts/jxa/folder_create.js";
+import folderDeleteScript from "../../../scripts/jxa/folder_delete.js";
 import folderGetScript from "../../../scripts/jxa/folder_get.js";
 import folderListScript from "../../../scripts/jxa/folder_list.js";
+import folderUpdateScript from "../../../scripts/jxa/folder_update.js";
 import forecastGetScript from "../../../scripts/jxa/forecast_get.js";
 import perspectiveListScript from "../../../scripts/jxa/perspective_list.js";
 import projectGetScript from "../../../scripts/jxa/project_get.js";
@@ -1154,6 +1157,127 @@ describe("JXA sandbox — task_search", () => {
         { projects: [fakeProject()] },
       ),
     ).toThrow("Project not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// folder_create.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — folder_create", () => {
+  it("creates a top-level folder with the supplied name", () => {
+    const result = runJxaScriptInSandbox<{ folder: { name: string; parentId: null } }>(
+      folderCreateScript,
+      { name: "Areas" },
+      {},
+    );
+    expect(result.folder.name).toBe("Areas");
+    expect(result.folder.parentId).toBeNull();
+  });
+
+  it("creates a sub-folder under an existing parent", () => {
+    const parent = fakeFolder({ id: () => "folder_parent", name: () => "Parent" });
+    const result = runJxaScriptInSandbox<{ folder: { name: string; parentId: string | null } }>(
+      folderCreateScript,
+      { name: "Child", parentId: "folder_parent" },
+      { folders: [parent] },
+    );
+    expect(result.folder.name).toBe("Child");
+    // folder_create supplies a single-entry parentMap so build_folder reports
+    // parentage correctly even with the OF 4.8.8 folder.parent() bug (#515).
+    expect(result.folder.parentId).toBe("folder_parent");
+  });
+
+  it("throws ValidationError when name is empty", () => {
+    expect(() => runJxaScriptInSandbox(folderCreateScript, { name: "" }, {})).toThrow(
+      "ValidationError: name is required",
+    );
+  });
+
+  it("throws when the supplied parentId does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(folderCreateScript, { name: "Orphan", parentId: "missing" }, {}),
+    ).toThrow("Parent folder not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// folder_update.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — folder_update", () => {
+  it("renames the folder and returns the updated shape", () => {
+    const target = fakeFolder({ id: () => "folder_target", name: () => "Old" });
+    const result = runJxaScriptInSandbox<{ folder: { id: string; name: string } }>(
+      folderUpdateScript,
+      { id: "folder_target", name: "New" },
+      { folders: [target] },
+    );
+    expect(result.folder.id).toBe("folder_target");
+    expect(result.folder.name).toBe("New");
+  });
+
+  it("throws when the id does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(
+        folderUpdateScript,
+        { id: "missing", name: "Anything" },
+        { folders: [fakeFolder()] },
+      ),
+    ).toThrow("Folder not found: missing");
+  });
+
+  it("preserves the parentId via the precomputed parentMap — regression #515", () => {
+    const child = fakeFolder({ id: () => "folder_child", parent: throwing() });
+    const parent = fakeFolder({ id: () => "folder_parent", folders: () => [child] });
+    const result = runJxaScriptInSandbox<{ folder: { parentId: string | null } }>(
+      folderUpdateScript,
+      { id: "folder_child", name: "Renamed" },
+      { folders: [parent, child] },
+    );
+    expect(result.folder.parentId).toBe("folder_parent");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// folder_delete.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — folder_delete", () => {
+  it("deletes an empty folder and echoes the id", () => {
+    const target = fakeFolder({ id: () => "folder_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      folderDeleteScript,
+      { id: "folder_target" },
+      { folders: [target] },
+    );
+    expect(result.id).toBe("folder_target");
+  });
+
+  it("refuses to delete a folder that contains projects", () => {
+    const target = fakeFolder({
+      id: () => "folder_with_proj",
+      projects: () => [fakeProject()],
+    });
+    expect(() =>
+      runJxaScriptInSandbox(folderDeleteScript, { id: "folder_with_proj" }, { folders: [target] }),
+    ).toThrow(/Folder is not empty.*projects: 1/);
+  });
+
+  it("refuses to delete a folder that contains sub-folders", () => {
+    const target = fakeFolder({
+      id: () => "folder_with_subs",
+      folders: () => [fakeFolder()],
+    });
+    expect(() =>
+      runJxaScriptInSandbox(folderDeleteScript, { id: "folder_with_subs" }, { folders: [target] }),
+    ).toThrow(/Folder is not empty.*subfolders: 1/);
+  });
+
+  it("throws when the id does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(folderDeleteScript, { id: "missing" }, { folders: [fakeFolder()] }),
+    ).toThrow("Folder not found: missing");
   });
 });
 

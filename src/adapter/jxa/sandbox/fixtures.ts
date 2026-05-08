@@ -20,6 +20,7 @@
  */
 
 import { ScriptError } from "../../../errors/index.js";
+import { defineWritableNameAccessor } from "./index.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -265,20 +266,35 @@ export function fakeFolder(
   overrides: FakeFolderOverrides & { id?: () => string; name?: () => string } = {},
 ) {
   const id = overrides.id ?? fn(`folder_${++_folderSeq}`);
-  const name = overrides.name ?? fn(`Folder ${_folderSeq}`);
+  // `folders` is exposed as a callable that doubles as a push-target so
+  // `parentFolder.folders.push(child)` works in mutation scripts. The
+  // underlying array is captured from the override (or an empty list) at
+  // construction time; subsequent push() calls mutate that array, and reads
+  // via `folder.folders()` see the current contents.
+  const childrenArr: unknown[] = overrides.folders ? Array.from(overrides.folders()) : [];
+  const folders = Object.assign(() => childrenArr, {
+    push: (item: unknown) => {
+      childrenArr.push(item);
+    },
+  });
   const now = new Date();
-  return {
+  const folder: Record<string, unknown> = {
     id,
-    name,
     container: overrides.container ?? throwing(),
     parent: overrides.parent ?? throwing(),
-    folders: overrides.folders ?? fn([]),
+    folders,
     projects: overrides.projects ?? fn([]),
     note: overrides.note ?? fn(""),
     status: overrides.status ?? fn("active"),
     creationDate: overrides.creationDate ?? fn(now),
     modificationDate: overrides.modificationDate ?? fn(now),
   };
+  // `name` is a writable accessor so folder_update.js's `target.name = "X"`
+  // updates the value AND `target.name()` continues to return the latest
+  // value via the getter — the JXA semantics build_folder.js relies on.
+  // Default: invoke the supplied function once to seed the initial string.
+  defineWritableNameAccessor(folder, (overrides.name ?? fn(`Folder ${_folderSeq}`))());
+  return folder;
 }
 
 // ---------------------------------------------------------------------------
