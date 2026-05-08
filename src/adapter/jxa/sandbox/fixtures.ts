@@ -151,6 +151,7 @@ export function fakeTask(
   const childTasks = Object.assign(() => childrenArr, {
     push: (item: unknown) => childrenArr.push(item),
   });
+  const attachmentsArr: unknown[] = [];
   const task: Record<string, unknown> = {
     id,
     containingProject: overrides.containingProject ?? throwing(),
@@ -166,10 +167,17 @@ export function fakeTask(
     deferDateFloating: overrides.deferDateFloating ?? fn(false),
     dueDateFloating: overrides.dueDateFloating ?? fn(false),
     effectivelyAvailable: overrides.effectivelyAvailable ?? fn(true),
-    fileAttachments: overrides.fileAttachments ?? fn([]),
     blocked: overrides.blocked ?? fn(false),
     effectivelyDropped: overrides.effectivelyDropped ?? fn(false),
     numberOfTasks: overrides.numberOfTasks ?? fn(0),
+    // attachment_add.js pushes new attachments onto `task.fileAttachments`.
+    // Honour custom callable overrides verbatim — only the default path
+    // gets push, which is enough for the slice-7 tests.
+    fileAttachments: overrides.fileAttachments
+      ? overrides.fileAttachments
+      : Object.assign(() => attachmentsArr, {
+          push: (item: unknown) => attachmentsArr.push(item),
+        }),
     // task_delete.js calls `found.delete()` (instance method, not
     // ofApp.delete). task_duplicate copies tags via `to.addTag(tag)`.
     // task_move / task_reorder call `found.move({ to, positioned })`. All
@@ -181,6 +189,11 @@ export function fakeTask(
       /* no-op for tests */
     },
     move: (_args: unknown) => {
+      /* no-op for tests */
+    },
+    // task_batch_complete.js calls `task.markComplete({completionDate})`
+    // as a per-task instance method (distinct from the app-level verb).
+    markComplete: (_args: unknown) => {
       /* no-op for tests */
     },
     // task_duplicate calls `cloneTask.make({new: "task", withProperties})`
@@ -251,6 +264,7 @@ export function fakeProject(
   // calls `proj.make({ new: "task", withProperties })`. Honour custom
   // overrides verbatim — only the default path gets push/make.
   const tasksArr: unknown[] = [];
+  const projectAttachmentsArr: unknown[] = [];
   const tasks = overrides.tasks
     ? overrides.tasks
     : Object.assign(() => tasksArr, {
@@ -274,7 +288,11 @@ export function fakeProject(
     lastReviewDate: overrides.lastReviewDate ?? fn(null),
     deferDateFloating: overrides.deferDateFloating ?? fn(false),
     dueDateFloating: overrides.dueDateFloating ?? fn(false),
-    fileAttachments: overrides.fileAttachments ?? fn([]),
+    fileAttachments: overrides.fileAttachments
+      ? overrides.fileAttachments
+      : Object.assign(() => projectAttachmentsArr, {
+          push: (item: unknown) => projectAttachmentsArr.push(item),
+        }),
     // project_update / project_move call `target.move({to: ...})`. The
     // assertion is on the script's return value, not on the fake's
     // post-state, so move() is intentionally a no-op.
@@ -415,10 +433,17 @@ export interface FakeWindowOverrides {
 
 /** Build a fake JXA Window object as used by `window_get_state.js`. */
 export function fakeWindow(overrides: FakeWindowOverrides = {}) {
-  return {
-    perspectiveName: overrides.perspectiveName ?? fn("Forecast"),
-    focus: overrides.focus ?? fn([]),
-  };
+  const win: Record<string, unknown> = {};
+  // perspectiveName is read-only on Window in JXA (window_get_state reads
+  // it; window_set_perspective writes the separate `perspective` field).
+  // Keep the function override for the read path.
+  win.perspectiveName = overrides.perspectiveName ?? fn("Forecast");
+  // window_set_focus.js assigns `w.focus = [target]`; build_..._for read
+  // via `w.focus()`. window_set_perspective.js assigns `w.perspective = X`
+  // (write-only). Use writable accessors for both.
+  defineWritableAccessor(win, "focus", overrides.focus ?? fn([]));
+  defineWritableAccessor(win, "perspective", null);
+  return win;
 }
 
 export interface FakePerspectiveOverrides {
