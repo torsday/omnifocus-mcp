@@ -46,7 +46,7 @@ jobs:
       pull-requests: write  # open / update the Release PR
 
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         with:
           # release-type / package config live in release-please-config.json so
           # the action stays a thin wrapper. Manifest pins the current version
