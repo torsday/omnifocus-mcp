@@ -14,9 +14,12 @@ function run(argv) {
   const ofApp = Application("OmniFocus");
   ofApp.includeStandardAdditions = false;
 
+  // @inline _helpers/build_folder.js
+
   // OmniFocus 4.8.8: folder.parent() throws "Can't convert types." for
   // sub-folders. Build a reverse map (childId → parentId) by iterating each
-  // folder's .folders() children instead — that API works correctly.
+  // folder's .folders() children instead — that API works correctly. Pass
+  // the map into buildFolder via options.parentMap.
   const allFolders = ofApp.defaultDocument.flattenedFolders();
   const parentMap = {};
   for (let i = 0; i < allFolders.length; i++) {
@@ -35,49 +38,9 @@ function run(argv) {
     }
   }
 
-  function buildFolder(folder) {
-    const id = folder.id();
-    const parentId = parentMap[id] !== undefined ? parentMap[id] : null;
-
-    return {
-      id: id,
-      name: folder.name(),
-      parentId: parentId,
-      projectCount: (() => {
-        try {
-          return folder.projects().length;
-        } catch (_e) {
-          return 0;
-        }
-      })(),
-      subfolderCount: (() => {
-        try {
-          return folder.folders().length;
-        } catch (_e) {
-          return 0;
-        }
-      })(),
-      // Guard against "Can't get object." thrown when invoking these — see #498.
-      createdAt: (() => {
-        try {
-          return folder.creationDate().toISOString();
-        } catch (_e) {
-          return new Date().toISOString();
-        }
-      })(),
-      modifiedAt: (() => {
-        try {
-          return folder.modificationDate().toISOString();
-        } catch (_e) {
-          return new Date().toISOString();
-        }
-      })(),
-    };
-  }
-
   const result = [];
   for (let i = 0; i < allFolders.length; i++) {
-    const built = buildFolder(allFolders[i]);
+    const built = buildFolder(allFolders[i], { parentMap });
     // JxaTransport may send `parentId: null` for "no filter" — treat null and
     // undefined identically so those calls don't filter every folder out.
     // See #515 (tag_list had the same bug).
