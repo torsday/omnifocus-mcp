@@ -192,9 +192,33 @@ function buildFakeDocument(doc: SandboxDocument) {
   // folders here via `ofApp.defaultDocument.folders.push(newFolder)`. Test
   // assertions verify the script's return value rather than walking the
   // fake's collections, so we don't bother syncing flattenedFolders on push.
+  // The collection also exposes `.byId(id)` because project_create.js
+  // looks up folders that way for its parent-folder argument.
   const docFoldersArr: unknown[] = [];
   const docFolders = Object.assign(() => docFoldersArr, {
     push: (item: unknown) => docFoldersArr.push(item),
+    byId: (id: string) => {
+      const hit = (folders as Array<{ id?: () => string }>).find(
+        (f) => typeof f.id === "function" && f.id() === id,
+      );
+      if (hit) return hit;
+      const msg = "Can't get object. (-1728)";
+      return {
+        id: () => {
+          throw new ScriptError(msg, { details: { stderr: msg } });
+        },
+      };
+    },
+  });
+
+  // Top-level project collection. project_create.js pushes new projects
+  // here OR into a folder's `.projects`. project_update / project_move use
+  // `target.move({ to: ... .projects.end })`; the `.end` accessor is a
+  // sentinel pointer the move() no-op ignores.
+  const projectsArr: unknown[] = [...projects];
+  const docProjects = Object.assign(() => projectsArr, {
+    push: (item: unknown) => projectsArr.push(item),
+    end: { __end: true },
   });
 
   // Top-level tag collection. tag_create.js pushes new tags here OR into an
@@ -247,6 +271,7 @@ function buildFakeDocument(doc: SandboxDocument) {
     tags: docTags,
     flattenedTasks,
     flattenedProjects,
+    projects: docProjects,
     flattenedFolders: () => folders,
     folders: docFolders,
     // Some scripts access inbox tasks through the document
@@ -279,6 +304,20 @@ function buildFakeApp(document: ReturnType<typeof buildFakeDocument>, doc: Sandb
   // accessors on `name`, `status`, `allowsNextAction` since tag_update.js
   // reassigns those.
   const tagConstructor = (opts: { name?: string } = {}) => makeConstructedTag(opts);
+  // `ofApp.Project(props)` is the JXA constructor project_create.js uses.
+  // The script passes name plus any provided fields (note, deferDate,
+  // dueDate, estimatedMinutes, flagged, status). The returned fake honours
+  // the build_project.js read surface and exposes writable accessors on
+  // every field project_update.js can reassign.
+  const projectConstructor = (props: ProjectConstructorOpts = {}) => makeConstructedProject(props);
+
+  // `markComplete` / `markDropped` / `markReviewed` are app-level verbs the
+  // JXA scripts call instead of property assignment. Track invocations so
+  // tests can assert the script took the right path; the call itself does
+  // nothing else (project state is asserted via the script's return value).
+  const markedComplete: unknown[] = [];
+  const markedDropped: unknown[] = [];
+  const markedReviewed: unknown[] = [];
 
   return (_name: string) => ({
     // Scripts set this; we accept and ignore it.
@@ -289,11 +328,24 @@ function buildFakeApp(document: ReturnType<typeof buildFakeDocument>, doc: Sandb
     perspectives: () => perspectives,
     Folder: folderConstructor,
     Tag: tagConstructor,
+    Project: projectConstructor,
     delete: (target: unknown) => {
       deleted.push(target);
     },
+    markComplete: (target: unknown) => {
+      markedComplete.push(target);
+    },
+    markDropped: (target: unknown) => {
+      markedDropped.push(target);
+    },
+    markReviewed: (target: unknown) => {
+      markedReviewed.push(target);
+    },
     /** Test-only — surface what `ofApp.delete()` was called with. */
     _deleted: deleted,
+    _markedComplete: markedComplete,
+    _markedDropped: markedDropped,
+    _markedReviewed: markedReviewed,
   });
 }
 
@@ -358,6 +410,71 @@ function makeConstructedTag(opts: { name?: string }): Record<string, unknown> {
   defineWritableAccessor(tag, "status", "active");
   defineWritableAccessor(tag, "allowsNextAction", false);
   return tag;
+}
+
+/**
+ * Per-property opts accepted by `ofApp.Project({...})`. The JXA constructor
+ * itself accepts more, but project_create.js only forwards these.
+ */
+export interface ProjectConstructorOpts {
+  name?: string;
+  note?: string;
+  deferDate?: Date;
+  dueDate?: Date;
+  estimatedMinutes?: number;
+  flagged?: boolean;
+  status?: string;
+}
+
+let _constructedProjectSeq = 0;
+
+/**
+ * Build a fake JXA Project created via `ofApp.Project({ name, ... })`.
+ * Mirrors the read surface of `fakeProject()` (so `build_project.js` can
+ * walk it) and installs writable accessors on every field that
+ * project_update / project_set_*  / project_drop / project_complete
+ * scripts may assign.
+ */
+function makeConstructedProject(opts: ProjectConstructorOpts): Record<string, unknown> {
+  const id = `constructed_project_${++_constructedProjectSeq}`;
+  const tasksArr: unknown[] = [];
+  const tasks = Object.assign(() => tasksArr, {
+    push: (item: unknown) => tasksArr.push(item),
+    end: { __end: true },
+  });
+  const noThrow = () => {
+    throw new ScriptError("Can't get object.", { details: { stderr: "Can't get object." } });
+  };
+  const project: Record<string, unknown> = {
+    id: () => id,
+    folder: noThrow,
+    containingFolder: noThrow,
+    tasks,
+    flattenedTasks: () => tasksArr,
+    creationDate: () => new Date(),
+    modificationDate: () => new Date(),
+    completionCriterion: () => "parallel",
+    sequential: () => false,
+    numberOfTasks: () => 0,
+    numberOfAvailableTasks: () => 0,
+    reviewInterval: () => null,
+    effectiveStatus: () => "active",
+    move: (_args: unknown) => {
+      /* no-op for tests; assertions go via the script's return value */
+    },
+  };
+  defineWritableAccessor(project, "name", opts.name ?? `Project ${_constructedProjectSeq}`);
+  defineWritableAccessor(project, "note", opts.note ?? "");
+  defineWritableAccessor(project, "status", opts.status ?? "active");
+  defineWritableAccessor(project, "deferDate", opts.deferDate ?? null);
+  defineWritableAccessor(project, "dueDate", opts.dueDate ?? null);
+  defineWritableAccessor(project, "flagged", opts.flagged ?? false);
+  defineWritableAccessor(project, "estimatedMinutes", opts.estimatedMinutes ?? null);
+  defineWritableAccessor(project, "completionDate", null);
+  defineWritableAccessor(project, "nextReviewDate", null);
+  defineWritableAccessor(project, "lastReviewDate", null);
+  defineWritableAccessor(project, "reviewIntervalDays", null);
+  return project;
 }
 
 /**
