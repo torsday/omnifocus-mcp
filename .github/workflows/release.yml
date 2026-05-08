@@ -87,6 +87,55 @@ jobs:
 
       - run: pnpm build
 
+      # Integration gate — block publish when the integration suite hasn't
+      # passed on this exact commit (gap 3 of #679).
+      #
+      # TOCTOU note: we check the run for GITHUB_SHA, not "latest run on main",
+      # so a release can't ship code that integration never tested.  A 24 h
+      # freshness check guards against a cached green run on a rewritten commit.
+      #
+      # The integration workflow also triggers on tag push (see integration.yml),
+      # so on the happy path a green run will exist.  If gap 2 (#724) is merged
+      # first, the PR check already enforced a green run before this commit
+      # landed on main; the gate is then defence-in-depth (e.g. admin-override
+      # merges that bypass the required-check gate).
+      - name: Verify integration suite passed on this commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sha="$GITHUB_SHA"
+          run_json=$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow integration.yml \
+            --commit "$sha" \
+            --limit 1 \
+            --json conclusion,createdAt \
+            --jq '.[0] // empty')
+
+          if [ -z "$run_json" ]; then
+            echo "::error::No integration workflow run found for commit $sha."
+            echo "::error::Trigger integration.yml on this commit before releasing."
+            exit 1
+          fi
+
+          conclusion=$(echo "$run_json" | jq -r '.conclusion')
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::Integration suite has not succeeded on $sha (got: $conclusion)."
+            exit 1
+          fi
+
+          # Freshness: the matched run must not pre-date now by more than 24 h.
+          run_ts=$(echo "$run_json" | jq -r '.createdAt')
+          run_epoch=$(date -d "$run_ts" +%s)
+          now_epoch=$(date +%s)
+          age_h=$(( (now_epoch - run_epoch) / 3600 ))
+          if [ "$age_h" -gt 24 ]; then
+            echo "::error::Integration run for $sha is ${age_h}h old (> 24 h limit). Re-run integration before releasing."
+            exit 1
+          fi
+
+          echo "Integration suite passed on $sha (run age: ${age_h}h)."
+
       - name: Bundle-size budget (< 500 KB per DESIGN §20)
         run: bash scripts/check-bundle-size.sh
 
