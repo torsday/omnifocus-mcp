@@ -28,9 +28,12 @@ import projectGetScript from "../../../scripts/jxa/project_get.js";
 import projectGetManyScript from "../../../scripts/jxa/project_get_many.js";
 import projectListScript from "../../../scripts/jxa/project_list.js";
 import reviewListDueScript from "../../../scripts/jxa/review_list_due.js";
+import tagCreateScript from "../../../scripts/jxa/tag_create.js";
+import tagDeleteScript from "../../../scripts/jxa/tag_delete.js";
 import tagGetScript from "../../../scripts/jxa/tag_get.js";
 import tagGetManyScript from "../../../scripts/jxa/tag_get_many.js";
 import tagListScript from "../../../scripts/jxa/tag_list.js";
+import tagUpdateScript from "../../../scripts/jxa/tag_update.js";
 import taskGetScript from "../../../scripts/jxa/task_get.js";
 import taskGetManyScript from "../../../scripts/jxa/task_get_many.js";
 import taskListScript from "../../../scripts/jxa/task_list.js";
@@ -1278,6 +1281,115 @@ describe("JXA sandbox — folder_delete", () => {
     expect(() =>
       runJxaScriptInSandbox(folderDeleteScript, { id: "missing" }, { folders: [fakeFolder()] }),
     ).toThrow("Folder not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// tag_create.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — tag_create", () => {
+  it("creates a top-level tag with the supplied name", () => {
+    const result = runJxaScriptInSandbox<{ tag: { name: string; parentId: string | null } }>(
+      tagCreateScript,
+      { name: "Work" },
+      {},
+    );
+    expect(result.tag.name).toBe("Work");
+    expect(result.tag.parentId).toBeNull();
+  });
+
+  it("creates a nested tag under an existing parent via byId lookup + push", () => {
+    const parent = fakeTag({ id: () => "tag_parent", name: () => "Errands" });
+    const result = runJxaScriptInSandbox<{ tag: { name: string } }>(
+      tagCreateScript,
+      { name: "Buy milk", parentId: "tag_parent" },
+      { tags: [parent] },
+    );
+    expect(result.tag.name).toBe("Buy milk");
+  });
+
+  it("throws ValidationError when name is empty or whitespace", () => {
+    expect(() => runJxaScriptInSandbox(tagCreateScript, { name: "  " }, {})).toThrow(
+      "ValidationError: name is required",
+    );
+  });
+
+  it("throws via lookupOrThrow when parentId does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(tagCreateScript, { name: "Orphan", parentId: "missing" }, {}),
+    ).toThrow("Parent tag not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// tag_update.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — tag_update", () => {
+  it("renames the tag and returns the updated shape", () => {
+    const target = fakeTag({ id: () => "tag_target", name: () => "Old" });
+    const result = runJxaScriptInSandbox<{ tag: { id: string; name: string } }>(
+      tagUpdateScript,
+      { id: "tag_target", name: "New" },
+      { tags: [target] },
+    );
+    expect(result.tag.id).toBe("tag_target");
+    expect(result.tag.name).toBe("New");
+  });
+
+  it("normalizes the on-hold status from domain to JXA format", () => {
+    // Script writes `target.status = args.status === "on-hold" ? "on hold" : args.status`.
+    // build_tag.js reads target.status() and normalizes back to "on-hold".
+    const target = fakeTag({ id: () => "tag_target", status: () => "active" });
+    const result = runJxaScriptInSandbox<{ tag: { status: string } }>(
+      tagUpdateScript,
+      { id: "tag_target", status: "on-hold" },
+      { tags: [target] },
+    );
+    expect(result.tag.status).toBe("on-hold");
+  });
+
+  it("updates allowsNextAction via property assignment", () => {
+    const target = fakeTag({ id: () => "tag_target", allowsNextAction: () => false });
+    const result = runJxaScriptInSandbox<{ tag: { allowsNextAction: boolean } }>(
+      tagUpdateScript,
+      { id: "tag_target", allowsNextAction: true },
+      { tags: [target] },
+    );
+    expect(result.tag.allowsNextAction).toBe(true);
+  });
+
+  it("throws when the id does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(
+        tagUpdateScript,
+        { id: "missing", name: "Anything" },
+        { tags: [fakeTag()] },
+      ),
+    ).toThrow("Tag not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// tag_delete.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — tag_delete", () => {
+  it("deletes a tag and echoes the id", () => {
+    const target = fakeTag({ id: () => "tag_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      tagDeleteScript,
+      { id: "tag_target" },
+      { tags: [target] },
+    );
+    expect(result.id).toBe("tag_target");
+  });
+
+  it("throws when the id does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(tagDeleteScript, { id: "missing" }, { tags: [fakeTag()] }),
+    ).toThrow("Tag not found: missing");
   });
 });
 

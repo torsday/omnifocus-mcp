@@ -197,8 +197,54 @@ function buildFakeDocument(doc: SandboxDocument) {
     push: (item: unknown) => docFoldersArr.push(item),
   });
 
+  // Top-level tag collection. tag_create.js pushes new tags here OR into an
+  // existing parent tag's `.tags` collection. After push it re-fetches via
+  // `flattenedTags.byId(id)`, so we need a flat-walk lookup that descends
+  // into every tag's children — that way a tag pushed onto a parent's
+  // children is still findable from the document.
+  const topLevelTags: unknown[] = [...tags];
+  const docTags = Object.assign(() => topLevelTags, {
+    push: (item: unknown) => topLevelTags.push(item),
+  });
+
+  type TagNode = { id?: () => string; tags?: () => unknown[] };
+  function walkTags(roots: unknown[]): unknown[] {
+    const out: unknown[] = [];
+    const stack = [...roots];
+    while (stack.length) {
+      const t = stack.pop() as TagNode;
+      if (!t) continue;
+      out.push(t);
+      if (typeof t.tags === "function") {
+        try {
+          const children = t.tags();
+          if (Array.isArray(children)) stack.push(...children);
+        } catch {
+          /* ignore — fakes that throw on .tags() shouldn't crash the walk */
+        }
+      }
+    }
+    return out;
+  }
+
+  const flattenedTags = Object.assign(() => walkTags(topLevelTags), {
+    byId: (id: string) => {
+      const hit = (walkTags(topLevelTags) as Array<{ id?: () => string }>).find(
+        (t) => typeof t.id === "function" && t.id() === id,
+      );
+      if (hit) return hit;
+      const msg = "Can't get object. (-1728)";
+      return {
+        id: () => {
+          throw new ScriptError(msg, { details: { stderr: msg } });
+        },
+      };
+    },
+  });
+
   return {
-    flattenedTags: () => tags,
+    flattenedTags,
+    tags: docTags,
     flattenedTasks,
     flattenedProjects,
     flattenedFolders: () => folders,
@@ -226,6 +272,13 @@ function buildFakeApp(document: ReturnType<typeof buildFakeDocument>, doc: Sandb
   // contract as `fakeFolder()` (name(), id(), parent(), folders(), …) so
   // build_folder.js can build a domain Folder from it without surprises.
   const folderConstructor = (opts: { name?: string } = {}) => makeConstructedFolder(opts);
+  // `ofApp.Tag({ name })` is the JXA constructor tag_create.js uses. Same
+  // contract as fakeTag(): build_tag.js reads name(), id(), parent(),
+  // status(), creationDate(), modificationDate(), allowsNextAction(),
+  // tasks().length, location(). The constructed tag installs writable
+  // accessors on `name`, `status`, `allowsNextAction` since tag_update.js
+  // reassigns those.
+  const tagConstructor = (opts: { name?: string } = {}) => makeConstructedTag(opts);
 
   return (_name: string) => ({
     // Scripts set this; we accept and ignore it.
@@ -235,6 +288,7 @@ function buildFakeApp(document: ReturnType<typeof buildFakeDocument>, doc: Sandb
     windows: () => windows,
     perspectives: () => perspectives,
     Folder: folderConstructor,
+    Tag: tagConstructor,
     delete: (target: unknown) => {
       deleted.push(target);
     },
@@ -274,20 +328,73 @@ function makeConstructedFolder(opts: { name?: string }): Record<string, unknown>
   return folder;
 }
 
+let _constructedTagSeq = 0;
+
 /**
- * Define a writable `name` field that survives `obj.name = "X"` assignment
- * AND continues to be invocable as `obj.name()` afterwards. JXA exposes
- * properties this way — assignment goes through a setter, read returns a
- * callable getter — and folder_update.js relies on exactly that pattern.
+ * Build a fake JXA Tag created via `ofApp.Tag({ name })`. The shape mirrors
+ * `fakeTag()` but only the fields tag scripts read or mutate are populated.
+ * `name`, `status`, and `allowsNextAction` are writable accessors so
+ * tag_update.js's `target.<key> = X` assignments persist.
  */
-export function defineWritableNameAccessor(obj: Record<string, unknown>, initial: string): void {
-  let current = initial;
-  Object.defineProperty(obj, "name", {
+function makeConstructedTag(opts: { name?: string }): Record<string, unknown> {
+  const id = `constructed_tag_${++_constructedTagSeq}`;
+  const childrenArr: unknown[] = [];
+  const childTags = Object.assign(() => childrenArr, {
+    push: (item: unknown) => childrenArr.push(item),
+  });
+  const noThrow = () => {
+    throw new ScriptError("Can't get object.", { details: { stderr: "Can't get object." } });
+  };
+  const tag: Record<string, unknown> = {
+    id: () => id,
+    parent: noThrow,
+    tags: childTags,
+    location: () => null,
+    creationDate: () => new Date(),
+    modificationDate: () => new Date(),
+    tasks: () => [],
+  };
+  defineWritableAccessor(tag, "name", opts.name ?? `Tag ${_constructedTagSeq}`);
+  defineWritableAccessor(tag, "status", "active");
+  defineWritableAccessor(tag, "allowsNextAction", false);
+  return tag;
+}
+
+/**
+ * Define a writable JXA-style accessor: `obj[key] = X` updates the value
+ * and `obj[key]()` reads the latest value via a callable getter. Used by
+ * mutation scripts that assign to properties (`target.name = "X"`,
+ * `target.status = "on hold"`, …) and then read them back through
+ * `build_*.js` helpers via zero-arg method calls.
+ *
+ * The initial value can be a static value or a getter function. Passing a
+ * function preserves its behavior — including throwing — until the script
+ * reassigns the property. That matches existing fixture overrides like
+ * `fakeTag({ allowsNextAction: throwing() })` which must still throw on
+ * read until tag_update.js's `target.allowsNextAction = true` rebinds it.
+ */
+export function defineWritableAccessor(
+  obj: Record<string, unknown>,
+  key: string,
+  initial: unknown,
+): void {
+  let getter: () => unknown =
+    typeof initial === "function" ? (initial as () => unknown) : () => initial;
+  Object.defineProperty(obj, key, {
     configurable: true,
     enumerable: true,
-    get: () => () => current,
+    get: () => getter,
     set: (value: unknown) => {
-      current = typeof value === "function" ? String((value as () => unknown)()) : String(value);
+      getter = typeof value === "function" ? (value as () => unknown) : () => value;
     },
   });
+}
+
+/**
+ * Back-compat shim: slice 3 introduced a name-only accessor. Keep the same
+ * surface so the folder fixture's import doesn't churn while the generic
+ * helper above replaces it under the hood.
+ */
+export function defineWritableNameAccessor(obj: Record<string, unknown>, initial: string): void {
+  defineWritableAccessor(obj, "name", initial);
 }

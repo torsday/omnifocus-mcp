@@ -20,7 +20,7 @@
  */
 
 import { ScriptError } from "../../../errors/index.js";
-import { defineWritableNameAccessor } from "./index.js";
+import { defineWritableAccessor, defineWritableNameAccessor } from "./index.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -56,18 +56,10 @@ export interface FakeTagOverrides {
   modificationDate?: () => Date;
   allowsNextAction?: () => boolean;
   tasks?: () => unknown[];
-}
-
-export interface FakeTag {
-  id: () => string;
-  name: () => string;
-  parent: () => unknown;
-  status: () => string;
-  location: () => unknown;
-  creationDate: () => Date;
-  modificationDate: () => Date;
-  allowsNextAction: () => boolean;
-  tasks: () => unknown[];
+  // Child tags (nested tag tree). tag_create.js calls
+  // `parentTag.tags.push(newTag)`; expose this as a callable that doubles
+  // as a push-target so the mutation propagates to subsequent reads.
+  tags?: () => unknown[];
 }
 
 let _tagSeq = 0;
@@ -80,21 +72,34 @@ let _tagSeq = 0;
  */
 export function fakeTag(
   overrides: FakeTagOverrides & { id?: () => string; name?: () => string } = {},
-): FakeTag {
+) {
   const id = overrides.id ?? fn(`tag_${++_tagSeq}`);
-  const name = overrides.name ?? fn(`Tag ${_tagSeq}`);
   const now = new Date();
-  return {
+  // Child-tag collection: pushable callable. Captures the override array
+  // (if any) at construction; subsequent push() mutates it in place so
+  // post-mutation reads via `tag.tags()` see the additions.
+  const childrenArr: unknown[] = overrides.tags ? Array.from(overrides.tags()) : [];
+  const tags = Object.assign(() => childrenArr, {
+    push: (item: unknown) => childrenArr.push(item),
+  });
+  const tag: Record<string, unknown> = {
     id,
-    name,
     parent: overrides.parent ?? throwing(),
-    status: overrides.status ?? fn("active"),
     location: overrides.location ?? fn(null),
     creationDate: overrides.creationDate ?? fn(now),
     modificationDate: overrides.modificationDate ?? fn(now),
-    allowsNextAction: overrides.allowsNextAction ?? fn(false),
     tasks: overrides.tasks ?? fn([]),
+    tags,
   };
+  // tag_update.js reassigns name / status / allowsNextAction via JXA's
+  // property-setter syntax. Use writable accessors so `target.x = y`
+  // updates the value AND `target.x()` returns it via the callable getter.
+  // Pass the override function (or default static getter) through directly
+  // so throwing-getter overrides keep throwing until the script reassigns.
+  defineWritableAccessor(tag, "name", overrides.name ?? fn(`Tag ${_tagSeq}`));
+  defineWritableAccessor(tag, "status", overrides.status ?? fn("active"));
+  defineWritableAccessor(tag, "allowsNextAction", overrides.allowsNextAction ?? fn(false));
+  return tag;
 }
 
 export interface FakeTaskOverrides {
