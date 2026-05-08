@@ -41,22 +41,25 @@ function run(argv) {
       task.containsSingletonActions = patch.completedByChildren;
     }
     if (patch.tagIds) {
-      const existing = task.tags();
-      for (let i = 0; i < existing.length; i++) {
-        try {
-          task.removeTag(existing[i]);
-        } catch (_e) {
-          /* OF 4.x: property access may not exist on all object types — default used */
-        }
-      }
-      for (let i = 0; i < patch.tagIds.length; i++) {
-        try {
-          const tag = doc.flattenedTags.byId(patch.tagIds[i]);
-          if (tag) task.addTag(tag);
-        } catch (_e) {
-          /* OF 4.x: property access may not exist on all object types — default used */
-        }
-      }
+      // OmniFocus 4.x: JXA tag mutation silently no-ops on existing tasks
+      // (#716). Delegate to OmniJS — see task_update.js for the same fix.
+      const omniJsScript =
+        "(() => {" +
+        "  const t = Task.byIdentifier(" +
+        JSON.stringify(task.id()) +
+        ");" +
+        "  if (!t) return;" +
+        "  const desired = " +
+        JSON.stringify(patch.tagIds) +
+        ";" +
+        "  const existing = t.tags.slice();" +
+        "  for (let i = 0; i < existing.length; i++) t.removeTag(existing[i]);" +
+        "  for (let i = 0; i < desired.length; i++) {" +
+        "    const tg = Tag.byIdentifier(desired[i]);" +
+        "    if (tg) t.addTag(tg);" +
+        "  }" +
+        "})()";
+      ofApp.evaluateJavascript(omniJsScript);
     }
   }
 
