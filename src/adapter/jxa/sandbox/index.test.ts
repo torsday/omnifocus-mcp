@@ -15,7 +15,9 @@
  */
 
 import { describe, expect, it } from "vitest";
+import attachmentAddScript from "../../../scripts/jxa/attachment_add.js";
 import attachmentListScript from "../../../scripts/jxa/attachment_list.js";
+import attachmentRemoveScript from "../../../scripts/jxa/attachment_remove.js";
 import changesSinceScript from "../../../scripts/jxa/changes_since.js";
 import folderCreateScript from "../../../scripts/jxa/folder_create.js";
 import folderDeleteScript from "../../../scripts/jxa/folder_delete.js";
@@ -39,12 +41,20 @@ import projectSetNextReviewDateScript from "../../../scripts/jxa/project_set_nex
 import projectSetReviewIntervalScript from "../../../scripts/jxa/project_set_review_interval.js";
 import projectUpdateScript from "../../../scripts/jxa/project_update.js";
 import reviewListDueScript from "../../../scripts/jxa/review_list_due.js";
+import syncTriggerScript from "../../../scripts/jxa/sync_trigger.js";
 import tagCreateScript from "../../../scripts/jxa/tag_create.js";
 import tagDeleteScript from "../../../scripts/jxa/tag_delete.js";
 import tagGetScript from "../../../scripts/jxa/tag_get.js";
 import tagGetManyScript from "../../../scripts/jxa/tag_get_many.js";
 import tagListScript from "../../../scripts/jxa/tag_list.js";
 import tagUpdateScript from "../../../scripts/jxa/tag_update.js";
+import taskBatchCompleteScript from "../../../scripts/jxa/task_batch_complete.js";
+import taskBatchCreateScript from "../../../scripts/jxa/task_batch_create.js";
+import taskBatchDeleteScript from "../../../scripts/jxa/task_batch_delete.js";
+import taskBatchDropScript from "../../../scripts/jxa/task_batch_drop.js";
+import taskBatchUncompleteScript from "../../../scripts/jxa/task_batch_uncomplete.js";
+import taskBatchUndropScript from "../../../scripts/jxa/task_batch_undrop.js";
+import taskBatchUpdateScript from "../../../scripts/jxa/task_batch_update.js";
 import taskCompleteScript from "../../../scripts/jxa/task_complete.js";
 import taskCreateScript from "../../../scripts/jxa/task_create.js";
 import taskDeleteScript from "../../../scripts/jxa/task_delete.js";
@@ -60,6 +70,8 @@ import taskUncompleteScript from "../../../scripts/jxa/task_uncomplete.js";
 import taskUndropScript from "../../../scripts/jxa/task_undrop.js";
 import taskUpdateScript from "../../../scripts/jxa/task_update.js";
 import windowGetStateScript from "../../../scripts/jxa/window_get_state.js";
+import windowSetFocusScript from "../../../scripts/jxa/window_set_focus.js";
+import windowSetPerspectiveScript from "../../../scripts/jxa/window_set_perspective.js";
 import {
   fakeAttachment,
   fakeFolder,
@@ -2128,6 +2140,380 @@ describe("JXA sandbox — task_reorder", () => {
         { tasks: [target] },
       ),
     ).toThrow("unknown mode");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_batch_complete.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_batch_complete", () => {
+  it("succeeds for found ids; fails OF_NOT_FOUND for missing", () => {
+    const a = fakeTask({ id: () => "task_a" });
+    const b = fakeTask({ id: () => "task_b" });
+    const result = runJxaScriptInSandbox<{
+      succeeded: { value: string }[];
+      failed: { errorCode: string; index: number }[];
+    }>(
+      taskBatchCompleteScript,
+      { items: [{ id: "task_a" }, { id: "task_missing" }, { id: "task_b" }] },
+      { tasks: [a, b] },
+    );
+    expect(result.succeeded.map((s) => s.value)).toEqual(["task_a", "task_b"]);
+    expect(result.failed[0]?.errorCode).toBe("OF_NOT_FOUND");
+    expect(result.failed[0]?.index).toBe(1);
+  });
+
+  it("returns empty arrays when items is empty", () => {
+    const result = runJxaScriptInSandbox<{ succeeded: unknown[]; failed: unknown[] }>(
+      taskBatchCompleteScript,
+      { items: [] },
+      {},
+    );
+    expect(result.succeeded).toHaveLength(0);
+    expect(result.failed).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_batch_create.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_batch_create", () => {
+  it("creates a mix of inbox + project + parent tasks per item", () => {
+    const project = fakeProject({ id: () => "project_target" });
+    const parent = fakeTask({ id: () => "task_parent" });
+    const result = runJxaScriptInSandbox<{
+      succeeded: { value: string }[];
+      failed: { errorCode: string }[];
+    }>(
+      taskBatchCreateScript,
+      {
+        inputs: [
+          { name: "Inbox 1" },
+          { name: "Under project", projectId: "project_target" },
+          { name: "Subtask", parentId: "task_parent" },
+        ],
+      },
+      { projects: [project], tasks: [parent] },
+    );
+    expect(result.succeeded).toHaveLength(3);
+    expect(result.failed).toHaveLength(0);
+  });
+
+  it("captures per-item OF_NOT_FOUND when a parent or project is missing", () => {
+    const result = runJxaScriptInSandbox<{
+      succeeded: unknown[];
+      failed: { index: number; errorCode: string }[];
+    }>(
+      taskBatchCreateScript,
+      {
+        inputs: [
+          { name: "Inbox" },
+          { name: "Bad parent", parentId: "missing" },
+          { name: "Bad project", projectId: "missing" },
+        ],
+      },
+      {},
+    );
+    expect(result.succeeded).toHaveLength(1);
+    expect(result.failed.map((f) => f.errorCode)).toEqual(["OF_NOT_FOUND", "OF_NOT_FOUND"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_batch_delete.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_batch_delete", () => {
+  it("succeeds for found ids; fails OF_NOT_FOUND for missing", () => {
+    const a = fakeTask({ id: () => "task_a" });
+    const result = runJxaScriptInSandbox<{
+      succeeded: { value: string }[];
+      failed: { errorCode: string }[];
+    }>(taskBatchDeleteScript, { items: [{ id: "task_a" }, { id: "missing" }] }, { tasks: [a] });
+    expect(result.succeeded.map((s) => s.value)).toEqual(["task_a"]);
+    expect(result.failed[0]?.errorCode).toBe("OF_NOT_FOUND");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_batch_drop.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_batch_drop", () => {
+  it("succeeds for found ids; fails OF_NOT_FOUND for missing", () => {
+    const a = fakeTask({ id: () => "task_a" });
+    const result = runJxaScriptInSandbox<{
+      succeeded: { value: string }[];
+      failed: { errorCode: string }[];
+    }>(taskBatchDropScript, { items: [{ id: "task_a" }, { id: "missing" }] }, { tasks: [a] });
+    expect(result.succeeded.map((s) => s.value)).toEqual(["task_a"]);
+    expect(result.failed[0]?.errorCode).toBe("OF_NOT_FOUND");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_batch_uncomplete.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_batch_uncomplete", () => {
+  it("succeeds for found ids via flattenedTasks scan", () => {
+    const a = fakeTask({ id: () => "task_a" });
+    const b = fakeTask({ id: () => "task_b" });
+    const result = runJxaScriptInSandbox<{
+      succeeded: { value: string }[];
+      failed: { errorCode: string }[];
+    }>(
+      taskBatchUncompleteScript,
+      { items: [{ id: "task_a" }, { id: "task_b" }] },
+      { tasks: [a, b] },
+    );
+    expect(result.succeeded.map((s) => s.value).sort()).toEqual(["task_a", "task_b"]);
+    expect(result.failed).toHaveLength(0);
+  });
+
+  it("fails with OF_NOT_FOUND for missing ids", () => {
+    const result = runJxaScriptInSandbox<{
+      succeeded: unknown[];
+      failed: { errorCode: string }[];
+    }>(taskBatchUncompleteScript, { items: [{ id: "missing" }] }, { tasks: [] });
+    expect(result.succeeded).toHaveLength(0);
+    expect(result.failed[0]?.errorCode).toBe("OF_NOT_FOUND");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_batch_undrop.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_batch_undrop", () => {
+  it("succeeds for found ids; fails OF_NOT_FOUND for missing", () => {
+    const a = fakeTask({ id: () => "task_a" });
+    const result = runJxaScriptInSandbox<{
+      succeeded: { value: string }[];
+      failed: { errorCode: string }[];
+    }>(taskBatchUndropScript, { items: [{ id: "task_a" }, { id: "missing" }] }, { tasks: [a] });
+    expect(result.succeeded.map((s) => s.value)).toEqual(["task_a"]);
+    expect(result.failed[0]?.errorCode).toBe("OF_NOT_FOUND");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_batch_update.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_batch_update", () => {
+  it("applies patches per item; OF_NOT_FOUND for missing", () => {
+    const a = fakeTask({ id: () => "task_a" });
+    const result = runJxaScriptInSandbox<{
+      succeeded: { value: string }[];
+      failed: { errorCode: string }[];
+    }>(
+      taskBatchUpdateScript,
+      {
+        updates: [
+          { id: "task_a", patch: { name: "renamed", flagged: true } },
+          { id: "missing", patch: { name: "x" } },
+        ],
+      },
+      { tasks: [a] },
+    );
+    expect(result.succeeded.map((s) => s.value)).toEqual(["task_a"]);
+    expect(result.failed[0]?.errorCode).toBe("OF_NOT_FOUND");
+  });
+
+  it("delegates tagIds replacement to OmniJS via evaluateJavascript", () => {
+    const a = fakeTask({ id: () => "task_a" });
+    const result = runJxaScriptInSandbox<{ succeeded: { value: string }[] }>(
+      taskBatchUpdateScript,
+      { updates: [{ id: "task_a", patch: { tagIds: ["tag_x"] } }] },
+      { tasks: [a] },
+    );
+    expect(result.succeeded.map((s) => s.value)).toEqual(["task_a"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// attachment_add.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — attachment_add", () => {
+  it("adds an attachment to a task and returns the new id", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      attachmentAddScript,
+      { taskId: "task_target", filePath: "/tmp/file.pdf" },
+      { tasks: [target] },
+    );
+    expect(result.id).toMatch(/^constructed_attachment_/);
+  });
+
+  it("adds an attachment to a project", () => {
+    const project = fakeProject({ id: () => "project_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      attachmentAddScript,
+      { projectId: "project_target", filePath: "/tmp/file.pdf" },
+      { projects: [project] },
+    );
+    expect(result.id).toBeDefined();
+  });
+
+  it("throws when the taskId is missing", () => {
+    expect(() =>
+      runJxaScriptInSandbox(
+        attachmentAddScript,
+        { taskId: "missing", filePath: "/tmp/x" },
+        { tasks: [] },
+      ),
+    ).toThrow("Task not found: missing");
+  });
+
+  it("throws when neither taskId nor projectId is supplied", () => {
+    expect(() => runJxaScriptInSandbox(attachmentAddScript, { filePath: "/tmp/x" }, {})).toThrow(
+      "One of taskId or projectId is required",
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// attachment_remove.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — attachment_remove", () => {
+  it("removes an attachment by id from a task", () => {
+    const att = fakeAttachment({ id: () => "att_target" });
+    const target = fakeTask({ id: () => "task_target", fileAttachments: () => [att] });
+    const result = runJxaScriptInSandbox<Record<string, never>>(
+      attachmentRemoveScript,
+      { taskId: "task_target", attachmentId: "att_target" },
+      { tasks: [target] },
+    );
+    expect(result).toEqual({});
+  });
+
+  it("throws when the attachment id does not exist on the task", () => {
+    const target = fakeTask({
+      id: () => "task_target",
+      fileAttachments: () => [fakeAttachment({ id: () => "att_other" })],
+    });
+    expect(() =>
+      runJxaScriptInSandbox(
+        attachmentRemoveScript,
+        { taskId: "task_target", attachmentId: "att_missing" },
+        { tasks: [target] },
+      ),
+    ).toThrow("Attachment not found: att_missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// window_set_focus.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — window_set_focus", () => {
+  it("returns NO_FRONT_WINDOW when there are no windows", () => {
+    const result = runJxaScriptInSandbox<{ error: { code: string } }>(
+      windowSetFocusScript,
+      { containerId: "anything" },
+      { windows: [] },
+    );
+    expect(result.error.code).toBe("NO_FRONT_WINDOW");
+  });
+
+  it("clears focus when containerId is null", () => {
+    const w = fakeWindow();
+    const result = runJxaScriptInSandbox<{ focusContainerIds: string[] }>(
+      windowSetFocusScript,
+      { containerId: null },
+      { windows: [w] },
+    );
+    expect(result.focusContainerIds).toEqual([]);
+  });
+
+  it("focuses on a project when found", () => {
+    const w = fakeWindow();
+    const project = fakeProject({ id: () => "project_target" });
+    const result = runJxaScriptInSandbox<{ focusContainerIds: string[] }>(
+      windowSetFocusScript,
+      { containerId: "project_target" },
+      { windows: [w], projects: [project] },
+    );
+    expect(result.focusContainerIds).toEqual(["project_target"]);
+  });
+
+  it("falls back to folder lookup when no project matches", () => {
+    const w = fakeWindow();
+    const folder = fakeFolder({ id: () => "folder_target" });
+    const result = runJxaScriptInSandbox<{ focusContainerIds: string[] }>(
+      windowSetFocusScript,
+      { containerId: "folder_target" },
+      { windows: [w], folders: [folder] },
+    );
+    expect(result.focusContainerIds).toEqual(["folder_target"]);
+  });
+
+  it("returns NOT_FOUND when neither projects nor folders match", () => {
+    const w = fakeWindow();
+    const result = runJxaScriptInSandbox<{ error: { code: string } }>(
+      windowSetFocusScript,
+      { containerId: "missing" },
+      { windows: [w] },
+    );
+    expect(result.error.code).toBe("NOT_FOUND");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// window_set_perspective.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — window_set_perspective", () => {
+  it("returns NO_FRONT_WINDOW when there are no windows", () => {
+    const result = runJxaScriptInSandbox<{ error: { code: string } }>(
+      windowSetPerspectiveScript,
+      { perspectiveName: "Forecast" },
+      { windows: [] },
+    );
+    expect(result.error.code).toBe("NO_FRONT_WINDOW");
+  });
+
+  it("switches to the named perspective when found", () => {
+    const w = fakeWindow();
+    const persp = fakePerspective({ name: () => "Weekly" });
+    const result = runJxaScriptInSandbox<{ perspectiveName: string }>(
+      windowSetPerspectiveScript,
+      { perspectiveName: "Weekly" },
+      { windows: [w], perspectives: [persp] },
+    );
+    expect(result.perspectiveName).toBe("Weekly");
+  });
+
+  it("returns NOT_FOUND when no perspective matches the name", () => {
+    const w = fakeWindow();
+    const result = runJxaScriptInSandbox<{ error: { code: string } }>(
+      windowSetPerspectiveScript,
+      { perspectiveName: "NoSuch" },
+      { windows: [w], perspectives: [] },
+    );
+    expect(result.error.code).toBe("NOT_FOUND");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sync_trigger.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — sync_trigger", () => {
+  it("returns lastSyncAt as an ISO string and inFlight: false", () => {
+    const before = Date.now();
+    const result = runJxaScriptInSandbox<{ lastSyncAt: string; inFlight: boolean }>(
+      syncTriggerScript,
+      {},
+      {},
+    );
+    expect(result.inFlight).toBe(false);
+    expect(new Date(result.lastSyncAt).getTime()).toBeGreaterThanOrEqual(before);
   });
 });
 

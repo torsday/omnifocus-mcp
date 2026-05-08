@@ -131,14 +131,19 @@ export function runJxaScriptInSandbox<T = unknown>(
 ): T {
   const document = buildFakeDocument(doc);
   const fakeApp = buildFakeApp(document, doc);
+  // `Path(filePath)` is a JXA global. attachment_add.js wraps a string
+  // filePath into one before passing it to `ofApp.FileAttachment({file})`.
+  // The fake passes the path through unchanged — the FileAttachment ctor
+  // ignores the file argument anyway.
+  const fakePath = (p: string) => ({ __path: p });
 
-  // Wrap the script in an IIFE that receives `Application` as a parameter,
-  // then call `run(argv)` with the serialized args — matching how osascript
-  // invokes the function with `argv` as a string array.
-  const wrapper = `(function(Application) { ${scriptSource}; return run; })`;
+  // Wrap the script in an IIFE that receives `Application` and `Path` as
+  // parameters, then call `run(argv)` with the serialized args — matching
+  // how osascript invokes the function with `argv` as a string array.
+  const wrapper = `(function(Application, Path) { ${scriptSource}; return run; })`;
 
   // biome-ignore lint/security/noGlobalEval: intentional — this module IS the sandbox; eval is the mechanism that injects a synthetic Application global into the script's scope without spawning osascript.
-  const runFn = eval(wrapper)(fakeApp) as (argv: string[]) => string;
+  const runFn = eval(wrapper)(fakeApp, fakePath) as (argv: string[]) => string;
 
   const raw = runFn([JSON.stringify(args)]);
   return JSON.parse(raw) as T;
@@ -348,6 +353,8 @@ function buildFakeDocument(doc: SandboxDocument) {
     // Document itself is a valid `make()` target for inbox creation
     // (task_duplicate's makeInto-the-doc branch).
     make: (_args: unknown) => makeConstructedTask({}),
+    // sync_trigger.js calls `doc.synchronize()` fire-and-forget.
+    synchronize: () => undefined,
     // Pass-through for scripts that check class() on the document itself
     class: () => "document",
   };
@@ -428,6 +435,10 @@ function buildFakeApp(document: ReturnType<typeof buildFakeDocument>, doc: Sandb
     markIncomplete: (target: unknown) => {
       markedIncomplete.push(target);
     },
+    // attachment_add.js: `ofApp.FileAttachment({ file: pathObj })` returns
+    // a freshly-constructed fake attachment. The id() method is the only
+    // accessor the script reads back via `attsArr[attsArr.length-1].id()`.
+    FileAttachment: (_args: unknown) => makeConstructedAttachment(),
     /** Test-only — surface what `ofApp.delete()` was called with. */
     _deleted: deleted,
     _markedComplete: markedComplete,
@@ -435,6 +446,18 @@ function buildFakeApp(document: ReturnType<typeof buildFakeDocument>, doc: Sandb
     _markedIncomplete: markedIncomplete,
     _markedReviewed: markedReviewed,
   });
+}
+
+let _constructedAttachmentSeq = 0;
+function makeConstructedAttachment(): Record<string, unknown> {
+  const id = `constructed_attachment_${++_constructedAttachmentSeq}`;
+  return {
+    id: () => id,
+    name: () => "constructed.dat",
+    fileType: () => null,
+    fileSize: () => null,
+    creationDate: () => new Date(),
+  };
 }
 
 let _constructedFolderSeq = 0;
