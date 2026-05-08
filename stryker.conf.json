@@ -17,6 +17,16 @@
     "inline in tool handlers). Both globs produced warnings and zero matches;",
     "removing them leaves coverage unchanged.",
     "",
+    "Slice 8 (#756): post-#723 recalibration on 2026-05-08. Mutator scope is",
+    "unchanged (TS-only per ADR-0017); the JXA-side test surface added by",
+    "slices 1–7b mutates nothing here, so the score is expected to drift only",
+    "from incidental TS test churn. Run: 2978 mutants instrumented, 9m50s",
+    "wall-clock. Outcome:",
+    "  killed=1230, survived=564, timeout=11, noCoverage=152, compileError=1021.",
+    "  mutationScore = (1230+11)/(1230+564+11+152) = 1241/1957 = 63.41%",
+    "  → drift +0.67pp vs slice-1B baseline (well under the ±5pp meaningful bar).",
+    "  → thresholds.break re-pinned to floor(63.41) − 5 = 58 per ADR-0017 §3.",
+    "",
     "Plugins are listed explicitly because pnpm's strict node_modules layout",
     "breaks Stryker's default `@stryker-mutator/*` plugin discovery glob in",
     "child processes."
@@ -42,6 +52,6 @@
   "thresholds": {
     "high": 80,
     "low": 60,
-    "break": 57.74
+    "break": 58
   }
 }

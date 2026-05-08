@@ -164,7 +164,7 @@ If it exits 1, re-grant permission in System Settings as above.
 
 ## Mutation testing (release-time hard gate)
 
-Releases are gated on a Stryker mutation-testing run that fails the publish if the score regresses below `thresholds.break = 57.74` (= calibration baseline − 5). Per [ADR-0017](./docs/adr/0017-mutation-testing-release-gate.md). The gate fires once per `v*.*.*` tag push in [`.github/workflows/release.yml`](./.github/workflows/release.yml); reports upload as `mutation-report-<tag>` workflow artifact (90-day retention).
+Releases are gated on a Stryker mutation-testing run that fails the publish if the score regresses below `thresholds.break = 58` (= floor(calibration baseline) − 5). Per [ADR-0017](./docs/adr/0017-mutation-testing-release-gate.md). The gate fires once per `v*.*.*` tag push in [`.github/workflows/release.yml`](./.github/workflows/release.yml); reports upload as `mutation-report-<tag>` workflow artifact (90-day retention).
 
 ### Running locally
 

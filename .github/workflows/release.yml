@@ -70,7 +70,7 @@ jobs:
       #
       # The gate runs once per release tag — between unit tests and publish — and
       # fails the release when the mutation score drops below the calibrated
-      # `thresholds.break` in stryker.conf.json (currently 57.74 = baseline − 5
+      # `thresholds.break` in stryker.conf.json (currently 58 = floor(baseline) − 5
       # per ADR §3). The HTML + JSON reports are uploaded as workflow artifacts
       # for post-mortem on a fail and for traceability on a pass.
       - name: Stryker mutation testing (release gate)
