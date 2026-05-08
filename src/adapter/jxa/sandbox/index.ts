@@ -188,11 +188,21 @@ function buildFakeDocument(doc: SandboxDocument) {
     },
   });
 
+  // Top-level folder collection. Mutation scripts push newly-constructed
+  // folders here via `ofApp.defaultDocument.folders.push(newFolder)`. Test
+  // assertions verify the script's return value rather than walking the
+  // fake's collections, so we don't bother syncing flattenedFolders on push.
+  const docFoldersArr: unknown[] = [];
+  const docFolders = Object.assign(() => docFoldersArr, {
+    push: (item: unknown) => docFoldersArr.push(item),
+  });
+
   return {
     flattenedTags: () => tags,
     flattenedTasks,
     flattenedProjects,
     flattenedFolders: () => folders,
+    folders: docFolders,
     // Some scripts access inbox tasks through the document
     inbox: {
       tasks: () => inboxTasks,
@@ -205,6 +215,18 @@ function buildFakeDocument(doc: SandboxDocument) {
 function buildFakeApp(document: ReturnType<typeof buildFakeDocument>, doc: SandboxDocument) {
   const windows = doc.windows ?? [];
   const perspectives = doc.perspectives ?? [];
+  // Track mutation-side effects so tests can assert post-condition without
+  // shimming `delete` to actually mutate the fake document. Scripts only
+  // care that delete() didn't throw.
+  const deleted: unknown[] = [];
+
+  // `ofApp.Folder({ name })` is the JXA constructor folder_create.js uses.
+  // It returns a fresh fake folder; the script then push()es it into the
+  // parent's folders collection. The constructed folder honours the same
+  // contract as `fakeFolder()` (name(), id(), parent(), folders(), …) so
+  // build_folder.js can build a domain Folder from it without surprises.
+  const folderConstructor = (opts: { name?: string } = {}) => makeConstructedFolder(opts);
+
   return (_name: string) => ({
     // Scripts set this; we accept and ignore it.
     includeStandardAdditions: false,
@@ -212,5 +234,60 @@ function buildFakeApp(document: ReturnType<typeof buildFakeDocument>, doc: Sandb
     inbox: document.inbox,
     windows: () => windows,
     perspectives: () => perspectives,
+    Folder: folderConstructor,
+    delete: (target: unknown) => {
+      deleted.push(target);
+    },
+    /** Test-only — surface what `ofApp.delete()` was called with. */
+    _deleted: deleted,
+  });
+}
+
+let _constructedFolderSeq = 0;
+
+/**
+ * Build a fake JXA Folder created via `ofApp.Folder({ name })`. The shape
+ * mirrors `fakeFolder()` but only the fields the JXA scripts read or
+ * mutate are populated. `name` is a writable accessor (Object.defineProperty
+ * getter+setter) so `target.name = "X"` updates the value AND `target.name()`
+ * still returns the latest value via the getter — the JXA semantics
+ * folder_update.js relies on.
+ */
+function makeConstructedFolder(opts: { name?: string }): Record<string, unknown> {
+  const id = `constructed_folder_${++_constructedFolderSeq}`;
+  const childrenArr: unknown[] = [];
+  const folders = Object.assign(() => childrenArr, {
+    push: (item: unknown) => childrenArr.push(item),
+  });
+  const noThrow = () => {
+    throw new ScriptError("Can't get object.", { details: { stderr: "Can't get object." } });
+  };
+  const folder: Record<string, unknown> = {
+    id: () => id,
+    parent: noThrow,
+    folders,
+    projects: () => [],
+    creationDate: () => new Date(),
+    modificationDate: () => new Date(),
+  };
+  defineWritableNameAccessor(folder, opts.name ?? `Folder ${_constructedFolderSeq}`);
+  return folder;
+}
+
+/**
+ * Define a writable `name` field that survives `obj.name = "X"` assignment
+ * AND continues to be invocable as `obj.name()` afterwards. JXA exposes
+ * properties this way — assignment goes through a setter, read returns a
+ * callable getter — and folder_update.js relies on exactly that pattern.
+ */
+export function defineWritableNameAccessor(obj: Record<string, unknown>, initial: string): void {
+  let current = initial;
+  Object.defineProperty(obj, "name", {
+    configurable: true,
+    enumerable: true,
+    get: () => () => current,
+    set: (value: unknown) => {
+      current = typeof value === "function" ? String((value as () => unknown)()) : String(value);
+    },
   });
 }
