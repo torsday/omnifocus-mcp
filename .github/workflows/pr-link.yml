@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   require-issue-link:
-    runs-on: [self-hosted, macos]
+    runs-on: ubuntu-latest
     # Waivers (any one match → skip):
     #   1. `no-issue` label on the PR — explicit waiver for pure-infra PRs.
     #   2. Fork-PR guard — fork code cannot execute on the self-hosted runner.

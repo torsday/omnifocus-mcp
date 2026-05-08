@@ -34,7 +34,7 @@ jobs:
     # execute on the self-hosted runner. (Fork PRs also wouldn't have access to
     # PROJECT_TOKEN by default, so blocking here is both security and correctness.)
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, macos]
+    runs-on: ubuntu-latest
     steps:
       - name: Check token
         id: token
@@ -125,7 +125,7 @@ jobs:
 
   issue-closed:
     if: github.event_name == 'issues' && github.event.action == 'closed'
-    runs-on: [self-hosted, macos]
+    runs-on: ubuntu-latest
     steps:
       - name: Check token
         id: token

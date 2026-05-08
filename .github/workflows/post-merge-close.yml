@@ -61,7 +61,7 @@ jobs:
     # Default (unset) is "off" so the workflow can land safely before the
     # PAT is provisioned, and the operator opts in by setting the variable.
     if: vars.AUTO_CLOSE_ENABLED == 'true'
-    runs-on: [self-hosted, macos]
+    runs-on: ubuntu-latest
     steps:
       - name: Check token
         id: token

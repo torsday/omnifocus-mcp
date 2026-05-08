@@ -32,7 +32,7 @@ jobs:
     # Skip for fork PRs — fork code cannot execute on the self-hosted runner.
     # schedule and workflow_dispatch triggers continue to run normally.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, macos]
+    runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
     steps:
