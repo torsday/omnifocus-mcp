@@ -182,6 +182,10 @@ export interface FakeProjectOverrides {
   creationDate?: () => Date;
   modificationDate?: () => Date;
   reviewInterval?: () => unknown;
+  // OF 4.x exposes the review interval expressed in days as a separate
+  // computed property — review_list_due.js reads it directly via
+  // `p.reviewIntervalDays()`.
+  reviewIntervalDays?: () => number | null;
   nextReviewDate?: () => Date | null;
   effectiveStatus?: () => string;
   lastReviewDate?: () => Date | null;
@@ -218,6 +222,7 @@ export function fakeProject(
     creationDate: overrides.creationDate ?? fn(now),
     modificationDate: overrides.modificationDate ?? fn(now),
     reviewInterval: overrides.reviewInterval ?? fn(null),
+    reviewIntervalDays: overrides.reviewIntervalDays ?? fn(null),
     nextReviewDate: overrides.nextReviewDate ?? fn(null),
     effectiveStatus: overrides.effectiveStatus ?? fn("active"),
     lastReviewDate: overrides.lastReviewDate ?? fn(null),

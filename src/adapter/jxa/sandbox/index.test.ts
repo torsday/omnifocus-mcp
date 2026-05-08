@@ -15,13 +15,18 @@
  */
 
 import { describe, expect, it } from "vitest";
+import changesSinceScript from "../../../scripts/jxa/changes_since.js";
 import folderGetScript from "../../../scripts/jxa/folder_get.js";
 import folderListScript from "../../../scripts/jxa/folder_list.js";
 import projectGetScript from "../../../scripts/jxa/project_get.js";
+import projectGetManyScript from "../../../scripts/jxa/project_get_many.js";
 import projectListScript from "../../../scripts/jxa/project_list.js";
+import reviewListDueScript from "../../../scripts/jxa/review_list_due.js";
 import tagGetScript from "../../../scripts/jxa/tag_get.js";
+import tagGetManyScript from "../../../scripts/jxa/tag_get_many.js";
 import tagListScript from "../../../scripts/jxa/tag_list.js";
 import taskGetScript from "../../../scripts/jxa/task_get.js";
+import taskGetManyScript from "../../../scripts/jxa/task_get_many.js";
 import taskListScript from "../../../scripts/jxa/task_list.js";
 import { fakeFolder, fakeProject, fakeTag, fakeTask, throwing } from "./fixtures.js";
 import { runJxaScriptInSandbox } from "./index.js";
@@ -556,6 +561,248 @@ describe("JXA sandbox — task_get", () => {
       { tasks: [t] },
     );
     expect(result.task.projectId).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// tag_get_many.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — tag_get_many", () => {
+  it("returns tags in the order requested with nulls for missing ids", () => {
+    const a = fakeTag({ id: () => "tag_a", name: () => "A" });
+    const c = fakeTag({ id: () => "tag_c", name: () => "C" });
+    const result = runJxaScriptInSandbox<{ tags: ({ id: string } | null)[] }>(
+      tagGetManyScript,
+      { ids: ["tag_a", "tag_missing", "tag_c"] },
+      { tags: [c, a] }, // document order is intentionally not request order
+    );
+    expect(result.tags).toHaveLength(3);
+    expect(result.tags[0]?.id).toBe("tag_a");
+    expect(result.tags[1]).toBeNull();
+    expect(result.tags[2]?.id).toBe("tag_c");
+  });
+
+  it("returns an empty list when ids is empty", () => {
+    const result = runJxaScriptInSandbox<{ tags: unknown[] }>(
+      tagGetManyScript,
+      { ids: [] },
+      { tags: [fakeTag()] },
+    );
+    expect(result.tags).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// project_get_many.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — project_get_many", () => {
+  it("returns projects in the order requested with nulls for missing ids", () => {
+    const a = fakeProject({ id: () => "project_a", name: () => "A" });
+    const b = fakeProject({ id: () => "project_b", name: () => "B" });
+    const result = runJxaScriptInSandbox<{ projects: ({ id: string } | null)[] }>(
+      projectGetManyScript,
+      { ids: ["project_b", "project_missing", "project_a"] },
+      { projects: [a, b] },
+    );
+    expect(result.projects).toHaveLength(3);
+    expect(result.projects[0]?.id).toBe("project_b");
+    expect(result.projects[1]).toBeNull();
+    expect(result.projects[2]?.id).toBe("project_a");
+  });
+
+  it("returns an empty list when ids is empty", () => {
+    const result = runJxaScriptInSandbox<{ projects: unknown[] }>(
+      projectGetManyScript,
+      { ids: [] },
+      { projects: [fakeProject()] },
+    );
+    expect(result.projects).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_get_many.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_get_many", () => {
+  it("returns tasks in the order requested with nulls for missing ids", () => {
+    const a = fakeTask({ id: () => "task_a", name: () => "A" });
+    const b = fakeTask({ id: () => "task_b", name: () => "B" });
+    const result = runJxaScriptInSandbox<{ tasks: ({ id: string } | null)[] }>(
+      taskGetManyScript,
+      { ids: ["task_a", "task_missing", "task_b"] },
+      { tasks: [b, a] },
+    );
+    expect(result.tasks).toHaveLength(3);
+    expect(result.tasks[0]?.id).toBe("task_a");
+    expect(result.tasks[1]).toBeNull();
+    expect(result.tasks[2]?.id).toBe("task_b");
+  });
+
+  it("returns an empty list when ids is empty", () => {
+    const result = runJxaScriptInSandbox<{ tasks: unknown[] }>(
+      taskGetManyScript,
+      { ids: [] },
+      { tasks: [fakeTask()] },
+    );
+    expect(result.tasks).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// changes_since.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — changes_since", () => {
+  it("returns only items modified at or after sinceIso", () => {
+    const since = new Date("2026-04-01T00:00:00Z");
+    const before = fakeTask({
+      id: () => "task_before",
+      modificationDate: () => new Date("2026-03-01T00:00:00Z"),
+    });
+    const after = fakeTask({
+      id: () => "task_after",
+      modificationDate: () => new Date("2026-04-15T00:00:00Z"),
+    });
+    const projAfter = fakeProject({
+      id: () => "project_after",
+      modificationDate: () => new Date("2026-04-10T00:00:00Z"),
+    });
+    const projBefore = fakeProject({
+      id: () => "project_before",
+      modificationDate: () => new Date("2026-01-01T00:00:00Z"),
+    });
+    const result = runJxaScriptInSandbox<{
+      tasks: { id: string }[];
+      projects: { id: string }[];
+    }>(
+      changesSinceScript,
+      { sinceIso: since.toISOString() },
+      { tasks: [before, after], projects: [projAfter, projBefore] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["task_after"]);
+    expect(result.projects.map((p) => p.id)).toEqual(["project_after"]);
+  });
+
+  it("skips items whose modificationDate() throws — inbox pseudo-tasks", () => {
+    const since = new Date("2020-01-01T00:00:00Z");
+    const broken = fakeTask({ id: () => "task_broken", modificationDate: throwing() });
+    const ok = fakeTask({
+      id: () => "task_ok",
+      modificationDate: () => new Date("2026-04-01T00:00:00Z"),
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      changesSinceScript,
+      { sinceIso: since.toISOString() },
+      { tasks: [broken, ok] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["task_ok"]);
+  });
+
+  it("returns ISO-8601 modificationDate strings", () => {
+    const mod = new Date("2026-05-08T12:34:56Z");
+    const t = fakeTask({ id: () => "task_iso", modificationDate: () => mod });
+    const result = runJxaScriptInSandbox<{ tasks: { modificationDate: string }[] }>(
+      changesSinceScript,
+      { sinceIso: "2020-01-01T00:00:00Z" },
+      { tasks: [t] },
+    );
+    expect(result.tasks[0]?.modificationDate).toBe(mod.toISOString());
+  });
+
+  it("returns empty arrays when nothing has changed since", () => {
+    const result = runJxaScriptInSandbox<{ tasks: unknown[]; projects: unknown[] }>(
+      changesSinceScript,
+      { sinceIso: "2099-01-01T00:00:00Z" },
+      {
+        tasks: [fakeTask({ modificationDate: () => new Date("2026-01-01T00:00:00Z") })],
+      },
+    );
+    expect(result.tasks).toHaveLength(0);
+    expect(result.projects).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// review_list_due.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — review_list_due", () => {
+  it("returns projects whose nextReviewDate is null or in the past", () => {
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const due = fakeProject({ id: () => "project_due", nextReviewDate: () => yesterday });
+    const overdue = fakeProject({ id: () => "project_null", nextReviewDate: () => null });
+    const future = fakeProject({
+      id: () => "project_future",
+      nextReviewDate: () => tomorrow,
+    });
+    const result = runJxaScriptInSandbox<{ projects: { id: string }[] }>(
+      reviewListDueScript,
+      {},
+      { projects: [future, due, overdue] },
+    );
+    const ids = result.projects.map((p) => p.id);
+    expect(ids).toContain("project_due");
+    expect(ids).toContain("project_null");
+    expect(ids).not.toContain("project_future");
+  });
+
+  it("sorts nulls first then ascending by nextReviewDate", () => {
+    const earlier = new Date("2025-01-01T00:00:00Z");
+    const later = new Date("2025-06-01T00:00:00Z");
+    const result = runJxaScriptInSandbox<{ projects: { id: string }[] }>(
+      reviewListDueScript,
+      {},
+      {
+        projects: [
+          fakeProject({ id: () => "later", nextReviewDate: () => later }),
+          fakeProject({ id: () => "earlier", nextReviewDate: () => earlier }),
+          fakeProject({ id: () => "null", nextReviewDate: () => null }),
+        ],
+      },
+    );
+    expect(result.projects.map((p) => p.id)).toEqual(["null", "earlier", "later"]);
+  });
+
+  it("treats nextReviewDate() throws as null (i.e. due)", () => {
+    const broken = fakeProject({ id: () => "project_broken", nextReviewDate: throwing() });
+    const result = runJxaScriptInSandbox<{ projects: { id: string }[] }>(
+      reviewListDueScript,
+      {},
+      { projects: [broken] },
+    );
+    expect(result.projects).toHaveLength(1);
+    expect(result.projects[0]?.id).toBe("project_broken");
+  });
+
+  it("returns reviewIntervalDays and lastReviewDate when available", () => {
+    const last = new Date("2026-04-01T00:00:00Z");
+    const p = fakeProject({
+      id: () => "project_full",
+      nextReviewDate: () => null,
+      reviewIntervalDays: () => 14,
+      lastReviewDate: () => last,
+    });
+    const result = runJxaScriptInSandbox<{
+      projects: { reviewIntervalDays: number | null; lastReviewDate: string | null }[];
+    }>(reviewListDueScript, {}, { projects: [p] });
+    expect(result.projects[0]?.reviewIntervalDays).toBe(14);
+    expect(result.projects[0]?.lastReviewDate).toBe(last.toISOString());
+  });
+
+  it("falls back to null when reviewIntervalDays() throws", () => {
+    const p = fakeProject({
+      id: () => "project_throw_interval",
+      nextReviewDate: () => null,
+      reviewIntervalDays: throwing(),
+    });
+    const result = runJxaScriptInSandbox<{
+      projects: { reviewIntervalDays: number | null }[];
+    }>(reviewListDueScript, {}, { projects: [p] });
+    expect(result.projects[0]?.reviewIntervalDays).toBeNull();
   });
 });
 
