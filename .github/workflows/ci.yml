@@ -21,6 +21,9 @@ jobs:
     # Maintainers re-trigger via push to a same-repo branch after review if needed.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macos]
+    # Self-hosted runners can lag status replication by 20+ min (#720); cap at 15 min
+    # so a true stall surfaces as a clean failure rather than an indefinite pending check.
+    timeout-minutes: 15
     strategy:
       matrix:
         node-version: [24]
