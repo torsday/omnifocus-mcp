@@ -14,29 +14,7 @@ function run(argv) {
   const ofApp = Application("OmniFocus");
   ofApp.includeStandardAdditions = false;
 
-  function buildFolder(folder) {
-    let parentId = null;
-    try {
-      const p = folder.parent();
-      if (p && p.class() !== "document") parentId = p.id();
-    } catch (_e) {
-      /* OF 4.x: property access may not exist on all object types — default used */
-    }
-
-    return {
-      id: folder.id(),
-      name: folder.name(),
-      parentId: parentId,
-      projectCount: folder.projects ? folder.projects().length : 0,
-      subfolderCount: folder.folders ? folder.folders().length : 0,
-      createdAt: folder.creationDate
-        ? folder.creationDate().toISOString()
-        : new Date().toISOString(),
-      modifiedAt: folder.modificationDate
-        ? folder.modificationDate().toISOString()
-        : new Date().toISOString(),
-    };
-  }
+  // @inline _helpers/build_folder.js
 
   if (!args.name || args.name.trim() === "") {
     throw new Error("ValidationError: name is required and cannot be empty");
@@ -63,5 +41,10 @@ function run(argv) {
     ofApp.defaultDocument.folders.push(newFolder);
   }
 
-  return JSON.stringify({ folder: buildFolder(newFolder) });
+  // The new folder's parent is known: either `args.parentId` (when supplied)
+  // or null (document-level). Pass a single-entry parentMap so buildFolder
+  // surfaces the correct parentage even on OF 4.8.8 where `folder.parent()`
+  // throws for sub-folders (#515).
+  const parentMap = args.parentId ? { [newFolder.id()]: args.parentId } : {};
+  return JSON.stringify({ folder: buildFolder(newFolder, { parentMap }) });
 }
