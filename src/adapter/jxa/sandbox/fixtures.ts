@@ -216,36 +216,45 @@ export function fakeProject(
   overrides: FakeProjectOverrides & { id?: () => string; name?: () => string } = {},
 ) {
   const id = overrides.id ?? fn(`project_${++_projectSeq}`);
-  const name = overrides.name ?? fn(`Project ${_projectSeq}`);
   const now = new Date();
-  return {
+  const project: Record<string, unknown> = {
     id,
-    name,
     containingFolder: overrides.containingFolder ?? throwing(),
     tasks: overrides.tasks ?? fn([]),
     flattenedTasks: overrides.flattenedTasks ?? fn([]),
-    status: overrides.status ?? fn("active"),
-    completionDate: overrides.completionDate ?? fn(null),
-    deferDate: overrides.deferDate ?? fn(null),
-    dueDate: overrides.dueDate ?? fn(null),
-    flagged: overrides.flagged ?? fn(false),
-    estimatedMinutes: overrides.estimatedMinutes ?? fn(null),
     numberOfTasks: overrides.numberOfTasks ?? fn(0),
     numberOfAvailableTasks: overrides.numberOfAvailableTasks ?? fn(0),
     completionCriterion: overrides.completionCriterion ?? fn("parallel"),
     sequential: overrides.sequential ?? fn(false),
-    note: overrides.note ?? fn(""),
     creationDate: overrides.creationDate ?? fn(now),
     modificationDate: overrides.modificationDate ?? fn(now),
     reviewInterval: overrides.reviewInterval ?? fn(null),
     reviewIntervalDays: overrides.reviewIntervalDays ?? fn(null),
-    nextReviewDate: overrides.nextReviewDate ?? fn(null),
     effectiveStatus: overrides.effectiveStatus ?? fn("active"),
     lastReviewDate: overrides.lastReviewDate ?? fn(null),
     deferDateFloating: overrides.deferDateFloating ?? fn(false),
     dueDateFloating: overrides.dueDateFloating ?? fn(false),
     fileAttachments: overrides.fileAttachments ?? fn([]),
+    // project_update / project_move call `target.move({to: ...})`. The
+    // assertion is on the script's return value, not on the fake's
+    // post-state, so move() is intentionally a no-op.
+    move: (_args: unknown) => {
+      /* no-op */
+    },
   };
+  // Mutation scripts assign these via JXA's property-setter syntax.
+  // Use writable accessors so `target.x = y` updates the value AND
+  // `target.x()` returns it via the callable getter.
+  defineWritableAccessor(project, "name", overrides.name ?? fn(`Project ${_projectSeq}`));
+  defineWritableAccessor(project, "note", overrides.note ?? fn(""));
+  defineWritableAccessor(project, "status", overrides.status ?? fn("active"));
+  defineWritableAccessor(project, "deferDate", overrides.deferDate ?? fn(null));
+  defineWritableAccessor(project, "dueDate", overrides.dueDate ?? fn(null));
+  defineWritableAccessor(project, "flagged", overrides.flagged ?? fn(false));
+  defineWritableAccessor(project, "estimatedMinutes", overrides.estimatedMinutes ?? fn(null));
+  defineWritableAccessor(project, "completionDate", overrides.completionDate ?? fn(null));
+  defineWritableAccessor(project, "nextReviewDate", overrides.nextReviewDate ?? fn(null));
+  return project;
 }
 
 export interface FakeFolderOverrides {
@@ -283,12 +292,28 @@ export function fakeFolder(
     },
   });
   const now = new Date();
+  // project_create.js may push new projects into a folder via
+  // `folder.projects.push(newProj)`, and project_update / project_move
+  // pass `folder.projects.end` as a JXA move target. When a caller
+  // overrides `projects` (commonly with a throwing getter to assert the
+  // try/catch fallback in folder_delete) we honour that callable directly
+  // — only the default path gets the push/end accessors. Tests that
+  // exercise project mutations don't override `projects`.
+  const projectsArr: unknown[] = [];
+  const projects = overrides.projects
+    ? overrides.projects
+    : Object.assign(() => projectsArr, {
+        push: (item: unknown) => {
+          projectsArr.push(item);
+        },
+        end: { __end: true },
+      });
   const folder: Record<string, unknown> = {
     id,
     container: overrides.container ?? throwing(),
     parent: overrides.parent ?? throwing(),
     folders,
-    projects: overrides.projects ?? fn([]),
+    projects,
     note: overrides.note ?? fn(""),
     status: overrides.status ?? fn("active"),
     creationDate: overrides.creationDate ?? fn(now),

@@ -24,9 +24,20 @@ import folderListScript from "../../../scripts/jxa/folder_list.js";
 import folderUpdateScript from "../../../scripts/jxa/folder_update.js";
 import forecastGetScript from "../../../scripts/jxa/forecast_get.js";
 import perspectiveListScript from "../../../scripts/jxa/perspective_list.js";
+import projectBatchCompleteScript from "../../../scripts/jxa/project_batch_complete.js";
+import projectBatchDropScript from "../../../scripts/jxa/project_batch_drop.js";
+import projectCompleteScript from "../../../scripts/jxa/project_complete.js";
+import projectCreateScript from "../../../scripts/jxa/project_create.js";
+import projectDeleteScript from "../../../scripts/jxa/project_delete.js";
+import projectDropScript from "../../../scripts/jxa/project_drop.js";
 import projectGetScript from "../../../scripts/jxa/project_get.js";
 import projectGetManyScript from "../../../scripts/jxa/project_get_many.js";
 import projectListScript from "../../../scripts/jxa/project_list.js";
+import projectMarkReviewedScript from "../../../scripts/jxa/project_mark_reviewed.js";
+import projectMoveScript from "../../../scripts/jxa/project_move.js";
+import projectSetNextReviewDateScript from "../../../scripts/jxa/project_set_next_review_date.js";
+import projectSetReviewIntervalScript from "../../../scripts/jxa/project_set_review_interval.js";
+import projectUpdateScript from "../../../scripts/jxa/project_update.js";
 import reviewListDueScript from "../../../scripts/jxa/review_list_due.js";
 import tagCreateScript from "../../../scripts/jxa/tag_create.js";
 import tagDeleteScript from "../../../scripts/jxa/tag_delete.js";
@@ -1390,6 +1401,354 @@ describe("JXA sandbox — tag_delete", () => {
     expect(() =>
       runJxaScriptInSandbox(tagDeleteScript, { id: "missing" }, { tags: [fakeTag()] }),
     ).toThrow("Tag not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// project_create.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — project_create", () => {
+  it("creates a top-level project", () => {
+    const result = runJxaScriptInSandbox<{ project: { name: string } }>(
+      projectCreateScript,
+      { name: "Errands" },
+      {},
+    );
+    expect(result.project.name).toBe("Errands");
+  });
+
+  it("creates a project under an existing folder", () => {
+    const folder = fakeFolder({ id: () => "folder_target", name: () => "Areas" });
+    const result = runJxaScriptInSandbox<{ project: { name: string } }>(
+      projectCreateScript,
+      { name: "Yard work", folderId: "folder_target" },
+      { folders: [folder] },
+    );
+    expect(result.project.name).toBe("Yard work");
+  });
+
+  it("throws ValidationError when name is empty", () => {
+    expect(() => runJxaScriptInSandbox(projectCreateScript, { name: "" }, {})).toThrow(
+      "ValidationError: name is required",
+    );
+  });
+
+  it("throws via lookupOrThrow when folderId does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(projectCreateScript, { name: "X", folderId: "missing" }, {}),
+    ).toThrow("Folder not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// project_update.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — project_update", () => {
+  it("renames the project and returns the updated shape", () => {
+    const target = fakeProject({ id: () => "project_target", name: () => "Old" });
+    const result = runJxaScriptInSandbox<{ project: { id: string; name: string } }>(
+      projectUpdateScript,
+      { id: "project_target", name: "New" },
+      { projects: [target] },
+    );
+    expect(result.project.id).toBe("project_target");
+    expect(result.project.name).toBe("New");
+  });
+
+  it("normalizes on-hold status from domain to JXA verbose form", () => {
+    // build_project.js reads status() and normalizes "on hold status"/"on hold"
+    // back to "on-hold" on the wire.
+    const target = fakeProject({ id: () => "project_target", status: () => "active status" });
+    const result = runJxaScriptInSandbox<{ project: { status: string } }>(
+      projectUpdateScript,
+      { id: "project_target", status: "on-hold" },
+      { projects: [target] },
+    );
+    expect(result.project.status).toBe("on-hold");
+  });
+
+  it("toggles flagged via property assignment", () => {
+    const target = fakeProject({ id: () => "project_target", flagged: () => false });
+    const result = runJxaScriptInSandbox<{ project: { flagged: boolean } }>(
+      projectUpdateScript,
+      { id: "project_target", flagged: true },
+      { projects: [target] },
+    );
+    expect(result.project.flagged).toBe(true);
+  });
+
+  it("throws when the id does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(
+        projectUpdateScript,
+        { id: "missing", name: "Anything" },
+        { projects: [fakeProject()] },
+      ),
+    ).toThrow("Project not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// project_delete.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — project_delete", () => {
+  it("deletes the project and echoes the id", () => {
+    const target = fakeProject({ id: () => "project_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      projectDeleteScript,
+      { id: "project_target" },
+      { projects: [target] },
+    );
+    expect(result.id).toBe("project_target");
+  });
+
+  it("throws when the id does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(projectDeleteScript, { id: "missing" }, { projects: [fakeProject()] }),
+    ).toThrow("Project not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// project_move.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — project_move", () => {
+  it("moves the project to the supplied folder", () => {
+    const target = fakeProject({ id: () => "project_target" });
+    const folder = fakeFolder({ id: () => "folder_dest" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      projectMoveScript,
+      { id: "project_target", folderId: "folder_dest" },
+      { projects: [target], folders: [folder] },
+    );
+    expect(result.id).toBe("project_target");
+  });
+
+  it("moves the project to root when folderId is null", () => {
+    const target = fakeProject({ id: () => "project_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      projectMoveScript,
+      { id: "project_target", folderId: null },
+      { projects: [target] },
+    );
+    expect(result.id).toBe("project_target");
+  });
+
+  it("throws when the supplied folderId does not exist", () => {
+    const target = fakeProject({ id: () => "project_target" });
+    expect(() =>
+      runJxaScriptInSandbox(
+        projectMoveScript,
+        { id: "project_target", folderId: "missing" },
+        { projects: [target] },
+      ),
+    ).toThrow("Folder not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// project_complete.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — project_complete", () => {
+  it("marks the project complete and echoes the id", () => {
+    const target = fakeProject({ id: () => "project_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      projectCompleteScript,
+      { id: "project_target" },
+      { projects: [target] },
+    );
+    expect(result.id).toBe("project_target");
+  });
+
+  it("accepts an optional completionDate without throwing", () => {
+    const target = fakeProject({ id: () => "project_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      projectCompleteScript,
+      { id: "project_target", completionDate: "2026-05-08T12:00:00Z" },
+      { projects: [target] },
+    );
+    expect(result.id).toBe("project_target");
+  });
+
+  it("throws when the id does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(projectCompleteScript, { id: "missing" }, { projects: [] }),
+    ).toThrow("Project not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// project_drop.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — project_drop", () => {
+  it("sets status to 'dropped' and echoes the id", () => {
+    const target = fakeProject({ id: () => "project_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      projectDropScript,
+      { id: "project_target" },
+      { projects: [target] },
+    );
+    expect(result.id).toBe("project_target");
+  });
+
+  it("throws when the id does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(projectDropScript, { id: "missing" }, { projects: [] }),
+    ).toThrow("Project not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// project_batch_complete.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — project_batch_complete", () => {
+  it("succeeds for every found id; reports OF_NOT_FOUND for missing ids", () => {
+    const a = fakeProject({ id: () => "project_a" });
+    const b = fakeProject({ id: () => "project_b" });
+    const result = runJxaScriptInSandbox<{
+      succeeded: { index: number; value: string }[];
+      failed: { index: number; errorCode: string; message: string }[];
+    }>(
+      projectBatchCompleteScript,
+      { items: [{ id: "project_a" }, { id: "project_missing" }, { id: "project_b" }] },
+      { projects: [a, b] },
+    );
+    expect(result.succeeded.map((s) => s.value)).toEqual(["project_a", "project_b"]);
+    expect(result.failed).toHaveLength(1);
+    expect(result.failed[0]?.errorCode).toBe("OF_NOT_FOUND");
+    expect(result.failed[0]?.index).toBe(1);
+  });
+
+  it("returns empty arrays when items is empty", () => {
+    const result = runJxaScriptInSandbox<{ succeeded: unknown[]; failed: unknown[] }>(
+      projectBatchCompleteScript,
+      { items: [] },
+      {},
+    );
+    expect(result.succeeded).toHaveLength(0);
+    expect(result.failed).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// project_batch_drop.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — project_batch_drop", () => {
+  it("succeeds for every found id; reports OF_NOT_FOUND for missing ids", () => {
+    const a = fakeProject({ id: () => "project_a" });
+    const result = runJxaScriptInSandbox<{
+      succeeded: { value: string }[];
+      failed: { errorCode: string }[];
+    }>(
+      projectBatchDropScript,
+      { items: [{ id: "project_a" }, { id: "project_missing" }] },
+      { projects: [a] },
+    );
+    expect(result.succeeded.map((s) => s.value)).toEqual(["project_a"]);
+    expect(result.failed).toHaveLength(1);
+    expect(result.failed[0]?.errorCode).toBe("OF_NOT_FOUND");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// project_mark_reviewed.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — project_mark_reviewed", () => {
+  it("marks the project reviewed and echoes the id", () => {
+    const target = fakeProject({ id: () => "project_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      projectMarkReviewedScript,
+      { id: "project_target" },
+      { projects: [target] },
+    );
+    expect(result.id).toBe("project_target");
+  });
+
+  it("throws when the id does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(projectMarkReviewedScript, { id: "missing" }, { projects: [] }),
+    ).toThrow("Project not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// project_set_next_review_date.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — project_set_next_review_date", () => {
+  it("sets the next review date from an ISO string", () => {
+    const target = fakeProject({ id: () => "project_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      projectSetNextReviewDateScript,
+      { id: "project_target", nextReviewDate: "2026-06-01T00:00:00Z" },
+      { projects: [target] },
+    );
+    expect(result.id).toBe("project_target");
+  });
+
+  it("clears the next review date when the value is null", () => {
+    const target = fakeProject({ id: () => "project_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      projectSetNextReviewDateScript,
+      { id: "project_target", nextReviewDate: null },
+      { projects: [target] },
+    );
+    expect(result.id).toBe("project_target");
+  });
+
+  it("throws when the id does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(
+        projectSetNextReviewDateScript,
+        { id: "missing", nextReviewDate: null },
+        { projects: [] },
+      ),
+    ).toThrow("Project not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// project_set_review_interval.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — project_set_review_interval", () => {
+  it("sets the review interval in days", () => {
+    const target = fakeProject({ id: () => "project_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      projectSetReviewIntervalScript,
+      { id: "project_target", days: 14 },
+      { projects: [target] },
+    );
+    expect(result.id).toBe("project_target");
+  });
+
+  it("clears the review interval when days is null", () => {
+    const target = fakeProject({ id: () => "project_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      projectSetReviewIntervalScript,
+      { id: "project_target", days: null },
+      { projects: [target] },
+    );
+    expect(result.id).toBe("project_target");
+  });
+
+  it("throws when the id does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(
+        projectSetReviewIntervalScript,
+        { id: "missing", days: 7 },
+        { projects: [] },
+      ),
+    ).toThrow("Project not found: missing");
   });
 });
 
