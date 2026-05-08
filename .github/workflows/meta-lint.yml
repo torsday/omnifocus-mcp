@@ -49,7 +49,7 @@ jobs:
       - name: Ensure shellcheck is installed
         run: |
           if ! command -v shellcheck >/dev/null 2>&1; then
-            brew install shellcheck
+            sudo apt-get install -y shellcheck
           fi
           shellcheck --version
       - name: Run shellcheck on scripts/*.sh
@@ -65,7 +65,8 @@ jobs:
       - name: Ensure actionlint is installed
         run: |
           if ! command -v actionlint >/dev/null 2>&1; then
-            brew install actionlint
+            bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+            sudo mv ./actionlint /usr/local/bin/actionlint
           fi
           actionlint --version
       - name: Run actionlint on .github/workflows/*.yml
