@@ -44,6 +44,25 @@ export interface SandboxDocument {
   windows?: unknown[];
   /** Fake custom perspectives for `ofApp.perspectives()`. */
   perspectives?: unknown[];
+  /**
+   * `app_launch.js` queries `Application("System Events").processes.whose({name: "OmniFocus"})()`
+   * to discover whether OmniFocus is running. Pass an array of running
+   * process names; the fake matches them against the `whose` filter.
+   * Defaults to `[]` (OmniFocus not running).
+   */
+  systemEventsProcesses?: string[];
+  /**
+   * `attachment_save_to_path.js` calls `fm.copyItemAtPathToPathError()` and
+   * `fm.attributesOfItemAtPathError()` on `$.NSFileManager.defaultManager`.
+   * Configure the bridge result here so tests can drive both the success
+   * path (default) and the failure path (set `copyOk: false`).
+   */
+  fileManager?: {
+    fileExists?: boolean;
+    copyOk?: boolean;
+    copyErrorMessage?: string;
+    fileSize?: number;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -130,20 +149,46 @@ export function runJxaScriptInSandbox<T = unknown>(
   doc: SandboxDocument = {},
 ): T {
   const document = buildFakeDocument(doc);
-  const fakeApp = buildFakeApp(document, doc);
+  const ofAppFactory = buildFakeApp(document, doc);
+  const ofAppCached = ofAppFactory("OmniFocus");
+  // Application(name) is name-dispatched: most callers want OmniFocus, but
+  // app_launch.js queries `Application("System Events")` for running
+  // processes. Return the OmniFocus fake by default; route "System Events"
+  // requests to a separate fake.
+  const systemEventsApp = buildFakeSystemEventsApp(doc);
+  const applicationProxy = (name?: string) => {
+    if (name === "System Events") return systemEventsApp;
+    return ofAppCached;
+  };
   // `Path(filePath)` is a JXA global. attachment_add.js wraps a string
   // filePath into one before passing it to `ofApp.FileAttachment({file})`.
   // The fake passes the path through unchanged — the FileAttachment ctor
   // ignores the file argument anyway.
-  const fakePath = (p: string) => ({ __path: p });
+  const fakePath = (p: string) => ({ __path: p, toString: () => p });
+  // ObjC bridge fakes for `attachment_save_to_path.js`. `$` is JXA's
+  // bridge object; `$()` wraps a value, `$.NSFileManager.defaultManager`
+  // returns a fake file manager whose method results are configurable
+  // via SandboxDocument.fileManager. `ObjC.unwrap` undoes the wrap.
+  const fakeDollar = buildFakeObjCBridge(doc);
+  const fakeObjC = {
+    import: (_module: string) => undefined,
+    unwrap: (val: unknown) => {
+      if (val && typeof val === "object" && "__wrapped" in (val as Record<string, unknown>)) {
+        return (val as { __wrapped: unknown }).__wrapped;
+      }
+      return val;
+    },
+  };
 
-  // Wrap the script in an IIFE that receives `Application` and `Path` as
-  // parameters, then call `run(argv)` with the serialized args — matching
-  // how osascript invokes the function with `argv` as a string array.
-  const wrapper = `(function(Application, Path) { ${scriptSource}; return run; })`;
+  // Wrap the script in an IIFE that receives `Application`, `Path`, `ObjC`,
+  // and `$` as parameters, then call `run(argv)` with the serialized args —
+  // matching how osascript invokes the function with `argv` as a string array.
+  const wrapper = `(function(Application, Path, ObjC, $) { ${scriptSource}; return run; })`;
 
   // biome-ignore lint/security/noGlobalEval: intentional — this module IS the sandbox; eval is the mechanism that injects a synthetic Application global into the script's scope without spawning osascript.
-  const runFn = eval(wrapper)(fakeApp, fakePath) as (argv: string[]) => string;
+  const runFn = eval(wrapper)(applicationProxy, fakePath, fakeObjC, fakeDollar) as (
+    argv: string[],
+  ) => string;
 
   const raw = runFn([JSON.stringify(args)]);
   return JSON.parse(raw) as T;
@@ -415,6 +460,14 @@ function buildFakeApp(document: ReturnType<typeof buildFakeDocument>, doc: Sandb
     Project: projectConstructor,
     Task: taskConstructor,
     InboxTask: taskConstructor,
+    // perspective_evaluate.js calls `ofApp.flattenedTasks()` and
+    // `ofApp.inboxTasks()` directly (not via defaultDocument). Proxy
+    // both to the document fakes so the same arrays back them.
+    flattenedTasks: document.flattenedTasks,
+    inboxTasks: document.inboxTasks,
+    // app_launch.js calls `app.activate()` to bring OmniFocus to the
+    // foreground when it's not already running. No-op for tests.
+    activate: () => undefined,
     // task_update.js delegates tag-set replacement to OmniJS via
     // `ofApp.evaluateJavascript(omniJsScript)` because JXA's addTag/removeTag
     // silently no-op on existing tasks (#716). We don't model the OmniJS
@@ -706,4 +759,74 @@ export function defineWritableAccessor(
  */
 export function defineWritableNameAccessor(obj: Record<string, unknown>, initial: string): void {
   defineWritableAccessor(obj, "name", initial);
+}
+
+// ---------------------------------------------------------------------------
+// Slice 7b: System Events + ObjC bridge fakes (app_launch, attachment_save_to_path)
+// ---------------------------------------------------------------------------
+
+function buildFakeSystemEventsApp(doc: SandboxDocument) {
+  const processNames = doc.systemEventsProcesses ?? [];
+  return {
+    includeStandardAdditions: false,
+    // `processes.whose({name: X})()` returns the matching subset.
+    // app_launch.js only filters by `name`; we honour that operator.
+    processes: {
+      whose: (filter: { name?: string }) => {
+        const filtered = processNames.filter((n) => !filter.name || n === filter.name);
+        return () => filtered.map((name) => ({ name: () => name }));
+      },
+    },
+  };
+}
+
+/**
+ * Build the `$` JXA bridge object that attachment_save_to_path.js relies on.
+ *
+ * `$()` wraps a value into a pointer-like proxy with a `localizedDescription`
+ * property (consulted by ObjC.unwrap on copy failure) and a `js` accessor.
+ * `$.NSFileManager.defaultManager` returns a fake file manager whose method
+ * returns are configurable via `SandboxDocument.fileManager`.
+ *
+ * `$.NSFileSize` is a sentinel string the script passes to
+ * `attrs.objectForKey($.NSFileSize)`.
+ */
+function buildFakeObjCBridge(doc: SandboxDocument) {
+  const fmConfig = doc.fileManager ?? {};
+  const fileExists = fmConfig.fileExists ?? false;
+  const copyOk = fmConfig.copyOk ?? true;
+  const copyErrorMessage = fmConfig.copyErrorMessage ?? "unknown error";
+  const fileSize = fmConfig.fileSize ?? 0;
+
+  const fakeFileManager = {
+    fileExistsAtPath: (_path: unknown) => fileExists,
+    removeItemAtPathError: (_path: unknown, _err: unknown) => true,
+    copyItemAtPathToPathError: (_src: unknown, _dest: unknown, errPtr: unknown) => {
+      if (!copyOk && errPtr && typeof errPtr === "object") {
+        (errPtr as Record<string, unknown>).localizedDescription = {
+          __wrapped: copyErrorMessage,
+        };
+      }
+      return copyOk;
+    },
+    attributesOfItemAtPathError: (_path: unknown, _err: unknown) => ({
+      js: { NSFileSize: fileSize },
+      objectForKey: (_key: unknown) => ({ __wrapped: fileSize }),
+    }),
+  };
+
+  // `$()` produces a wrapper. When called with no args the script uses it
+  // as an out-pointer for error info — the bridge writes
+  // `localizedDescription` onto it when copy fails, then ObjC.unwrap reads
+  // `__wrapped` back out. When called with a string the wrapper just
+  // stores the value (the file manager fakes ignore the wrapper anyway).
+  function dollar(value?: unknown): Record<string, unknown> {
+    return { __wrapped: value, localizedDescription: undefined };
+  }
+  // Static fields on `$` accessed without invocation.
+  const dollarStatic = dollar as unknown as Record<string, unknown> &
+    ((value?: unknown) => Record<string, unknown>);
+  dollarStatic.NSFileManager = { defaultManager: fakeFileManager };
+  dollarStatic.NSFileSize = "NSFileSize";
+  return dollarStatic;
 }

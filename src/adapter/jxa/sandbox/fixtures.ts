@@ -405,6 +405,13 @@ export interface FakeAttachmentOverrides {
    * or supply `() => true` for the alias path.
    */
   linked?: (() => boolean) | undefined;
+  /**
+   * `attachment_save_to_path.js` calls `att.file()` to resolve the source
+   * Path. Default returns a Path-like object whose `toString()` yields a
+   * predictable POSIX path; override with `throwing()` to exercise the
+   * "file not accessible" fallback.
+   */
+  file?: () => unknown;
 }
 
 let _attachmentSeq = 0;
@@ -420,6 +427,7 @@ export function fakeAttachment(overrides: FakeAttachmentOverrides = {}) {
     fileType: overrides.fileType ?? fn(null),
     fileSize: overrides.fileSize ?? fn(null),
     creationDate: overrides.creationDate ?? fn(now),
+    file: overrides.file ?? (() => ({ toString: () => "/tmp/fake-source.dat" })),
   };
   if (overrides.linked !== undefined) base.linked = overrides.linked;
   return base;
