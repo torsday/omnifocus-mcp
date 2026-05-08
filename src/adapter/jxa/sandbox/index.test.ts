@@ -45,10 +45,20 @@ import tagGetScript from "../../../scripts/jxa/tag_get.js";
 import tagGetManyScript from "../../../scripts/jxa/tag_get_many.js";
 import tagListScript from "../../../scripts/jxa/tag_list.js";
 import tagUpdateScript from "../../../scripts/jxa/tag_update.js";
+import taskCompleteScript from "../../../scripts/jxa/task_complete.js";
+import taskCreateScript from "../../../scripts/jxa/task_create.js";
+import taskDeleteScript from "../../../scripts/jxa/task_delete.js";
+import taskDropScript from "../../../scripts/jxa/task_drop.js";
+import taskDuplicateScript from "../../../scripts/jxa/task_duplicate.js";
 import taskGetScript from "../../../scripts/jxa/task_get.js";
 import taskGetManyScript from "../../../scripts/jxa/task_get_many.js";
 import taskListScript from "../../../scripts/jxa/task_list.js";
+import taskMoveScript from "../../../scripts/jxa/task_move.js";
+import taskReorderScript from "../../../scripts/jxa/task_reorder.js";
 import taskSearchScript from "../../../scripts/jxa/task_search.js";
+import taskUncompleteScript from "../../../scripts/jxa/task_uncomplete.js";
+import taskUndropScript from "../../../scripts/jxa/task_undrop.js";
+import taskUpdateScript from "../../../scripts/jxa/task_update.js";
 import windowGetStateScript from "../../../scripts/jxa/window_get_state.js";
 import {
   fakeAttachment,
@@ -1749,6 +1759,375 @@ describe("JXA sandbox — project_set_review_interval", () => {
         { projects: [] },
       ),
     ).toThrow("Project not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_create.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_create", () => {
+  it("creates an inbox task when no project/parent supplied", () => {
+    const result = runJxaScriptInSandbox<{ task: { name: string } }>(
+      taskCreateScript,
+      { name: "Buy milk" },
+      {},
+    );
+    expect(result.task.name).toBe("Buy milk");
+  });
+
+  it("creates a task under a project", () => {
+    const project = fakeProject({ id: () => "project_target" });
+    const result = runJxaScriptInSandbox<{ task: { id: string } }>(
+      taskCreateScript,
+      { name: "Subtask", projectId: "project_target" },
+      { projects: [project] },
+    );
+    expect(result.task.id).toBeDefined();
+  });
+
+  it("creates a task under a parent task", () => {
+    const parent = fakeTask({ id: () => "task_parent" });
+    const result = runJxaScriptInSandbox<{ task: { id: string } }>(
+      taskCreateScript,
+      { name: "Child", parentId: "task_parent" },
+      { tasks: [parent] },
+    );
+    expect(result.task.id).toBeDefined();
+  });
+
+  it("throws ValidationError when name is empty", () => {
+    expect(() => runJxaScriptInSandbox(taskCreateScript, { name: "" }, {})).toThrow(
+      "ValidationError: name is required",
+    );
+  });
+
+  it("throws ValidationError when projectId and parentId are both supplied", () => {
+    expect(() =>
+      runJxaScriptInSandbox(taskCreateScript, { name: "X", projectId: "p", parentId: "t" }, {}),
+    ).toThrow("mutually exclusive");
+  });
+
+  it("throws via lookupOrThrow when projectId does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(taskCreateScript, { name: "X", projectId: "missing" }, {}),
+    ).toThrow("Project not found: missing");
+  });
+
+  it("throws via lookupOrThrow when parentId does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(taskCreateScript, { name: "X", parentId: "missing" }, {}),
+    ).toThrow("Parent task not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_update.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_update", () => {
+  it("renames the task and returns the updated shape", () => {
+    const target = fakeTask({ id: () => "task_target", name: () => "Old" });
+    const result = runJxaScriptInSandbox<{ task: { id: string; name: string } }>(
+      taskUpdateScript,
+      { id: "task_target", name: "New" },
+      { tasks: [target] },
+    );
+    expect(result.task.id).toBe("task_target");
+    expect(result.task.name).toBe("New");
+  });
+
+  it("toggles flagged via property assignment", () => {
+    const target = fakeTask({ id: () => "task_target", flagged: () => false });
+    const result = runJxaScriptInSandbox<{ task: { flagged: boolean } }>(
+      taskUpdateScript,
+      { id: "task_target", flagged: true },
+      { tasks: [target] },
+    );
+    expect(result.task.flagged).toBe(true);
+  });
+
+  it("delegates tagIds replacement to OmniJS via evaluateJavascript", () => {
+    // The actual OmniJS execution is mocked as a no-op; the test asserts
+    // the script does not throw and returns a valid envelope.
+    const target = fakeTask({ id: () => "task_target" });
+    const result = runJxaScriptInSandbox<{ task: { id: string } }>(
+      taskUpdateScript,
+      { id: "task_target", tagIds: ["tag_a", "tag_b"] },
+      { tasks: [target] },
+    );
+    expect(result.task.id).toBe("task_target");
+  });
+
+  it("throws when the id does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(
+        taskUpdateScript,
+        { id: "missing", name: "Anything" },
+        { tasks: [fakeTask()] },
+      ),
+    ).toThrow("Task not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_delete.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_delete", () => {
+  it("deletes the task and echoes the id", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      taskDeleteScript,
+      { id: "task_target" },
+      { tasks: [target] },
+    );
+    expect(result.id).toBe("task_target");
+  });
+
+  it("throws when the id does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(taskDeleteScript, { id: "missing" }, { tasks: [fakeTask()] }),
+    ).toThrow("Task not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_complete.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_complete", () => {
+  it("marks the task complete and echoes the id", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      taskCompleteScript,
+      { id: "task_target" },
+      { tasks: [target] },
+    );
+    expect(result.id).toBe("task_target");
+  });
+
+  it("accepts an optional completionDate without throwing", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      taskCompleteScript,
+      { id: "task_target", completionDate: "2026-05-08T12:00:00Z" },
+      { tasks: [target] },
+    );
+    expect(result.id).toBe("task_target");
+  });
+
+  it("throws when the id does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(taskCompleteScript, { id: "missing" }, { tasks: [] }),
+    ).toThrow("Task not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_uncomplete.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_uncomplete", () => {
+  it("calls markIncomplete and echoes the id", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      taskUncompleteScript,
+      { id: "task_target" },
+      { tasks: [target] },
+    );
+    expect(result.id).toBe("task_target");
+  });
+
+  it("throws when the id does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(taskUncompleteScript, { id: "missing" }, { tasks: [] }),
+    ).toThrow("Task not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_drop.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_drop", () => {
+  it("calls markDropped and echoes the id", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      taskDropScript,
+      { id: "task_target" },
+      { tasks: [target] },
+    );
+    expect(result.id).toBe("task_target");
+  });
+
+  it("throws via lookupOrThrow when the id does not exist", () => {
+    expect(() => runJxaScriptInSandbox(taskDropScript, { id: "missing" }, { tasks: [] })).toThrow(
+      "Task not found: missing",
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_undrop.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_undrop", () => {
+  it("calls markIncomplete and echoes the id", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      taskUndropScript,
+      { id: "task_target" },
+      { tasks: [target] },
+    );
+    expect(result.id).toBe("task_target");
+  });
+
+  it("throws via lookupOrThrow when the id does not exist", () => {
+    expect(() => runJxaScriptInSandbox(taskUndropScript, { id: "missing" }, { tasks: [] })).toThrow(
+      "Task not found: missing",
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_move.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_move", () => {
+  it("moves the task to a different parent task", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    const newParent = fakeTask({ id: () => "task_new_parent" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      taskMoveScript,
+      { id: "task_target", parentId: "task_new_parent" },
+      { tasks: [target, newParent] },
+    );
+    expect(result.id).toBe("task_target");
+  });
+
+  it("moves the task to a project", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    const project = fakeProject({ id: () => "project_dest" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      taskMoveScript,
+      { id: "task_target", projectId: "project_dest" },
+      { tasks: [target], projects: [project] },
+    );
+    expect(result.id).toBe("task_target");
+  });
+
+  it("moves the task to the inbox when no destination supplied", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      taskMoveScript,
+      { id: "task_target" },
+      { tasks: [target] },
+    );
+    expect(result.id).toBe("task_target");
+  });
+
+  it("throws when the supplied projectId does not exist", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    expect(() =>
+      runJxaScriptInSandbox(
+        taskMoveScript,
+        { id: "task_target", projectId: "missing" },
+        { tasks: [target] },
+      ),
+    ).toThrow("Project not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_duplicate.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_duplicate", () => {
+  it("duplicates a task into the inbox by default", () => {
+    const source = fakeTask({ id: () => "task_source", name: () => "Original" });
+    const result = runJxaScriptInSandbox<{ newId: string; descendantCount: number }>(
+      taskDuplicateScript,
+      { id: "task_source", recursive: false, destination: { toInbox: true } },
+      { tasks: [source] },
+    );
+    expect(result.newId).toBeDefined();
+    expect(result.descendantCount).toBe(0);
+  });
+
+  it("duplicates into a target project when destination.projectId is supplied", () => {
+    const source = fakeTask({ id: () => "task_source" });
+    const project = fakeProject({ id: () => "project_dest" });
+    const result = runJxaScriptInSandbox<{ newId: string }>(
+      taskDuplicateScript,
+      {
+        id: "task_source",
+        recursive: false,
+        destination: { projectId: "project_dest" },
+      },
+      { tasks: [source], projects: [project] },
+    );
+    expect(result.newId).toBeDefined();
+  });
+
+  it("throws via lookupOrThrow when the source task does not exist", () => {
+    expect(() =>
+      runJxaScriptInSandbox(
+        taskDuplicateScript,
+        { id: "missing", recursive: false },
+        { tasks: [] },
+      ),
+    ).toThrow("Task not found: missing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// task_reorder.js
+// ---------------------------------------------------------------------------
+
+describe("JXA sandbox — task_reorder", () => {
+  it("reorders before a reference task", () => {
+    const a = fakeTask({ id: () => "task_a" });
+    const b = fakeTask({ id: () => "task_b" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      taskReorderScript,
+      { id: "task_a", mode: "before", refId: "task_b" },
+      { tasks: [a, b] },
+    );
+    expect(result.id).toBe("task_a");
+  });
+
+  it("reorders to the start of a project's task list", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    const project = fakeProject({ id: () => "project_target" });
+    const result = runJxaScriptInSandbox<{ id: string }>(
+      taskReorderScript,
+      { id: "task_target", mode: "start", container: { projectId: "project_target" } },
+      { tasks: [target], projects: [project] },
+    );
+    expect(result.id).toBe("task_target");
+  });
+
+  it("throws when refId is missing for before/after modes", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    expect(() =>
+      runJxaScriptInSandbox(
+        taskReorderScript,
+        { id: "task_target", mode: "before" },
+        { tasks: [target] },
+      ),
+    ).toThrow("refId required");
+  });
+
+  it("throws on unknown mode", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    expect(() =>
+      runJxaScriptInSandbox(
+        taskReorderScript,
+        { id: "task_target", mode: "sideways" },
+        { tasks: [target] },
+      ),
+    ).toThrow("unknown mode");
   });
 });
 

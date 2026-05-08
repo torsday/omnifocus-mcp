@@ -155,14 +155,70 @@ function buildFakeDocument(doc: SandboxDocument) {
   const folders = doc.folders ?? [];
   const inboxTasks = doc.inboxTasks ?? [];
 
-  // `flattenedTasks` is invoked both as `flattenedTasks()` (returns the
-  // array) and as `flattenedTasks.whose(predicate)()` (returns a callable
-  // wrapping the filtered subset). Functions are objects in JS, so we attach
-  // `whose` directly to the function value.
+  // `flattenedTasks` is invoked three ways: `flattenedTasks()` (returns the
+  // array), `flattenedTasks.whose(predicate)()` (returns a callable wrapping
+  // the filtered subset), and `flattenedTasks.byId(id)` (returns a lazy
+  // specifier whose `.id()` throws when missing — lookupOrThrow relies on
+  // that contract for `task_create` / `task_drop` / `task_undrop` /
+  // `task_duplicate` / `task_reorder` / `task_move`). Functions are objects
+  // in JS, so we attach all three to the function value.
+  //
+  // byId walks the full task tree — top-level tasks plus every reachable
+  // subtask via `.tasks()`, plus every project's `.tasks()` — so a task
+  // pushed onto `parent.tasks` or `proj.tasks` after construction is
+  // findable via `doc.flattenedTasks.byId(id)`. That mirrors how OF
+  // flattens and matches the contract task_create.js relies on for its
+  // post-push re-fetch.
+  type SubtaskNode = { id?: () => string; tasks?: () => unknown[] };
+  function walkSubtasks(roots: unknown[]): unknown[] {
+    const out: unknown[] = [];
+    const stack = [...roots];
+    while (stack.length) {
+      const t = stack.pop() as SubtaskNode;
+      if (!t) continue;
+      out.push(t);
+      if (typeof t.tasks === "function") {
+        try {
+          const children = t.tasks();
+          if (Array.isArray(children)) stack.push(...children);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    return out;
+  }
+  const projectsRef: unknown[] = projects;
+  function allTasks(): unknown[] {
+    const fromProjects: unknown[] = [];
+    for (const p of projectsRef as Array<{ tasks?: () => unknown[] }>) {
+      if (typeof p.tasks === "function") {
+        try {
+          const ts = p.tasks();
+          if (Array.isArray(ts)) fromProjects.push(...walkSubtasks(ts));
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    return [...walkSubtasks(tasks), ...fromProjects];
+  }
   const flattenedTasks = Object.assign(() => tasks, {
     whose: (predicate: Record<string, unknown>) => {
       const filtered = (tasks as TaskRecord[]).filter((t) => matchesPredicate(t, predicate));
       return () => filtered;
+    },
+    byId: (id: string) => {
+      const hit = (allTasks() as Array<{ id?: () => string }>).find(
+        (t) => typeof t.id === "function" && t.id() === id,
+      );
+      if (hit) return hit;
+      const msg = "Can't get object. (-1728)";
+      return {
+        id: () => {
+          throw new ScriptError(msg, { details: { stderr: msg } });
+        },
+      };
     },
   });
 
@@ -266,6 +322,15 @@ function buildFakeDocument(doc: SandboxDocument) {
     },
   });
 
+  // Inbox-task collection. task_create.js (when no project/parent),
+  // task_duplicate.js (toInbox: true), and task_reorder.js (inbox container)
+  // all push to or move into `doc.inboxTasks`. Make it a callable + push
+  // target so `inboxTasks()` returns the current contents and push appends.
+  const inboxArr: unknown[] = [...inboxTasks];
+  const docInboxTasks = Object.assign(() => inboxArr, {
+    push: (item: unknown) => inboxArr.push(item),
+  });
+
   return {
     flattenedTags,
     tags: docTags,
@@ -274,10 +339,15 @@ function buildFakeDocument(doc: SandboxDocument) {
     projects: docProjects,
     flattenedFolders: () => folders,
     folders: docFolders,
-    // Some scripts access inbox tasks through the document
+    inboxTasks: docInboxTasks,
+    // Some scripts access inbox tasks through `doc.inbox.tasks()` instead
+    // of `doc.inboxTasks` — keep both shapes pointing at the same array.
     inbox: {
-      tasks: () => inboxTasks,
+      tasks: () => inboxArr,
     },
+    // Document itself is a valid `make()` target for inbox creation
+    // (task_duplicate's makeInto-the-doc branch).
+    make: (_args: unknown) => makeConstructedTask({}),
     // Pass-through for scripts that check class() on the document itself
     class: () => "document",
   };
@@ -310,14 +380,21 @@ function buildFakeApp(document: ReturnType<typeof buildFakeDocument>, doc: Sandb
   // the build_project.js read surface and exposes writable accessors on
   // every field project_update.js can reassign.
   const projectConstructor = (props: ProjectConstructorOpts = {}) => makeConstructedProject(props);
+  // `ofApp.Task(props)` and `ofApp.InboxTask(props)` are the JXA
+  // constructors task_create.js / task_duplicate.js use. Both produce the
+  // same fake-task shape; the inbox/non-inbox distinction lives in which
+  // collection the caller pushes into.
+  const taskConstructor = (props: TaskConstructorOpts = {}) => makeConstructedTask(props);
 
-  // `markComplete` / `markDropped` / `markReviewed` are app-level verbs the
-  // JXA scripts call instead of property assignment. Track invocations so
-  // tests can assert the script took the right path; the call itself does
-  // nothing else (project state is asserted via the script's return value).
+  // `markComplete` / `markDropped` / `markReviewed` / `markIncomplete` are
+  // app-level verbs the JXA scripts call instead of property assignment.
+  // Track invocations so tests can assert the script took the right path;
+  // the call itself does nothing else (state is asserted via the script's
+  // return value).
   const markedComplete: unknown[] = [];
   const markedDropped: unknown[] = [];
   const markedReviewed: unknown[] = [];
+  const markedIncomplete: unknown[] = [];
 
   return (_name: string) => ({
     // Scripts set this; we accept and ignore it.
@@ -329,6 +406,13 @@ function buildFakeApp(document: ReturnType<typeof buildFakeDocument>, doc: Sandb
     Folder: folderConstructor,
     Tag: tagConstructor,
     Project: projectConstructor,
+    Task: taskConstructor,
+    InboxTask: taskConstructor,
+    // task_update.js delegates tag-set replacement to OmniJS via
+    // `ofApp.evaluateJavascript(omniJsScript)` because JXA's addTag/removeTag
+    // silently no-op on existing tasks (#716). We don't model the OmniJS
+    // semantics — the call just must not throw.
+    evaluateJavascript: (_script: unknown) => undefined,
     delete: (target: unknown) => {
       deleted.push(target);
     },
@@ -341,10 +425,14 @@ function buildFakeApp(document: ReturnType<typeof buildFakeDocument>, doc: Sandb
     markReviewed: (target: unknown) => {
       markedReviewed.push(target);
     },
+    markIncomplete: (target: unknown) => {
+      markedIncomplete.push(target);
+    },
     /** Test-only — surface what `ofApp.delete()` was called with. */
     _deleted: deleted,
     _markedComplete: markedComplete,
     _markedDropped: markedDropped,
+    _markedIncomplete: markedIncomplete,
     _markedReviewed: markedReviewed,
   });
 }
@@ -462,6 +550,9 @@ function makeConstructedProject(opts: ProjectConstructorOpts): Record<string, un
     move: (_args: unknown) => {
       /* no-op for tests; assertions go via the script's return value */
     },
+    // task_duplicate's container.make({new: "task", withProperties})
+    // path when the destination is a project.
+    make: (_args: unknown) => makeConstructedTask({}),
   };
   defineWritableAccessor(project, "name", opts.name ?? `Project ${_constructedProjectSeq}`);
   defineWritableAccessor(project, "note", opts.note ?? "");
@@ -475,6 +566,84 @@ function makeConstructedProject(opts: ProjectConstructorOpts): Record<string, un
   defineWritableAccessor(project, "lastReviewDate", null);
   defineWritableAccessor(project, "reviewIntervalDays", null);
   return project;
+}
+
+/**
+ * Per-property opts accepted by `ofApp.Task({...})` and `ofApp.InboxTask({...})`.
+ * task_create.js and task_duplicate.js forward the union of these fields.
+ */
+export interface TaskConstructorOpts {
+  name?: string;
+  note?: string;
+  flagged?: boolean;
+  deferDate?: Date;
+  dueDate?: Date;
+  estimatedMinutes?: number;
+  sequential?: boolean;
+}
+
+let _constructedTaskSeq = 0;
+
+/**
+ * Build a fake JXA Task created via `ofApp.Task({ ... })` or
+ * `ofApp.InboxTask({ ... })`. Mirrors the read surface of `fakeTask()` so
+ * `build_task.js` can build a domain Task from it; installs writable
+ * accessors on every field a task mutation script may assign. `tasks`
+ * (subtask collection) is push-capable for `task_create`'s parent-task
+ * branch and `task_duplicate`'s subtree clone.
+ */
+function makeConstructedTask(opts: TaskConstructorOpts): Record<string, unknown> {
+  const id = `constructed_task_${++_constructedTaskSeq}`;
+  const childrenArr: unknown[] = [];
+  const tasks = Object.assign(() => childrenArr, {
+    push: (item: unknown) => childrenArr.push(item),
+  });
+  const noThrow = () => {
+    throw new ScriptError("Can't get object.", { details: { stderr: "Can't get object." } });
+  };
+  const task: Record<string, unknown> = {
+    id: () => id,
+    containingProject: noThrow,
+    parentTask: noThrow,
+    tasks,
+    creationDate: () => new Date(),
+    modificationDate: () => new Date(),
+    completionDate: () => null,
+    inInbox: () => false,
+    blocked: () => false,
+    effectivelyDropped: () => false,
+    completed: () => false,
+    dropped: () => false,
+    completedByChildren: () => false,
+    availabilityStatus: () => "available",
+    deferDateFloating: () => false,
+    dueDateFloating: () => false,
+    repetitionRule: () => null,
+    numberOfTasks: () => 0,
+    move: (_args: unknown) => {
+      /* no-op for tests */
+    },
+    delete: () => {
+      /* no-op for tests */
+    },
+    addTag: (_tag: unknown) => {
+      /* no-op for tests */
+    },
+    // task_duplicate's `container.make({ new: "task", withProperties })`
+    // path. We don't recursively build a tree here — return a fresh fake
+    // so the duplicate test can read .id() back.
+    make: (_args: unknown) => makeConstructedTask({}),
+    tags: () => [],
+  };
+  defineWritableAccessor(task, "name", opts.name ?? `Task ${_constructedTaskSeq}`);
+  defineWritableAccessor(task, "note", opts.note ?? "");
+  defineWritableAccessor(task, "flagged", opts.flagged ?? false);
+  defineWritableAccessor(task, "deferDate", opts.deferDate ?? null);
+  defineWritableAccessor(task, "dueDate", opts.dueDate ?? null);
+  defineWritableAccessor(task, "estimatedMinutes", opts.estimatedMinutes ?? null);
+  defineWritableAccessor(task, "sequential", opts.sequential ?? false);
+  defineWritableAccessor(task, "containsSingletonActions", false);
+  return task;
 }
 
 /**
