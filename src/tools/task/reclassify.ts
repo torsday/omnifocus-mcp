@@ -82,20 +82,30 @@ const predicateSchema: z.ZodType<TaskPredicate> = z.lazy(() =>
       kind: z.literal("project"),
       projectId: ProjectId.schema.describe("Match tasks in this project."),
     }),
+    // and: all children must match. or: any child suffices. not: inverts.
+    // Description text lives in the field-level descriptions on the leaf
+    // properties — wrapping the recursive reference itself with `.describe()`
+    // produces a wrapper schema that breaks the registered-id lookup below.
     z.object({
       kind: z.literal("and"),
-      predicates: z.array(predicateSchema).describe("All children must match."),
+      predicates: z.array(predicateSchema),
     }),
     z.object({
       kind: z.literal("or"),
-      predicates: z.array(predicateSchema).describe("Any child match suffices."),
+      predicates: z.array(predicateSchema),
     }),
     z.object({
       kind: z.literal("not"),
-      predicate: predicateSchema.describe("Inverts the inner predicate's result."),
+      predicate: predicateSchema,
     }),
   ]),
 );
+
+// Recursive schemas must be registered with a stable id so Zod's
+// `toJSONSchema` (used by the MCP SDK for `tools/list`) emits a `$ref`
+// into `$defs` instead of inlining and recursing forever. Without this,
+// `tools/list` overflows the stack the first time a client calls it (#717).
+predicateSchema.register(z.globalRegistry, { id: "TaskPredicate" });
 
 // ---------------------------------------------------------------------------
 // Changes schema
