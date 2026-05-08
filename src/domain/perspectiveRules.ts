@@ -161,6 +161,12 @@ export const PerspectiveRuleInputSchema: z.ZodType<PerspectiveRule> = z.lazy(() 
   ]),
 );
 
+// Recursive schemas must be registered with a stable id so Zod's
+// `toJSONSchema` (used by the MCP SDK for `tools/list`) emits a `$ref`
+// into `$defs` instead of inlining and recursing forever. Without this,
+// `tools/list` overflows the stack the first time a client calls it (#717).
+PerspectiveRuleInputSchema.register(z.globalRegistry, { id: "PerspectiveRuleInput" });
+
 // Re-export the aggregation type so callers writing input payloads do not
 // need to import from both modules.
 export type { PerspectiveAggregation };
