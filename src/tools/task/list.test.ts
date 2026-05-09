@@ -178,3 +178,57 @@ describe("handleTaskList — inbox filter", () => {
     ).rejects.toMatchObject({ code: "OF_VALIDATION" });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Note preview (#775)
+// ---------------------------------------------------------------------------
+
+describe("handleTaskList — note preview truncation", () => {
+  it("returns short notes inline (no truncation triplet) by default", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTask({ name: "short", note: "small note", flagged: true });
+
+    const result = await handleTaskList({ flagged: true }, ctx);
+    const task = result.data.tasks[0];
+    expect(task).toBeDefined();
+    expect((task as { note?: string }).note).toBe("small note");
+    expect(task).not.toHaveProperty("notePreview");
+    expect(task).not.toHaveProperty("noteTruncated");
+    expect(task).not.toHaveProperty("noteLength");
+  });
+
+  it("truncates long notes and emits the preview triplet by default (200 chars)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const longNote = "x".repeat(500);
+    await adapter.createTask({ name: "long", note: longNote, flagged: true });
+
+    const result = await handleTaskList({ flagged: true }, ctx);
+    const task = result.data.tasks[0] as unknown as Record<string, unknown>;
+    expect(task.note).toBeUndefined();
+    expect(task.notePreview).toBe("x".repeat(200));
+    expect(task.noteTruncated).toBe(true);
+    expect(task.noteLength).toBe(500);
+  });
+
+  it("respects a custom notePreviewChars override", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTask({ name: "n", note: "y".repeat(300), flagged: true });
+
+    const result = await handleTaskList({ flagged: true, notePreviewChars: 50 }, ctx);
+    const task = result.data.tasks[0] as unknown as Record<string, unknown>;
+    expect(task.notePreview).toBe("y".repeat(50));
+    expect(task.noteLength).toBe(300);
+  });
+
+  it("returns the full note inline when notePreviewChars is -1", async () => {
+    const { ctx, adapter } = makeCtx();
+    const longNote = "z".repeat(500);
+    await adapter.createTask({ name: "n", note: longNote, flagged: true });
+
+    const result = await handleTaskList({ flagged: true, notePreviewChars: -1 }, ctx);
+    const task = result.data.tasks[0] as unknown as Record<string, unknown>;
+    expect(task.note).toBe(longNote);
+    expect(task).not.toHaveProperty("notePreview");
+    expect(task).not.toHaveProperty("noteTruncated");
+  });
+});

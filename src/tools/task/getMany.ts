@@ -29,6 +29,7 @@ import { TaskId } from "../../domain/ids.js";
 import { parseWaitingOn, type WaitingOn } from "../../domain/waitingOn.js";
 import { ok, type ResponseMeta, toolResponse, warnIdsNotFound } from "../../envelope/index.js";
 import { ValidationError } from "../../errors/index.js";
+import { applyNotePreview, DEFAULT_NOTE_PREVIEW_CHARS } from "./notePreview.js";
 
 // ---------------------------------------------------------------------------
 // Tool description
@@ -60,6 +61,15 @@ export const taskGetManyInputSchema = z.object({
     .max(MAX_IDS)
     .describe(
       `Array of task IDs to fetch (0..${MAX_IDS}). Get IDs from task_list, search_query, or task_find_by_name. Missing IDs are omitted (not errors) and appear in meta.warnings.`,
+    ),
+  notePreviewChars: z
+    .number()
+    .int()
+    .optional()
+    .describe(
+      `Maximum characters of each task's note to return. Default ${DEFAULT_NOTE_PREVIEW_CHARS}. ` +
+        "When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. " +
+        "Pass -1 to disable truncation and return full notes inline.",
     ),
 });
 
@@ -98,15 +108,15 @@ export async function handleTaskGetMany(input: TaskGetManyInput, ctx: TaskGetMan
 
   const raw = await ctx.adapter.getTasksMany(input.ids);
 
-  const tasks = raw.filter((t): t is NonNullable<typeof t> => t !== null);
+  const fullTasks = raw.filter((t): t is NonNullable<typeof t> => t !== null);
   const missing = input.ids.filter((_id, i) => raw[i] === null);
 
   // Surface parsed waiting-on and decision-journal data as sibling fields
   // keyed by task id so the Task domain object stays the canonical wire shape
-  // (#482, #485).
+  // (#482, #485). Parse against the full note before applying truncation.
   const waitingOn: Record<string, WaitingOn> = {};
   const decisions: Record<string, Decision> = {};
-  for (const t of tasks) {
+  for (const t of fullTasks) {
     const w = parseWaitingOn(t.note);
     if (w !== undefined) waitingOn[t.id] = w;
     const d = parseDecision(t.note);
@@ -114,6 +124,9 @@ export async function handleTaskGetMany(input: TaskGetManyInput, ctx: TaskGetMan
   }
   const hasWaitingOn = Object.keys(waitingOn).length > 0;
   const hasDecisions = Object.keys(decisions).length > 0;
+
+  const previewChars = input.notePreviewChars ?? DEFAULT_NOTE_PREVIEW_CHARS;
+  const tasks = fullTasks.map((t) => applyNotePreview(t, previewChars));
 
   const warnings = missing.length > 0 ? [warnIdsNotFound(missing)] : undefined;
   const meta = ctx.makeMeta({ ...(warnings !== undefined ? { warnings } : {}) });
