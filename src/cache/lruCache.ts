@@ -53,6 +53,14 @@ export interface CacheStats {
   coalesced: number;
 }
 
+/** Per-service hit/miss breakdown surfaced in `internal_status`. */
+export interface ServiceCacheStats {
+  hits: number;
+  misses: number;
+  /** hits / (hits + misses), or null when no calls recorded yet. */
+  hitRate: number | null;
+}
+
 // ---------------------------------------------------------------------------
 // Cache options
 // ---------------------------------------------------------------------------
@@ -62,6 +70,12 @@ export interface LruCacheOptions {
   capacity?: number;
   /** Entry TTL in milliseconds. Default: 30000. */
   ttlMs?: number;
+  /**
+   * Emit a `"cache.lowHitRate"` event when a service's hit-rate drops below
+   * this fraction after a `wrap()` call. Default: 0.5 (50%).
+   * Set to 0 to disable threshold events.
+   */
+  hitRateThreshold?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -93,9 +107,13 @@ export class OmniFocusLruCache extends EventEmitter {
   private misses = 0;
   private coalesced = 0;
   private evictions = 0;
+  /** Per-service hit/miss counters. Key = first segment of cache key (e.g. "tag", "task"). */
+  private readonly serviceCounts = new Map<string, { hits: number; misses: number }>();
+  private readonly hitRateThreshold: number;
 
-  constructor({ capacity = 256, ttlMs = 30_000 }: LruCacheOptions = {}) {
+  constructor({ capacity = 256, ttlMs = 30_000, hitRateThreshold = 0.5 }: LruCacheOptions = {}) {
     super();
+    this.hitRateThreshold = hitRateThreshold;
     this.cache = new LRUCache<string, { v: unknown }>({
       max: capacity,
       ttl: ttlMs,
@@ -119,9 +137,11 @@ export class OmniFocusLruCache extends EventEmitter {
    * factory.
    */
   async wrap<T>(key: string, factory: () => Promise<T>): Promise<T> {
+    const service = key.split(":")[0] ?? key;
     const cached = this.cache.get(key);
     if (cached !== undefined) {
       this.hits++;
+      this._trackService(service, true);
       return cached.v as T;
     }
     const existing = this.inflight.get(key);
@@ -130,6 +150,7 @@ export class OmniFocusLruCache extends EventEmitter {
       return (await existing.promise) as T;
     }
     this.misses++;
+    this._trackService(service, false);
 
     const token = Symbol(key);
     const promise = (async () => {
@@ -199,6 +220,43 @@ export class OmniFocusLruCache extends EventEmitter {
     this.emit("cache.invalidated", payload);
   }
 
+  /** Track a hit or miss for a service prefix, emitting a low-hit-rate event if threshold crossed. */
+  private _trackService(service: string, isHit: boolean): void {
+    let entry = this.serviceCounts.get(service);
+    if (entry === undefined) {
+      entry = { hits: 0, misses: 0 };
+      this.serviceCounts.set(service, entry);
+    }
+    if (isHit) {
+      entry.hits++;
+    } else {
+      entry.misses++;
+      // Emit threshold event on miss if hit-rate has dropped below threshold.
+      if (this.hitRateThreshold > 0) {
+        const total = entry.hits + entry.misses;
+        const rate = entry.hits / total;
+        if (rate < this.hitRateThreshold) {
+          const payload = { event: "cache.lowHitRate" as const, service, hitRate: rate, threshold: this.hitRateThreshold };
+          logger.warn(payload, "cache.lowHitRate");
+          this.emit("cache.lowHitRate", payload);
+        }
+      }
+    }
+  }
+
+  /**
+   * Return per-service hit/miss breakdown for `internal_status`.
+   * Keys are the first colon-delimited segment of cache keys (e.g. "tag", "task").
+   */
+  serviceStats(): Record<string, ServiceCacheStats> {
+    const result: Record<string, ServiceCacheStats> = {};
+    for (const [service, { hits, misses }] of this.serviceCounts) {
+      const total = hits + misses;
+      result[service] = { hits, misses, hitRate: total > 0 ? hits / total : null };
+    }
+    return result;
+  }
+
   /** Return a snapshot of cache stats for `internal_status`. */
   stats(): CacheStats {
     return {
@@ -224,5 +282,6 @@ export class OmniFocusLruCache extends EventEmitter {
   clear(): void {
     this.cache.clear();
     this.inflight.clear();
+    this.serviceCounts.clear();
   }
 }
