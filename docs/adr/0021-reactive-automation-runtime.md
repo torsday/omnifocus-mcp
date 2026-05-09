@@ -1,4 +1,4 @@
-# ADR-0016: Reactive automation runtime — daemon + rule engine for autonomous LLM responses to OmniFocus changes
+# ADR-0021: Reactive automation runtime — daemon + rule engine for autonomous LLM responses to OmniFocus changes
 
 **Date:** 2026-04-26
 **Status:** Proposed — deferred until v1.x stabilizes
