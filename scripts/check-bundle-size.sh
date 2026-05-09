@@ -2,7 +2,7 @@
 # check-bundle-size.sh
 #
 # Enforce the bundle-size budget for dist/index.js per DESIGN §20:
-#   "Bundle size budget: < 580 KiB (tsup --minify); above that blocks release."
+#   "Bundle size budget: < 800 KiB (tsup --minify); above that blocks release."
 #
 # This script is the single source of truth for the budget value. CI, the
 # release workflow, and the /release skill all call it so the threshold
