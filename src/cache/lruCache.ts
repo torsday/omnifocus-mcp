@@ -236,7 +236,12 @@ export class OmniFocusLruCache extends EventEmitter {
         const total = entry.hits + entry.misses;
         const rate = entry.hits / total;
         if (rate < this.hitRateThreshold) {
-          const payload = { event: "cache.lowHitRate" as const, service, hitRate: rate, threshold: this.hitRateThreshold };
+          const payload = {
+            event: "cache.lowHitRate" as const,
+            service,
+            hitRate: rate,
+            threshold: this.hitRateThreshold,
+          };
           logger.warn(payload, "cache.lowHitRate");
           this.emit("cache.lowHitRate", payload);
         }

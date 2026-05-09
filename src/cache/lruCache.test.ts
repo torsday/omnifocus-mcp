@@ -276,16 +276,10 @@ describe("OmniFocusLruCache — serviceStats", () => {
     await cache.wrap("folder:list:xyz", async () => ["f1"]);
 
     const stats = cache.serviceStats();
-    expect(stats["tag"]).toEqual({ hits: 1, misses: 1, hitRate: 0.5 });
-    expect(stats["folder"]).toEqual({ hits: 0, misses: 1, hitRate: 0 });
+    expect(stats.tag).toEqual({ hits: 1, misses: 1, hitRate: 0.5 });
+    expect(stats.folder).toEqual({ hits: 0, misses: 1, hitRate: 0 });
   });
 
-  it("reports hitRate null when total is zero (never happens but for branch coverage)", () => {
-    const cache = new OmniFocusLruCache();
-    // Directly manipulate via private — not possible; test via actual wrap
-    // hitRate null is only reachable via direct Map manipulation, so skip
-    expect(true).toBe(true);
-  });
 
   it("emits cache.lowHitRate when miss-rate crosses threshold", async () => {
     const cache = new OmniFocusLruCache({ hitRateThreshold: 0.5 });

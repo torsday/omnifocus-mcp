@@ -282,13 +282,15 @@ describe("handleInternalStatus — probeCache", () => {
     };
     const envelope = await handleInternalStatus({}, ctx);
     expect(envelope.data.cache?.size).toBe(3);
-    expect(envelope.data.cache?.services["tag"]).toMatchObject({ hits: 5, misses: 1 });
+    expect(envelope.data.cache?.services.tag).toMatchObject({ hits: 5, misses: 1 });
   });
 
   it("degrades to cache=null when probeCache throws", async () => {
     const ctx = {
       ...makeCtx(),
-      probeCache: () => { throw new Error("probe failed"); },
+      probeCache: () => {
+        throw new Error("probe failed");
+      },
     };
     const envelope = await handleInternalStatus({}, ctx);
     expect(envelope.data.cache).toBeNull();
