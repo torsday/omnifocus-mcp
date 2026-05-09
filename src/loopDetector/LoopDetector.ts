@@ -16,6 +16,7 @@
 
 import { createHash } from "node:crypto";
 import type { Warning } from "../envelope/index.js";
+import { stableStringify } from "../util/stableStringify.js";
 
 /**
  * Result from `LoopDetector.record()`.
@@ -45,32 +46,6 @@ const DEFAULT_CONFIG: LoopDetectorConfig = {
   errorThreshold: 10,
   windowSeconds: 60,
 };
-
-/**
- * Recursively serialize a value so structurally-identical inputs produce
- * identical strings: object keys are sorted at every nesting level, arrays
- * preserve order, primitives go through `JSON.stringify`. `undefined` is
- * encoded explicitly so it survives the hash (plain `JSON.stringify`
- * returns `undefined`).
- *
- * The native `JSON.stringify(value, replacerArray)` form is *not*
- * sufficient: passing `Object.keys(value).sort()` as the replacer filters
- * properties to that fixed key list at *every* depth, so nested keys not
- * present at the top level get dropped. That made
- * `{id:"X", changes:{name:"P1"}}` and `{id:"X", changes:{name:"P2"}}`
- * collide, producing false-positive `WARN_LOOP_DETECTED` (and after the
- * error threshold, hard `OF_LOOP_DETECTED` errors that blocked legitimate
- * follow-up calls).
- */
-function stableStringify(value: unknown): string {
-  if (value === undefined) return "undefined";
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
-  const entries = Object.keys(value as Record<string, unknown>)
-    .sort()
-    .map((k) => `${JSON.stringify(k)}:${stableStringify((value as Record<string, unknown>)[k])}`);
-  return `{${entries.join(",")}}`;
-}
 
 /**
  * Build a stable dedup key from a tool name and its raw arguments object.

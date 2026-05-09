@@ -18,6 +18,7 @@
 
 import { createHash } from "node:crypto";
 import { ValidationError } from "../errors/index.js";
+import { stableStringify } from "../util/stableStringify.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -34,16 +35,17 @@ export interface CursorPayload {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Compute a stable SHA-256 hex digest of an arbitrary filter object. */
+/**
+ * Compute a stable SHA-256 hex digest of an arbitrary filter object.
+ *
+ * Uses {@link stableStringify} so keys are sorted at every depth — the
+ * earlier top-level-only sort would let two semantically-identical
+ * filters differing in nested-key order produce different hashes and
+ * trip a `ValidationError("Cursor filter hash does not match…")` on
+ * page 2 (#760).
+ */
 export function hashFilter(filter: Record<string, unknown>): string {
-  const stable = JSON.stringify(
-    Object.fromEntries(
-      Object.entries(filter)
-        .filter(([, v]) => v !== undefined)
-        .sort(([a], [b]) => a.localeCompare(b)),
-    ),
-  );
-  return createHash("sha256").update(stable).digest("hex");
+  return createHash("sha256").update(stableStringify(filter)).digest("hex");
 }
 
 /** Encode a cursor payload to a base64url string. */
