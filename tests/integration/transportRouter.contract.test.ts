@@ -114,6 +114,19 @@ if (!INTEGRATION) {
             return id;
           };
         }
+        // duplicateTask creates a new task (and optionally a clone subtree).
+        // Track the returned newId so cleanup deletes the clone — without
+        // this, recursive duplicates accumulate as detritus across runs.
+        // Descendants cascade-delete when newId is removed.
+        if (prop === "duplicateTask") {
+          return async (
+            ...args: Parameters<OmniFocusAdapter["duplicateTask"]>
+          ): Promise<{ newId: TaskId; descendantCount: number }> => {
+            const result = await target.duplicateTask(...args);
+            state.taskIds.push(result.newId);
+            return result;
+          };
+        }
 
         // Delegate everything else.
         const val = Reflect.get(target, prop, target);
@@ -155,8 +168,13 @@ if (!INTEGRATION) {
   }
 
   // Mount the shared contract suite against the live TransportRouter.
+  // Cleanup deletes entities through osascript one round-trip at a time and
+  // frequently needs more than vitest's 10s default; bump only the hook
+  // timeout here. The per-test timeout is bumped at the script level — see
+  // `pnpm test:integration` in package.json.
   runAdapterContract("TransportRouter (live OmniFocus)", {
     createAdapter: makeTrackingAdapter,
     cleanup: cleanupAdapter,
+    hookTimeoutMs: 90_000,
   });
 }
