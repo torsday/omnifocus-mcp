@@ -38,6 +38,27 @@ describe("hashFilter", () => {
     const b = hashFilter({ available: true, projectId: undefined });
     expect(a).toBe(b);
   });
+
+  // #760 — nested-key ordering must not affect the hash. Latent today
+  // (no caller passes a nested filter) but a tripwire for any future
+  // shape change to `taskService.normalize` / `searchService` filters.
+  it("is invariant under nested-object key reordering", () => {
+    const a = hashFilter({ scope: { x: 1, y: 2 } });
+    const b = hashFilter({ scope: { y: 2, x: 1 } });
+    expect(a).toBe(b);
+  });
+
+  it("distinguishes nested-object value changes", () => {
+    const a = hashFilter({ scope: { x: 1 } });
+    const b = hashFilter({ scope: { x: 2 } });
+    expect(a).not.toBe(b);
+  });
+
+  it("ignores undefined values inside nested objects", () => {
+    const a = hashFilter({ scope: { x: 1 } });
+    const b = hashFilter({ scope: { x: 1, y: undefined } });
+    expect(a).toBe(b);
+  });
 });
 
 describe("encodeCursor / decodeCursor round-trip", () => {
