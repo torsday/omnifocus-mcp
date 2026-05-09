@@ -5,6 +5,49 @@ All notable changes to `@torsday/omnifocus-mcp` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [ADR-0011](./docs/adr/0011-versioning-and-stability.md) for the explicit definition of breaking vs additive changes in this project.
 
 
+## [1.3.0](https://github.com/torsday/omnifocus-mcp/compare/v1.2.2...v1.3.0) (2026-05-09)
+
+
+### Added
+
+* **observability:** per-tool response-size telemetry ([#778](https://github.com/torsday/omnifocus-mcp/issues/778)) ([79cace2](https://github.com/torsday/omnifocus-mcp/commit/79cace2f8050d26bb73181c6dcd4325fc8a02ad3))
+* **tools:** default-truncate task notes in bulk reads ([#775](https://github.com/torsday/omnifocus-mcp/issues/775)) ([57dc1ba](https://github.com/torsday/omnifocus-mcp/commit/57dc1bae461e0630b00ca98fde98e06c377d9acb))
+
+
+### Fixed
+
+* **ci:** install shellcheck+actionlint via apt/script on ubuntu-latest ([508f7b2](https://github.com/torsday/omnifocus-mcp/commit/508f7b296ca21f4aaa13a4bf158bd01cc965b418))
+* **in-memory:** skip project completedTaskCount bump when task state unchanged ([e5da6e4](https://github.com/torsday/omnifocus-mcp/commit/e5da6e41f15badc0e5b924203379806bc74b513a))
+* **jxa:** route task tag mutations through OmniJS to defeat silent no-op ([c0304c5](https://github.com/torsday/omnifocus-mcp/commit/c0304c57a6eca2398fde7330d9eff2d163d79f4b))
+* **jxa:** use container() not parent() for tag parent retrieval (OF 4.x) ([ba4abc5](https://github.com/torsday/omnifocus-mcp/commit/ba4abc53e327c31ac92342f0d79cc39dbc3daf84))
+* **observability:** hash nested args correctly and survive null/undefined ([dcec35c](https://github.com/torsday/omnifocus-mcp/commit/dcec35c0f948ac5cc771cfcf8b570137097c092c))
+* **pagination:** hashFilter must sort nested object keys for stable cursor filterHash ([f315a36](https://github.com/torsday/omnifocus-mcp/commit/f315a368a35880fedda3d88e79b90d4f8c33383d))
+* **server:** register recursive zod schemas to unblock tools/list ([1e0a1d5](https://github.com/torsday/omnifocus-mcp/commit/1e0a1d5f39835416190d9899ce6c34d86d0d9fab))
+* **webhooks:** register res.on('error') so dispatch never throws upward ([3f988e5](https://github.com/torsday/omnifocus-mcp/commit/3f988e5160fe1e093241288c2e4dd67ab730a3a5))
+
+
+### Performance
+
+* **jxa:** scope task_list tagId filter via tag.tasks() to avoid full scan ([a16fe77](https://github.com/torsday/omnifocus-mcp/commit/a16fe77895d5d0ceb93e3798ca7fb0d17fd92793))
+* **tools:** elide default-valued fields from heavy read responses ([#774](https://github.com/torsday/omnifocus-mcp/issues/774)) ([7aecd56](https://github.com/torsday/omnifocus-mcp/commit/7aecd564a0efe69e3d9c9a385c1ebbded75ea0fa))
+
+
+### Changed
+
+* **jxa:** inline shared buildFolder helper via [@inline](https://github.com/inline) directive ([e8c7391](https://github.com/torsday/omnifocus-mcp/commit/e8c739140ae1047fa1f6c4bdb6c02e4e602be3d8))
+* **jxa:** inline shared buildTag helper via [@inline](https://github.com/inline) directive ([57b0ab0](https://github.com/torsday/omnifocus-mcp/commit/57b0ab05c63ef9e6ed202198e90f33c68bbd9b14))
+
+
+### Documentation
+
+* **adr:** 0016 reactive automation runtime (proposed, deferred) ([ca91590](https://github.com/torsday/omnifocus-mcp/commit/ca915908a3785c53bab67c4c0bfbe1f0b404aa7f))
+* **adr:** expand 0016 — option [#5](https://github.com/torsday/omnifocus-mcp/issues/5) (no, Claude itself can't listen) + sub-decision [#9](https://github.com/torsday/omnifocus-mcp/issues/9) (TypeScript) ([1a931d8](https://github.com/torsday/omnifocus-mcp/commit/1a931d86df9f9a03102bf7f00c927c537de5e53a))
+* **adr:** expand 0016 — worked example, sandboxed js, failure modes, phased rollout ([42263cb](https://github.com/torsday/omnifocus-mcp/commit/42263cba1990abbcdfb78fcee2a729099ce3be43))
+* **adr:** renumber reactive automation runtime to 0021 ([b18e075](https://github.com/torsday/omnifocus-mcp/commit/b18e07593234d52c3d340359005808874404ebcc))
+* **agents:** add per-directory CLAUDE.md files for jxa, envelope, tools ([#809](https://github.com/torsday/omnifocus-mcp/issues/809)) ([39b6771](https://github.com/torsday/omnifocus-mcp/commit/39b6771bd09941076aff728f69461839928ce94a))
+* **release:** align stale bundle-size budget mentions with current 800 KiB ([3e3e55f](https://github.com/torsday/omnifocus-mcp/commit/3e3e55faf76916079f3240be16c69f129c105a60))
+* **spike:** [#800](https://github.com/torsday/omnifocus-mcp/issues/800) — osascript fanout — multiplexed scripts vs persistent daemon ([5e452a6](https://github.com/torsday/omnifocus-mcp/commit/5e452a6aea15ded5a7f3b70b1143da59bdf42d94))
+
 ## [1.2.2](https://github.com/torsday/omnifocus-mcp/compare/v1.2.1...v1.2.2) (2026-04-30)
 
 **Summary** — Fixes a startup failure on Macs where OmniFocus runs in the macOS sandbox (App Store installs). The server now probes both the sandbox container path and the legacy Application Support path, preferring the sandbox location when both exist.
