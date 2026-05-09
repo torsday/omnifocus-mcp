@@ -60,6 +60,27 @@ describe("hashArgs", () => {
   it("distinguishes different values", () => {
     expect(hashArgs({ a: 1 })).not.toBe(hashArgs({ a: 2 }));
   });
+
+  it("distinguishes args that differ only at a nested level", () => {
+    // Regression: previously the replacer-array form of `JSON.stringify`
+    // dropped nested keys, so two semantically-different calls with the
+    // same top-level shape collapsed into one transport.call argsHash.
+    expect(hashArgs({ id: "X", changes: { name: "P1" } })).not.toBe(
+      hashArgs({ id: "X", changes: { name: "P2" } }),
+    );
+  });
+
+  it("is stable regardless of key order at any nesting level", () => {
+    expect(hashArgs({ id: "X", changes: { name: "n", note: "x" } })).toBe(
+      hashArgs({ changes: { note: "x", name: "n" }, id: "X" }),
+    );
+  });
+
+  it("does not crash on null/undefined args and gives them distinct hashes", () => {
+    expect(() => hashArgs(null)).not.toThrow();
+    expect(() => hashArgs(undefined)).not.toThrow();
+    expect(hashArgs(null)).not.toBe(hashArgs(undefined));
+  });
 });
 
 describe("runJxaScript transport.call event", () => {

@@ -138,6 +138,35 @@ describe("buildCallKey", () => {
   it("differs for different tool names with same args", () => {
     expect(buildCallKey("task_list", { id: "x" })).not.toBe(buildCallKey("task_get", { id: "x" }));
   });
+
+  it("distinguishes args that differ only at a nested level", () => {
+    // Regression: previously `JSON.stringify(args, Object.keys(args).sort())`
+    // dropped nested keys, so two semantically-different `task_update` calls
+    // with the same top-level shape collided into the same dedup key and
+    // tripped a false-positive WARN_LOOP_DETECTED → OF_LOOP_DETECTED.
+    const a = { id: "X", changes: { name: "P1" } };
+    const b = { id: "X", changes: { name: "P2" } };
+    expect(buildCallKey("task_update", a)).not.toBe(buildCallKey("task_update", b));
+  });
+
+  it("is stable regardless of key order at any nesting level", () => {
+    const a = { id: "X", changes: { name: "n", note: "x" } };
+    const b = { changes: { note: "x", name: "n" }, id: "X" };
+    expect(buildCallKey("task_update", a)).toBe(buildCallKey("task_update", b));
+  });
+
+  it("does not crash on null/undefined args", () => {
+    // Regression: `Object.keys(null)` / `Object.keys(undefined)` throw,
+    // so the previous implementation crashed in the middleware before
+    // the tool handler ran.
+    expect(() => buildCallKey("task_list", null)).not.toThrow();
+    expect(() => buildCallKey("task_list", undefined)).not.toThrow();
+    expect(buildCallKey("task_list", null)).not.toBe(buildCallKey("task_list", undefined));
+  });
+
+  it("distinguishes arrays with different elements", () => {
+    expect(buildCallKey("t", { ids: ["a", "b"] })).not.toBe(buildCallKey("t", { ids: ["a", "c"] }));
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -29,16 +29,30 @@ import { createHash } from "node:crypto";
 import { getCorrelationId } from "./correlation.js";
 import { logger } from "./logger.js";
 
+/**
+ * Recursively serialize a value with object keys sorted at every depth so
+ * structurally-identical inputs hash identically and structurally-distinct
+ * inputs do not.
+ *
+ * The native `JSON.stringify(value, replacerArray)` form is *not*
+ * sufficient: passing `Object.keys(value).sort()` as the replacer filters
+ * properties to that fixed key list at *every* depth, so nested keys not
+ * present at the top level get dropped — collapsing distinct calls into
+ * the same hash.
+ */
+function stableStringify(value: unknown): string {
+  if (value === undefined) return "undefined";
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  const entries = Object.keys(value as Record<string, unknown>)
+    .sort()
+    .map((k) => `${JSON.stringify(k)}:${stableStringify((value as Record<string, unknown>)[k])}`);
+  return `{${entries.join(",")}}`;
+}
+
 /** Stable sha1-prefix hash of any JSON-serialisable args object. */
 export function hashArgs(args: unknown): string {
-  // Sort top-level keys when args is a plain object so `{a:1,b:2}` and
-  // `{b:2,a:1}` collapse to the same hash. Non-objects (primitives, arrays,
-  // null) serialize as-is.
-  const isPlainObject = typeof args === "object" && args !== null && !Array.isArray(args);
-  const serialized = isPlainObject
-    ? JSON.stringify(args, Object.keys(args as object).sort())
-    : JSON.stringify(args ?? null);
-  return createHash("sha1").update(serialized).digest("hex").slice(0, 16);
+  return createHash("sha1").update(stableStringify(args)).digest("hex").slice(0, 16);
 }
 
 /** Emit a single `transport.call` event at debug level. */
