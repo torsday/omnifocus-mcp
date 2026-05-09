@@ -1,0 +1,89 @@
+{
+  "generatedAt": "2026-05-09",
+  "toolListBytes": 166460,
+  "workflows": {
+    "inbox-triage": {
+      "callCount": 6,
+      "totalRequestBytes": 29554,
+      "totalResponseBytes": 146252,
+      "totalRoundTripBytes": 175806,
+      "totalTokens": 85567,
+      "byTool": {
+        "tag_create": {
+          "calls": 1,
+          "responseBytes": 958
+        },
+        "task_batch_assign": {
+          "calls": 1,
+          "responseBytes": 4426
+        },
+        "task_batch_complete": {
+          "calls": 1,
+          "responseBytes": 1530
+        },
+        "task_batch_create": {
+          "calls": 1,
+          "responseBytes": 4514
+        },
+        "task_list": {
+          "calls": 2,
+          "responseBytes": 134824
+        }
+      }
+    },
+    "project-planning": {
+      "callCount": 6,
+      "totalRequestBytes": 2609,
+      "totalResponseBytes": 37754,
+      "totalRoundTripBytes": 40363,
+      "totalTokens": 51706,
+      "byTool": {
+        "project_create": {
+          "calls": 1,
+          "responseBytes": 1118
+        },
+        "project_get": {
+          "calls": 1,
+          "responseBytes": 16422
+        },
+        "tag_create": {
+          "calls": 1,
+          "responseBytes": 974
+        },
+        "task_batch_assign": {
+          "calls": 1,
+          "responseBytes": 2002
+        },
+        "task_batch_create": {
+          "calls": 1,
+          "responseBytes": 2090
+        },
+        "task_list": {
+          "calls": 1,
+          "responseBytes": 15148
+        }
+      }
+    },
+    "weekly-review": {
+      "callCount": 11,
+      "totalRequestBytes": 292,
+      "totalResponseBytes": 33000,
+      "totalRoundTripBytes": 33292,
+      "totalTokens": 49938,
+      "byTool": {
+        "project_mark_reviewed": {
+          "calls": 5,
+          "responseBytes": 4010
+        },
+        "review_list_due": {
+          "calls": 1,
+          "responseBytes": 6780
+        },
+        "task_list": {
+          "calls": 5,
+          "responseBytes": 22210
+        }
+      }
+    }
+  }
+}

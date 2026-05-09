@@ -1,0 +1,41 @@
+name: Token-cost benchmark
+
+# Non-required check (#771). Runs the hermetic in-memory benchmark suite
+# against the checked-in baseline; fails on ≥ 5% drift in any tracked
+# field. Promote to required once the baseline has held for one week of
+# unrelated PR traffic — see tests/benchmark/token-cost/README.md.
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/benchmark/token-cost/**"
+      - ".github/workflows/token-cost-bench.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+  push:
+    branches: [main]
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: token-cost-bench-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bench:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, macos]
+    timeout-minutes: 10
+    name: token-cost bench
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:bench:tokens
