@@ -402,6 +402,10 @@ function buildFakeDocument(doc: SandboxDocument) {
     synchronize: () => undefined,
     // Pass-through for scripts that check class() on the document itself
     class: () => "document",
+    // build_tag.js distinguishes "container is the document" (top-level tag)
+    // from "container is the parent tag" by comparing container.id() to
+    // doc.id(). The default fakeTag's container resolves to this same id.
+    id: () => "_doc_",
   };
 }
 

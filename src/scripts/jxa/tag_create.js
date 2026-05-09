@@ -46,6 +46,7 @@ function run(argv) {
   // pushed specifier throw -1728 until the JXA bridge flushes deferred events.
   // .id() is safe immediately; all other properties require re-fetch.
   const tagId = newTag.id();
+  const docId = doc.id();
   const fetchedTag = doc.flattenedTags.byId(tagId);
-  return JSON.stringify({ tag: buildTag(fetchedTag) });
+  return JSON.stringify({ tag: buildTag(fetchedTag, docId) });
 }

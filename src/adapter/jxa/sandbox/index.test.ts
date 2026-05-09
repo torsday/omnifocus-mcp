@@ -132,8 +132,8 @@ describe("JXA sandbox — tag_list", () => {
     expect(modifiedAt).toBeGreaterThanOrEqual(before);
   });
 
-  it("parentId is null when parent() throws", () => {
-    const t = fakeTag({ parent: throwing() });
+  it("parentId is null when container() throws", () => {
+    const t = fakeTag({ container: throwing() });
     const result = runJxaScriptInSandbox<{ tags: { parentId: null }[] }>(
       tagListScript,
       {},
@@ -144,10 +144,11 @@ describe("JXA sandbox — tag_list", () => {
 
   it("filters by parentId when provided — regression #515", () => {
     const t1 = fakeTag({ id: () => "tag_a" });
-    // t2WithParent has parentId === "tag_a"; only it should survive the filter
+    // t2WithParent has container().id() === "tag_a" (not the doc id), so its
+    // parentId is "tag_a" and it survives the parentId="tag_a" filter
     const t2WithParent = fakeTag({
       id: () => "tag_b",
-      parent: () => ({ class: () => "tag", id: () => "tag_a" }),
+      container: () => ({ id: () => "tag_a" }),
     });
     const result = runJxaScriptInSandbox<{ tags: { id: string }[] }>(
       tagListScript,
@@ -534,15 +535,15 @@ describe("JXA sandbox — tag_get", () => {
     expect(new Date(result.tag.createdAt).getTime()).toBeGreaterThanOrEqual(before);
   });
 
-  it("treats parent.class() throw as 'real tag' so parentId is the parent.id — regression #673", () => {
-    // OF 4.x: p.class() throws "Can't convert types" on real Tag specifiers,
-    // and only the document responds. The script must keep parentId set to
-    // the parent's id() rather than skipping to null.
-    const parentTag = {
-      class: throwing("Can't convert types."),
-      id: () => "tag_parent",
-    };
-    const t = fakeTag({ id: () => "tag_child", parent: () => parentTag });
+  it("derives parentId from container().id() when it isn't the document — regression #673/#766", () => {
+    // OF 4.x: tag.parent() throws "Can't convert types" on real Tag specifiers,
+    // so build_tag.js uses tag.container() instead and distinguishes "container
+    // is the document" (parentId=null) from "container is the parent tag"
+    // (parentId=container.id) by comparing container.id() to doc.id().
+    const t = fakeTag({
+      id: () => "tag_child",
+      container: () => ({ id: () => "tag_parent" }),
+    });
     const result = runJxaScriptInSandbox<{ tag: { parentId: string | null } }>(
       tagGetScript,
       { id: "tag_child" },

@@ -16,7 +16,9 @@ function run(argv) {
 
   // @inline _helpers/build_tag.js
 
-  const allTags = ofApp.defaultDocument.flattenedTags();
+  const doc = ofApp.defaultDocument;
+  const docId = doc.id();
+  const allTags = doc.flattenedTags();
   let target = null;
   for (let i = 0; i < allTags.length; i++) {
     if (allTags[i].id() === args.id) {
@@ -34,5 +36,5 @@ function run(argv) {
   }
   if (args.allowsNextAction !== undefined) target.allowsNextAction = args.allowsNextAction;
 
-  return JSON.stringify({ tag: buildTag(target) });
+  return JSON.stringify({ tag: buildTag(target, docId) });
 }

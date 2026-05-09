@@ -16,10 +16,12 @@ function run(argv) {
 
   // @inline _helpers/build_tag.js
 
-  const allTags = ofApp.defaultDocument.flattenedTags();
+  const doc = ofApp.defaultDocument;
+  const docId = doc.id();
+  const allTags = doc.flattenedTags();
   for (let i = 0; i < allTags.length; i++) {
     if (allTags[i].id() === args.id) {
-      return JSON.stringify({ tag: buildTag(allTags[i]) });
+      return JSON.stringify({ tag: buildTag(allTags[i], docId) });
     }
   }
 
