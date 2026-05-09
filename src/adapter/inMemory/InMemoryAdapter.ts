@@ -327,7 +327,9 @@ export class InMemoryAdapter implements OmniFocusAdapter {
       completedAt: stamp,
       modifiedAt: (stamp ?? isoOf(this.now())) as unknown as Task["modifiedAt"],
     });
-    this.bumpProjectCompletedCount(task.projectId, completed ? +1 : -1);
+    if (completed !== task.completed) {
+      this.bumpProjectCompletedCount(task.projectId, completed ? +1 : -1);
+    }
   }
 
   /**

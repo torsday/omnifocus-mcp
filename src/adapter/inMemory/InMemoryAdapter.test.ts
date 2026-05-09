@@ -102,6 +102,16 @@ describe("InMemoryAdapter — Tasks", () => {
     await expect(a.uncompleteTask(id)).resolves.toBeUndefined();
   });
 
+  it("re-completing an already-completed task does not double-count completedTaskCount", async () => {
+    const a = makeAdapter();
+    const projectId = await a.createProject({ name: "p" });
+    const id = await a.createTask({ name: "t", projectId });
+    await a.completeTask(id);
+    await a.completeTask(id);
+    const project = await a.getProject(projectId);
+    expect(project.completedTaskCount).toBe(1);
+  });
+
   it("dropTask + undropTask round-trip", async () => {
     const a = makeAdapter();
     const id = await a.createTask({ name: "t" });
