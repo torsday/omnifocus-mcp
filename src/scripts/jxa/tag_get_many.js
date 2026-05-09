@@ -21,11 +21,13 @@ function run(argv) {
     idSet[args.ids[i]] = null;
   }
 
-  const allTags = ofApp.defaultDocument.flattenedTags();
+  const doc = ofApp.defaultDocument;
+  const docId = doc.id();
+  const allTags = doc.flattenedTags();
   for (let i = 0; i < allTags.length; i++) {
     const tid = allTags[i].id();
     if (Object.hasOwn(idSet, tid)) {
-      idSet[tid] = buildTag(allTags[i]);
+      idSet[tid] = buildTag(allTags[i], docId);
     }
   }
 

@@ -49,7 +49,21 @@ function throwing(msg = "Can't get object."): () => never {
 export interface FakeTagOverrides {
   id?: () => string;
   name?: () => string;
+  /**
+   * `tag.parent()` is unusable in OF 4.x (throws "Can't convert types"); the
+   * canonical accessor is `tag.container()`. `parent` is kept here only for
+   * back-compat with mutation scripts that still reference it; build_tag.js
+   * no longer calls it. Override `container` to test build_tag behavior.
+   */
   parent?: () => unknown;
+  /**
+   * `tag.container()` returns either the parent tag or the document.
+   * build_tag.js distinguishes the two by comparing `container.id()` to the
+   * document's `id()`. Default returns a document-shaped stub whose id
+   * matches `buildFakeDocument`'s `_doc_` so the default tag is treated as
+   * top-level (parentId === null).
+   */
+  container?: () => unknown;
   status?: () => string;
   location?: () => unknown;
   creationDate?: () => Date;
@@ -85,6 +99,7 @@ export function fakeTag(
   const tag: Record<string, unknown> = {
     id,
     parent: overrides.parent ?? throwing(),
+    container: overrides.container ?? fn({ id: () => "_doc_" }),
     location: overrides.location ?? fn(null),
     creationDate: overrides.creationDate ?? fn(now),
     modificationDate: overrides.modificationDate ?? fn(now),

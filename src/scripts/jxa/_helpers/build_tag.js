@@ -27,29 +27,25 @@
  * @returns {object} canonical Tag shape per `src/domain/tag.ts`
  */
 // biome-ignore lint/correctness/noUnusedVariables: inlined into JXA consumers via @inline directive (ADR-0020).
-function buildTag(tag) {
+function buildTag(tag, docId) {
+  // OF 4.x: tag.parent() and tag.containingTag() both throw "Can't convert
+  // types." on real Tag specifiers — neither is usable. tag.container() works
+  // and returns either the parent tag or the document. Distinguish by
+  // comparing container.id() to the document's id (passed in as docId because
+  // resolving it per-call would round-trip through osascript on every tag).
   let parentId = null;
   try {
-    const p = tag.parent();
-    if (p) {
-      // OF 4.x: p.class() throws on real Tag specifiers — only the document
-      // responds. Treat throw as "real tag", successful "document" as skip.
-      let isDocument = false;
+    const c = tag.container();
+    if (c) {
       try {
-        isDocument = p.class() === "document";
-      } catch (_classErr) {
-        /* OF 4.x: .class() throws on real project/tag specifiers — treat as non-document */
-      }
-      if (!isDocument) {
-        try {
-          parentId = p.id();
-        } catch (_idErr) {
-          /* OF 4.x: pathological tag specifier — leave parentId = null */
-        }
+        const cid = c.id();
+        if (cid !== docId) parentId = cid;
+      } catch (_idErr) {
+        /* OF 4.x: pathological container specifier — leave parentId = null */
       }
     }
   } catch (_e) {
-    /* OF 4.x: property access may not exist on all object types — default used */
+    /* OF 4.x: container() may also throw on certain specifier shapes */
   }
 
   let location = null;

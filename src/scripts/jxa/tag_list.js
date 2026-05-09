@@ -16,12 +16,14 @@ function run(argv) {
 
   // @inline _helpers/build_tag.js
 
-  const allTags = ofApp.defaultDocument.flattenedTags();
+  const doc = ofApp.defaultDocument;
+  const docId = doc.id();
+  const allTags = doc.flattenedTags();
   const result = [];
 
   for (let i = 0; i < allTags.length; i++) {
     const tag = allTags[i];
-    const built = buildTag(tag);
+    const built = buildTag(tag, docId);
 
     // JxaTransport sends `parentId: null` / `status: null` for "no filter"
     // (rather than omitting). Treat null and undefined identically here so
