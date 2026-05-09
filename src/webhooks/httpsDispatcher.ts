@@ -63,33 +63,54 @@ export type HttpsRequestFn = (args: {
   timeoutMs: number;
 }) => Promise<HttpsRequestResult>;
 
-/** Default implementation using `node:https`. */
-export const defaultHttpsRequest: HttpsRequestFn = ({ url, body, headers, timeoutMs }) =>
-  new Promise<HttpsRequestResult>((resolve, reject) => {
-    const parsed = new URL(url);
-    const req = https.request(
-      {
-        method: "POST",
-        host: parsed.host,
-        path: `${parsed.pathname}${parsed.search}`,
-        headers: { "Content-Length": Buffer.byteLength(body), ...headers },
-        timeout: timeoutMs,
-      },
-      (res) => {
-        // Drain — Node won't release the socket otherwise.
-        res.on("data", () => {});
-        res.on("end", () => {
-          resolve({ statusCode: res.statusCode ?? 0 });
-        });
-      },
-    );
-    req.on("error", reject);
-    req.on("timeout", () => {
-      req.destroy(new Error(`request timeout after ${timeoutMs}ms`));
+/**
+ * Build an `HttpsRequestFn` against an injected `https.request` factory.
+ *
+ * Exported so unit tests can substitute a fake transport (ESM forbids
+ * `vi.spyOn` on module namespace exports like `https.request`). Production
+ * callers use {@link defaultHttpsRequest}, which closes over the real
+ * `https.request`.
+ */
+export function buildHttpsRequest(httpsRequest: typeof https.request): HttpsRequestFn {
+  return ({ url, body, headers, timeoutMs }) =>
+    new Promise<HttpsRequestResult>((resolve, reject) => {
+      const parsed = new URL(url);
+      const req = httpsRequest(
+        {
+          method: "POST",
+          host: parsed.host,
+          path: `${parsed.pathname}${parsed.search}`,
+          headers: { "Content-Length": Buffer.byteLength(body), ...headers },
+          timeout: timeoutMs,
+        },
+        (res) => {
+          // Wire response-stream errors into the same rejection path as
+          // request-stream errors. Without this listener, an `error` emitted
+          // by `res` after the request callback fires (premature socket
+          // close, malformed transfer-encoding, peer reset mid-body, TLS
+          // error during streaming) escapes as `uncaughtException`,
+          // bypassing the retry loop and circuit breaker. ADR-0016 §4e:
+          // "delivery failures NEVER throw upward." Attaches before `data`
+          // so the listener is in place by the time bytes arrive.
+          res.on("error", reject);
+          // Drain — Node won't release the socket otherwise.
+          res.on("data", () => {});
+          res.on("end", () => {
+            resolve({ statusCode: res.statusCode ?? 0 });
+          });
+        },
+      );
+      req.on("error", reject);
+      req.on("timeout", () => {
+        req.destroy(new Error(`request timeout after ${timeoutMs}ms`));
+      });
+      req.write(body);
+      req.end();
     });
-    req.write(body);
-    req.end();
-  });
+}
+
+/** Default implementation closing over the real `node:https` request. */
+export const defaultHttpsRequest: HttpsRequestFn = buildHttpsRequest(https.request);
 
 // ---------------------------------------------------------------------------
 // Circuit breaker — per-webhook
