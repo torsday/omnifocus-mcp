@@ -24,7 +24,16 @@ import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type Decision, parseDecision } from "../../domain/decisionJournal.js";
 import { ProjectId } from "../../domain/ids.js";
-import { ok, type ResponseMeta, toolResponse, warnIdsNotFound } from "../../envelope/index.js";
+import { PROJECT_FIELD_NAMES, PROJECT_FIELD_NAMES_SET } from "../../domain/project.js";
+import {
+  ok,
+  type ResponseMeta,
+  toolResponse,
+  type Warning,
+  warnIdsNotFound,
+  warnUnknownFields,
+} from "../../envelope/index.js";
+import { applyProjection, validateFields } from "../../envelope/projection.js";
 import { ValidationError } from "../../errors/index.js";
 
 // ---------------------------------------------------------------------------
@@ -57,6 +66,15 @@ export const projectGetManyInputSchema = z.object({
     .describe(
       `Array of project IDs to fetch (0..${MAX_IDS}). Get IDs from project_list. Missing IDs are omitted (not errors) and appear in meta.warnings.`,
     ),
+  fields: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Restrict each returned project to this list of top-level fields (id is always returned). " +
+        "Omit for the full project shape. Empty array returns just id. " +
+        "Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. " +
+        `Allowed: ${PROJECT_FIELD_NAMES.join(", ")}.`,
+    ),
 });
 
 export type ProjectGetManyInput = z.infer<typeof projectGetManyInputSchema>;
@@ -87,18 +105,28 @@ export async function handleProjectGetMany(input: ProjectGetManyInput, ctx: Proj
 
   const raw = await ctx.adapter.getProjectsMany(input.ids);
 
-  const projects = raw.filter((p): p is NonNullable<typeof p> => p !== null);
+  const fullProjects = raw.filter((p): p is NonNullable<typeof p> => p !== null);
   const missing = input.ids.filter((_id, i) => raw[i] === null);
 
+  // Parse decisions against the full note before projection.
   const decisions: Record<string, Decision> = {};
-  for (const p of projects) {
+  for (const p of fullProjects) {
     const d = parseDecision(p.note);
     if (d !== undefined) decisions[p.id] = d;
   }
   const hasDecisions = Object.keys(decisions).length > 0;
 
-  const warnings = missing.length > 0 ? [warnIdsNotFound(missing)] : undefined;
-  const meta = ctx.makeMeta({ ...(warnings !== undefined ? { warnings } : {}) });
+  const projection =
+    input.fields !== undefined ? validateFields(input.fields, PROJECT_FIELD_NAMES_SET) : undefined;
+  const projectFields = projection?.valid;
+  const projects = fullProjects.map((p) => applyProjection(p, projectFields));
+
+  const warnings: Warning[] = [];
+  if (missing.length > 0) warnings.push(warnIdsNotFound(missing));
+  if (projection !== undefined && projection.unknown.length > 0) {
+    warnings.push(warnUnknownFields([...projection.unknown], PROJECT_FIELD_NAMES));
+  }
+  const meta = ctx.makeMeta({ ...(warnings.length > 0 ? { warnings } : {}) });
 
   return ok({ projects, ...(hasDecisions && { decisions }) }, meta);
 }

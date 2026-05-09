@@ -40,22 +40,26 @@ const utf8Encoder = new TextEncoder();
 /**
  * Apply the note-preview contract to a Task-shaped object.
  *
+ * Accepts both full Task records (where `note` is always defined) and
+ * field-projected partials where `note` may be absent entirely (#773).
+ * When `note` is missing or null the input passes through.
+ *
  * - `notePreviewChars < 0`: opt-out, returns the input unchanged.
- * - `task.note` null or codepoint-length ≤ `notePreviewChars`: returns the
- *   input unchanged (the common short-note case is wire-compatible with
- *   pre-#775 callers).
+ * - `task.note` absent / null / ≤ `notePreviewChars` codepoints: returns
+ *   the input unchanged (the common short-note case is wire-compatible
+ *   with pre-#775 callers).
  * - Otherwise: returns a new object with `note` removed and `notePreview`,
  *   `noteTruncated`, `noteLength` added. `noteLength` is the UTF-8 byte
  *   length of the original note — what an HTTP `Content-Length` would
  *   report — so the LLM can decide whether fetching the full text is
  *   worth the cost.
  */
-export function applyNotePreview<T extends { note: string | null }>(
+export function applyNotePreview<T extends { note?: string | null }>(
   task: T,
   notePreviewChars: number,
 ): T | (Omit<T, "note"> & NotePreviewFields) {
   if (notePreviewChars < 0) return task;
-  if (task.note === null) return task;
+  if (task.note === undefined || task.note === null) return task;
 
   const codepoints = Array.from(task.note);
   if (codepoints.length <= notePreviewChars) return task;

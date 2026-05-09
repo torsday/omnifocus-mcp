@@ -13,7 +13,15 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ProjectId, TagId } from "../../domain/ids.js";
-import { ok, type Pagination, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { TASK_FIELD_NAMES, TASK_FIELD_NAMES_SET } from "../../domain/task.js";
+import {
+  ok,
+  type Pagination,
+  type ResponseMeta,
+  toolResponse,
+  warnUnknownFields,
+} from "../../envelope/index.js";
+import { applyProjection, validateFields } from "../../envelope/projection.js";
 import type { SearchInput, SearchService } from "../../services/searchService.js";
 
 // ---------------------------------------------------------------------------
@@ -75,6 +83,15 @@ export const searchQueryInputSchema = z.object({
     .describe(
       "Opaque cursor from a previous search_query response. Must use identical filters — changing filters returns a ValidationError.",
     ),
+  fields: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Restrict each returned task to this list of top-level fields (id is always returned). " +
+        "Omit for the full task shape. Empty array returns just id. " +
+        "Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. " +
+        `Allowed: ${TASK_FIELD_NAMES.join(", ")}.`,
+    ),
 });
 
 export type SearchQueryToolInput = z.infer<typeof searchQueryInputSchema>;
@@ -108,8 +125,21 @@ export async function handleSearchQuery(input: SearchQueryToolInput, ctx: Search
     cursor: result.nextCursor,
     hasMore: result.hasMore,
   };
-  const meta = ctx.makeMeta({ cacheHit: result.cacheHit });
-  return ok({ tasks: result.tasks }, meta, pagination);
+
+  const projection =
+    input.fields !== undefined ? validateFields(input.fields, TASK_FIELD_NAMES_SET) : undefined;
+  const projectFields = projection?.valid;
+  const tasks = result.tasks.map((t) => applyProjection(t, projectFields));
+  const warnings =
+    projection !== undefined && projection.unknown.length > 0
+      ? [warnUnknownFields([...projection.unknown], TASK_FIELD_NAMES)]
+      : undefined;
+
+  const meta = ctx.makeMeta({
+    cacheHit: result.cacheHit,
+    ...(warnings !== undefined ? { warnings } : {}),
+  });
+  return ok({ tasks }, meta, pagination);
 }
 
 // ---------------------------------------------------------------------------

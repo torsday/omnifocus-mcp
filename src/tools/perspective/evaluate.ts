@@ -13,7 +13,9 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { TASK_FIELD_NAMES, TASK_FIELD_NAMES_SET } from "../../domain/task.js";
+import { ok, type ResponseMeta, toolResponse, warnUnknownFields } from "../../envelope/index.js";
+import { applyProjection, validateFields } from "../../envelope/projection.js";
 import type { PerspectiveService } from "../../services/perspectiveService.js";
 
 // ---------------------------------------------------------------------------
@@ -47,6 +49,15 @@ export const perspectiveEvaluateInputSchema = z.object({
         "(inbox, projects, tags, forecast, flagged, nearby, review) or a custom-perspective " +
         "id from perspective_list (kind: custom).",
     ),
+  fields: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Restrict each returned task to this list of top-level fields (id is always returned). " +
+        "Omit for the full task shape. Empty array returns just id. " +
+        "Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. " +
+        `Allowed: ${TASK_FIELD_NAMES.join(", ")}.`,
+    ),
 });
 
 export type PerspectiveEvaluateToolInput = z.infer<typeof perspectiveEvaluateInputSchema>;
@@ -69,8 +80,21 @@ export async function handlePerspectiveEvaluate(
   ctx: PerspectiveEvaluateContext,
 ) {
   const result = await ctx.perspectiveService.evaluate(input.perspectiveId);
-  const meta = ctx.makeMeta({ cacheHit: result.cacheHit });
-  return ok({ tasks: result.tasks }, meta);
+
+  const projection =
+    input.fields !== undefined ? validateFields(input.fields, TASK_FIELD_NAMES_SET) : undefined;
+  const projectFields = projection?.valid;
+  const tasks = result.tasks.map((t) => applyProjection(t, projectFields));
+  const warnings =
+    projection !== undefined && projection.unknown.length > 0
+      ? [warnUnknownFields([...projection.unknown], TASK_FIELD_NAMES)]
+      : undefined;
+
+  const meta = ctx.makeMeta({
+    cacheHit: result.cacheHit,
+    ...(warnings !== undefined ? { warnings } : {}),
+  });
+  return ok({ tasks }, meta);
 }
 
 // ---------------------------------------------------------------------------

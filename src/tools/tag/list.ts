@@ -14,9 +14,11 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import { TagId } from "../../domain/ids.js";
+import { TAG_FIELD_NAMES, TAG_FIELD_NAMES_SET } from "../../domain/tag.js";
 import { TAG_DEFAULTS } from "../../envelope/defaultsRegistry.js";
 import { elideDefaultsAll } from "../../envelope/elideDefaults.js";
-import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { ok, type ResponseMeta, toolResponse, warnUnknownFields } from "../../envelope/index.js";
+import { applyProjection, validateFields } from "../../envelope/projection.js";
 import type { TagListInput, TagService } from "../../services/tagService.js";
 
 // ---------------------------------------------------------------------------
@@ -59,6 +61,14 @@ export const tagListInputSchema = z.object({
         "parentId: null, location: null, allowsNextAction: true) are omitted. " +
         "See docs/token-cost.md for the defaults table.",
     ),
+  fields: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Restrict each returned tag to this list of top-level fields (id is always returned). " +
+        "Omit for the full tag shape. Empty array returns just id. " +
+        "Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS.",
+    ),
 });
 
 export type TagListToolInput = z.infer<typeof tagListInputSchema>;
@@ -82,8 +92,25 @@ export async function handleTagList(input: TagListToolInput, ctx: TagListContext
     ...(input.status !== undefined ? { status: input.status } : {}),
   };
   const result = await ctx.tagService.list(serviceInput);
-  const meta = ctx.makeMeta({ cacheHit: result.cacheHit });
-  const tags = input.verbose === true ? result.tags : elideDefaultsAll(result.tags, TAG_DEFAULTS);
+
+  const projection =
+    input.fields !== undefined ? validateFields(input.fields, TAG_FIELD_NAMES_SET) : undefined;
+  const projectFields = projection?.valid;
+  const warnings =
+    projection !== undefined && projection.unknown.length > 0
+      ? [warnUnknownFields([...projection.unknown], TAG_FIELD_NAMES)]
+      : undefined;
+
+  // fields[] = explicit mode → skip elide-defaults.
+  const applyElide = input.verbose !== true && projectFields === undefined;
+  const tags = applyElide
+    ? elideDefaultsAll(result.tags, TAG_DEFAULTS)
+    : result.tags.map((t) => applyProjection(t, projectFields));
+
+  const meta = ctx.makeMeta({
+    cacheHit: result.cacheHit,
+    ...(warnings !== undefined ? { warnings } : {}),
+  });
   return ok({ tags }, meta);
 }
 

@@ -306,3 +306,75 @@ describe("handleTaskList — default-valued field elision (#774)", () => {
     expect(desc.toLowerCase()).toContain("omit");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Field projection (#773)
+// ---------------------------------------------------------------------------
+
+describe("handleTaskList — field projection", () => {
+  it("returns the elided task shape when fields is omitted (backwards-compatible)", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTask({ name: "t", flagged: true });
+    const result = await handleTaskList({ flagged: true }, ctx);
+    const task = result.data.tasks[0] as unknown as Record<string, unknown>;
+    expect(task).toHaveProperty("name");
+    expect(task).toHaveProperty("flagged");
+    // Default fields are elided when fields[] is not specified
+    expect(task).not.toHaveProperty("completed");
+  });
+
+  it("restricts the returned task to the requested fields plus id", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTask({ name: "t", note: "n", flagged: true });
+    const result = await handleTaskList({ flagged: true, fields: ["name"] }, ctx);
+    const task = result.data.tasks[0] as unknown as Record<string, unknown>;
+    expect(Object.keys(task).sort()).toEqual(["id", "name"]);
+  });
+
+  it("with empty fields[] returns only id (the implicit minimum projection)", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTask({ name: "t", flagged: true });
+    const result = await handleTaskList({ flagged: true, fields: [] }, ctx);
+    const task = result.data.tasks[0] as unknown as Record<string, unknown>;
+    expect(Object.keys(task)).toEqual(["id"]);
+  });
+
+  it("emits WARN_UNKNOWN_FIELDS for unrecognized names but proceeds with the valid subset", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTask({ name: "t", flagged: true });
+    const result = await handleTaskList(
+      { flagged: true, fields: ["name", "phantom", "alsoBad"] },
+      ctx,
+    );
+    const task = result.data.tasks[0] as unknown as Record<string, unknown>;
+    expect(Object.keys(task).sort()).toEqual(["id", "name"]);
+
+    const warning = result.meta.warnings?.find((w) => w.code === "WARN_UNKNOWN_FIELDS");
+    expect(warning).toBeDefined();
+    expect(warning?.details).toMatchObject({ unknown: ["phantom", "alsoBad"] });
+  });
+
+  it("composes with note truncation: project keeps note, truncation kicks in", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTask({ name: "t", note: "x".repeat(500), flagged: true });
+    const result = await handleTaskList({ flagged: true, fields: ["name", "note"] }, ctx);
+    const task = result.data.tasks[0] as unknown as Record<string, unknown>;
+    // Truncation replaces `note` with the triplet; `name` is still projected.
+    expect(task.name).toBe("t");
+    expect(task.notePreview).toBe("x".repeat(200));
+    expect(task.noteTruncated).toBe(true);
+    expect(task.noteLength).toBe(500);
+    expect(task).not.toHaveProperty("note");
+  });
+
+  it("fields[] bypasses elide-defaults — requested fields are always returned even at their default value", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTask({ name: "t", flagged: true });
+    // completed is false (the default) — without fields[] it would be elided;
+    // with fields[] it should be preserved.
+    const result = await handleTaskList({ flagged: true, fields: ["name", "completed"] }, ctx);
+    const task = result.data.tasks[0] as unknown as Record<string, unknown>;
+    expect(task).toHaveProperty("completed");
+    expect(task.completed).toBe(false);
+  });
+});

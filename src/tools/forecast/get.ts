@@ -17,8 +17,9 @@ import {
   isRelativeDateShortcut,
   resolveRelativeDate,
 } from "../../domain/dates.js";
-import type { Task } from "../../domain/task.js";
-import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { TASK_FIELD_NAMES, TASK_FIELD_NAMES_SET, type Task } from "../../domain/task.js";
+import { ok, type ResponseMeta, toolResponse, warnUnknownFields } from "../../envelope/index.js";
+import { applyProjection, validateFields } from "../../envelope/projection.js";
 import { ValidationError } from "../../errors/index.js";
 import type { ForecastService } from "../../services/forecastService.js";
 
@@ -94,6 +95,15 @@ export const forecastGetInputSchema = z.object({
     .optional()
     .default(true)
     .describe("Include all flagged incomplete tasks. Default true."),
+  fields: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Restrict each returned task (across overdue/dueToday/deferredToday/flagged/byDate) to this list of top-level fields (id is always returned). " +
+        "Omit for the full task shape. Empty array returns just id. " +
+        "Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. " +
+        `Allowed: ${TASK_FIELD_NAMES.join(", ")}.`,
+    ),
 });
 
 export type ForecastGetToolInput = z.infer<typeof forecastGetInputSchema>;
@@ -212,24 +222,43 @@ export async function handleForecastGet(input: ForecastGetToolInput, ctx: Foreca
     includeDeferred: input.includeDeferred,
     includeFlagged: input.includeFlagged,
   });
-  const meta = ctx.makeMeta({ cacheHit: result.cacheHit });
 
+  const projection =
+    input.fields !== undefined ? validateFields(input.fields, TASK_FIELD_NAMES_SET) : undefined;
+  const projectFields = projection?.valid;
+  const project = (t: Task) => applyProjection(t, projectFields);
+
+  type ProjectedTask = ReturnType<typeof project>;
   const payload: {
-    overdue: Task[];
-    dueToday: Task[];
-    deferredToday: Task[];
-    flagged: Task[];
-    byDate?: { date: string; tasks: Task[] }[];
+    overdue: ProjectedTask[];
+    dueToday: ProjectedTask[];
+    deferredToday: ProjectedTask[];
+    flagged: ProjectedTask[];
+    byDate?: { date: string; tasks: ProjectedTask[] }[];
   } = {
-    overdue: result.overdue,
-    dueToday: result.dueToday,
-    deferredToday: result.deferredToday,
-    flagged: result.flagged,
+    overdue: result.overdue.map(project),
+    dueToday: result.dueToday.map(project),
+    deferredToday: result.deferredToday.map(project),
+    flagged: result.flagged.map(project),
   };
 
   if (days > 1) {
-    payload.byDate = groupByDate(result.dueToday);
+    // Group on the *full* tasks (uses .dueDate which projection may strip),
+    // then project each grouped task at the end.
+    payload.byDate = groupByDate(result.dueToday).map(({ date, tasks }) => ({
+      date,
+      tasks: tasks.map(project),
+    }));
   }
+
+  const warnings =
+    projection !== undefined && projection.unknown.length > 0
+      ? [warnUnknownFields([...projection.unknown], TASK_FIELD_NAMES)]
+      : undefined;
+  const meta = ctx.makeMeta({
+    cacheHit: result.cacheHit,
+    ...(warnings !== undefined ? { warnings } : {}),
+  });
 
   return ok(payload, meta);
 }

@@ -13,9 +13,17 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import { FolderId } from "../../domain/ids.js";
+import { PROJECT_FIELD_NAMES, PROJECT_FIELD_NAMES_SET } from "../../domain/project.js";
 import { PROJECT_DEFAULTS } from "../../envelope/defaultsRegistry.js";
-import { elideDefaultsAll } from "../../envelope/elideDefaults.js";
-import { ok, type Pagination, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { elideDefaults } from "../../envelope/elideDefaults.js";
+import {
+  ok,
+  type Pagination,
+  type ResponseMeta,
+  toolResponse,
+  warnUnknownFields,
+} from "../../envelope/index.js";
+import { applyProjection, validateFields } from "../../envelope/projection.js";
 import type { ProjectListInput, ProjectService } from "../../services/projectService.js";
 
 // ---------------------------------------------------------------------------
@@ -88,6 +96,14 @@ export const projectListInputSchema = z.object({
         "completionCriterion: 'parallel', flagged: false, tagIds: [], note: null, etc.) are omitted. " +
         "See docs/token-cost.md for the defaults table.",
     ),
+  fields: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Restrict each returned project to this list of top-level fields (id is always returned). " +
+        "Omit for the full project shape. Empty array returns just id. " +
+        "Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS.",
+    ),
 });
 
 export type ProjectListToolInput = z.infer<typeof projectListInputSchema>;
@@ -106,15 +122,32 @@ export interface ProjectListContext {
  * without constructing an `McpServer`.
  */
 export async function handleProjectList(input: ProjectListToolInput, ctx: ProjectListContext) {
-  const { verbose, ...rest } = input;
+  const { verbose, fields, ...rest } = input;
   const result = await ctx.projectService.list(rest as ProjectListInput);
   const pagination: Pagination = {
     cursor: result.nextCursor,
     hasMore: result.hasMore,
   };
-  const meta = ctx.makeMeta({ cacheHit: result.cacheHit });
-  const projects =
-    verbose === true ? result.projects : elideDefaultsAll(result.projects, PROJECT_DEFAULTS);
+
+  const projection =
+    fields !== undefined ? validateFields(fields, PROJECT_FIELD_NAMES_SET) : undefined;
+  const projectFields = projection?.valid;
+  const warnings =
+    projection !== undefined && projection.unknown.length > 0
+      ? [warnUnknownFields([...projection.unknown], PROJECT_FIELD_NAMES)]
+      : undefined;
+
+  // fields[] = explicit mode → skip elide-defaults so requested fields aren't silently dropped.
+  const applyElide = verbose !== true && projectFields === undefined;
+  const projects = result.projects.map((p) => {
+    const projected = applyProjection(p, projectFields);
+    return applyElide ? elideDefaults(projected, PROJECT_DEFAULTS) : projected;
+  });
+
+  const meta = ctx.makeMeta({
+    cacheHit: result.cacheHit,
+    ...(warnings !== undefined ? { warnings } : {}),
+  });
   return ok({ projects }, meta, pagination);
 }
 

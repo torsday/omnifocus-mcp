@@ -40,6 +40,7 @@ export type { Hint } from "../domain/hints.js";
  * | `WARN_DEPRECATED_FIELD`| Caller used a deprecated input field                 | `{ field: string, replacement: string }` |
  * | `WARN_DRY_RUN`         | Response is hypothetical; no write occurred          | —                                 |
  * | `WARN_LOOP_DETECTED`   | Same tool+args called ≥5× within 60s                | `{ tool: string, count: number, windowSeconds: number }` |
+ * | `WARN_UNKNOWN_FIELDS`  | `fields[]` projection contained unrecognized names   | `{ unknown: string[], allowed: string[] }` |
  */
 export type WarningCode =
   | "WARN_IDS_NOT_FOUND"
@@ -47,7 +48,8 @@ export type WarningCode =
   | "WARN_SYNC_PENDING"
   | "WARN_DEPRECATED_FIELD"
   | "WARN_DRY_RUN"
-  | "WARN_LOOP_DETECTED";
+  | "WARN_LOOP_DETECTED"
+  | "WARN_UNKNOWN_FIELDS";
 
 /**
  * Structured non-fatal issue that the agent should see inline.
@@ -118,6 +120,20 @@ export function warnDryRun(): Warning {
     code: "WARN_DRY_RUN",
     message: "This response is hypothetical — no write was performed (dry_run: true).",
     suggestion: "Remove dry_run or set it to false to commit the change.",
+  };
+}
+
+/**
+ * Build a `WARN_UNKNOWN_FIELDS` warning when a `fields[]` projection contains
+ * names the tool does not recognize. Unknown names are silently dropped from
+ * the projection rather than erroring out — robust to LLM misspellings.
+ */
+export function warnUnknownFields(unknown: string[], allowed: readonly string[]): Warning {
+  return {
+    code: "WARN_UNKNOWN_FIELDS",
+    message: `Unknown field name(s) in fields[] projection: ${unknown.join(", ")}.`,
+    suggestion: `Allowed fields: ${[...allowed].sort().join(", ")}.`,
+    details: { unknown, allowed: [...allowed] },
   };
 }
 

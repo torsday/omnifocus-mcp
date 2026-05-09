@@ -10,7 +10,16 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { TagId } from "../../domain/ids.js";
-import { ok, type ResponseMeta, toolResponse, warnIdsNotFound } from "../../envelope/index.js";
+import { TAG_FIELD_NAMES, TAG_FIELD_NAMES_SET } from "../../domain/tag.js";
+import {
+  ok,
+  type ResponseMeta,
+  toolResponse,
+  type Warning,
+  warnIdsNotFound,
+  warnUnknownFields,
+} from "../../envelope/index.js";
+import { applyProjection, validateFields } from "../../envelope/projection.js";
 import { ValidationError } from "../../errors/index.js";
 
 // ---------------------------------------------------------------------------
@@ -43,6 +52,15 @@ export const tagGetManyInputSchema = z.object({
     .describe(
       `Array of tag IDs to fetch (0..${MAX_IDS}). Get IDs from tag_list. Missing IDs are omitted (not errors) and appear in meta.warnings.`,
     ),
+  fields: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Restrict each returned tag to this list of top-level fields (id is always returned). " +
+        "Omit for the full tag shape. Empty array returns just id. " +
+        "Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. " +
+        `Allowed: ${TAG_FIELD_NAMES.join(", ")}.`,
+    ),
 });
 
 export type TagGetManyInput = z.infer<typeof tagGetManyInputSchema>;
@@ -73,11 +91,20 @@ export async function handleTagGetMany(input: TagGetManyInput, ctx: TagGetManyCo
 
   const raw = await ctx.adapter.getTagsMany(input.ids);
 
-  const tags = raw.filter((t): t is NonNullable<typeof t> => t !== null);
+  const fullTags = raw.filter((t): t is NonNullable<typeof t> => t !== null);
   const missing = input.ids.filter((_id, i) => raw[i] === null);
 
-  const warnings = missing.length > 0 ? [warnIdsNotFound(missing)] : undefined;
-  const meta = ctx.makeMeta({ ...(warnings !== undefined ? { warnings } : {}) });
+  const projection =
+    input.fields !== undefined ? validateFields(input.fields, TAG_FIELD_NAMES_SET) : undefined;
+  const projectFields = projection?.valid;
+  const tags = fullTags.map((t) => applyProjection(t, projectFields));
+
+  const warnings: Warning[] = [];
+  if (missing.length > 0) warnings.push(warnIdsNotFound(missing));
+  if (projection !== undefined && projection.unknown.length > 0) {
+    warnings.push(warnUnknownFields([...projection.unknown], TAG_FIELD_NAMES));
+  }
+  const meta = ctx.makeMeta({ ...(warnings.length > 0 ? { warnings } : {}) });
 
   return ok({ tags }, meta);
 }
