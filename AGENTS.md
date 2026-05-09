@@ -11,6 +11,14 @@ Follow the standards in, in priority order:
 3. MCP tool design: atomic, composable, rich responses, actionable errors, idempotency, circuit breakers
 4. Interaction style: direct, precise, no filler
 
+### Per-directory `CLAUDE.md` files
+
+Three subtrees ship a directory-scoped `CLAUDE.md` — agents that respect Claude Code's auto-load convention pick these up automatically when working under the matching path. Read them before editing files in those areas; they capture invariants the source files don't restate.
+
+- `src/scripts/jxa/CLAUDE.md` — `osascript` runtime distinction, OF 4.x quirks (`container()` not `parent()`, `containingProject().class()` exception handling), the two test harnesses (bridge mock vs sandboxed JS-eval).
+- `src/envelope/CLAUDE.md` — response-envelope pipeline (project → elide → truncate → cap), defaults registry, the per-tool `verbose` contract.
+- `src/tools/CLAUDE.md` — adding a tool (4 touch points), descriptionShape lint, common pitfalls.
+
 ## Project-specific conventions
 
 - **Adapter seam is sacred.** Services never see `osascript` or URL schemes. The `OmniFocusAdapter` interface is the only boundary between domain logic and the OS. Tests swap in `InMemoryAdapter`.
