@@ -36,6 +36,12 @@ on:
       # meta-lint job, and branch protection blocked the merge. Widen the
       # net to src/** so any production-code diff fires the regression guards.
       - "src/**"
+      # dep-bump PRs (dependabot/renovate) only touch package.json and
+      # pnpm-lock.yaml. Without these entries the workflow never fires,
+      # required checks are never reported, and branch protection blocks
+      # the merge requiring an admin bypass (#736).
+      - "package.json"
+      - "pnpm-lock.yaml"
 
 permissions:
   contents: read
