@@ -4,6 +4,7 @@
 
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../adapter/inMemory/InMemoryAdapter.js";
+import { OmniFocusLruCache } from "../cache/lruCache.js";
 import { ForecastService } from "./forecastService.js";
 
 const FROM = "2026-04-23T00:00:00.000Z";
@@ -102,9 +103,26 @@ describe("ForecastService.get", () => {
     expect(result.flagged).toHaveLength(0);
   });
 
-  it("reports cacheHit false", async () => {
+  it("reports cacheHit false on first call", async () => {
     const { service } = makeService();
     const result = await service.get({ from: FROM, to: TO });
     expect(result.cacheHit).toBe(false);
+  });
+
+  it("reports cacheHit true on second call with same input when cache is wired", async () => {
+    const adapter = new InMemoryAdapter({ now: () => new Date("2026-04-23T12:00:00.000Z") });
+    const cache = new OmniFocusLruCache();
+    const service = new ForecastService({ adapter, cache });
+    await service.get({ from: FROM, to: TO });
+    const second = await service.get({ from: FROM, to: TO });
+    expect(second.cacheHit).toBe(true);
+  });
+
+  it("reports cacheHit false without a cache dep", async () => {
+    const adapter = new InMemoryAdapter({ now: () => new Date("2026-04-23T12:00:00.000Z") });
+    const service = new ForecastService({ adapter });
+    await service.get({ from: FROM, to: TO });
+    const second = await service.get({ from: FROM, to: TO });
+    expect(second.cacheHit).toBe(false);
   });
 });

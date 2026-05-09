@@ -130,7 +130,7 @@ export function composeServices(adapter: OmniFocusAdapter, config: Config): Serv
       maxAttachmentMb: config.OMNIFOCUS_MAX_ATTACHMENT_MB,
     }),
     exportService: new ExportService({ adapter }),
-    forecastService: new ForecastService({ adapter }),
+    forecastService: new ForecastService({ adapter, cache }),
     perspectiveService: new PerspectiveService({ adapter }),
     pluginService: new PluginService({ adapter }),
     reviewService: new ReviewService({ adapter, cache }),

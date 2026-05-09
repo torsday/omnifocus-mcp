@@ -293,21 +293,57 @@ describe("FolderService — cache invalidation", () => {
     const folderService = new FolderService({ adapter, cache });
 
     const { id } = await folderService.create({ name: "Area" });
-    expect(scopes.slice(-3)).toEqual([`folder:${id}`, "perspective:*", "search:*"]);
+    expect(scopes.slice(-4)).toEqual([`folder:${id}`, "folder:list", "perspective:*", "search:*"]);
 
     const before = scopes.length;
     await folderService.update(id, { name: "Area!" });
     await folderService.move(id, null);
     await folderService.delete(id);
 
-    // Three mutations × three scopes each = nine new emissions.
-    expect(scopes.length - before).toBe(9);
+    // Three mutations × four scopes each = twelve new emissions.
+    expect(scopes.length - before).toBe(12);
     for (let i = 0; i < 3; i++) {
-      expect(scopes.slice(before + i * 3, before + i * 3 + 3)).toEqual([
+      expect(scopes.slice(before + i * 4, before + i * 4 + 4)).toEqual([
         `folder:${id}`,
+        "folder:list",
         "perspective:*",
         "search:*",
       ]);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FolderService.list — cache read-through
+// ---------------------------------------------------------------------------
+
+describe("FolderService.list — cache hit", () => {
+  it("reports cacheHit true on second call with same input", async () => {
+    const adapter = new InMemoryAdapter({ now: () => new Date(0) });
+    const cache = new OmniFocusLruCache();
+    const folderService = new FolderService({ adapter, cache });
+    await adapter.createFolder({ name: "Area" });
+    await folderService.list();
+    const second = await folderService.list();
+    expect(second.cacheHit).toBe(true);
+  });
+
+  it("reports cacheHit false when no cache is wired", async () => {
+    const adapter = new InMemoryAdapter({ now: () => new Date(0) });
+    const folderService = new FolderService({ adapter });
+    await adapter.createFolder({ name: "Area" });
+    await folderService.list();
+    const second = await folderService.list();
+    expect(second.cacheHit).toBe(false);
+  });
+
+  it("cache is cleared after a mutation", async () => {
+    const adapter = new InMemoryAdapter({ now: () => new Date(0) });
+    const cache = new OmniFocusLruCache();
+    const folderService = new FolderService({ adapter, cache });
+    await folderService.list();
+    await folderService.create({ name: "Area" });
+    const afterMutation = await folderService.list();
+    expect(afterMutation.cacheHit).toBe(false);
   });
 });
