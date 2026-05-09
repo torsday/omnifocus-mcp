@@ -13,6 +13,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { TagId } from "../../domain/ids.js";
+import { TAG_DEFAULTS } from "../../envelope/defaultsRegistry.js";
+import { elideDefaults } from "../../envelope/elideDefaults.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TagService } from "../../services/tagService.js";
 
@@ -32,6 +34,14 @@ export const TAG_GET_DESCRIPTION =
 
 export const tagGetInputSchema = z.object({
   id: TagId.schema.describe("Persistent tag ID. Get from tag_list. IDs are stable across renames."),
+  verbose: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, return the full unelided tag shape. " +
+        "Default: false — fields equal to their documented default are omitted. " +
+        "See docs/token-cost.md for the defaults table.",
+    ),
 });
 
 export type TagGetToolInput = z.infer<typeof tagGetInputSchema>;
@@ -52,7 +62,8 @@ export interface TagGetContext {
 export async function handleTagGet(input: TagGetToolInput, ctx: TagGetContext) {
   const result = await ctx.tagService.get(input.id);
   const meta = ctx.makeMeta({ cacheHit: result.cacheHit });
-  return ok({ tag: result.tag }, meta);
+  const tag = input.verbose === true ? result.tag : elideDefaults(result.tag, TAG_DEFAULTS);
+  return ok({ tag }, meta);
 }
 
 // ---------------------------------------------------------------------------

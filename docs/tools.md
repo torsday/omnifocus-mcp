@@ -731,6 +731,7 @@ Fetch a single folder by its persistent ID, including project and subfolder coun
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `id` | string | Yes | Persistent folder ID. Get from folder_list. IDs are stable across renames. |
+| `verbose` | boolean | No | When true, return the full unelided folder shape. Default: false — `parentId` is omitted when null. See docs/token-cost.md for the defaults table. |
 
 ### Example call
 
@@ -772,6 +773,7 @@ List folders in OmniFocus, optionally filtered by parent folder. Do not use to f
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `parentId` | string | No | Return only direct children of this folder. Get the ID from a previous folder_list call. Omit for root folders. |
+| `verbose` | boolean | No | When true, return the full unelided folder shape. Default: false — `parentId` is omitted when null (top-level folder). See docs/token-cost.md for the defaults table. |
 
 ### Example call
 
@@ -1998,6 +2000,7 @@ Fetch a single OmniFocus project by persistent ID. Do NOT use for queries across
 |-----------|------|----------|-------------|
 | `id` | string | Yes | Persistent project ID. Get from project_list or search_query. |
 | `includeTaskTree` | boolean | No | Whether to attach the project's tasks (flat array; clients rebuild the tree via parentId). Default true. Set to false for a fast project-only read. |
+| `verbose` | boolean | No | When true, return the full unelided shape (project + tasks). Default: false — fields equal to their documented default are omitted from both. See docs/token-cost.md for the defaults table. |
 
 ### Example call
 
@@ -2067,6 +2070,7 @@ List projects in OmniFocus with optional filters. Use for queries across project
 | `reviewDueBefore` | string | No | Restrict to projects whose next review date is strictly before this moment. ISO-8601 with offset (e.g. '2026-05-01T00:00:00-07:00'). Projects without a review interval are excluded. |
 | `limit` | number | No | Max projects per page (1..1000). Default 200. Use `cursor` to fetch subsequent pages. |
 | `cursor` | string | No | Opaque cursor from a previous project_list response. Must use the same filters — changing filters mid-sequence returns a ValidationError. |
+| `verbose` | boolean | No | When true, return the full unelided project shape. Default: false — fields equal to their documented default (status: 'active', completionCriterion: 'parallel', flagged: false, tagIds: [], note: null, etc.) are omitted. See docs/token-cost.md for the defaults table. |
 
 ### Example call
 
@@ -2861,6 +2865,7 @@ Fetch a single tag by its persistent ID, including task count. Do not use to lis
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `id` | string | Yes | Persistent tag ID. Get from tag_list. IDs are stable across renames. |
+| `verbose` | boolean | No | When true, return the full unelided tag shape. Default: false — fields equal to their documented default are omitted. See docs/token-cost.md for the defaults table. |
 
 ### Example call
 
@@ -2975,6 +2980,7 @@ List all tags in OmniFocus, optionally filtered by parent tag or status. Do not 
 |-----------|------|----------|-------------|
 | `parentId` | string | No | Return only direct children of this tag. Get the ID from a previous tag_list call. Omit for root tags. |
 | `status` | unknown | No |  |
+| `verbose` | boolean | No | When true, return the full unelided tag shape. Default: false — fields equal to their documented default (status: 'active', parentId: null, location: null, allowsNextAction: true) are omitted. See docs/token-cost.md for the defaults table. |
 
 ### Example call
 
@@ -4299,6 +4305,7 @@ Fetch a single OmniFocus task by persistent ID. Use when you have a known task I
 | `id` | string | Yes | Persistent ID of the task to fetch. Get from task_list or task_get_many. |
 | `includeSubtasks` | boolean | No | Include direct subtasks in the response. Default true. |
 | `notePreviewChars` | number | No | Maximum characters of the task's note (and each subtask's note) to return. Default 200. When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. Pass -1 to disable truncation and return full notes inline. |
+| `verbose` | boolean | No | When true, return the full unelided task shape (every field present, even at defaults). Default: false — fields equal to their documented default are omitted. See docs/token-cost.md for the defaults table. |
 
 ### Example call
 
@@ -4342,6 +4349,7 @@ Fetch up to 100 tasks by persistent ID in a single OmniFocus round-trip. Use whe
 |-----------|------|----------|-------------|
 | `ids` | string[] | Yes | Array of task IDs to fetch (0..100). Get IDs from task_list, search_query, or task_find_by_name. Missing IDs are omitted (not errors) and appear in meta.warnings. |
 | `notePreviewChars` | number | No | Maximum characters of each task's note to return. Default 200. When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. Pass -1 to disable truncation and return full notes inline. |
+| `verbose` | boolean | No | When true, return the full unelided task shape. Default: false — fields equal to their documented default are omitted. See docs/token-cost.md for the defaults table. |
 
 ### Example call
 
@@ -4406,6 +4414,7 @@ List tasks in OmniFocus with optional filters (project, tag, inbox, flagged, com
 | `inbox` | boolean | No | true = Inbox tasks only (no project assignment). Cannot be combined with projectId or parentId. Use this to surface unprocessed captures without knowing their IDs. |
 | `cursor` | string | No | Opaque cursor from a previous task_list response. Must use the same filters — changing filters mid-sequence returns a ValidationError. |
 | `notePreviewChars` | number | No | Maximum characters of each task's note to return. Default 200. When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. Pass -1 to disable truncation and return full notes inline. |
+| `verbose` | boolean | No | When true, return the full unelided task shape (every field present, even at defaults). Default: false — fields equal to their documented default (flagged: false, completed: false, tagIds: [], note: null, dueDate: null, etc.) are omitted from the wire payload. An omitted field means the default applies. See docs/token-cost.md for the full defaults table. |
 
 ### Example call
 

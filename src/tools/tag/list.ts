@@ -14,6 +14,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import { TagId } from "../../domain/ids.js";
+import { TAG_DEFAULTS } from "../../envelope/defaultsRegistry.js";
+import { elideDefaultsAll } from "../../envelope/elideDefaults.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TagListInput, TagService } from "../../services/tagService.js";
 
@@ -48,6 +50,15 @@ export const tagListInputSchema = z.object({
     },
     "Filter by tag status. Omit to return tags of all statuses.",
   ).optional(),
+  verbose: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, return the full unelided tag shape. " +
+        "Default: false — fields equal to their documented default (status: 'active', " +
+        "parentId: null, location: null, allowsNextAction: true) are omitted. " +
+        "See docs/token-cost.md for the defaults table.",
+    ),
 });
 
 export type TagListToolInput = z.infer<typeof tagListInputSchema>;
@@ -72,7 +83,8 @@ export async function handleTagList(input: TagListToolInput, ctx: TagListContext
   };
   const result = await ctx.tagService.list(serviceInput);
   const meta = ctx.makeMeta({ cacheHit: result.cacheHit });
-  return ok({ tags: result.tags }, meta);
+  const tags = input.verbose === true ? result.tags : elideDefaultsAll(result.tags, TAG_DEFAULTS);
+  return ok({ tags }, meta);
 }
 
 // ---------------------------------------------------------------------------

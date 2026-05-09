@@ -22,6 +22,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { flexDateString } from "../../domain/dates.js";
 import { ProjectId, TagId, TaskId } from "../../domain/ids.js";
+import { TASK_DEFAULTS } from "../../envelope/defaultsRegistry.js";
+import { elideDefaultsAll } from "../../envelope/elideDefaults.js";
 import { ok, type Pagination, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TaskListInput, TaskService } from "../../services/taskService.js";
 import { TaskSortBySchema } from "../../services/taskService.js";
@@ -151,6 +153,15 @@ export const taskListInputSchema = z.object({
         "When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. " +
         "Pass -1 to disable truncation and return full notes inline.",
     ),
+  verbose: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, return the full unelided task shape (every field present, even at defaults). " +
+        "Default: false — fields equal to their documented default (flagged: false, completed: false, " +
+        "tagIds: [], note: null, dueDate: null, etc.) are omitted from the wire payload. " +
+        "An omitted field means the default applies. See docs/token-cost.md for the full defaults table.",
+    ),
 });
 
 /** TypeScript input type derived from {@link taskListInputSchema}. */
@@ -172,7 +183,7 @@ export interface ToolContext {
  * can invoke it without constructing an McpServer.
  */
 export async function handleTaskList(input: TaskListToolInput, ctx: ToolContext) {
-  const { notePreviewChars: rawPreviewChars, ...rest } = input;
+  const { notePreviewChars: rawPreviewChars, verbose, ...rest } = input;
   const serviceInput = rest as TaskListInput;
   const result = await ctx.taskService.list(serviceInput);
   const pagination: Pagination = {
@@ -181,7 +192,8 @@ export async function handleTaskList(input: TaskListToolInput, ctx: ToolContext)
   };
   const meta = ctx.makeMeta({ cacheHit: result.cacheHit });
   const previewChars = rawPreviewChars ?? DEFAULT_NOTE_PREVIEW_CHARS;
-  const tasks = result.tasks.map((t) => applyNotePreview(t, previewChars));
+  const previewed = result.tasks.map((t) => applyNotePreview(t, previewChars));
+  const tasks = verbose === true ? previewed : elideDefaultsAll(previewed, TASK_DEFAULTS);
   return ok({ tasks }, meta, pagination);
 }
 

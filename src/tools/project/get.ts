@@ -14,6 +14,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { type Decision, parseDecision } from "../../domain/decisionJournal.js";
 import { ProjectId } from "../../domain/ids.js";
+import { PROJECT_DEFAULTS, TASK_DEFAULTS } from "../../envelope/defaultsRegistry.js";
+import { elideDefaults, elideDefaultsAll } from "../../envelope/elideDefaults.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { ProjectService } from "../../services/projectService.js";
 
@@ -42,6 +44,14 @@ export const projectGetInputSchema = z.object({
       "Whether to attach the project's tasks (flat array; clients rebuild the tree via parentId). " +
         "Default true. Set to false for a fast project-only read.",
     ),
+  verbose: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, return the full unelided shape (project + tasks). " +
+        "Default: false — fields equal to their documented default are omitted from both. " +
+        "See docs/token-cost.md for the defaults table.",
+    ),
 });
 
 export type ProjectGetToolInput = z.infer<typeof projectGetInputSchema>;
@@ -67,14 +77,20 @@ export async function handleProjectGet(input: ProjectGetToolInput, ctx: ProjectG
   });
   const meta = ctx.makeMeta({ cacheHit: result.cacheHit });
   const decision = parseDecision(result.project.note);
+  const project =
+    input.verbose === true ? result.project : elideDefaults(result.project, PROJECT_DEFAULTS);
+  const tasks =
+    result.tasks === undefined
+      ? undefined
+      : input.verbose === true
+        ? result.tasks
+        : elideDefaultsAll(result.tasks, TASK_DEFAULTS);
   const data: {
-    project: typeof result.project;
-    tasks?: typeof result.tasks;
+    project: typeof project;
+    tasks?: typeof tasks;
     decision?: Decision;
-  } = {
-    project: result.project,
-  };
-  if (result.tasks !== undefined) data.tasks = result.tasks;
+  } = { project };
+  if (tasks !== undefined) data.tasks = tasks;
   if (decision !== undefined) data.decision = decision;
   return ok(data, meta);
 }

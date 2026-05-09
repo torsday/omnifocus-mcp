@@ -8,6 +8,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { FolderId } from "../../domain/ids.js";
+import { FOLDER_DEFAULTS } from "../../envelope/defaultsRegistry.js";
+import { elideDefaultsAll } from "../../envelope/elideDefaults.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { FolderListInput, FolderService } from "../../services/folderService.js";
 
@@ -26,6 +28,14 @@ export const folderListInputSchema = z.object({
     .describe(
       "Return only direct children of this folder. Get the ID from a previous folder_list call. Omit for root folders.",
     ),
+  verbose: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, return the full unelided folder shape. " +
+        "Default: false — `parentId` is omitted when null (top-level folder). " +
+        "See docs/token-cost.md for the defaults table.",
+    ),
 });
 
 export type FolderListToolInput = z.infer<typeof folderListInputSchema>;
@@ -40,7 +50,9 @@ export async function handleFolderList(input: FolderListToolInput, ctx: FolderLi
     ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
   };
   const result = await ctx.folderService.list(serviceInput);
-  return ok({ folders: result.folders }, ctx.makeMeta({ cacheHit: result.cacheHit }));
+  const folders =
+    input.verbose === true ? result.folders : elideDefaultsAll(result.folders, FOLDER_DEFAULTS);
+  return ok({ folders }, ctx.makeMeta({ cacheHit: result.cacheHit }));
 }
 
 export function registerFolderListTool(server: McpServer, ctx: FolderListContext) {

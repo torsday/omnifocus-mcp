@@ -14,6 +14,8 @@ import { z } from "zod";
 import { parseDecision } from "../../domain/decisionJournal.js";
 import { TaskId } from "../../domain/ids.js";
 import { parseWaitingOn } from "../../domain/waitingOn.js";
+import { TASK_DEFAULTS } from "../../envelope/defaultsRegistry.js";
+import { elideDefaults, elideDefaultsAll } from "../../envelope/elideDefaults.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TaskGetInput, TaskService } from "../../services/taskService.js";
 import { applyNotePreview, DEFAULT_NOTE_PREVIEW_CHARS } from "./notePreview.js";
@@ -43,6 +45,14 @@ export const taskGetInputSchema = z.object({
         "When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. " +
         "Pass -1 to disable truncation and return full notes inline.",
     ),
+  verbose: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, return the full unelided task shape (every field present, even at defaults). " +
+        "Default: false — fields equal to their documented default are omitted. " +
+        "See docs/token-cost.md for the defaults table.",
+    ),
 });
 
 export type TaskGetToolInput = z.infer<typeof taskGetInputSchema>;
@@ -58,14 +68,21 @@ export interface TaskGetContext {
  * @throws {OmniFocusNotRunning} when OmniFocus is not running
  */
 export async function handleTaskGet(input: TaskGetToolInput, ctx: TaskGetContext) {
-  const { notePreviewChars: rawPreviewChars, ...rest } = input;
+  const { notePreviewChars: rawPreviewChars, verbose, ...rest } = input;
   const result = await ctx.taskService.get(rest as TaskGetInput);
   // Parse waitingOn / decision against the full note before applying truncation.
   const waitingOn = parseWaitingOn(result.task.note);
   const decision = parseDecision(result.task.note);
   const previewChars = rawPreviewChars ?? DEFAULT_NOTE_PREVIEW_CHARS;
-  const task = applyNotePreview(result.task, previewChars);
-  const subtasks = result.subtasks?.map((t) => applyNotePreview(t, previewChars));
+  const previewedTask = applyNotePreview(result.task, previewChars);
+  const previewedSubtasks = result.subtasks?.map((t) => applyNotePreview(t, previewChars));
+  const task = verbose === true ? previewedTask : elideDefaults(previewedTask, TASK_DEFAULTS);
+  const subtasks =
+    previewedSubtasks === undefined
+      ? undefined
+      : verbose === true
+        ? previewedSubtasks
+        : elideDefaultsAll(previewedSubtasks, TASK_DEFAULTS);
   return ok(
     {
       task,

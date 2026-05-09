@@ -27,6 +27,8 @@ import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type Decision, parseDecision } from "../../domain/decisionJournal.js";
 import { TaskId } from "../../domain/ids.js";
 import { parseWaitingOn, type WaitingOn } from "../../domain/waitingOn.js";
+import { TASK_DEFAULTS } from "../../envelope/defaultsRegistry.js";
+import { elideDefaultsAll } from "../../envelope/elideDefaults.js";
 import { ok, type ResponseMeta, toolResponse, warnIdsNotFound } from "../../envelope/index.js";
 import { ValidationError } from "../../errors/index.js";
 import { applyNotePreview, DEFAULT_NOTE_PREVIEW_CHARS } from "./notePreview.js";
@@ -70,6 +72,14 @@ export const taskGetManyInputSchema = z.object({
       `Maximum characters of each task's note to return. Default ${DEFAULT_NOTE_PREVIEW_CHARS}. ` +
         "When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. " +
         "Pass -1 to disable truncation and return full notes inline.",
+    ),
+  verbose: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, return the full unelided task shape. " +
+        "Default: false — fields equal to their documented default are omitted. " +
+        "See docs/token-cost.md for the defaults table.",
     ),
 });
 
@@ -126,7 +136,8 @@ export async function handleTaskGetMany(input: TaskGetManyInput, ctx: TaskGetMan
   const hasDecisions = Object.keys(decisions).length > 0;
 
   const previewChars = input.notePreviewChars ?? DEFAULT_NOTE_PREVIEW_CHARS;
-  const tasks = fullTasks.map((t) => applyNotePreview(t, previewChars));
+  const previewed = fullTasks.map((t) => applyNotePreview(t, previewChars));
+  const tasks = input.verbose === true ? previewed : elideDefaultsAll(previewed, TASK_DEFAULTS);
 
   const warnings = missing.length > 0 ? [warnIdsNotFound(missing)] : undefined;
   const meta = ctx.makeMeta({ ...(warnings !== undefined ? { warnings } : {}) });

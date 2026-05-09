@@ -13,6 +13,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import { FolderId } from "../../domain/ids.js";
+import { PROJECT_DEFAULTS } from "../../envelope/defaultsRegistry.js";
+import { elideDefaultsAll } from "../../envelope/elideDefaults.js";
 import { ok, type Pagination, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { ProjectListInput, ProjectService } from "../../services/projectService.js";
 
@@ -77,6 +79,15 @@ export const projectListInputSchema = z.object({
     .describe(
       "Opaque cursor from a previous project_list response. Must use the same filters — changing filters mid-sequence returns a ValidationError.",
     ),
+  verbose: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, return the full unelided project shape. " +
+        "Default: false — fields equal to their documented default (status: 'active', " +
+        "completionCriterion: 'parallel', flagged: false, tagIds: [], note: null, etc.) are omitted. " +
+        "See docs/token-cost.md for the defaults table.",
+    ),
 });
 
 export type ProjectListToolInput = z.infer<typeof projectListInputSchema>;
@@ -95,14 +106,16 @@ export interface ProjectListContext {
  * without constructing an `McpServer`.
  */
 export async function handleProjectList(input: ProjectListToolInput, ctx: ProjectListContext) {
-  const serviceInput = input as ProjectListInput;
-  const result = await ctx.projectService.list(serviceInput);
+  const { verbose, ...rest } = input;
+  const result = await ctx.projectService.list(rest as ProjectListInput);
   const pagination: Pagination = {
     cursor: result.nextCursor,
     hasMore: result.hasMore,
   };
   const meta = ctx.makeMeta({ cacheHit: result.cacheHit });
-  return ok({ projects: result.projects }, meta, pagination);
+  const projects =
+    verbose === true ? result.projects : elideDefaultsAll(result.projects, PROJECT_DEFAULTS);
+  return ok({ projects }, meta, pagination);
 }
 
 // ---------------------------------------------------------------------------
