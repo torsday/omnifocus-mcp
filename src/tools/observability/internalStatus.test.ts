@@ -34,6 +34,9 @@ function makeCtx(
       permission: "granted" | "denied" | "restricted" | "not-determined" | "unknown";
     }>;
     probeMutationScore?: () => { score: number; lastRunAt: string } | null;
+    probeResponseStats?: () =>
+      | import("../../observability/responseStats.js").ResponseStatsSnapshot
+      | null;
   } = {},
 ) {
   const adapter = {
@@ -47,7 +50,7 @@ function makeCtx(
       overrides.snapshot ?? vi.fn().mockReturnValue([{ name: "task_list", state: "closed" }]),
   };
 
-  return {
+  const ctx: import("./internalStatus.js").InternalStatusContext = {
     startedAt: overrides.startedAt ?? Date.now() - 5000,
     adapter,
     circuitRegistry,
@@ -61,6 +64,12 @@ function makeCtx(
     // reports/mutation/mutation.json file from the calibration run.
     probeMutationScore: overrides.probeMutationScore ?? vi.fn().mockReturnValue(null),
   };
+  // Only set probeResponseStats when explicitly provided — exactOptionalPropertyTypes
+  // distinguishes "key absent" (telemetry off) from "key present with undefined".
+  if (overrides.probeResponseStats !== undefined) {
+    ctx.probeResponseStats = overrides.probeResponseStats;
+  }
+  return ctx;
 }
 
 // ---------------------------------------------------------------------------
@@ -206,5 +215,41 @@ describe("internal_status — mutation", () => {
     });
     const envelope = await handleInternalStatus({}, ctx);
     expect(envelope.data.mutation).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Handler — responseStats (#778)
+// ---------------------------------------------------------------------------
+
+describe("internal_status — responseStats", () => {
+  it("returns null when no probe is provided (telemetry off)", async () => {
+    const ctx = makeCtx();
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.responseStats).toBeNull();
+  });
+
+  it("forwards the probe result verbatim when telemetry is on", async () => {
+    const snapshot = {
+      since: "2026-05-09T00:00:00.000Z",
+      sampleRate: 1,
+      thresholdBytes: 51200,
+      tools: {
+        task_list: { count: 10, total: 5000, max: 800, p50: 500, p95: 780 },
+      },
+    };
+    const ctx = makeCtx({ probeResponseStats: vi.fn().mockReturnValue(snapshot) });
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.responseStats).toEqual(snapshot);
+  });
+
+  it("surfaces null when the probe throws unexpectedly", async () => {
+    const ctx = makeCtx({
+      probeResponseStats: vi.fn().mockImplementation(() => {
+        throw new Error("registry exploded");
+      }),
+    });
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.responseStats).toBeNull();
   });
 });

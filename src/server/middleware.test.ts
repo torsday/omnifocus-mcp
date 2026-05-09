@@ -8,21 +8,31 @@
  */
 
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ToolSuccess } from "../envelope/index.js";
 import { LoopDetector } from "../loopDetector/LoopDetector.js";
+import { ResponseStatsRegistry } from "../observability/responseStats.js";
 import { ToolRateLimiter } from "../rateLimit/ToolRateLimiter.js";
 import { CircuitBreakerRegistry } from "./circuitBreaker.js";
 import { composeToolCallback } from "./middleware.js";
 import { ShutdownController } from "./shutdown.js";
 
-function makeDeps(overrides: { rateLimit?: { limit: number; windowSeconds: number } } = {}) {
-  return {
+function makeDeps(
+  overrides: {
+    rateLimit?: { limit: number; windowSeconds: number };
+    responseStats?: ResponseStatsRegistry;
+  } = {},
+): import("./middleware.js").ToolMiddlewareDeps {
+  const deps: import("./middleware.js").ToolMiddlewareDeps = {
     rateLimiter: new ToolRateLimiter(overrides.rateLimit ?? { limit: 120, windowSeconds: 60 }),
     loopDetector: new LoopDetector({ threshold: 5, windowSeconds: 60 }),
     circuitRegistry: new CircuitBreakerRegistry(),
     shutdown: new ShutdownController(),
   };
+  if (overrides.responseStats !== undefined) {
+    deps.responseStats = overrides.responseStats;
+  }
+  return deps;
 }
 
 /** Build a fake SDK callback that returns a fixed envelope wrapped per `toolResponse`. */
@@ -93,6 +103,49 @@ describe("composeToolCallback", () => {
     }
     // Next call must short-circuit with CircuitOpen rather than re-invoke.
     await expect(wrapped({}, {})).rejects.toMatchObject({ code: "OF_CIRCUIT_OPEN" });
+  });
+
+  it("records the response wire size into responseStats on success (#778)", async () => {
+    const responseStats = new ResponseStatsRegistry({
+      sampleRate: 1,
+      thresholdBytes: Infinity,
+      logger: { warn: vi.fn(), info: vi.fn() } as unknown as ConstructorParameters<
+        typeof ResponseStatsRegistry
+      >[0]["logger"],
+    });
+    const deps = makeDeps({ responseStats });
+    const wrapped = composeToolCallback("tool_stats", makeOkCallback(), deps);
+
+    await wrapped({}, {});
+    await wrapped({}, {});
+    await wrapped({}, {});
+
+    const snap = responseStats.snapshot();
+    expect(snap.tools.tool_stats?.count).toBe(3);
+    // Each successful response carries the same envelope structure, so total
+    // bytes ≈ 3 × per-call wire size; just assert the recorded total is > 0
+    // and aggregates are coherent.
+    expect(snap.tools.tool_stats?.total).toBeGreaterThan(0);
+    expect(snap.tools.tool_stats?.max).toBeGreaterThan(0);
+    expect(snap.tools.tool_stats?.p50).toBeGreaterThan(0);
+  });
+
+  it("does not record into responseStats on a thrown handler error", async () => {
+    const responseStats = new ResponseStatsRegistry({
+      sampleRate: 1,
+      thresholdBytes: Infinity,
+      logger: { warn: vi.fn(), info: vi.fn() } as unknown as ConstructorParameters<
+        typeof ResponseStatsRegistry
+      >[0]["logger"],
+    });
+    const deps = makeDeps({ responseStats });
+    const failingCb = async (): Promise<CallToolResult> => {
+      throw new Error("boom");
+    };
+    const wrapped = composeToolCallback("tool_fail", failingCb, deps);
+
+    await expect(wrapped({}, {})).rejects.toThrow();
+    expect(responseStats.snapshot().tools.tool_fail).toBeUndefined();
   });
 
   it("rejects with ServerShuttingDown once the controller flips", async () => {

@@ -51,17 +51,25 @@ import { withCorrelationId } from "../logging/correlation.js";
 import { withInvocationLogging } from "../logging/withInvocationLogging.js";
 import type { LoopDetector } from "../loopDetector/LoopDetector.js";
 import { withLoopDetection } from "../loopDetector/withLoopDetection.js";
+import type { ResponseStatsRegistry } from "../observability/responseStats.js";
 import type { ToolRateLimiter } from "../rateLimit/ToolRateLimiter.js";
 import { withRateLimitMeta } from "../rateLimit/withRateLimitMeta.js";
 import type { CircuitBreakerRegistry } from "./circuitBreaker.js";
 import type { ShutdownController } from "./shutdown.js";
 
-/** Dependency bundle threaded into the patch. All required. */
+/** Dependency bundle threaded into the patch. All required except `responseStats`. */
 export interface ToolMiddlewareDeps {
   rateLimiter: ToolRateLimiter;
   loopDetector: LoopDetector;
   circuitRegistry: CircuitBreakerRegistry;
   shutdown: ShutdownController;
+  /**
+   * Optional per-tool response-byte recorder (#778). Omit, or pass a registry
+   * with `sampleRate: 0`, to disable. Recording happens on the success path
+   * only — errors do not contribute samples (their wire size is dominated by
+   * the SDK error envelope, not tool behaviour).
+   */
+  responseStats?: ResponseStatsRegistry;
 }
 
 /** Loose shape for the SDK tool callback — `(args, extra) => Promise<CallToolResult>`. */
@@ -106,7 +114,22 @@ export function composeToolCallback(
           ),
         );
 
-        return toolResponse(enveloped as ToolEnvelope<unknown>);
+        const sdkResult = toolResponse(enveloped as ToolEnvelope<unknown>);
+
+        // Per-tool response-byte telemetry (#778). Measure the wire size of
+        // `structuredContent` — that's what the LLM actually pays for. The
+        // registry is sample-gated; default deploys pay zero overhead.
+        if (deps.responseStats !== undefined && sdkResult.structuredContent !== undefined) {
+          try {
+            const bytes = Buffer.byteLength(JSON.stringify(sdkResult.structuredContent), "utf-8");
+            deps.responseStats.record(toolName, bytes);
+          } catch {
+            // Pathological envelopes (cycles, BigInt) shouldn't break the
+            // success path — silently skip the sample.
+          }
+        }
+
+        return sdkResult;
       });
     });
   };

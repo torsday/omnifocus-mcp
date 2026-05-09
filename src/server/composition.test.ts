@@ -51,6 +51,8 @@ const baseConfig: Config = {
   OMNIFOCUS_TOOL_RATE_LIMIT: { limit: 120, windowSeconds: 60 },
   OMNIFOCUS_WAITING_TAG_NAME: "waiting",
   OMNIFOCUS_TEMPLATES_FOLDER_NAME: "Templates",
+  OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE: 0,
+  OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES: 51200,
 };
 
 describe("composeAdapter", () => {
