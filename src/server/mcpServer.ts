@@ -325,6 +325,10 @@ export async function startServer(): Promise<void> {
     makeMeta,
     probeResponseStats: () =>
       config.OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE > 0 ? responseStats.snapshot() : null,
+    probeCache: () => {
+      const s = services.cache.stats();
+      return { ...s, services: services.cache.serviceStats() };
+    },
   });
 
   // Register MCP prompts (DESIGN §29) — four workflow templates.

@@ -253,3 +253,44 @@ describe("internal_status — responseStats", () => {
     expect(envelope.data.responseStats).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// probeCache — per-service cache stats (#821)
+// ---------------------------------------------------------------------------
+
+describe("handleInternalStatus — probeCache", () => {
+  it("returns cache=null when no probeCache is provided", async () => {
+    const ctx = makeCtx();
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.cache).toBeNull();
+  });
+
+  it("surfaces cache stats from probeCache", async () => {
+    const ctx = {
+      ...makeCtx(),
+      probeCache: () => ({
+        size: 3,
+        hits: 10,
+        misses: 2,
+        evictions: 0,
+        coalesced: 1,
+        services: {
+          tag: { hits: 5, misses: 1, hitRate: 5 / 6 },
+          task: { hits: 5, misses: 1, hitRate: 5 / 6 },
+        },
+      }),
+    };
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.cache?.size).toBe(3);
+    expect(envelope.data.cache?.services["tag"]).toMatchObject({ hits: 5, misses: 1 });
+  });
+
+  it("degrades to cache=null when probeCache throws", async () => {
+    const ctx = {
+      ...makeCtx(),
+      probeCache: () => { throw new Error("probe failed"); },
+    };
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.cache).toBeNull();
+  });
+});

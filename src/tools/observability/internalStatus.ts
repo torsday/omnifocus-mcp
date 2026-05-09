@@ -14,6 +14,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
+import type { ServiceCacheStats } from "../../cache/lruCache.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { ResponseStatsSnapshot } from "../../observability/responseStats.js";
 import type { Capabilities } from "../../resources/capabilities.js";
@@ -29,6 +30,7 @@ export const INTERNAL_STATUS_DESCRIPTION =
   "Return a health snapshot of the running omnifocus-mcp server. " +
   "Do NOT use this to read OmniFocus data — prefer task_list, project_list, sync_status, etc. " +
   "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth, responseStats }. " +
+  "cache.services maps key prefixes (tag, folder, forecast, task, project) to { hits, misses, hitRate }. " +
   "uptimeMs is the milliseconds since the server process started. " +
   "circuits lists each circuit-breaker name and state (closed/open/half_open). " +
   "lastSync mirrors sync_status data; null if getLastSync throws. " +
@@ -38,12 +40,11 @@ export const INTERNAL_STATUS_DESCRIPTION =
   "available is false. Read-only — does NOT trigger the macOS Calendar TCC prompt. " +
   "mutation surfaces Stryker calibration freshness — { score, lastRunAt } where score is the " +
   "latest mutation-testing score (0–100) per ADR-0017 and lastRunAt is the report's mtime. " +
-  "Returns null when no report file is present (the published npm tarball ships without one). " +
+  "Returns null when no report file is present. " +
   "responseStats reports per-tool response-byte aggregates (#778) — " +
   "{ since, sampleRate, thresholdBytes, tools: { <toolName>: { count, total, max, p50, p95 } } } — " +
   "or null when sampling is disabled (sampleRate 0). " +
-  "Read-only; no side effects. " +
-  "Example: internal_status()";
+  "Read-only. Example: internal_status()";
 
 // ---------------------------------------------------------------------------
 // Input schema
@@ -77,7 +78,18 @@ export interface InternalStatusData {
    * not ship the report, so end-user installs degrade to `null` cleanly.
    */
   mutation: MutationScoreSnapshot | null;
-  cache: { size: number; hits: number; misses: number } | null;
+  /**
+   * Aggregate cache stats plus per-service hit/miss breakdown (#821).
+   * `null` when no cache is wired.
+   */
+  cache: {
+    size: number;
+    hits: number;
+    misses: number;
+    evictions: number;
+    coalesced: number;
+    services: Record<string, ServiceCacheStats>;
+  } | null;
   circuits: CircuitSnapshot[];
   queueDepth: number | null;
   /**
@@ -115,6 +127,11 @@ export interface InternalStatusContext {
    * also surfaces as `null` in the response.
    */
   probeResponseStats?: () => ResponseStatsSnapshot | null;
+  /**
+   * Optional cache-stats probe (#821). Returns aggregate + per-service stats,
+   * or `null` when no cache is wired. Omitting also surfaces as `null`.
+   */
+  probeCache?: () => InternalStatusData["cache"];
 }
 
 /**
@@ -164,13 +181,22 @@ export async function handleInternalStatus(
     }
   }
 
+  let cache: InternalStatusData["cache"] = null;
+  if (ctx.probeCache !== undefined) {
+    try {
+      cache = ctx.probeCache();
+    } catch {
+      cache = null;
+    }
+  }
+
   const data: InternalStatusData = {
     uptimeMs,
     ofRunning: true,
     lastSync,
     calendarAccess,
     mutation,
-    cache: null,
+    cache,
     circuits,
     queueDepth: null,
     responseStats,
