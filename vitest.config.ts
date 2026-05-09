@@ -28,6 +28,7 @@ export default defineConfig({
       "tests/chaos/**/*.test.ts",
       "tests/integration/**/*.test.ts",
       "tests/perf/**/*.perf.test.ts",
+      "tests/benchmark/**/*.test.ts",
       "tests/e2e/**/*.test.ts",
       "tests/scripts/**/*.test.ts",
       "src/**/*.test.ts",
