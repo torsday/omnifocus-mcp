@@ -280,7 +280,6 @@ describe("OmniFocusLruCache — serviceStats", () => {
     expect(stats.folder).toEqual({ hits: 0, misses: 1, hitRate: 0 });
   });
 
-
   it("emits cache.lowHitRate when miss-rate crosses threshold", async () => {
     const cache = new OmniFocusLruCache({ hitRateThreshold: 0.5 });
     const events: unknown[] = [];
