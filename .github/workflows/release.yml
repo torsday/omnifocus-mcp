@@ -136,7 +136,7 @@ jobs:
 
           echo "Integration suite passed on $sha (run age: ${age_h}h)."
 
-      - name: Bundle-size budget (< 500 KB per DESIGN §20)
+      - name: Bundle-size budget (< 800 KiB per DESIGN §20)
         run: bash scripts/check-bundle-size.sh
 
       # Extract release notes from CHANGELOG.md before publishing so a
