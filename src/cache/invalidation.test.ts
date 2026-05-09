@@ -106,7 +106,13 @@ describe("invalidateTagMutation", () => {
   it("emits tag, tag:list, forecast:*, perspective:*, search:*", () => {
     const cache = makeRecorder();
     invalidateTagMutation(cache as unknown as InvalidatingCache, { tagId: "tag_7" as TagId });
-    expect(cache.scopes).toEqual(["tag:tag_7", "tag:list", "forecast:*", "perspective:*", "search:*"]);
+    expect(cache.scopes).toEqual([
+      "tag:tag_7",
+      "tag:list",
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+    ]);
   });
 });
 
@@ -120,7 +126,12 @@ describe("invalidateFolderMutation", () => {
     invalidateFolderMutation(cache as unknown as InvalidatingCache, {
       folderId: "folder_3" as FolderId,
     });
-    expect(cache.scopes).toEqual(["folder:folder_3", "folder:list", "perspective:*", "search:*"]);
+    expect(cache.scopes).toEqual([
+      "folder:folder_3",
+      "folder:list",
+      "perspective:*",
+      "search:*",
+    ]);
   });
 });
 
