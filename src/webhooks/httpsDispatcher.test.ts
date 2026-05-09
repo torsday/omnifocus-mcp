@@ -8,9 +8,16 @@
  */
 
 import { createHmac } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { EventEmitter } from "node:events";
+import type * as https from "node:https";
+import { describe, expect, it, vi } from "vitest";
 import type { WebhookEvent } from "./events.js";
-import { HttpsDispatcher, type HttpsRequestFn, SIGNATURE_HEADER } from "./httpsDispatcher.js";
+import {
+  buildHttpsRequest,
+  HttpsDispatcher,
+  type HttpsRequestFn,
+  SIGNATURE_HEADER,
+} from "./httpsDispatcher.js";
 import type { Webhook } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -329,5 +336,65 @@ describe("HttpsDispatcher — failure-mode discipline", () => {
     await h.dispatcher.deliver(sampleEvent(), () => undefined);
     expect(h.requests).toHaveLength(0);
     expect(h.writes.join("\n")).toContain("not found");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// defaultHttpsRequest — response-stream error wiring (#761)
+// ---------------------------------------------------------------------------
+
+describe("defaultHttpsRequest — response-stream error handling", () => {
+  /**
+   * Build a fake `https.request` whose response stream emits `error` after
+   * the request callback fires — the exact failure mode #761 closes.
+   * Without `res.on("error", reject)`, this would escape as
+   * `uncaughtException` rather than rejecting the dispatch promise.
+   */
+  function fakeHttpsRequestEmittingResError(err: Error): typeof https.request {
+    return ((_opts: unknown, cb?: unknown) => {
+      const fakeRes = Object.assign(new EventEmitter(), { statusCode: 200 });
+      const fakeReq = Object.assign(new EventEmitter(), {
+        destroy: vi.fn(),
+        write: vi.fn(),
+        end: vi.fn(),
+      });
+      if (typeof cb === "function") {
+        queueMicrotask(() => {
+          (cb as (res: unknown) => void)(fakeRes);
+          // Emit one tick later so `res.on("error", reject)` is in place.
+          queueMicrotask(() => fakeRes.emit("error", err));
+        });
+      }
+      return fakeReq as unknown as ReturnType<typeof https.request>;
+    }) as unknown as typeof https.request;
+  }
+
+  it("rejects when the response stream emits 'error' after the request callback fires", async () => {
+    const httpsRequest = fakeHttpsRequestEmittingResError(new Error("ECONNRESET mid-body"));
+    const request = buildHttpsRequest(httpsRequest);
+    await expect(
+      request({ url: "https://example.com/hook", body: "{}", headers: {}, timeoutMs: 1000 }),
+    ).rejects.toThrow(/ECONNRESET mid-body/);
+  });
+
+  it("flows response-stream errors through HttpsDispatcher's retry path (no uncaughtException)", async () => {
+    // Verify the fix composes with the retry loop: a response-stream error
+    // increments consecutiveFailures exactly like a request-stream error
+    // would, instead of bypassing circuit-breaker accounting.
+    const httpsRequest = fakeHttpsRequestEmittingResError(new Error("peer reset"));
+    const writes: string[] = [];
+    const dispatcher = new HttpsDispatcher({
+      request: buildHttpsRequest(httpsRequest),
+      now: () => 0,
+      sleep: async () => {},
+      write: (line) => writes.push(line),
+    });
+
+    await expect(
+      dispatcher.deliver(sampleEvent(), () => WEBHOOK_NO_SECRET),
+    ).resolves.toBeUndefined();
+
+    const circuit = dispatcher.inspectCircuit(WEBHOOK_NO_SECRET.name);
+    expect(circuit?.consecutiveFailures).toBe(1);
   });
 });
