@@ -101,3 +101,29 @@ describe("project_list — handler", () => {
     await expect(handleProjectList({}, ctx)).rejects.toThrow();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Field projection (#773)
+// ---------------------------------------------------------------------------
+
+describe("handleProjectList — field projection", () => {
+  it("restricts each project to the requested fields plus id", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createProject({ name: "P1" });
+    const result = await handleProjectList({ status: "active", fields: ["name"] }, ctx);
+    const project = result.data.projects[0] as unknown as Record<string, unknown>;
+    expect(Object.keys(project).sort()).toEqual(["id", "name"]);
+  });
+
+  it("emits WARN_UNKNOWN_FIELDS for unrecognized names", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createProject({ name: "P1" });
+    const result = await handleProjectList(
+      { status: "active", fields: ["name", "phantomProjectField"] },
+      ctx,
+    );
+    const warning = result.meta.warnings?.find((w) => w.code === "WARN_UNKNOWN_FIELDS");
+    expect(warning).toBeDefined();
+    expect(warning?.details).toMatchObject({ unknown: ["phantomProjectField"] });
+  });
+});

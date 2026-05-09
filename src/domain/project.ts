@@ -73,6 +73,41 @@ export interface Project {
 // Schema
 // ---------------------------------------------------------------------------
 
+/**
+ * Top-level field names of a {@link Project} record. Used by the `fields[]`
+ * projection (#773). `id` is omitted — always retained by the projection.
+ */
+export const PROJECT_FIELD_NAMES = [
+  "name",
+  "note",
+  "noteHtml",
+  "folderId",
+  "tagIds",
+  "status",
+  "completionCriterion",
+  "deferDate",
+  "deferDateFloating",
+  "dueDate",
+  "dueDateFloating",
+  "estimatedMinutes",
+  "flagged",
+  "reviewIntervalDays",
+  "nextReviewDate",
+  "lastReviewDate",
+  "completed",
+  "completedAt",
+  "dropped",
+  "droppedAt",
+  "taskCount",
+  "completedTaskCount",
+  "createdAt",
+  "modifiedAt",
+  "_links",
+] as const;
+
+/** Fast-lookup Set form of {@link PROJECT_FIELD_NAMES}. */
+export const PROJECT_FIELD_NAMES_SET: ReadonlySet<string> = new Set(PROJECT_FIELD_NAMES);
+
 export const ProjectSchema: z.ZodType<Project> = z.object({
   id: ProjectIdCtor.schema,
   name: z.string(),

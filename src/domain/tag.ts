@@ -55,6 +55,24 @@ export const TagLocationSchema: z.ZodType<TagLocation> = z.object({
   trigger: z.enum(["entering", "leaving", "both"]),
 }) as z.ZodType<TagLocation>;
 
+/**
+ * Top-level field names of a {@link Tag} record. Used by the `fields[]`
+ * projection (#773). `id` is omitted — always retained by the projection.
+ */
+export const TAG_FIELD_NAMES = [
+  "name",
+  "parentId",
+  "status",
+  "location",
+  "allowsNextAction",
+  "taskCount",
+  "createdAt",
+  "modifiedAt",
+] as const;
+
+/** Fast-lookup Set form of {@link TAG_FIELD_NAMES}. */
+export const TAG_FIELD_NAMES_SET: ReadonlySet<string> = new Set(TAG_FIELD_NAMES);
+
 export const TagSchema: z.ZodType<Tag> = z.object({
   id: TagIdCtor.schema,
   name: z.string(),

@@ -13,10 +13,12 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { parseDecision } from "../../domain/decisionJournal.js";
 import { TaskId } from "../../domain/ids.js";
+import { TASK_FIELD_NAMES, TASK_FIELD_NAMES_SET } from "../../domain/task.js";
 import { parseWaitingOn } from "../../domain/waitingOn.js";
 import { TASK_DEFAULTS } from "../../envelope/defaultsRegistry.js";
 import { elideDefaults, elideDefaultsAll } from "../../envelope/elideDefaults.js";
-import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { ok, type ResponseMeta, toolResponse, warnUnknownFields } from "../../envelope/index.js";
+import { applyProjection, validateFields } from "../../envelope/projection.js";
 import type { TaskGetInput, TaskService } from "../../services/taskService.js";
 import { applyNotePreview, DEFAULT_NOTE_PREVIEW_CHARS } from "./notePreview.js";
 
@@ -53,6 +55,14 @@ export const taskGetInputSchema = z.object({
         "Default: false — fields equal to their documented default are omitted. " +
         "See docs/token-cost.md for the defaults table.",
     ),
+  fields: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Restrict the returned task (and each subtask) to this list of top-level fields (id is always returned). " +
+        "Omit for the full task shape. Empty array returns just id. " +
+        "Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS.",
+    ),
 });
 
 export type TaskGetToolInput = z.infer<typeof taskGetInputSchema>;
@@ -68,21 +78,36 @@ export interface TaskGetContext {
  * @throws {OmniFocusNotRunning} when OmniFocus is not running
  */
 export async function handleTaskGet(input: TaskGetToolInput, ctx: TaskGetContext) {
-  const { notePreviewChars: rawPreviewChars, verbose, ...rest } = input;
+  const { notePreviewChars: rawPreviewChars, verbose, fields, ...rest } = input;
   const result = await ctx.taskService.get(rest as TaskGetInput);
-  // Parse waitingOn / decision against the full note before applying truncation.
+  // Parse waitingOn / decision against the full note before truncation/projection.
   const waitingOn = parseWaitingOn(result.task.note);
   const decision = parseDecision(result.task.note);
   const previewChars = rawPreviewChars ?? DEFAULT_NOTE_PREVIEW_CHARS;
-  const previewedTask = applyNotePreview(result.task, previewChars);
-  const previewedSubtasks = result.subtasks?.map((t) => applyNotePreview(t, previewChars));
-  const task = verbose === true ? previewedTask : elideDefaults(previewedTask, TASK_DEFAULTS);
+
+  const projection =
+    fields !== undefined ? validateFields(fields, TASK_FIELD_NAMES_SET) : undefined;
+  const projectFields = projection?.valid;
+  const warnings =
+    projection !== undefined && projection.unknown.length > 0
+      ? [warnUnknownFields([...projection.unknown], TASK_FIELD_NAMES)]
+      : undefined;
+
+  const previewedTask = applyNotePreview(applyProjection(result.task, projectFields), previewChars);
+  const previewedSubtasks = result.subtasks?.map((t) =>
+    applyNotePreview(applyProjection(t, projectFields), previewChars),
+  );
+
+  // fields[] = explicit mode → skip elide-defaults so requested fields aren't silently dropped.
+  const applyElide = verbose !== true && projectFields === undefined;
+  const task = applyElide ? elideDefaults(previewedTask, TASK_DEFAULTS) : previewedTask;
   const subtasks =
     previewedSubtasks === undefined
       ? undefined
-      : verbose === true
-        ? previewedSubtasks
-        : elideDefaultsAll(previewedSubtasks, TASK_DEFAULTS);
+      : applyElide
+        ? elideDefaultsAll(previewedSubtasks, TASK_DEFAULTS)
+        : previewedSubtasks;
+
   return ok(
     {
       task,
@@ -90,7 +115,10 @@ export async function handleTaskGet(input: TaskGetToolInput, ctx: TaskGetContext
       ...(waitingOn !== undefined && { waitingOn }),
       ...(decision !== undefined && { decision }),
     },
-    ctx.makeMeta({ cacheHit: result.cacheHit }),
+    ctx.makeMeta({
+      cacheHit: result.cacheHit,
+      ...(warnings !== undefined ? { warnings } : {}),
+    }),
   );
 }
 

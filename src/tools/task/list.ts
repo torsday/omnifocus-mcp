@@ -22,9 +22,17 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { flexDateString } from "../../domain/dates.js";
 import { ProjectId, TagId, TaskId } from "../../domain/ids.js";
+import { TASK_FIELD_NAMES, TASK_FIELD_NAMES_SET } from "../../domain/task.js";
 import { TASK_DEFAULTS } from "../../envelope/defaultsRegistry.js";
-import { elideDefaultsAll } from "../../envelope/elideDefaults.js";
-import { ok, type Pagination, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { elideDefaults } from "../../envelope/elideDefaults.js";
+import {
+  ok,
+  type Pagination,
+  type ResponseMeta,
+  toolResponse,
+  warnUnknownFields,
+} from "../../envelope/index.js";
+import { applyProjection, validateFields } from "../../envelope/projection.js";
 import type { TaskListInput, TaskService } from "../../services/taskService.js";
 import { TaskSortBySchema } from "../../services/taskService.js";
 import { applyNotePreview, DEFAULT_NOTE_PREVIEW_CHARS } from "./notePreview.js";
@@ -162,6 +170,14 @@ export const taskListInputSchema = z.object({
         "tagIds: [], note: null, dueDate: null, etc.) are omitted from the wire payload. " +
         "An omitted field means the default applies. See docs/token-cost.md for the full defaults table.",
     ),
+  fields: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Restrict each returned task to this list of top-level fields (id is always returned). " +
+        "Omit for the full task shape. Empty array returns just id. " +
+        "Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS.",
+    ),
 });
 
 /** TypeScript input type derived from {@link taskListInputSchema}. */
@@ -183,17 +199,37 @@ export interface ToolContext {
  * can invoke it without constructing an McpServer.
  */
 export async function handleTaskList(input: TaskListToolInput, ctx: ToolContext) {
-  const { notePreviewChars: rawPreviewChars, verbose, ...rest } = input;
+  const { notePreviewChars: rawPreviewChars, verbose, fields, ...rest } = input;
   const serviceInput = rest as TaskListInput;
   const result = await ctx.taskService.list(serviceInput);
   const pagination: Pagination = {
     cursor: result.nextCursor,
     hasMore: result.hasMore,
   };
-  const meta = ctx.makeMeta({ cacheHit: result.cacheHit });
   const previewChars = rawPreviewChars ?? DEFAULT_NOTE_PREVIEW_CHARS;
-  const previewed = result.tasks.map((t) => applyNotePreview(t, previewChars));
-  const tasks = verbose === true ? previewed : elideDefaultsAll(previewed, TASK_DEFAULTS);
+
+  const projection =
+    fields !== undefined ? validateFields(fields, TASK_FIELD_NAMES_SET) : undefined;
+  const projectFields = projection?.valid;
+  const warnings =
+    projection !== undefined && projection.unknown.length > 0
+      ? [warnUnknownFields([...projection.unknown], TASK_FIELD_NAMES)]
+      : undefined;
+
+  // When fields[] is specified the caller is being explicit — skip elide-defaults
+  // so requested fields are never silently dropped. verbose=true also bypasses
+  // elide-defaults. Default (no fields, no verbose) applies elide-defaults.
+  const applyElide = verbose !== true && projectFields === undefined;
+  const tasks = result.tasks.map((t) => {
+    const projected = applyProjection(t, projectFields);
+    const previewed = applyNotePreview(projected, previewChars);
+    return applyElide ? elideDefaults(previewed, TASK_DEFAULTS) : previewed;
+  });
+
+  const meta = ctx.makeMeta({
+    cacheHit: result.cacheHit,
+    ...(warnings !== undefined ? { warnings } : {}),
+  });
   return ok({ tasks }, meta, pagination);
 }
 

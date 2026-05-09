@@ -91,8 +91,15 @@ export async function runInboxTriage(ctx: BenchToolContext): Promise<Bench> {
     }),
   );
 
-  // 6) Final list — confirm what's still on the plate.
-  const finalListInput = { inbox: true, completed: "exclude" as const, limit: 50 };
+  // 6) Final list — confirm what's still on the plate. The triager only needs
+  //    name + status flags here, not the multi-KB notes again, so use the
+  //    field projection from #773 to keep the readback lean.
+  const finalListInput = {
+    inbox: true,
+    completed: "exclude" as const,
+    limit: 50,
+    fields: ["name", "flagged", "tagIds", "deferDate"],
+  };
   await bench.call("task_list", finalListInput, () =>
     handleTaskList(finalListInput, { taskService: ctx.taskService, makeMeta: ctx.makeMeta }),
   );

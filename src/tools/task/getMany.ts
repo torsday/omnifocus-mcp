@@ -26,10 +26,19 @@ import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type Decision, parseDecision } from "../../domain/decisionJournal.js";
 import { TaskId } from "../../domain/ids.js";
+import { TASK_FIELD_NAMES, TASK_FIELD_NAMES_SET } from "../../domain/task.js";
 import { parseWaitingOn, type WaitingOn } from "../../domain/waitingOn.js";
 import { TASK_DEFAULTS } from "../../envelope/defaultsRegistry.js";
 import { elideDefaultsAll } from "../../envelope/elideDefaults.js";
-import { ok, type ResponseMeta, toolResponse, warnIdsNotFound } from "../../envelope/index.js";
+import {
+  ok,
+  type ResponseMeta,
+  toolResponse,
+  type Warning,
+  warnIdsNotFound,
+  warnUnknownFields,
+} from "../../envelope/index.js";
+import { applyProjection, validateFields } from "../../envelope/projection.js";
 import { ValidationError } from "../../errors/index.js";
 import { applyNotePreview, DEFAULT_NOTE_PREVIEW_CHARS } from "./notePreview.js";
 
@@ -80,6 +89,14 @@ export const taskGetManyInputSchema = z.object({
       "When true, return the full unelided task shape. " +
         "Default: false — fields equal to their documented default are omitted. " +
         "See docs/token-cost.md for the defaults table.",
+    ),
+  fields: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Restrict each returned task to this list of top-level fields (id is always returned). " +
+        "Omit for the full task shape. Empty array returns just id. " +
+        "Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS.",
     ),
 });
 
@@ -136,11 +153,24 @@ export async function handleTaskGetMany(input: TaskGetManyInput, ctx: TaskGetMan
   const hasDecisions = Object.keys(decisions).length > 0;
 
   const previewChars = input.notePreviewChars ?? DEFAULT_NOTE_PREVIEW_CHARS;
-  const previewed = fullTasks.map((t) => applyNotePreview(t, previewChars));
-  const tasks = input.verbose === true ? previewed : elideDefaultsAll(previewed, TASK_DEFAULTS);
 
-  const warnings = missing.length > 0 ? [warnIdsNotFound(missing)] : undefined;
-  const meta = ctx.makeMeta({ ...(warnings !== undefined ? { warnings } : {}) });
+  const projection =
+    input.fields !== undefined ? validateFields(input.fields, TASK_FIELD_NAMES_SET) : undefined;
+  const projectFields = projection?.valid;
+
+  const previewed = fullTasks.map((t) =>
+    applyNotePreview(applyProjection(t, projectFields), previewChars),
+  );
+  // fields[] = explicit mode → skip elide-defaults so requested fields aren't silently dropped.
+  const applyElide = input.verbose !== true && projectFields === undefined;
+  const tasks = applyElide ? elideDefaultsAll(previewed, TASK_DEFAULTS) : previewed;
+
+  const warnings: Warning[] = [];
+  if (missing.length > 0) warnings.push(warnIdsNotFound(missing));
+  if (projection !== undefined && projection.unknown.length > 0) {
+    warnings.push(warnUnknownFields([...projection.unknown], TASK_FIELD_NAMES));
+  }
+  const meta = ctx.makeMeta({ ...(warnings.length > 0 ? { warnings } : {}) });
 
   return ok(
     {

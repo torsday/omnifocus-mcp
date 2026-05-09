@@ -234,4 +234,24 @@ describe("search_query — pagination", () => {
     expect(cursor).toBeTruthy();
     await expect(handleSearchQuery({ q: "different", limit: 3, cursor }, ctx)).rejects.toThrow();
   });
+
+  // -------------------------------------------------------------------------
+  // Field projection (#773)
+  // -------------------------------------------------------------------------
+
+  it("projects each returned task to the requested fields plus id", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTask({ name: "Task one", note: "details", flagged: true });
+    const result = await handleSearchQuery({ q: "task", fields: ["name"] }, ctx);
+    const task = result.data.tasks[0] as unknown as Record<string, unknown>;
+    expect(Object.keys(task).sort()).toEqual(["id", "name"]);
+  });
+
+  it("emits WARN_UNKNOWN_FIELDS for unknown names in fields[]", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTask({ name: "Task one" });
+    const result = await handleSearchQuery({ q: "task", fields: ["name", "bogus"] }, ctx);
+    const warning = result.meta.warnings?.find((w) => w.code === "WARN_UNKNOWN_FIELDS");
+    expect(warning?.details).toMatchObject({ unknown: ["bogus"] });
+  });
 });

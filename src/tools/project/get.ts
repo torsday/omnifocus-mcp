@@ -14,9 +14,11 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { type Decision, parseDecision } from "../../domain/decisionJournal.js";
 import { ProjectId } from "../../domain/ids.js";
+import { PROJECT_FIELD_NAMES, PROJECT_FIELD_NAMES_SET } from "../../domain/project.js";
 import { PROJECT_DEFAULTS, TASK_DEFAULTS } from "../../envelope/defaultsRegistry.js";
 import { elideDefaults, elideDefaultsAll } from "../../envelope/elideDefaults.js";
-import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { ok, type ResponseMeta, toolResponse, warnUnknownFields } from "../../envelope/index.js";
+import { applyProjection, validateFields } from "../../envelope/projection.js";
 import type { ProjectService } from "../../services/projectService.js";
 
 // ---------------------------------------------------------------------------
@@ -52,6 +54,15 @@ export const projectGetInputSchema = z.object({
         "Default: false — fields equal to their documented default are omitted from both. " +
         "See docs/token-cost.md for the defaults table.",
     ),
+  fields: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Restrict the returned project to this list of top-level fields (id is always returned). " +
+        "Omit for the full project shape. Empty array returns just id. " +
+        "Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. " +
+        "Note: only the project record is projected — attached tasks keep their full shape.",
+    ),
 });
 
 export type ProjectGetToolInput = z.infer<typeof projectGetInputSchema>;
@@ -75,16 +86,35 @@ export async function handleProjectGet(input: ProjectGetToolInput, ctx: ProjectG
     id: input.id,
     ...(input.includeTaskTree !== undefined ? { includeTaskTree: input.includeTaskTree } : {}),
   });
-  const meta = ctx.makeMeta({ cacheHit: result.cacheHit });
+  // Parse decision against the full note before projection.
   const decision = parseDecision(result.project.note);
-  const project =
-    input.verbose === true ? result.project : elideDefaults(result.project, PROJECT_DEFAULTS);
+
+  const projection =
+    input.fields !== undefined ? validateFields(input.fields, PROJECT_FIELD_NAMES_SET) : undefined;
+  const projectFields = projection?.valid;
+  const warnings =
+    projection !== undefined && projection.unknown.length > 0
+      ? [warnUnknownFields([...projection.unknown], PROJECT_FIELD_NAMES)]
+      : undefined;
+
+  const projectedProject = applyProjection(result.project, projectFields);
+  // fields[] = explicit projection → skip elide-defaults on the project record.
+  const applyElide = input.verbose !== true && projectFields === undefined;
+  const project = applyElide ? elideDefaults(projectedProject, PROJECT_DEFAULTS) : projectedProject;
+  // Tasks are never projected (only the project record is), so apply elide-defaults
+  // based on verbose only (not fields[]).
   const tasks =
     result.tasks === undefined
       ? undefined
       : input.verbose === true
         ? result.tasks
         : elideDefaultsAll(result.tasks, TASK_DEFAULTS);
+
+  const meta = ctx.makeMeta({
+    cacheHit: result.cacheHit,
+    ...(warnings !== undefined ? { warnings } : {}),
+  });
+
   const data: {
     project: typeof project;
     tasks?: typeof tasks;

@@ -1461,6 +1461,7 @@ Evaluate an OmniFocus perspective and return its task list. Accepts both built-i
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `perspectiveId` | string | Yes | OmniFocus perspective id. Accepts a built-in id (inbox, projects, tags, forecast, flagged, nearby, review) or a custom-perspective id from perspective_list (kind: custom). |
+| `fields` | string[] | No | Restrict each returned task to this list of top-level fields (id is always returned). Omit for the full task shape. Empty array returns just id. Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. Allowed: name, note, noteHtml, projectId, parentId, tagIds, deferDate, deferDateFloating, dueDate, dueDateFloating, estimatedMinutes, flagged, completed, completedAt, dropped, droppedAt, available, blocked, sequential, completedByChildren, repetition, notifications, createdAt, modifiedAt, _links. |
 
 ### Example call
 
@@ -2001,6 +2002,7 @@ Fetch a single OmniFocus project by persistent ID. Do NOT use for queries across
 | `id` | string | Yes | Persistent project ID. Get from project_list or search_query. |
 | `includeTaskTree` | boolean | No | Whether to attach the project's tasks (flat array; clients rebuild the tree via parentId). Default true. Set to false for a fast project-only read. |
 | `verbose` | boolean | No | When true, return the full unelided shape (project + tasks). Default: false — fields equal to their documented default are omitted from both. See docs/token-cost.md for the defaults table. |
+| `fields` | string[] | No | Restrict the returned project to this list of top-level fields (id is always returned). Omit for the full project shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. Note: only the project record is projected — attached tasks keep their full shape. |
 
 ### Example call
 
@@ -2071,6 +2073,7 @@ List projects in OmniFocus with optional filters. Use for queries across project
 | `limit` | number | No | Max projects per page (1..1000). Default 200. Use `cursor` to fetch subsequent pages. |
 | `cursor` | string | No | Opaque cursor from a previous project_list response. Must use the same filters — changing filters mid-sequence returns a ValidationError. |
 | `verbose` | boolean | No | When true, return the full unelided project shape. Default: false — fields equal to their documented default (status: 'active', completionCriterion: 'parallel', flagged: false, tagIds: [], note: null, etc.) are omitted. See docs/token-cost.md for the defaults table. |
+| `fields` | string[] | No | Restrict each returned project to this list of top-level fields (id is always returned). Omit for the full project shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. |
 
 ### Example call
 
@@ -2610,6 +2613,7 @@ Full-text search across OmniFocus task names and/or notes. Use for finding tasks
 | `completed` | one of: any | only | exclude | No | 'exclude' = active tasks only; 'only' = completed only; 'any' = both. Default 'any'. |
 | `limit` | number | No | Max results per page (1..500). Default 100. |
 | `cursor` | string | No | Opaque cursor from a previous search_query response. Must use identical filters — changing filters returns a ValidationError. |
+| `fields` | string[] | No | Restrict each returned task to this list of top-level fields (id is always returned). Omit for the full task shape. Empty array returns just id. Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. Allowed: name, note, noteHtml, projectId, parentId, tagIds, deferDate, deferDateFloating, dueDate, dueDateFloating, estimatedMinutes, flagged, completed, completedAt, dropped, droppedAt, available, blocked, sequential, completedByChildren, repetition, notifications, createdAt, modifiedAt, _links. |
 
 ### Example call
 
@@ -2866,6 +2870,7 @@ Fetch a single tag by its persistent ID, including task count. Do not use to lis
 |-----------|------|----------|-------------|
 | `id` | string | Yes | Persistent tag ID. Get from tag_list. IDs are stable across renames. |
 | `verbose` | boolean | No | When true, return the full unelided tag shape. Default: false — fields equal to their documented default are omitted. See docs/token-cost.md for the defaults table. |
+| `fields` | string[] | No | Restrict the returned tag to this list of top-level fields (id is always returned). Omit for the full tag shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. |
 
 ### Example call
 
@@ -2981,6 +2986,7 @@ List all tags in OmniFocus, optionally filtered by parent tag or status. Do not 
 | `parentId` | string | No | Return only direct children of this tag. Get the ID from a previous tag_list call. Omit for root tags. |
 | `status` | unknown | No |  |
 | `verbose` | boolean | No | When true, return the full unelided tag shape. Default: false — fields equal to their documented default (status: 'active', parentId: null, location: null, allowsNextAction: true) are omitted. See docs/token-cost.md for the defaults table. |
+| `fields` | string[] | No | Restrict each returned tag to this list of top-level fields (id is always returned). Omit for the full tag shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. |
 
 ### Example call
 
@@ -4306,6 +4312,7 @@ Fetch a single OmniFocus task by persistent ID. Use when you have a known task I
 | `includeSubtasks` | boolean | No | Include direct subtasks in the response. Default true. |
 | `notePreviewChars` | number | No | Maximum characters of the task's note (and each subtask's note) to return. Default 200. When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. Pass -1 to disable truncation and return full notes inline. |
 | `verbose` | boolean | No | When true, return the full unelided task shape (every field present, even at defaults). Default: false — fields equal to their documented default are omitted. See docs/token-cost.md for the defaults table. |
+| `fields` | string[] | No | Restrict the returned task (and each subtask) to this list of top-level fields (id is always returned). Omit for the full task shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. |
 
 ### Example call
 
@@ -4350,6 +4357,7 @@ Fetch up to 100 tasks by persistent ID in a single OmniFocus round-trip. Use whe
 | `ids` | string[] | Yes | Array of task IDs to fetch (0..100). Get IDs from task_list, search_query, or task_find_by_name. Missing IDs are omitted (not errors) and appear in meta.warnings. |
 | `notePreviewChars` | number | No | Maximum characters of each task's note to return. Default 200. When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. Pass -1 to disable truncation and return full notes inline. |
 | `verbose` | boolean | No | When true, return the full unelided task shape. Default: false — fields equal to their documented default are omitted. See docs/token-cost.md for the defaults table. |
+| `fields` | string[] | No | Restrict each returned task to this list of top-level fields (id is always returned). Omit for the full task shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. |
 
 ### Example call
 
@@ -4415,6 +4423,7 @@ List tasks in OmniFocus with optional filters (project, tag, inbox, flagged, com
 | `cursor` | string | No | Opaque cursor from a previous task_list response. Must use the same filters — changing filters mid-sequence returns a ValidationError. |
 | `notePreviewChars` | number | No | Maximum characters of each task's note to return. Default 200. When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. Pass -1 to disable truncation and return full notes inline. |
 | `verbose` | boolean | No | When true, return the full unelided task shape (every field present, even at defaults). Default: false — fields equal to their documented default (flagged: false, completed: false, tagIds: [], note: null, dueDate: null, etc.) are omitted from the wire payload. An omitted field means the default applies. See docs/token-cost.md for the full defaults table. |
+| `fields` | string[] | No | Restrict each returned task to this list of top-level fields (id is always returned). Omit for the full task shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. |
 
 ### Example call
 

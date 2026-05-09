@@ -185,6 +185,43 @@ export const RepetitionRuleSchema: z.ZodType<RepetitionRule> = z
     message: "Only one of weekdays or monthlyAnchor may be set",
   }) as z.ZodType<RepetitionRule>;
 
+/**
+ * Top-level field names of a {@link Task} record. Used by the `fields[]`
+ * projection (#773) — see `src/envelope/projection.ts`. `id` is omitted
+ * here because the projection always retains it; including it explicitly
+ * is a no-op. Order matches {@link TaskSchema} for stable doc generation.
+ */
+export const TASK_FIELD_NAMES = [
+  "name",
+  "note",
+  "noteHtml",
+  "projectId",
+  "parentId",
+  "tagIds",
+  "deferDate",
+  "deferDateFloating",
+  "dueDate",
+  "dueDateFloating",
+  "estimatedMinutes",
+  "flagged",
+  "completed",
+  "completedAt",
+  "dropped",
+  "droppedAt",
+  "available",
+  "blocked",
+  "sequential",
+  "completedByChildren",
+  "repetition",
+  "notifications",
+  "createdAt",
+  "modifiedAt",
+  "_links",
+] as const;
+
+/** Fast-lookup Set form of {@link TASK_FIELD_NAMES}. */
+export const TASK_FIELD_NAMES_SET: ReadonlySet<string> = new Set(TASK_FIELD_NAMES);
+
 export const TaskSchema: z.ZodType<Task> = z.object({
   id: TaskIdCtor.schema,
   name: z.string(),

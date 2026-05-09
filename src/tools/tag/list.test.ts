@@ -108,3 +108,26 @@ describe("tag_list — description", () => {
     expect(TAG_LIST_DESCRIPTION.length).toBeGreaterThan(10);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Field projection (#773)
+// ---------------------------------------------------------------------------
+
+describe("handleTagList — field projection", () => {
+  it("restricts each tag to the requested fields plus id", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTag({ name: "T1" });
+    const envelope = await handleTagList({ fields: ["name"] }, ctx);
+    const tag = envelope.data.tags[0] as unknown as Record<string, unknown>;
+    expect(Object.keys(tag).sort()).toEqual(["id", "name"]);
+  });
+
+  it("emits WARN_UNKNOWN_FIELDS for unrecognized names", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTag({ name: "T1" });
+    const envelope = await handleTagList({ fields: ["name", "phantomTagField"] }, ctx);
+    const warning = envelope.meta.warnings?.find((w) => w.code === "WARN_UNKNOWN_FIELDS");
+    expect(warning).toBeDefined();
+    expect(warning?.details).toMatchObject({ unknown: ["phantomTagField"] });
+  });
+});
