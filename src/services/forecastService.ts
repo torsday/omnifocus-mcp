@@ -13,6 +13,13 @@
 import type { ForecastInput, OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
 import type { TagId } from "../domain/ids.js";
 import type { Task } from "../domain/task.js";
+import { hashFilter } from "../pagination/cursor.js";
+
+/** Minimal read-through cache surface needed by ForecastService. */
+interface ReadCache {
+  wrap<T>(key: string, factory: () => Promise<T>): Promise<T>;
+  has(key: string): boolean;
+}
 
 export interface ForecastGetResult {
   overdue: Task[];
@@ -24,9 +31,11 @@ export interface ForecastGetResult {
 
 export class ForecastService {
   private readonly adapter: OmniFocusAdapter;
+  private readonly cache: ReadCache | undefined;
 
-  constructor(deps: { adapter: OmniFocusAdapter }) {
+  constructor(deps: { adapter: OmniFocusAdapter; cache?: ReadCache }) {
     this.adapter = deps.adapter;
+    this.cache = deps.cache;
   }
 
   /**
@@ -36,6 +45,12 @@ export class ForecastService {
    * don't need rather than opting in.
    */
   async get(input: ForecastInput): Promise<ForecastGetResult> {
+    if (this.cache !== undefined) {
+      const cacheKey = `forecast:${hashFilter(input as unknown as Record<string, unknown>)}`;
+      const cacheHit = this.cache.has(cacheKey);
+      const result = await this.cache.wrap(cacheKey, () => this.adapter.getForecast(input));
+      return { ...result, cacheHit };
+    }
     const result = await this.adapter.getForecast(input);
     return { ...result, cacheHit: false };
   }

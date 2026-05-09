@@ -14,9 +14,8 @@
  *   operations (DESIGN agent_systems §atomic).
  * - Cache invalidation: when the optional `cache` dep is supplied, every
  *   write method flushes the tag-mutation scope set (see
- *   docs/cache-invalidation.md) via `invalidateTagMutation`. Reads still
- *   go straight to the adapter until the service-layer read cache lands
- *   with #36.
+ *   docs/cache-invalidation.md) via `invalidateTagMutation`. `list` reads
+ *   through the cache using `tag:list:${hash}` keys cleared by tag mutations.
  *
  * @see DESIGN.md §26 — reference implementation
  * @see docs/domain-reference.md — Tag schema
@@ -31,9 +30,16 @@ import type {
 import { type InvalidatingCache, invalidateTagMutation } from "../cache/invalidation.js";
 import type { TagId } from "../domain/ids.js";
 import type { Tag, TagLocation } from "../domain/tag.js";
+import { hashFilter } from "../pagination/cursor.js";
+
+/** Cache surface for TagService: invalidation (for writes) + read-through (for list). */
+export interface TagServiceCache extends InvalidatingCache {
+  wrap<T>(key: string, factory: () => Promise<T>): Promise<T>;
+  has(key: string): boolean;
+}
 
 /** Helper — emit the tag-mutation scope set if a cache is wired. */
-function flushTag(cache: InvalidatingCache | undefined, tagId: TagId): void {
+function flushTag(cache: TagServiceCache | undefined, tagId: TagId): void {
   if (cache !== undefined) invalidateTagMutation(cache, { tagId });
 }
 
@@ -74,10 +80,10 @@ export interface TagCreateResult {
 export interface TagServiceDeps {
   adapter: OmniFocusAdapter;
   /**
-   * Optional cache; when supplied, every write method flushes the
-   * tag-mutation scope set (docs/cache-invalidation.md).
+   * Optional cache; when supplied, `list` reads through it and every write
+   * method flushes the tag-mutation scope set (docs/cache-invalidation.md).
    */
-  cache?: InvalidatingCache;
+  cache?: TagServiceCache;
 }
 
 /**
@@ -89,7 +95,7 @@ export interface TagServiceDeps {
  */
 export class TagService {
   private readonly adapter: OmniFocusAdapter;
-  private readonly cache: InvalidatingCache | undefined;
+  private readonly cache: TagServiceCache | undefined;
 
   constructor({ adapter, cache }: TagServiceDeps) {
     this.adapter = adapter;
@@ -107,10 +113,17 @@ export class TagService {
    * @returns All matching tags in adapter-natural order.
    */
   async list(input: TagListInput = {}): Promise<TagListResult> {
-    const tags = await this.adapter.listTags({
+    const adapterInput = {
       ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
       ...(input.status !== undefined ? { status: input.status } : {}),
-    });
+    };
+    if (this.cache !== undefined) {
+      const cacheKey = `tag:list:${hashFilter(input as Record<string, unknown>)}`;
+      const cacheHit = this.cache.has(cacheKey);
+      const tags = await this.cache.wrap(cacheKey, () => this.adapter.listTags(adapterInput));
+      return { tags, cacheHit };
+    }
+    const tags = await this.adapter.listTags(adapterInput);
     return { tags, cacheHit: false };
   }
 

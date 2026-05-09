@@ -296,7 +296,7 @@ describe("TagService — cache invalidation", () => {
 
     const { id } = await tagService.create({ name: "Work" });
 
-    expect(scopes).toEqual([`tag:${id}`, "forecast:*", "perspective:*", "search:*"]);
+    expect(scopes).toEqual([`tag:${id}`, "tag:list", "forecast:*", "perspective:*", "search:*"]);
   });
 
   it("update / delete / move / setStatus / setAllowsNextAction all flush the tag scope set", async () => {
@@ -315,15 +315,51 @@ describe("TagService — cache invalidation", () => {
     await tagService.setAllowsNextAction(id, false);
     await tagService.delete(id);
 
-    // Five mutations × four scopes each = 20 emissions, all with the same shape.
-    expect(scopes).toHaveLength(20);
+    // Five mutations × five scopes each = 25 emissions, all with the same shape.
+    expect(scopes).toHaveLength(25);
     for (let i = 0; i < 5; i++) {
-      expect(scopes.slice(i * 4, i * 4 + 4)).toEqual([
+      expect(scopes.slice(i * 5, i * 5 + 5)).toEqual([
         `tag:${id}`,
+        "tag:list",
         "forecast:*",
         "perspective:*",
         "search:*",
       ]);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TagService.list — cache read-through
+// ---------------------------------------------------------------------------
+
+describe("TagService.list — cache hit", () => {
+  it("reports cacheHit true on second call with same input", async () => {
+    const adapter = new InMemoryAdapter({ now: () => new Date(0) });
+    const cache = new OmniFocusLruCache();
+    const tagService = new TagService({ adapter, cache });
+    await adapter.createTag({ name: "Work" });
+    await tagService.list();
+    const second = await tagService.list();
+    expect(second.cacheHit).toBe(true);
+  });
+
+  it("reports cacheHit false when no cache is wired", async () => {
+    const adapter = new InMemoryAdapter({ now: () => new Date(0) });
+    const tagService = new TagService({ adapter });
+    await adapter.createTag({ name: "Work" });
+    await tagService.list();
+    const second = await tagService.list();
+    expect(second.cacheHit).toBe(false);
+  });
+
+  it("cache is cleared after a mutation", async () => {
+    const adapter = new InMemoryAdapter({ now: () => new Date(0) });
+    const cache = new OmniFocusLruCache();
+    const tagService = new TagService({ adapter, cache });
+    await tagService.list();
+    await tagService.create({ name: "Work" });
+    const afterMutation = await tagService.list();
+    expect(afterMutation.cacheHit).toBe(false);
   });
 });

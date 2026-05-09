@@ -14,9 +14,9 @@
  * - `move` is a thin wrapper over `updateFolder(id, { parentId })`.
  * - Cache invalidation: when the optional `cache` dep is supplied, every
  *   write method flushes the folder-mutation scope set (see
- *   docs/cache-invalidation.md) via `invalidateFolderMutation`. Reads
- *   still go straight to the adapter until the service-layer read cache
- *   lands with #36.
+ *   docs/cache-invalidation.md) via `invalidateFolderMutation`. `list`
+ *   reads through the cache using `folder:list:${hash}` keys cleared by
+ *   folder mutations.
  *
  * @see DESIGN.md §26 — reference implementation
  * @see docs/domain-reference.md — Folder schema
@@ -30,9 +30,16 @@ import type {
 import { type InvalidatingCache, invalidateFolderMutation } from "../cache/invalidation.js";
 import type { Folder } from "../domain/folder.js";
 import type { FolderId } from "../domain/ids.js";
+import { hashFilter } from "../pagination/cursor.js";
+
+/** Cache surface for FolderService: invalidation (for writes) + read-through (for list). */
+export interface FolderServiceCache extends InvalidatingCache {
+  wrap<T>(key: string, factory: () => Promise<T>): Promise<T>;
+  has(key: string): boolean;
+}
 
 /** Helper — emit the folder-mutation scope set if a cache is wired. */
-function flushFolder(cache: InvalidatingCache | undefined, folderId: FolderId): void {
+function flushFolder(cache: FolderServiceCache | undefined, folderId: FolderId): void {
   if (cache !== undefined) invalidateFolderMutation(cache, { folderId });
 }
 
@@ -71,10 +78,10 @@ export interface FolderCreateResult {
 export interface FolderServiceDeps {
   adapter: OmniFocusAdapter;
   /**
-   * Optional cache; when supplied, every write method flushes the
-   * folder-mutation scope set (docs/cache-invalidation.md).
+   * Optional cache; when supplied, `list` reads through it and every write
+   * method flushes the folder-mutation scope set (docs/cache-invalidation.md).
    */
-  cache?: InvalidatingCache;
+  cache?: FolderServiceCache;
 }
 
 /**
@@ -85,7 +92,7 @@ export interface FolderServiceDeps {
  */
 export class FolderService {
   private readonly adapter: OmniFocusAdapter;
-  private readonly cache: InvalidatingCache | undefined;
+  private readonly cache: FolderServiceCache | undefined;
 
   constructor({ adapter, cache }: FolderServiceDeps) {
     this.adapter = adapter;
@@ -103,9 +110,14 @@ export class FolderService {
    * @returns Matching folders in adapter-natural order.
    */
   async list(input: FolderListInput = {}): Promise<FolderListResult> {
-    const folders = await this.adapter.listFolders(
-      input.parentId !== undefined ? { parentId: input.parentId } : {},
-    );
+    const adapterInput = input.parentId !== undefined ? { parentId: input.parentId } : {};
+    if (this.cache !== undefined) {
+      const cacheKey = `folder:list:${hashFilter(input as Record<string, unknown>)}`;
+      const cacheHit = this.cache.has(cacheKey);
+      const folders = await this.cache.wrap(cacheKey, () => this.adapter.listFolders(adapterInput));
+      return { folders, cacheHit };
+    }
+    const folders = await this.adapter.listFolders(adapterInput);
     return { folders, cacheHit: false };
   }
 

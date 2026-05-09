@@ -103,10 +103,10 @@ describe("invalidateProjectMutation", () => {
 // ---------------------------------------------------------------------------
 
 describe("invalidateTagMutation", () => {
-  it("emits tag, forecast:*, perspective:*, search:*", () => {
+  it("emits tag, tag:list, forecast:*, perspective:*, search:*", () => {
     const cache = makeRecorder();
     invalidateTagMutation(cache as unknown as InvalidatingCache, { tagId: "tag_7" as TagId });
-    expect(cache.scopes).toEqual(["tag:tag_7", "forecast:*", "perspective:*", "search:*"]);
+    expect(cache.scopes).toEqual(["tag:tag_7", "tag:list", "forecast:*", "perspective:*", "search:*"]);
   });
 });
 
@@ -115,12 +115,12 @@ describe("invalidateTagMutation", () => {
 // ---------------------------------------------------------------------------
 
 describe("invalidateFolderMutation", () => {
-  it("emits folder, perspective:*, search:* (forecast intentionally skipped)", () => {
+  it("emits folder, folder:list, perspective:*, search:* (forecast intentionally skipped)", () => {
     const cache = makeRecorder();
     invalidateFolderMutation(cache as unknown as InvalidatingCache, {
       folderId: "folder_3" as FolderId,
     });
-    expect(cache.scopes).toEqual(["folder:folder_3", "perspective:*", "search:*"]);
+    expect(cache.scopes).toEqual(["folder:folder_3", "folder:list", "perspective:*", "search:*"]);
   });
 });
 

@@ -98,6 +98,7 @@ export function invalidateProjectMutation(
  */
 export function invalidateTagMutation(cache: InvalidatingCache, opts: { tagId: TagId }): void {
   cache.invalidate(`tag:${opts.tagId}`);
+  cache.invalidate("tag:list");
   cache.invalidate("forecast:*");
   cache.invalidate("perspective:*");
   cache.invalidate("search:*");
@@ -115,6 +116,7 @@ export function invalidateFolderMutation(
   opts: { folderId: FolderId },
 ): void {
   cache.invalidate(`folder:${opts.folderId}`);
+  cache.invalidate("folder:list");
   cache.invalidate("perspective:*");
   cache.invalidate("search:*");
 }
