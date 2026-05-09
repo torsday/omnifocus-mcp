@@ -88,8 +88,81 @@ The default threshold (51200 bytes ≈ ~13k tokens) is the rough boundary at whi
 - Per-tool invocation logging (`tool.invoked` / `tool.error`, [#283](https://github.com/torsday/omnifocus-mcp/issues/283)) emits one event per call with `durationMs`. Combined with response-byte telemetry, you can correlate slow tools with expensive responses.
 - The `maxOutputBytes` cap ([#776](https://github.com/torsday/omnifocus-mcp/issues/776), planned) will measure post-truncation wire size — same metric, same aggregator.
 
+## Default-valued field elision (#774)
+
+Heavy read tools elide fields equal to their documented default to cut wire size on bulk reads. The full per-domain defaults table:
+
+### Task
+
+Omitted when at default; pass `verbose: true` to receive the full shape.
+
+| Field | Default | Notes |
+| --- | --- | --- |
+| `flagged` | `false` | |
+| `completed` | `false` | |
+| `completedAt` | `null` | |
+| `dropped` | `false` | |
+| `droppedAt` | `null` | |
+| `available` | `true` | Most active tasks are available; non-default = blocked or deferred. |
+| `blocked` | `false` | |
+| `sequential` | `false` | Parallel is the OF default. |
+| `completedByChildren` | `false` | |
+| `note` | `null` (also `""`) | |
+| `noteHtml` | `null` (also `""`) | |
+| `parentId` | `null` | |
+| `tagIds` | `[]` | |
+| `deferDate` | `null` | |
+| `dueDate` | `null` | |
+| `estimatedMinutes` | `null` | |
+| `repetition` | `null` | |
+| `projectId` | — | **Never elided** — null vs missing carries semantic weight (inbox vs unknown). |
+
+### Project
+
+| Field | Default |
+| --- | --- |
+| `flagged` | `false` |
+| `completed` | `false` |
+| `completedAt` | `null` |
+| `dropped` | `false` |
+| `droppedAt` | `null` |
+| `note` | `null` (also `""`) |
+| `noteHtml` | `null` (also `""`) |
+| `folderId` | `null` |
+| `tagIds` | `[]` |
+| `status` | `"active"` |
+| `completionCriterion` | `"parallel"` |
+| `deferDate` | `null` |
+| `dueDate` | `null` |
+| `estimatedMinutes` | `null` |
+| `reviewIntervalDays` | `null` |
+| `nextReviewDate` | `null` |
+| `lastReviewDate` | `null` |
+
+### Tag
+
+| Field | Default |
+| --- | --- |
+| `parentId` | `null` |
+| `status` | `"active"` |
+| `location` | `null` |
+| `allowsNextAction` | `true` |
+
+### Folder
+
+| Field | Default |
+| --- | --- |
+| `parentId` | `null` |
+
+The convention: an **absent** field means the default applies. A field present with `null` is "explicitly cleared" and is distinct from absent — for most response fields these are semantically equivalent and we elide both as the table indicates.
+
+Tools that apply elision: `task_list`, `task_get`, `task_get_many`, `project_list`, `project_get`, `tag_list`, `tag_get`, `folder_list`, `folder_get`. Each accepts `verbose: true` to bypass elision and return the full shape — for debugging or for callers that haven't yet adopted the omission convention.
+
+Inbox-triage benchmark: -27.3% on totalResponseBytes after default elision (on top of #775's note truncation savings).
+
 ## Related
 
 - [DESIGN.md §21](../DESIGN.md) — observability contract
 - [`docs/perf-setup.md`](perf-setup.md) — performance posture and configuration
 - [#770](https://github.com/torsday/omnifocus-mcp/issues/770) — token-efficiency epic
+- [#774](https://github.com/torsday/omnifocus-mcp/issues/774) — default-value elision

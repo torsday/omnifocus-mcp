@@ -232,3 +232,77 @@ describe("handleTaskList — note preview truncation", () => {
     expect(task).not.toHaveProperty("noteTruncated");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Default-valued field elision (#774)
+// ---------------------------------------------------------------------------
+
+describe("handleTaskList — default-valued field elision (#774)", () => {
+  it("omits default-valued fields by default (verbose absent → elide)", async () => {
+    const { ctx, adapter } = makeCtx();
+    // A vanilla, unflagged, uncompleted task with no tags / due / note
+    await adapter.createTask({ name: "vanilla", flagged: true });
+    // Re-query with flagged: true so the service accepts the request, but the
+    // task itself is the one we inspect.
+    const result = await handleTaskList({ flagged: true }, ctx);
+    const task = result.data.tasks[0] as unknown as Record<string, unknown>;
+
+    // Required identity fields stay
+    expect(task.id).toEqual(expect.any(String));
+    expect(task.name).toBe("vanilla");
+
+    // Default-valued booleans omitted
+    expect(task).not.toHaveProperty("completed");
+    expect(task).not.toHaveProperty("dropped");
+    expect(task).not.toHaveProperty("blocked");
+    expect(task).not.toHaveProperty("sequential");
+    expect(task).not.toHaveProperty("completedByChildren");
+
+    // Empty array tagIds omitted
+    expect(task).not.toHaveProperty("tagIds");
+    // Null reference fields omitted
+    expect(task).not.toHaveProperty("dueDate");
+    expect(task).not.toHaveProperty("deferDate");
+    expect(task).not.toHaveProperty("parentId");
+
+    // Non-default value (flagged: true) IS preserved
+    expect(task.flagged).toBe(true);
+  });
+
+  it("preserves non-default values", async () => {
+    const { ctx, adapter } = makeCtx();
+    const tagId = await adapter.createTag({ name: "x" });
+    await adapter.createTask({
+      name: "loaded",
+      flagged: true,
+      tagIds: [tagId],
+      dueDate: "2026-12-01T00:00:00Z",
+    });
+    const result = await handleTaskList({ flagged: true }, ctx);
+    const task = result.data.tasks[0] as unknown as Record<string, unknown>;
+    expect(task.tagIds).toEqual([tagId]);
+    expect(task.dueDate).toBe("2026-12-01T00:00:00Z");
+    expect(task.flagged).toBe(true);
+  });
+
+  it("verbose: true returns the full unelided shape", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTask({ name: "vanilla", flagged: true });
+    const result = await handleTaskList({ flagged: true, verbose: true }, ctx);
+    const task = result.data.tasks[0] as unknown as Record<string, unknown>;
+    // Every default-valued field present at its default
+    expect(task.completed).toBe(false);
+    expect(task.dropped).toBe(false);
+    expect(task.blocked).toBe(false);
+    expect(task.tagIds).toEqual([]);
+    expect(task.dueDate).toBeNull();
+    expect(task.deferDate).toBeNull();
+    expect(task.parentId).toBeNull();
+  });
+
+  it("schema documents the verbose flag", () => {
+    const desc = taskListInputSchema.shape.verbose.description ?? "";
+    expect(desc.toLowerCase()).toContain("default");
+    expect(desc.toLowerCase()).toContain("omit");
+  });
+});

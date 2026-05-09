@@ -8,6 +8,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { FolderId } from "../../domain/ids.js";
+import { FOLDER_DEFAULTS } from "../../envelope/defaultsRegistry.js";
+import { elideDefaults } from "../../envelope/elideDefaults.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { FolderService } from "../../services/folderService.js";
 
@@ -22,6 +24,14 @@ export const folderGetInputSchema = z.object({
   id: FolderId.schema.describe(
     "Persistent folder ID. Get from folder_list. IDs are stable across renames.",
   ),
+  verbose: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, return the full unelided folder shape. " +
+        "Default: false — `parentId` is omitted when null. " +
+        "See docs/token-cost.md for the defaults table.",
+    ),
 });
 
 export type FolderGetToolInput = z.infer<typeof folderGetInputSchema>;
@@ -33,7 +43,9 @@ export interface FolderGetContext {
 
 export async function handleFolderGet(input: FolderGetToolInput, ctx: FolderGetContext) {
   const result = await ctx.folderService.get(input.id);
-  return ok({ folder: result.folder }, ctx.makeMeta({ cacheHit: result.cacheHit }));
+  const folder =
+    input.verbose === true ? result.folder : elideDefaults(result.folder, FOLDER_DEFAULTS);
+  return ok({ folder }, ctx.makeMeta({ cacheHit: result.cacheHit }));
 }
 
 export function registerFolderGetTool(server: McpServer, ctx: FolderGetContext) {
