@@ -4298,6 +4298,7 @@ Fetch a single OmniFocus task by persistent ID. Use when you have a known task I
 |-----------|------|----------|-------------|
 | `id` | string | Yes | Persistent ID of the task to fetch. Get from task_list or task_get_many. |
 | `includeSubtasks` | boolean | No | Include direct subtasks in the response. Default true. |
+| `notePreviewChars` | number | No | Maximum characters of the task's note (and each subtask's note) to return. Default 200. When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. Pass -1 to disable truncation and return full notes inline. |
 
 ### Example call
 
@@ -4340,6 +4341,7 @@ Fetch up to 100 tasks by persistent ID in a single OmniFocus round-trip. Use whe
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `ids` | string[] | Yes | Array of task IDs to fetch (0..100). Get IDs from task_list, search_query, or task_find_by_name. Missing IDs are omitted (not errors) and appear in meta.warnings. |
+| `notePreviewChars` | number | No | Maximum characters of each task's note to return. Default 200. When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. Pass -1 to disable truncation and return full notes inline. |
 
 ### Example call
 
@@ -4403,6 +4405,7 @@ List tasks in OmniFocus with optional filters (project, tag, inbox, flagged, com
 | `updatedSince` | string | No | Return only tasks modified strictly after this timestamp. Accepts ISO-8601 with offset (e.g. '2026-04-21T10:00:00-07:00') or a relative shortcut: today, yesterday, this-week, next-week, end-of-week, end-of-month. Use this for incremental sync: call without updatedSince on session start, then pass the previous response timestamp on subsequent calls. Note: deleted tasks cannot be detected — use a snapshot resource for deletion detection. |
 | `inbox` | boolean | No | true = Inbox tasks only (no project assignment). Cannot be combined with projectId or parentId. Use this to surface unprocessed captures without knowing their IDs. |
 | `cursor` | string | No | Opaque cursor from a previous task_list response. Must use the same filters — changing filters mid-sequence returns a ValidationError. |
+| `notePreviewChars` | number | No | Maximum characters of each task's note to return. Default 200. When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. Pass -1 to disable truncation and return full notes inline. |
 
 ### Example call
 

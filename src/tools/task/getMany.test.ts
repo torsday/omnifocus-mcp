@@ -161,3 +161,37 @@ describe("task_get_many — over-limit guard", () => {
     await expect(handleTaskGetMany({ ids }, ctx)).rejects.toThrow();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Note preview (#775)
+// ---------------------------------------------------------------------------
+
+describe("task_get_many — note preview truncation", () => {
+  it("truncates each task's long note by default and leaves short notes inline", async () => {
+    const { ctx, adapter } = makeCtx();
+    const longId = await adapter.createTask({ name: "long", note: "a".repeat(500) });
+    const shortId = await adapter.createTask({ name: "short", note: "small" });
+
+    const envelope = await handleTaskGetMany({ ids: [longId, shortId] }, ctx);
+    const [long, short] = envelope.data.tasks as unknown as Record<string, unknown>[];
+
+    expect(long?.note).toBeUndefined();
+    expect(long?.notePreview).toBe("a".repeat(200));
+    expect(long?.noteTruncated).toBe(true);
+    expect(long?.noteLength).toBe(500);
+
+    expect(short?.note).toBe("small");
+    expect(short).not.toHaveProperty("notePreview");
+  });
+
+  it("returns full notes inline when notePreviewChars is -1", async () => {
+    const { ctx, adapter } = makeCtx();
+    const longNote = "z".repeat(500);
+    const id = await adapter.createTask({ name: "n", note: longNote });
+
+    const envelope = await handleTaskGetMany({ ids: [id], notePreviewChars: -1 }, ctx);
+    const task = envelope.data.tasks[0] as unknown as Record<string, unknown>;
+    expect(task.note).toBe(longNote);
+    expect(task).not.toHaveProperty("notePreview");
+  });
+});

@@ -116,3 +116,54 @@ describe("task_get — NotFound", () => {
     await expect(handleTaskGet({ id: ghost }, ctx)).rejects.toThrow();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Note preview (#775)
+// ---------------------------------------------------------------------------
+
+describe("task_get — note preview truncation", () => {
+  it("returns short notes inline (no truncation triplet) by default", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "n", note: "small note" });
+
+    const envelope = await handleTaskGet({ id }, ctx);
+    const task = envelope.data.task as unknown as Record<string, unknown>;
+    expect(task.note).toBe("small note");
+    expect(task).not.toHaveProperty("notePreview");
+  });
+
+  it("truncates long notes and emits the preview triplet by default", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "n", note: "x".repeat(500) });
+
+    const envelope = await handleTaskGet({ id }, ctx);
+    const task = envelope.data.task as unknown as Record<string, unknown>;
+    expect(task.note).toBeUndefined();
+    expect(task.notePreview).toBe("x".repeat(200));
+    expect(task.noteTruncated).toBe(true);
+    expect(task.noteLength).toBe(500);
+  });
+
+  it("truncates subtask notes too", async () => {
+    const { ctx, adapter } = makeCtx();
+    const parentId = await adapter.createTask({ name: "P" });
+    await adapter.createTask({ name: "C", parentId, note: "y".repeat(400) });
+
+    const envelope = await handleTaskGet({ id: parentId }, ctx);
+    const subtask = envelope.data.subtasks?.[0] as unknown as Record<string, unknown> | undefined;
+    expect(subtask?.notePreview).toBe("y".repeat(200));
+    expect(subtask?.noteTruncated).toBe(true);
+    expect(subtask?.noteLength).toBe(400);
+  });
+
+  it("returns full note inline when notePreviewChars is -1", async () => {
+    const { ctx, adapter } = makeCtx();
+    const longNote = "z".repeat(500);
+    const id = await adapter.createTask({ name: "n", note: longNote });
+
+    const envelope = await handleTaskGet({ id, notePreviewChars: -1 }, ctx);
+    const task = envelope.data.task as unknown as Record<string, unknown>;
+    expect(task.note).toBe(longNote);
+    expect(task).not.toHaveProperty("notePreview");
+  });
+});

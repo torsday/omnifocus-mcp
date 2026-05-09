@@ -16,6 +16,7 @@ import { TaskId } from "../../domain/ids.js";
 import { parseWaitingOn } from "../../domain/waitingOn.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TaskGetInput, TaskService } from "../../services/taskService.js";
+import { applyNotePreview, DEFAULT_NOTE_PREVIEW_CHARS } from "./notePreview.js";
 
 export const TASK_GET_DESCRIPTION =
   "Fetch a single OmniFocus task by persistent ID. " +
@@ -33,6 +34,15 @@ export const taskGetInputSchema = z.object({
     .boolean()
     .optional()
     .describe("Include direct subtasks in the response. Default true."),
+  notePreviewChars: z
+    .number()
+    .int()
+    .optional()
+    .describe(
+      `Maximum characters of the task's note (and each subtask's note) to return. Default ${DEFAULT_NOTE_PREVIEW_CHARS}. ` +
+        "When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. " +
+        "Pass -1 to disable truncation and return full notes inline.",
+    ),
 });
 
 export type TaskGetToolInput = z.infer<typeof taskGetInputSchema>;
@@ -48,13 +58,18 @@ export interface TaskGetContext {
  * @throws {OmniFocusNotRunning} when OmniFocus is not running
  */
 export async function handleTaskGet(input: TaskGetToolInput, ctx: TaskGetContext) {
-  const result = await ctx.taskService.get(input as TaskGetInput);
+  const { notePreviewChars: rawPreviewChars, ...rest } = input;
+  const result = await ctx.taskService.get(rest as TaskGetInput);
+  // Parse waitingOn / decision against the full note before applying truncation.
   const waitingOn = parseWaitingOn(result.task.note);
   const decision = parseDecision(result.task.note);
+  const previewChars = rawPreviewChars ?? DEFAULT_NOTE_PREVIEW_CHARS;
+  const task = applyNotePreview(result.task, previewChars);
+  const subtasks = result.subtasks?.map((t) => applyNotePreview(t, previewChars));
   return ok(
     {
-      task: result.task,
-      ...(result.subtasks !== undefined && { subtasks: result.subtasks }),
+      task,
+      ...(subtasks !== undefined && { subtasks }),
       ...(waitingOn !== undefined && { waitingOn }),
       ...(decision !== undefined && { decision }),
     },

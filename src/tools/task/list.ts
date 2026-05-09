@@ -25,6 +25,7 @@ import { ProjectId, TagId, TaskId } from "../../domain/ids.js";
 import { ok, type Pagination, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TaskListInput, TaskService } from "../../services/taskService.js";
 import { TaskSortBySchema } from "../../services/taskService.js";
+import { applyNotePreview, DEFAULT_NOTE_PREVIEW_CHARS } from "./notePreview.js";
 
 // ---------------------------------------------------------------------------
 // Tool description (shown to the LLM via tools/list)
@@ -141,6 +142,15 @@ export const taskListInputSchema = z.object({
     .describe(
       "Opaque cursor from a previous task_list response. Must use the same filters — changing filters mid-sequence returns a ValidationError.",
     ),
+  notePreviewChars: z
+    .number()
+    .int()
+    .optional()
+    .describe(
+      `Maximum characters of each task's note to return. Default ${DEFAULT_NOTE_PREVIEW_CHARS}. ` +
+        "When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. " +
+        "Pass -1 to disable truncation and return full notes inline.",
+    ),
 });
 
 /** TypeScript input type derived from {@link taskListInputSchema}. */
@@ -162,14 +172,17 @@ export interface ToolContext {
  * can invoke it without constructing an McpServer.
  */
 export async function handleTaskList(input: TaskListToolInput, ctx: ToolContext) {
-  const serviceInput = input as TaskListInput;
+  const { notePreviewChars: rawPreviewChars, ...rest } = input;
+  const serviceInput = rest as TaskListInput;
   const result = await ctx.taskService.list(serviceInput);
   const pagination: Pagination = {
     cursor: result.nextCursor,
     hasMore: result.hasMore,
   };
   const meta = ctx.makeMeta({ cacheHit: result.cacheHit });
-  return ok({ tasks: result.tasks }, meta, pagination);
+  const previewChars = rawPreviewChars ?? DEFAULT_NOTE_PREVIEW_CHARS;
+  const tasks = result.tasks.map((t) => applyNotePreview(t, previewChars));
+  return ok({ tasks }, meta, pagination);
 }
 
 // ---------------------------------------------------------------------------
