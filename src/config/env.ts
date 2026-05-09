@@ -71,6 +71,15 @@ const envSchema = z.object({
   OMNIFOCUS_TOOL_RATE_LIMIT: rateLimitSchema.prefault("120/60"),
   OMNIFOCUS_WAITING_TAG_NAME: z.string().min(1).default("waiting"),
   OMNIFOCUS_TEMPLATES_FOLDER_NAME: z.string().min(1).default("Templates"),
+  // Per-tool response-size telemetry (#778). 0 = off (production default,
+  // zero overhead); 1 = record every successful tool response. Fractional
+  // values sample at that rate. The percentile and threshold readouts surface
+  // through `internal_status` and the `response.size.exceeded` warning event.
+  OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
+  // p95 byte threshold above which a `response.size.exceeded` warning fires
+  // (once, on the transition above). Default 51200 bytes ≈ ~13k tokens — the
+  // rough boundary at which a single response starts to dominate context.
+  OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES: z.coerce.number().int().positive().default(51200),
 });
 
 // ---------------------------------------------------------------------------
@@ -114,6 +123,8 @@ export function parseConfig(
     OMNIFOCUS_TOOL_RATE_LIMIT: processEnv.OMNIFOCUS_TOOL_RATE_LIMIT,
     OMNIFOCUS_WAITING_TAG_NAME: processEnv.OMNIFOCUS_WAITING_TAG_NAME,
     OMNIFOCUS_TEMPLATES_FOLDER_NAME: processEnv.OMNIFOCUS_TEMPLATES_FOLDER_NAME,
+    OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE: processEnv.OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE,
+    OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES: processEnv.OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES,
   });
 
   if (!result.success) {
@@ -159,5 +170,7 @@ export function redactConfig(config: Config): Record<string, unknown> {
     OMNIFOCUS_TOOL_RATE_LIMIT: config.OMNIFOCUS_TOOL_RATE_LIMIT,
     OMNIFOCUS_WAITING_TAG_NAME: config.OMNIFOCUS_WAITING_TAG_NAME,
     OMNIFOCUS_TEMPLATES_FOLDER_NAME: config.OMNIFOCUS_TEMPLATES_FOLDER_NAME,
+    OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE: config.OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE,
+    OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES: config.OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES,
   };
 }

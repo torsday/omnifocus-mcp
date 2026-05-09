@@ -37,6 +37,7 @@ import { WriteQueue } from "../concurrency/WriteQueue.js";
 import { parseConfig, redactConfig } from "../config/env.js";
 import { logger } from "../logging/logger.js";
 import { LoopDetector } from "../loopDetector/LoopDetector.js";
+import { ResponseStatsRegistry } from "../observability/responseStats.js";
 import {
   CAPTURE_MEETING_PROMPT,
   DAILY_REVIEW_PROMPT,
@@ -277,11 +278,17 @@ export async function startServer(): Promise<void> {
   // the circuit-breaker registry already holds per-tool state.
   const rateLimiter = new ToolRateLimiter(config.OMNIFOCUS_TOOL_RATE_LIMIT);
   const loopDetector = new LoopDetector();
+  const responseStats = new ResponseStatsRegistry({
+    sampleRate: config.OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE,
+    thresholdBytes: config.OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES,
+    logger,
+  });
   installToolMiddleware(server, {
     rateLimiter,
     loopDetector,
     circuitRegistry: circuitBreakerRegistry,
     shutdown: shutdownController,
+    responseStats,
   });
 
   const transport = new StdioServerTransport();
@@ -316,6 +323,8 @@ export async function startServer(): Promise<void> {
     adapter,
     circuitRegistry: circuitBreakerRegistry,
     makeMeta,
+    probeResponseStats: () =>
+      config.OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE > 0 ? responseStats.snapshot() : null,
   });
 
   // Register MCP prompts (DESIGN §29) — four workflow templates.

@@ -15,6 +15,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import type { ResponseStatsSnapshot } from "../../observability/responseStats.js";
 import type { Capabilities } from "../../resources/capabilities.js";
 import { probeCalendarAccess } from "../../resources/capabilities.js";
 import type { CircuitState } from "../../server/circuitBreaker.js";
@@ -27,7 +28,7 @@ import { type MutationScoreSnapshot, probeMutationScore } from "./mutationScore.
 export const INTERNAL_STATUS_DESCRIPTION =
   "Return a health snapshot of the running omnifocus-mcp server. " +
   "Do NOT use this to read OmniFocus data — prefer task_list, project_list, sync_status, etc. " +
-  "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth }. " +
+  "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth, responseStats }. " +
   "uptimeMs is the milliseconds since the server process started. " +
   "circuits lists each circuit-breaker name and state (closed/open/half_open). " +
   "lastSync mirrors sync_status data; null if getLastSync throws. " +
@@ -38,6 +39,9 @@ export const INTERNAL_STATUS_DESCRIPTION =
   "mutation surfaces Stryker calibration freshness — { score, lastRunAt } where score is the " +
   "latest mutation-testing score (0–100) per ADR-0017 and lastRunAt is the report's mtime. " +
   "Returns null when no report file is present (the published npm tarball ships without one). " +
+  "responseStats reports per-tool response-byte aggregates (#778) — " +
+  "{ since, sampleRate, thresholdBytes, tools: { <toolName>: { count, total, max, p50, p95 } } } — " +
+  "or null when sampling is disabled (sampleRate 0). " +
   "Read-only; no side effects. " +
   "Example: internal_status()";
 
@@ -76,6 +80,12 @@ export interface InternalStatusData {
   cache: { size: number; hits: number; misses: number } | null;
   circuits: CircuitSnapshot[];
   queueDepth: number | null;
+  /**
+   * Per-tool response-byte aggregates (#778). `null` when telemetry is
+   * disabled (sample rate 0) — that's the production default. Operators
+   * opt in by setting `OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE`.
+   */
+  responseStats: ResponseStatsSnapshot | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -99,6 +109,12 @@ export interface InternalStatusContext {
    * which reads the latest Stryker report and degrades to `null` when absent.
    */
   probeMutationScore?: () => MutationScoreSnapshot | null;
+  /**
+   * Optional response-stats probe (#778). Returns the current snapshot, or
+   * `null` to indicate telemetry is disabled. Omitting the probe entirely
+   * also surfaces as `null` in the response.
+   */
+  probeResponseStats?: () => ResponseStatsSnapshot | null;
 }
 
 /**
@@ -139,6 +155,15 @@ export async function handleInternalStatus(
     mutation = null;
   }
 
+  let responseStats: ResponseStatsSnapshot | null = null;
+  if (ctx.probeResponseStats !== undefined) {
+    try {
+      responseStats = ctx.probeResponseStats();
+    } catch {
+      responseStats = null;
+    }
+  }
+
   const data: InternalStatusData = {
     uptimeMs,
     ofRunning: true,
@@ -148,6 +173,7 @@ export async function handleInternalStatus(
     cache: null,
     circuits,
     queueDepth: null,
+    responseStats,
   };
 
   return ok(data, ctx.makeMeta());
