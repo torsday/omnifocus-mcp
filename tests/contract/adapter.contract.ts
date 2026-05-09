@@ -40,10 +40,17 @@ import { NotFound, ValidationError } from "../../src/errors/index.js";
  *
  * `cleanup` is optional and is called after each test to tear down any
  * fixtures the driver created (e.g. delete test projects from a real OF).
+ *
+ * `hookTimeoutMs` overrides vitest's 10s default for `beforeEach`/`afterEach`.
+ * Live-OF cleanup deletes entities one round-trip at a time and frequently
+ * needs >10s. The per-test `testTimeout` is set via the `--testTimeout` CLI
+ * flag in `package.json` `test:integration` script (vitest doesn't accept a
+ * per-driver test timeout from inside the harness).
  */
 export interface AdapterContractOptions {
   createAdapter: () => OmniFocusAdapter | Promise<OmniFocusAdapter>;
   cleanup?: (adapter: OmniFocusAdapter) => void | Promise<void>;
+  hookTimeoutMs?: number;
 }
 
 /**
@@ -58,16 +65,18 @@ export interface AdapterContractOptions {
  * ```
  */
 export function runAdapterContract(label: string, options: AdapterContractOptions): void {
+  const hookTimeout = options.hookTimeoutMs;
+
   describe(`adapter contract — ${label}`, () => {
     let adapter: OmniFocusAdapter;
 
     beforeEach(async () => {
       adapter = await options.createAdapter();
-    });
+    }, hookTimeout);
 
     afterEach(async () => {
       if (options.cleanup) await options.cleanup(adapter);
-    });
+    }, hookTimeout);
 
     // ---------------------------------------------------------------------
     // Tasks — CRUD
@@ -351,9 +360,18 @@ export function runAdapterContract(label: string, options: AdapterContractOption
       });
 
       test("listProjects filters by status", async () => {
-        const onHold = await adapter.createProject({ name: "p1", status: "on-hold" });
-        await adapter.createProject({ name: "p2", status: "active" });
-        const result = await adapter.listProjects({ status: "on-hold" });
+        // Scope to a test folder so the filter only sees this test's projects.
+        // Live OF DBs typically have other on-hold projects from real use; an
+        // unscoped status filter would race against them. Mirrors how the
+        // other filter tests (flagged, completed, dueBefore) scope to a project.
+        const folderId = await adapter.createFolder({ name: "status-filter-test" });
+        const onHold = await adapter.createProject({
+          name: "p1",
+          status: "on-hold",
+          folderId,
+        });
+        await adapter.createProject({ name: "p2", status: "active", folderId });
+        const result = await adapter.listProjects({ status: "on-hold", folderId });
         expect(result.map((p) => p.id)).toEqual([onHold]);
       });
 
