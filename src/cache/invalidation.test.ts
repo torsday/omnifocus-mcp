@@ -126,12 +126,7 @@ describe("invalidateFolderMutation", () => {
     invalidateFolderMutation(cache as unknown as InvalidatingCache, {
       folderId: "folder_3" as FolderId,
     });
-    expect(cache.scopes).toEqual([
-      "folder:folder_3",
-      "folder:list",
-      "perspective:*",
-      "search:*",
-    ]);
+    expect(cache.scopes).toEqual(["folder:folder_3", "folder:list", "perspective:*", "search:*"]);
   });
 });
 
