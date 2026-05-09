@@ -44,6 +44,18 @@ function run(argv) {
     // flattenedTasks() would include grandchildren and deeper, violating the
     // direct-children contract documented on OmniFocusAdapter.listTasks — see #695.
     tasks = parent.tasks();
+  } else if (args.tagId) {
+    // Scoping the source to the tag's own tasks is asymptotically required:
+    // scanning flattenedTasks() over a real user DB (10k+ tasks) and calling
+    // buildTask on each can exceed the 30s scriptRunner timeout. The tag-rooted
+    // collection is bounded by the tag's actual usage. The post-loop tagId
+    // filter is then a no-op for this branch but kept as a safety net.
+    const tag = lookupOrThrow(
+      ofApp.defaultDocument.flattenedTags.byId(args.tagId),
+      "Tag",
+      args.tagId,
+    );
+    tasks = tag.tasks();
   } else {
     tasks = ofApp.defaultDocument.flattenedTasks();
   }
