@@ -187,7 +187,7 @@ for (const group of orderedGroups) {
   const meta = GROUP_META[group] ?? { label: group };
   lines.push(`## ${meta.label}`);
   lines.push("");
-  for (const { file, description, usage } of grouped.get(group)!) {
+  for (const { file, description, usage } of grouped.get(group) ?? []) {
     lines.push(`### ${file}`);
     lines.push("");
     lines.push(description);
@@ -208,15 +208,12 @@ const content = lines.join("\n");
 if (CHECK_MODE) {
   const existing = fs.existsSync(OUT_PATH) ? fs.readFileSync(OUT_PATH, "utf8") : "";
   if (existing !== content) {
-    // biome-ignore lint/suspicious/noConsole: intentional CLI error output
     console.error("scripts/README.md is out of date. Run: pnpm run docs:generate-scripts");
     process.exit(1);
   }
-  // biome-ignore lint/suspicious/noConsole: intentional CLI output
   console.log("scripts/README.md is up to date.");
 } else {
   fs.writeFileSync(OUT_PATH, content, "utf8");
   const bytes = Buffer.byteLength(content, "utf8");
-  // biome-ignore lint/suspicious/noConsole: intentional CLI output
   console.log(`Generated ${OUT_PATH} (${SCRIPTS.length} scripts, ${bytes} bytes)`);
 }
