@@ -96,13 +96,22 @@ export interface TaskListInput {
 
 export interface TaskGetInput {
   id: TaskId;
-  /** Default true. When false, subtasks is omitted. */
+  /**
+   * Default false. When false, the response includes `subtaskIds` (IDs of direct subtasks)
+   * and `subtaskCount` but not the full subtask bodies. When true, `subtasks` contains the
+   * full Task shape for each direct subtask. Use `task_get_many({ ids: subtaskIds })` to
+   * fetch specific subtasks when you need their detail.
+   */
   includeSubtasks?: boolean;
 }
 
 export interface TaskGetResult {
   task: Task;
-  /** Flat list of direct subtasks (parentId === id). Omitted when includeSubtasks=false. */
+  /** IDs of direct subtasks. Present when includeSubtasks=false (the default). */
+  subtaskIds?: TaskId[];
+  /** Count of direct subtasks. Present when includeSubtasks=false (the default). */
+  subtaskCount?: number;
+  /** Full subtask bodies. Present only when includeSubtasks=true. */
   subtasks?: Task[];
   cacheHit: boolean;
 }
@@ -198,17 +207,21 @@ export class TaskService {
    * @throws {OmniFocusNotRunning} when OmniFocus is not running
    */
   async get(input: TaskGetInput): Promise<TaskGetResult> {
-    const includeSubtasks = input.includeSubtasks ?? true;
-    const cacheKey = `task:${input.id}:${includeSubtasks ? "with-subtasks" : "solo"}`;
+    const includeSubtasks = input.includeSubtasks ?? false;
+    const cacheKey = `task:${input.id}:${includeSubtasks ? "with-subtasks" : "ids-only"}`;
     const cacheHit = this.cache.has(cacheKey);
 
     const payload = await this.cache.wrap(cacheKey, async () => {
       const task = await this.adapter.getTask(input.id);
       const enrichedTask = { ...task, _links: buildTaskLinks(task) };
-      if (!includeSubtasks) return { task: enrichedTask };
-      const subtasks = await this.adapter.listTasks({ parentId: input.id });
-      const enrichedSubtasks = subtasks.map((t) => ({ ...t, _links: buildTaskLinks(t) }));
-      return { task: enrichedTask, subtasks: enrichedSubtasks };
+      // Always fetch subtask list — needed for IDs even when bodies not requested.
+      const subtaskList = await this.adapter.listTasks({ parentId: input.id });
+      if (includeSubtasks) {
+        const enrichedSubtasks = subtaskList.map((t) => ({ ...t, _links: buildTaskLinks(t) }));
+        return { task: enrichedTask, subtasks: enrichedSubtasks };
+      }
+      const subtaskIds = subtaskList.map((t) => t.id) as TaskId[];
+      return { task: enrichedTask, subtaskIds, subtaskCount: subtaskIds.length };
     });
 
     return { ...payload, cacheHit };

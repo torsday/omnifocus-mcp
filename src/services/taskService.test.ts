@@ -312,31 +312,36 @@ describe("TaskService.list — adapter substitutability", () => {
 // ---------------------------------------------------------------------------
 
 describe("TaskService.get — happy path", () => {
-  it("returns task with subtasks by default (includeSubtasks=true)", async () => {
+  it("returns subtaskIds by default (includeSubtasks omitted)", async () => {
     const { service, adapter } = makeHarness();
     const parentId = (await adapter.createTask({ name: "Parent" })) as TaskId;
-    await adapter.createTask({ name: "Child", parentId });
+    const childId = (await adapter.createTask({ name: "Child", parentId })) as TaskId;
     const result = await service.get({ id: parentId });
     expect(result.task.id).toBe(parentId);
     expect(result.task.name).toBe("Parent");
-    expect(result.subtasks).toHaveLength(1);
-    expect(result.subtasks?.[0]?.name).toBe("Child");
+    expect(result.subtasks).toBeUndefined();
+    expect(result.subtaskIds).toEqual([childId]);
+    expect(result.subtaskCount).toBe(1);
   });
 
-  it("omits subtasks when includeSubtasks=false", async () => {
+  it("returns full subtask bodies when includeSubtasks=true", async () => {
     const { service, adapter } = makeHarness();
     const parentId = (await adapter.createTask({ name: "Parent" })) as TaskId;
     await adapter.createTask({ name: "Child", parentId });
-    const result = await service.get({ id: parentId, includeSubtasks: false });
+    const result = await service.get({ id: parentId, includeSubtasks: true });
     expect(result.task.id).toBe(parentId);
-    expect(result.subtasks).toBeUndefined();
+    expect(result.subtasks).toHaveLength(1);
+    expect(result.subtasks?.[0]?.name).toBe("Child");
+    expect(result.subtaskIds).toBeUndefined();
   });
 
-  it("returns empty subtasks array when task has no children", async () => {
+  it("returns empty subtaskIds array when task has no children", async () => {
     const { service, adapter } = makeHarness();
     const id = (await adapter.createTask({ name: "Leaf" })) as TaskId;
     const result = await service.get({ id });
-    expect(result.subtasks).toEqual([]);
+    expect(result.subtaskIds).toEqual([]);
+    expect(result.subtaskCount).toBe(0);
+    expect(result.subtasks).toBeUndefined();
   });
 
   it("includes _links on the returned task", async () => {

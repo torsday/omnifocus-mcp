@@ -4302,14 +4302,14 @@ _No parameters._
 
 ## task_get
 
-Fetch a single OmniFocus task by persistent ID. Use when you have a known task ID and need its full detail. Do NOT use for multiple IDs — use task_get_many instead. Returns the Task object plus its direct subtasks (when includeSubtasks=true, the default). Read-only; safe to retry. Example: task_get({ id: "abc123" })
+Fetch a single OmniFocus task by persistent ID. Use when you have a known task ID and need its full detail. Do NOT use for multiple IDs — use task_get_many instead. Returns the Task object plus subtaskIds[] and subtaskCount (when includeSubtasks omitted or false). Pass includeSubtasks: true to get full subtask bodies; use task_get_many to fetch specific subtasks by ID. Read-only; safe to retry. Example: task_get({ id: "abc123" })
 
 ### Input
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `id` | string | Yes | Persistent ID of the task to fetch. Get from task_list or task_get_many. |
-| `includeSubtasks` | boolean | No | Include direct subtasks in the response. Default true. |
+| `includeSubtasks` | boolean | No | Include full subtask bodies in the response. Default false — returns subtaskIds[] and subtaskCount instead. Pass true only when you need subtask detail; otherwise use task_get_many with subtaskIds. |
 | `notePreviewChars` | number | No | Maximum characters of the task's note (and each subtask's note) to return. Default 200. When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. Pass -1 to disable truncation and return full notes inline. |
 | `verbose` | boolean | No | When true, return the full unelided task shape (every field present, even at defaults). Default: false — fields equal to their documented default are omitted. See docs/token-cost.md for the defaults table. |
 | `fields` | string[] | No | Restrict the returned task (and each subtask) to this list of top-level fields (id is always returned). Omit for the full task shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. |

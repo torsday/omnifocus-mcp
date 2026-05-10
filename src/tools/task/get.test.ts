@@ -62,14 +62,15 @@ describe("task_get — input schema", () => {
 // ---------------------------------------------------------------------------
 
 describe("task_get — happy path", () => {
-  it("returns task with subtasks by default", async () => {
+  it("returns subtaskIds by default (includeSubtasks omitted)", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "Parent task" });
 
     const envelope = await handleTaskGet({ id }, ctx);
     expect(envelope.data.task.name).toBe("Parent task");
     expect(envelope.data.task.id).toBe(id);
-    expect(Array.isArray(envelope.data.subtasks)).toBe(true);
+    expect(Array.isArray(envelope.data.subtaskIds)).toBe(true);
+    expect(envelope.data.subtasks).toBeUndefined();
   });
 
   it("returns subtasks when child tasks exist", async () => {
@@ -85,22 +86,26 @@ describe("task_get — happy path", () => {
     expect(names).toContain("Child 2");
   });
 
-  it("omits subtasks when includeSubtasks=false", async () => {
+  it("returns subtaskIds when includeSubtasks omitted (default false)", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "Solo task" });
-    await adapter.createTask({ name: "Child", parentId: id });
+    const childId = await adapter.createTask({ name: "Child", parentId: id });
 
-    const envelope = await handleTaskGet({ id, includeSubtasks: false }, ctx);
+    const envelope = await handleTaskGet({ id }, ctx);
     expect(envelope.data.task.name).toBe("Solo task");
     expect(envelope.data.subtasks).toBeUndefined();
+    expect(envelope.data.subtaskIds).toEqual([childId]);
+    expect(envelope.data.subtaskCount).toBe(1);
   });
 
-  it("returns empty subtasks array when task has no children", async () => {
+  it("returns empty subtaskIds array when task has no children", async () => {
     const { ctx, adapter } = makeCtx();
     const id = await adapter.createTask({ name: "Leaf task" });
 
     const envelope = await handleTaskGet({ id }, ctx);
-    expect(envelope.data.subtasks).toHaveLength(0);
+    expect(envelope.data.subtaskIds).toHaveLength(0);
+    expect(envelope.data.subtaskCount).toBe(0);
+    expect(envelope.data.subtasks).toBeUndefined();
   });
 });
 
@@ -144,12 +149,12 @@ describe("task_get — note preview truncation", () => {
     expect(task.noteLength).toBe(500);
   });
 
-  it("truncates subtask notes too", async () => {
+  it("truncates subtask notes too when includeSubtasks=true", async () => {
     const { ctx, adapter } = makeCtx();
     const parentId = await adapter.createTask({ name: "P" });
     await adapter.createTask({ name: "C", parentId, note: "y".repeat(400) });
 
-    const envelope = await handleTaskGet({ id: parentId }, ctx);
+    const envelope = await handleTaskGet({ id: parentId, includeSubtasks: true }, ctx);
     const subtask = envelope.data.subtasks?.[0] as unknown as Record<string, unknown> | undefined;
     expect(subtask?.notePreview).toBe("y".repeat(200));
     expect(subtask?.noteTruncated).toBe(true);
