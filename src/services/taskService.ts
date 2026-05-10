@@ -137,7 +137,7 @@ export interface TaskServiceDeps {
 // Constants
 // ---------------------------------------------------------------------------
 
-const DEFAULT_LIMIT = 200;
+const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 1000;
 
 // ---------------------------------------------------------------------------

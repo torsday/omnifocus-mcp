@@ -9,7 +9,7 @@
  * - Tasks are sorted by `(createdAt ASC, id ASC)` — deterministic, insert-safe.
  * - Cursors encode `{ lastId, lastCreatedAt, filterHash }`. Swapping filter
  *   fields mid-sequence returns `ValidationError` (filterHash mismatch).
- * - Default page size: 100. Maximum: 500.
+ * - Default page size: 50. Maximum: 500.
  *
  * @see DESIGN.md §15 — pagination contract
  * @see src/pagination/cursor.ts
@@ -32,7 +32,7 @@ import {
 
 /** Input to {@link SearchService.search}. */
 export interface SearchInput extends SearchFilter {
-  /** Max results per page (1..500). Default 100. */
+  /** Max results per page (1..500). Default 50. */
   limit?: number;
   /** Opaque cursor from a previous search_query response. */
   cursor?: string;
@@ -50,7 +50,7 @@ export interface SearchResult {
 // Service
 // ---------------------------------------------------------------------------
 
-const DEFAULT_LIMIT = 100;
+const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 500;
 
 export interface SearchServiceDeps {
