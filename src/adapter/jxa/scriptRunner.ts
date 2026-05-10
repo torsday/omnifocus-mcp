@@ -25,6 +25,7 @@
  */
 
 import { execFile } from "node:child_process";
+import { setTimeout as sleep } from "node:timers/promises";
 import {
   ConflictError,
   NotFound,
@@ -35,6 +36,7 @@ import {
   TransportUnavailable,
   ValidationError,
 } from "../../errors/index.js";
+import { logger } from "../../logging/logger.js";
 import { emitTransportCall } from "../../logging/transportCall.js";
 
 // ---------------------------------------------------------------------------
@@ -104,6 +106,100 @@ export const defaultJxaSpawner: ScriptSpawner = (scriptBody, jsonArg, timeoutMs)
   });
 
 // ---------------------------------------------------------------------------
+// Retry-once on known-transient failures (#816)
+// ---------------------------------------------------------------------------
+
+/**
+ * Read-only JXA scripts whose retry on transient failure is safe by definition
+ * (no side effects). The set is the canonical source of truth — adding a new
+ * read-shaped script means adding it here. Writes are intentionally omitted;
+ * retrying a non-idempotent write would risk duplicate effects.
+ *
+ * Coverage check: every entry must correspond to a real file under
+ * `src/scripts/jxa/<name>.js`. The smoke test in `scriptRunner.test.ts`
+ * pins this set so silent additions surface in review.
+ */
+export const READ_ONLY_JXA_SCRIPTS: ReadonlySet<string> = new Set([
+  "attachment_list",
+  "changes_since",
+  "folder_get",
+  "folder_list",
+  "forecast_get",
+  "perspective_evaluate",
+  "perspective_list",
+  "ping",
+  "project_get",
+  "project_get_many",
+  "project_list",
+  "review_list_due",
+  "tag_get",
+  "tag_get_many",
+  "tag_list",
+  "task_get",
+  "task_get_many",
+  "task_list",
+  "task_search",
+  "window_get_state",
+]);
+
+/**
+ * Stderr signatures for OmniFocus 4.x transient errors that historically
+ * recur and resolve on retry (#816 audit of #275, #319, #498, #674, #682).
+ *
+ * - `-1728` errAENoSuchObject — sometimes a real not-found, sometimes a race
+ *   right after a write where OF hasn't surfaced the new entity yet
+ * - `-10024` errAEAccessorNotFound — typically transient when OF is mid-write
+ * - `-10003` errAENotModifiable — transient when OF is mid-sync
+ *
+ * Hard timeouts (`SpawnResult.timedOut`) are also retryable — those are
+ * almost always cold-start latency or transient runner contention, not a
+ * logic problem in the script.
+ */
+const RETRYABLE_STDERR_PATTERN = /\(-(?:1728|10024|10003)\)/;
+
+function isTransientFailure(result: SpawnResult): boolean {
+  if (result.spawnError !== undefined) return false; // binary missing — not transient
+  if (result.timedOut) return true;
+  if (result.exitCode === 0) return false;
+  return RETRYABLE_STDERR_PATTERN.test(result.stderr);
+}
+
+/** Classify the *reason* a failure was retryable, for telemetry. */
+function transientReason(
+  result: SpawnResult,
+): "timeout" | "errno-1728" | "errno-10024" | "errno-10003" | "other" {
+  if (result.timedOut) return "timeout";
+  if (/\(-1728\)/.test(result.stderr)) return "errno-1728";
+  if (/\(-10024\)/.test(result.stderr)) return "errno-10024";
+  if (/\(-10003\)/.test(result.stderr)) return "errno-10003";
+  return "other";
+}
+
+/**
+ * Runtime knobs for the retry-once policy. Defaults are sourced from env
+ * vars (`OMNIFOCUS_TRANSIENT_RETRY_ENABLED`,
+ * `OMNIFOCUS_TRANSIENT_RETRY_DELAY_MS`) at server boot but unit tests
+ * override directly via `RunScriptOptions.retry`.
+ */
+export interface RetryPolicy {
+  enabled: boolean;
+  delayMs: number;
+}
+
+let defaultRetryPolicy: RetryPolicy = {
+  enabled: process.env.OMNIFOCUS_TRANSIENT_RETRY_ENABLED !== "0",
+  delayMs: Number(process.env.OMNIFOCUS_TRANSIENT_RETRY_DELAY_MS ?? 100),
+};
+
+/**
+ * Configure the default retry policy. Called once from server startup with
+ * the parsed env config; otherwise the env-derived defaults above apply.
+ */
+export function configureRetryPolicy(policy: Partial<RetryPolicy>): void {
+  defaultRetryPolicy = { ...defaultRetryPolicy, ...policy };
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -114,6 +210,13 @@ export interface RunScriptOptions {
   spawner?: ScriptSpawner;
   /** Optional script name for error context (`details.scriptName`). */
   scriptName?: string;
+  /**
+   * Per-call override for the retry-once policy. Production callers omit;
+   * tests pass `{ enabled: false }` to deterministically observe the
+   * first-attempt failure path, or `{ delayMs: 0 }` to skip the backoff
+   * and keep tests fast.
+   */
+  retry?: Partial<RetryPolicy>;
 }
 
 /**
@@ -131,9 +234,44 @@ export async function runJxaScript<T = unknown>(
   const timeoutMs = options.timeoutMs ?? 30_000;
   const jsonArg = JSON.stringify(args ?? {});
   const scriptName = options.scriptName;
+  const retry: RetryPolicy = { ...defaultRetryPolicy, ...(options.retry ?? {}) };
 
   const startedAt = performance.now();
-  const result = await spawner(scriptBody, jsonArg, timeoutMs);
+  let result = await spawner(scriptBody, jsonArg, timeoutMs);
+
+  // Retry-once on transient failures for read-only scripts (#816). Writes
+  // and unknown scripts (no `scriptName` passed) skip retry to avoid
+  // duplicate side effects.
+  const isReadOnly = scriptName !== undefined && READ_ONLY_JXA_SCRIPTS.has(scriptName);
+  const shouldRetry = retry.enabled && isReadOnly && isTransientFailure(result);
+  if (shouldRetry) {
+    const reason = transientReason(result);
+    const retryStartedAt = performance.now();
+    if (retry.delayMs > 0) await sleep(retry.delayMs);
+    const retryResult = await spawner(scriptBody, jsonArg, timeoutMs);
+    const retryDurationMs = Math.round(performance.now() - retryStartedAt);
+    const retryOutcome: "ok" | "error" =
+      retryResult.spawnError !== undefined ||
+      retryResult.timedOut ||
+      retryResult.exitCode !== 0 ||
+      retryResult.stdout.trim() === ""
+        ? "error"
+        : "ok";
+    logger.info(
+      {
+        event: "transport.retry",
+        transport: "jxa",
+        scriptName,
+        reason,
+        outcome: retryOutcome,
+        delayMs: retry.delayMs,
+        durationMs: retryDurationMs,
+      },
+      "transport.retry",
+    );
+    result = retryResult;
+  }
+
   const durationMs = Math.round(performance.now() - startedAt);
   const outcome: "ok" | "error" =
     result.spawnError !== undefined ||

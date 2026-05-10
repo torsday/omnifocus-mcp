@@ -63,6 +63,14 @@ const envSchema = z.object({
   OMNIFOCUS_WRITE_QUEUE_CAP: z.coerce.number().int().positive().default(50),
   OMNIFOCUS_JXA_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
   OMNIFOCUS_OMNIJS_TIMEOUT_MS: z.coerce.number().int().positive().default(45000),
+  // Retry-once on known-transient JXA failures (#816). Applies only to read-only
+  // scripts (see READ_ONLY_JXA_SCRIPTS in scriptRunner). Set ENABLED=0 to
+  // disable globally; DELAY_MS=0 keeps the retry but skips the backoff sleep.
+  OMNIFOCUS_TRANSIENT_RETRY_ENABLED: z
+    .string()
+    .prefault("1")
+    .transform((v) => v !== "0"),
+  OMNIFOCUS_TRANSIENT_RETRY_DELAY_MS: z.coerce.number().int().min(0).default(100),
   OMNIFOCUS_ATTACHMENT_PATHS: z
     .string()
     .prefault(homedir())
@@ -118,6 +126,8 @@ export function parseConfig(
     OMNIFOCUS_WRITE_QUEUE_CAP: processEnv.OMNIFOCUS_WRITE_QUEUE_CAP,
     OMNIFOCUS_JXA_TIMEOUT_MS: processEnv.OMNIFOCUS_JXA_TIMEOUT_MS,
     OMNIFOCUS_OMNIJS_TIMEOUT_MS: processEnv.OMNIFOCUS_OMNIJS_TIMEOUT_MS,
+    OMNIFOCUS_TRANSIENT_RETRY_ENABLED: processEnv.OMNIFOCUS_TRANSIENT_RETRY_ENABLED,
+    OMNIFOCUS_TRANSIENT_RETRY_DELAY_MS: processEnv.OMNIFOCUS_TRANSIENT_RETRY_DELAY_MS,
     OMNIFOCUS_ATTACHMENT_PATHS: processEnv.OMNIFOCUS_ATTACHMENT_PATHS,
     OMNIFOCUS_MAX_ATTACHMENT_MB: processEnv.OMNIFOCUS_MAX_ATTACHMENT_MB,
     OMNIFOCUS_TOOL_RATE_LIMIT: processEnv.OMNIFOCUS_TOOL_RATE_LIMIT,
@@ -164,6 +174,8 @@ export function redactConfig(config: Config): Record<string, unknown> {
     OMNIFOCUS_WRITE_QUEUE_CAP: config.OMNIFOCUS_WRITE_QUEUE_CAP,
     OMNIFOCUS_JXA_TIMEOUT_MS: config.OMNIFOCUS_JXA_TIMEOUT_MS,
     OMNIFOCUS_OMNIJS_TIMEOUT_MS: config.OMNIFOCUS_OMNIJS_TIMEOUT_MS,
+    OMNIFOCUS_TRANSIENT_RETRY_ENABLED: config.OMNIFOCUS_TRANSIENT_RETRY_ENABLED,
+    OMNIFOCUS_TRANSIENT_RETRY_DELAY_MS: config.OMNIFOCUS_TRANSIENT_RETRY_DELAY_MS,
     // Path-shaped — hash each entry to avoid leaking directory structure
     OMNIFOCUS_ATTACHMENT_PATHS: config.OMNIFOCUS_ATTACHMENT_PATHS.map(hashValue),
     OMNIFOCUS_MAX_ATTACHMENT_MB: config.OMNIFOCUS_MAX_ATTACHMENT_MB,

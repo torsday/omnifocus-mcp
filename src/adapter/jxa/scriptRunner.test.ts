@@ -253,3 +253,217 @@ describe("runJxaScript — error taxonomy: no false positives", () => {
     await expect(runJxaScript("s", {}, { spawner })).rejects.toBeInstanceOf(ScriptError);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Retry-once on transient failures (#816)
+// ---------------------------------------------------------------------------
+
+describe("runJxaScript — retry-once on transient failures", () => {
+  /**
+   * Sequenced spawner: returns the first result on call N=1, the second on
+   * N=2, etc. Asserts the right number of attempts via `mock.calls.length`.
+   * Typed as `ScriptSpawner` for compatibility with `RunScriptOptions.spawner`
+   * while still exposing the `MockInstance.mock` surface to callers.
+   */
+  function sequenceSpawner(
+    ...results: Partial<SpawnResult>[]
+  ): ScriptSpawner & ReturnType<typeof vi.fn> {
+    const sequence: SpawnResult[] = results.map((r) => ({
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      timedOut: false,
+      ...r,
+    }));
+    let i = 0;
+    return vi.fn(
+      async (_b: string, _a: string, _t: number): Promise<SpawnResult> =>
+        sequence[i++] as SpawnResult,
+    ) as ScriptSpawner & ReturnType<typeof vi.fn>;
+  }
+
+  it("retries a read-only script on timeout and returns the second-attempt result", async () => {
+    const spawner = sequenceSpawner({ timedOut: true }, { stdout: '{"ok":true}' });
+    const out = await runJxaScript<{ ok: true }>(
+      "script",
+      {},
+      { spawner, scriptName: "task_get", retry: { delayMs: 0 } },
+    );
+    expect(out).toEqual({ ok: true });
+    expect(spawner.mock.calls).toHaveLength(2);
+  });
+
+  it("retries on stderr containing -1728 (errAENoSuchObject) for a read-only script", async () => {
+    const spawner = sequenceSpawner(
+      { exitCode: 1, stderr: "Error: Can't get object. (-1728)" },
+      { stdout: '{"task":{"id":"abc"}}' },
+    );
+    const out = await runJxaScript<{ task: { id: string } }>(
+      "script",
+      {},
+      { spawner, scriptName: "task_get", retry: { delayMs: 0 } },
+    );
+    expect(out).toEqual({ task: { id: "abc" } });
+    expect(spawner.mock.calls).toHaveLength(2);
+  });
+
+  it("retries on stderr containing -10024", async () => {
+    const spawner = sequenceSpawner(
+      { exitCode: 1, stderr: "Error: AccessorNotFound (-10024)" },
+      { stdout: '{"projects":[]}' },
+    );
+    const out = await runJxaScript(
+      "script",
+      {},
+      {
+        spawner,
+        scriptName: "project_list",
+        retry: { delayMs: 0 },
+      },
+    );
+    expect(out).toEqual({ projects: [] });
+    expect(spawner.mock.calls).toHaveLength(2);
+  });
+
+  it("retries on stderr containing -10003", async () => {
+    const spawner = sequenceSpawner(
+      { exitCode: 1, stderr: "Error: NotModifiable (-10003)" },
+      { stdout: '{"tags":[]}' },
+    );
+    const out = await runJxaScript(
+      "script",
+      {},
+      {
+        spawner,
+        scriptName: "tag_list",
+        retry: { delayMs: 0 },
+      },
+    );
+    expect(out).toEqual({ tags: [] });
+    expect(spawner.mock.calls).toHaveLength(2);
+  });
+
+  it("does NOT retry a write-shaped script even when the failure is transient", async () => {
+    const spawner = sequenceSpawner({ timedOut: true });
+    await expect(
+      runJxaScript(
+        "script",
+        {},
+        {
+          spawner,
+          scriptName: "task_create",
+          retry: { delayMs: 0 },
+        },
+      ),
+    ).rejects.toBeInstanceOf(OmniFocusError);
+    expect(spawner.mock.calls).toHaveLength(1);
+  });
+
+  it("does NOT retry when scriptName is unknown (safe default)", async () => {
+    const spawner = sequenceSpawner({ timedOut: true });
+    await expect(
+      runJxaScript("script", {}, { spawner, retry: { delayMs: 0 } }),
+    ).rejects.toBeInstanceOf(OmniFocusError);
+    expect(spawner.mock.calls).toHaveLength(1);
+  });
+
+  it("does NOT retry when retry.enabled is false", async () => {
+    const spawner = sequenceSpawner({ timedOut: true });
+    await expect(
+      runJxaScript(
+        "script",
+        {},
+        {
+          spawner,
+          scriptName: "task_get",
+          retry: { enabled: false, delayMs: 0 },
+        },
+      ),
+    ).rejects.toBeInstanceOf(OmniFocusError);
+    expect(spawner.mock.calls).toHaveLength(1);
+  });
+
+  it("does NOT retry on non-transient errors (e.g. PermissionDenied)", async () => {
+    const spawner = sequenceSpawner({
+      exitCode: 1,
+      stderr: "Not authorized to send Apple events",
+    });
+    await expect(
+      runJxaScript(
+        "script",
+        {},
+        {
+          spawner,
+          scriptName: "task_get",
+          retry: { delayMs: 0 },
+        },
+      ),
+    ).rejects.toBeInstanceOf(PermissionDenied);
+    expect(spawner.mock.calls).toHaveLength(1);
+  });
+
+  it("on second-attempt failure, throws the second result's typed error (no wrapping)", async () => {
+    // Two consecutive timeouts — the second attempt's Timeout is what surfaces.
+    const spawner = sequenceSpawner({ timedOut: true }, { timedOut: true });
+    const err = await runJxaScript(
+      "script",
+      {},
+      {
+        spawner,
+        scriptName: "task_get",
+        retry: { delayMs: 0 },
+      },
+    ).catch((e: unknown) => e);
+    expect((err as Error).constructor.name).toBe("Timeout");
+    expect(spawner.mock.calls).toHaveLength(2);
+  });
+
+  it("does NOT retry on spawn failure (binary missing — not transient)", async () => {
+    const spawnErr = Object.assign(new Error("ENOENT"), {
+      code: "ENOENT",
+    }) as NodeJS.ErrnoException;
+    const spawner = sequenceSpawner({ exitCode: 127, spawnError: spawnErr });
+    await expect(
+      runJxaScript(
+        "script",
+        {},
+        {
+          spawner,
+          scriptName: "task_get",
+          retry: { delayMs: 0 },
+        },
+      ),
+    ).rejects.toBeInstanceOf(TransportUnavailable);
+    expect(spawner.mock.calls).toHaveLength(1);
+  });
+});
+
+describe("READ_ONLY_JXA_SCRIPTS — coverage pin", () => {
+  it("includes every documented read-shaped script name", async () => {
+    const { READ_ONLY_JXA_SCRIPTS } = await import("./scriptRunner.js");
+    // Pin the set so additions are visible in review. New read-shaped scripts
+    // need to be added here to benefit from the retry-once policy.
+    expect([...READ_ONLY_JXA_SCRIPTS].sort()).toEqual([
+      "attachment_list",
+      "changes_since",
+      "folder_get",
+      "folder_list",
+      "forecast_get",
+      "perspective_evaluate",
+      "perspective_list",
+      "ping",
+      "project_get",
+      "project_get_many",
+      "project_list",
+      "review_list_due",
+      "tag_get",
+      "tag_get_many",
+      "tag_list",
+      "task_get",
+      "task_get_many",
+      "task_list",
+      "task_search",
+      "window_get_state",
+    ]);
+  });
+});
