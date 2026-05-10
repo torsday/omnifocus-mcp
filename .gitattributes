@@ -1,0 +1,15 @@
+# Generated and large binary-like files — collapsed in GitHub PR diffs and
+# excluded from linguist language statistics. Agents should avoid Read-ing
+# these directly; see AGENTS.md "Files agents should not Read directly".
+
+# Vitest snapshot files (largest: src/tools/__snapshots__/ at ~207 KB)
+*.snap linguist-generated=true
+
+# Auto-generated tool reference (180 KB); canonical source: src/tools/**
+docs/tools.md linguist-generated=true
+
+# Lockfile (134 KB); query with `pnpm list <pkg>` or `pnpm why <pkg>`
+pnpm-lock.yaml linguist-generated=true
+
+# Test fixture data — data-only, not source
+tests/fixtures/**/*.json linguist-generated=true
