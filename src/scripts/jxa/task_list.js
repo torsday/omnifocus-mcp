@@ -76,7 +76,6 @@ function run(argv) {
     );
     tasks = tag.tasks();
   } else {
-<<<<<<< HEAD
     // No source-narrowing branch — push every pushable predicate into
     // OF's runtime via whose(). Predicates that don't push down (tag /
     // available / blocked / completedSince — all need buildTask's
@@ -105,10 +104,12 @@ function run(argv) {
       } catch (_e) {
         // OF rejected the predicate for some reason — fall back to the
         // full scan so the post-loop filters still produce correct results.
-        tasks = ofApp.defaultDocument.flattenedTasks(); /* narrow-scan-ok: whose() pushdown rejected by OF, full scan is the documented fallback */
+        tasks =
+          ofApp.defaultDocument.flattenedTasks(); /* narrow-scan-ok: whose() pushdown rejected by OF, full scan is the documented fallback */
       }
     } else {
-      tasks = ofApp.defaultDocument.flattenedTasks(); /* narrow-scan-ok: else-branch fallback when no scope filter provided */
+      tasks =
+        ofApp.defaultDocument.flattenedTasks(); /* narrow-scan-ok: else-branch fallback when no scope filter provided */
     }
   }
 
