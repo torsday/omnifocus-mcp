@@ -1377,6 +1377,130 @@ describe("JXA sandbox — task_search", () => {
       ),
     ).toThrow("Project not found: missing");
   });
+
+  // -------------------------------------------------------------------------
+  // whose() pushdown coverage (#789 / #895)
+  //
+  // Without `projectId`, the script now pushes pushable predicates
+  // (`flagged`, `completed` from "exclude"/"only", `dueDate` range) into
+  // OF's runtime via `flattenedTasks.whose({...})()`. Tag, available, and
+  // text-search predicates stay client-side — they need `buildTask`'s
+  // computed values.
+  // -------------------------------------------------------------------------
+
+  it("pushes flagged: true into whose() — unflagged tasks aren't iterated", () => {
+    let unflaggedNameCalls = 0;
+    const unflagged = fakeTask({
+      flagged: () => false,
+      completed: () => false,
+      name: () => {
+        unflaggedNameCalls++;
+        return "unflagged";
+      },
+    });
+    const flagged = fakeTask({
+      id: () => "task_match",
+      flagged: () => true,
+      completed: () => false,
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      taskSearchScript,
+      { flagged: true },
+      { tasks: [unflagged, flagged] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["task_match"]);
+    expect(unflaggedNameCalls).toBe(0);
+  });
+
+  it("pushes completed: false (the default 'exclude' mapping) into whose()", () => {
+    let doneNameCalls = 0;
+    const done = fakeTask({
+      completed: () => true,
+      name: () => {
+        doneNameCalls++;
+        return "done";
+      },
+    });
+    const open = fakeTask({ id: () => "task_open", completed: () => false });
+    const result = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      taskSearchScript,
+      {}, // no completed arg → default "exclude" → whose({completed: false})
+      { tasks: [done, open] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["task_open"]);
+    expect(doneNameCalls).toBe(0);
+  });
+
+  it("pushes completed: true when completed='only'", () => {
+    let openNameCalls = 0;
+    const open = fakeTask({
+      completed: () => false,
+      name: () => {
+        openNameCalls++;
+        return "open";
+      },
+    });
+    const done = fakeTask({ id: () => "task_done", completed: () => true });
+    const result = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      taskSearchScript,
+      { completed: "only" },
+      { tasks: [done, open] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["task_done"]);
+    expect(openNameCalls).toBe(0);
+  });
+
+  it("composes flagged + dueBefore into a single whose() — multi-predicate path", () => {
+    const a = fakeTask({
+      flagged: () => true,
+      completed: () => false,
+      dueDate: () => new Date("2026-04-01T00:00:00Z"),
+      name: () => "task_a",
+    });
+    const b = fakeTask({
+      flagged: () => false,
+      completed: () => false,
+      dueDate: () => new Date("2026-04-01T00:00:00Z"),
+      name: () => "task_b",
+    });
+    const c = fakeTask({
+      flagged: () => true,
+      completed: () => false,
+      dueDate: () => new Date("2026-06-01T00:00:00Z"),
+      name: () => "task_c",
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { name: string }[] }>(
+      taskSearchScript,
+      { flagged: true, dueBefore: "2026-05-01T00:00:00Z" },
+      { tasks: [a, b, c] },
+    );
+    expect(result.tasks.map((t) => t.name)).toEqual(["task_a"]);
+  });
+
+  it("projectId branch source-narrows — no whose() applied to flattenedTasks", () => {
+    // When projectId is provided, the source is proj.flattenedTasks() and
+    // the whose() pushdown branch is not taken. Filters apply post-loop.
+    const projTask = fakeTask({
+      id: () => "in_proj",
+      flagged: () => true,
+      completed: () => false,
+    });
+    const otherTask = fakeTask({
+      id: () => "not_in_proj",
+      flagged: () => true,
+      completed: () => false,
+    });
+    const proj = fakeProject({
+      id: () => "p1",
+      flattenedTasks: () => [projTask],
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      taskSearchScript,
+      { projectId: "p1", flagged: true },
+      { projects: [proj], tasks: [otherTask] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["in_proj"]);
+  });
 });
 
 // ---------------------------------------------------------------------------
