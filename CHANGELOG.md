@@ -5,6 +5,13 @@ All notable changes to `@torsday/omnifocus-mcp` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [ADR-0011](./docs/adr/0011-versioning-and-stability.md) for the explicit definition of breaking vs additive changes in this project.
 
 
+## [1.5.1](https://github.com/torsday/omnifocus-mcp/compare/v1.5.0...v1.5.1) (2026-05-10)
+
+
+### Fixed
+
+* **ci:** bump release.yml timeout 20m → 35m to fit Stryker mutation testing ([#922](https://github.com/torsday/omnifocus-mcp/issues/922)) ([3203c60](https://github.com/torsday/omnifocus-mcp/commit/3203c606e211c8719e3d1ab6864160d287a415e0)), closes [#921](https://github.com/torsday/omnifocus-mcp/issues/921)
+
 ## [1.5.0](https://github.com/torsday/omnifocus-mcp/compare/v1.4.0...v1.5.0) (2026-05-10)
 
 
