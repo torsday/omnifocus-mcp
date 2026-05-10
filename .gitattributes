@@ -14,5 +14,8 @@ src/tools/INDEX.md linguist-generated=true
 # Lockfile (134 KB); query with `pnpm list <pkg>` or `pnpm why <pkg>`
 pnpm-lock.yaml linguist-generated=true
 
+# Auto-generated scripts index (~3 KB); canonical source: scripts/generate-scripts-index.ts
+scripts/README.md linguist-generated=true
+
 # Test fixture data — data-only, not source
 tests/fixtures/**/*.json linguist-generated=true

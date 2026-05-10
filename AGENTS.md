@@ -46,6 +46,8 @@ pnpm format               # biome format --write
 pnpm typecheck            # tsc --noEmit
 ```
 
+**Finding scripts:** Read `scripts/README.md` before grepping `scripts/` — it lists every script with its purpose and a usage example, grouped by role (build / verify / generate / tracker / release / integration).
+
 ## Environment variables
 
 - `OMNIFOCUS_INTEGRATION` — set to `1` to run integration tests against live OF
