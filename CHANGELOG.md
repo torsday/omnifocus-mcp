@@ -5,6 +5,25 @@ All notable changes to `@torsday/omnifocus-mcp` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [ADR-0011](./docs/adr/0011-versioning-and-stability.md) for the explicit definition of breaking vs additive changes in this project.
 
 
+## [1.5.0](https://github.com/torsday/omnifocus-mcp/compare/v1.4.0...v1.5.0) (2026-05-10)
+
+
+### Added
+
+* **scripts:** generate scripts/README.md from explicit registry metadata ([#863](https://github.com/torsday/omnifocus-mcp/issues/863)) ([5eeaacd](https://github.com/torsday/omnifocus-mcp/commit/5eeaacdbecc8728a2bad8a2066f3530b525d130c))
+
+
+### Performance
+
+* **forecast:** deduplicate task objects in forecast_get byDate buckets ([#870](https://github.com/torsday/omnifocus-mcp/issues/870)) ([b97e2fb](https://github.com/torsday/omnifocus-mcp/commit/b97e2fb07bb73daf25fb725a7f357c416e192f7f)), closes [#794](https://github.com/torsday/omnifocus-mcp/issues/794)
+* **review:** project review_list_due to documented fields by default ([#873](https://github.com/torsday/omnifocus-mcp/issues/873)) ([97593f5](https://github.com/torsday/omnifocus-mcp/commit/97593f5de772f126b6b212c149161777c7d19e78))
+
+
+### Documentation
+
+* **release:** add migrations.md with breaking-change guidance and CI lint ([#865](https://github.com/torsday/omnifocus-mcp/issues/865)) ([47e665b](https://github.com/torsday/omnifocus-mcp/commit/47e665bcea5ce2c4fdf84b4500efd84a56a7f44c)), closes [#841](https://github.com/torsday/omnifocus-mcp/issues/841)
+* **setup:** audit readme and troubleshooting docs for first-time-user friction ([#877](https://github.com/torsday/omnifocus-mcp/issues/877)) ([43bc3d0](https://github.com/torsday/omnifocus-mcp/commit/43bc3d06514652a0379b01ca0398ff532f6a93c3))
+
 ## [1.4.0](https://github.com/torsday/omnifocus-mcp/compare/v1.3.0...v1.4.0) (2026-05-10)
 
 
