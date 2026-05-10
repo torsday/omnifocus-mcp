@@ -36,7 +36,14 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest   # required by `pnpm publish --provenance` (see header)
-    timeout-minutes: 20
+    # Sized for the slowest historically-observed successful release run
+    # (~26 min on 2026-05-09 / c551320) with 9 min headroom. Stryker
+    # mutation testing alone takes ~19 min on this codebase; the prior
+    # 20-min cap was tight enough to cancel v1.5.0 mid-Stryker on
+    # 2026-05-10, leaving the tag + GitHub Release in place but no
+    # publish to npm or Homebrew. Bump as Stryker scope grows; don't
+    # tighten without checking historical run durations first.
+    timeout-minutes: 35
     permissions:
       contents: write   # needed to create a GitHub Release
       id-token: write   # needed for npm provenance (and future OIDC publish)
