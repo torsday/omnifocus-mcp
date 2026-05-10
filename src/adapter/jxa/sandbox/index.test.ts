@@ -2816,6 +2816,93 @@ describe("JXA sandbox — perspective_evaluate", () => {
     // the surrounding integration suite, not this unit slice.
     expect(result).toEqual({ tasks: [] });
   });
+
+  // -------------------------------------------------------------------------
+  // whose() pushdown coverage (#789 / #894)
+  //
+  // The `flagged` and `forecast` branches now push their predicates into
+  // OF's runtime via `flattenedTasks.whose({...})()`. The sandbox honors
+  // the same predicate semantics, so the long tail of non-matching tasks
+  // never has its `buildTask` accessors invoked.
+  // -------------------------------------------------------------------------
+
+  it("'flagged' pushes the predicate — non-matching tasks aren't iterated by user code", () => {
+    let unflaggedNameCalls = 0;
+    const unflagged = fakeTask({
+      flagged: () => false,
+      completed: () => false,
+      dropped: () => false,
+      name: () => {
+        unflaggedNameCalls++;
+        return "unflagged";
+      },
+    });
+    const flagged = fakeTask({
+      id: () => "task_match",
+      flagged: () => true,
+      completed: () => false,
+      dropped: () => false,
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      perspectiveEvaluateScript,
+      { perspectiveId: "flagged" },
+      { tasks: [unflagged, flagged] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["task_match"]);
+    // unflagged was filtered out by whose() — buildTask never read its name
+    expect(unflaggedNameCalls).toBe(0);
+  });
+
+  it("'flagged' excludes completed/dropped via whose()", () => {
+    const completedFlagged = fakeTask({
+      flagged: () => true,
+      completed: () => true,
+      name: () => "completed",
+    });
+    const droppedFlagged = fakeTask({
+      flagged: () => true,
+      dropped: () => true,
+      name: () => "dropped",
+    });
+    const active = fakeTask({
+      id: () => "task_active",
+      flagged: () => true,
+      completed: () => false,
+      dropped: () => false,
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      perspectiveEvaluateScript,
+      { perspectiveId: "flagged" },
+      { tasks: [completedFlagged, droppedFlagged, active] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["task_active"]);
+  });
+
+  it("'forecast' pushes dueDate <= endOfDay into whose() — future tasks aren't iterated", () => {
+    let futureNameCalls = 0;
+    const future = fakeTask({
+      dueDate: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      completed: () => false,
+      dropped: () => false,
+      name: () => {
+        futureNameCalls++;
+        return "future";
+      },
+    });
+    const past = fakeTask({
+      id: () => "task_past",
+      dueDate: () => new Date(Date.now() - 24 * 60 * 60 * 1000),
+      completed: () => false,
+      dropped: () => false,
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      perspectiveEvaluateScript,
+      { perspectiveId: "forecast" },
+      { tasks: [future, past] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["task_past"]);
+    expect(futureNameCalls).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
