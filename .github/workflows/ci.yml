@@ -17,12 +17,18 @@ concurrency:
 
 jobs:
   build:
-    # Skip for fork PRs — fork code cannot execute on the self-hosted runner.
-    # Maintainers re-trigger via push to a same-repo branch after review if needed.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, macos]
-    # Self-hosted runners can lag status replication by 20+ min (#720); cap at 15 min
-    # so a true stall surfaces as a clean failure rather than an indefinite pending check.
+    # ubuntu-latest, not the self-hosted macOS runner. This job runs
+    # `pnpm typecheck/lint/test/build` against the InMemoryAdapter — none
+    # of which exercises macOS-specific code (osascript / OmniFocus calls
+    # live behind the JxaTransport and OmniJsTransport, which only run when
+    # `OMNIFOCUS_INTEGRATION=1` triggers `integration.yml` on the dedicated
+    # `macos-omnifocus` runner). Keeping CI on the self-hosted runner forced
+    # it to share queue with the integration suite — so a single hung
+    # integration test would block every queued PR's required `build (Node 24)`
+    # check for hours (see watchdog.sh in github-runners/, plus #912's
+    # `timeout-minutes: 30` cap on integration). Moving CI to ubuntu-latest
+    # restores parallelism without changing what the build job verifies.
+    runs-on: ubuntu-latest  # allow-hosted (verify-no-hosted-runners.sh: documented exception)
     timeout-minutes: 15
     strategy:
       matrix:
