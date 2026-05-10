@@ -16,165 +16,41 @@
  *   - OmniFocus must be running (the adapter raises `OmniFocusNotRunning` otherwise)
  *   - macOS Automation permission must be granted for `osascript`
  *
+ * **Fixture cleanup (#881):** the harness's `sandbox` mode creates one
+ * fixture folder before any test runs, transparently routes top-level
+ * project/folder creates inside it, and bulk-deletes the folder once all
+ * tests finish — replacing the previous per-test cleanup loop that did
+ * 50–200 osascript round-trips per run. Inbox tasks and tags fall back to
+ * parallel bulk-delete since they have no folder home.
+ *
  * @see tests/contract/adapter.contract.ts — the harness under mount
  * @see DESIGN.md §19 — testing strategy tiers
  */
 
 import { describe, test } from "vitest";
 import { JxaTransport } from "../../src/adapter/jxa/JxaTransport.js";
-import type { OmniFocusAdapter } from "../../src/adapter/OmniFocusAdapter.js";
 import { OmniJsTransport } from "../../src/adapter/omnijs/OmniJsTransport.js";
 import { TransportRouter } from "../../src/adapter/router.js";
-import type { FolderId, ProjectId, TagId, TaskId } from "../../src/domain/ids.js";
 import { runAdapterContract } from "../contract/adapter.contract.js";
 
 const INTEGRATION = process.env.OMNIFOCUS_INTEGRATION === "1";
-
-// ---------------------------------------------------------------------------
-// Informative skip when OF is not available
-// ---------------------------------------------------------------------------
 
 if (!INTEGRATION) {
   describe("TransportRouter integration contract", () => {
     test.skip("skipped — set OMNIFOCUS_INTEGRATION=1 and ensure OmniFocus is running to execute", () => {});
   });
 } else {
-  // -------------------------------------------------------------------------
-  // Tracking adapter
-  //
-  // The contract harness calls `createAdapter()` before each test and
-  // `cleanup(adapter)` after each test. For a live OF we cannot reset the
-  // database between tests; instead a Proxy intercepts every `create*` call
-  // and records the returned IDs. Cleanup deletes all recorded IDs — safely
-  // swallowing `NotFound` for entities already deleted inside the test body.
-  // -------------------------------------------------------------------------
-
-  type TrackedState = {
-    taskIds: TaskId[];
-    projectIds: ProjectId[];
-    tagIds: TagId[];
-    folderIds: FolderId[];
-  };
-
-  /** WeakMap associating each proxy adapter with its per-test tracking state. */
-  const tracked = new WeakMap<OmniFocusAdapter, TrackedState>();
-
-  /**
-   * Shared transport (stateless — one instance across all tests is fine).
-   * We re-use the same `TransportRouter` because the underlying JXA and
-   * OmniJS transports are also stateless; only the OF database has state.
-   */
+  // Shared transport — the JXA / OmniJS transports are stateless; only the
+  // OF database has state, and the sandbox-mode harness manages that.
   const router = TransportRouter.fromTransports(new JxaTransport(), new OmniJsTransport());
 
-  /**
-   * Return a fresh proxy adapter for each test. The proxy delegates every
-   * method to the shared `router` except the four `create*` methods, which
-   * are intercepted to record returned IDs for cleanup.
-   */
-  function makeTrackingAdapter(): OmniFocusAdapter {
-    const state: TrackedState = {
-      taskIds: [],
-      projectIds: [],
-      tagIds: [],
-      folderIds: [],
-    };
-
-    const proxy = new Proxy(router, {
-      get(target, prop: string | symbol) {
-        // Intercept create methods to track returned IDs.
-        if (prop === "createTask") {
-          return async (...args: Parameters<OmniFocusAdapter["createTask"]>): Promise<TaskId> => {
-            const id = await target.createTask(...args);
-            state.taskIds.push(id);
-            return id;
-          };
-        }
-        if (prop === "createProject") {
-          return async (
-            ...args: Parameters<OmniFocusAdapter["createProject"]>
-          ): Promise<ProjectId> => {
-            const id = await target.createProject(...args);
-            state.projectIds.push(id);
-            return id;
-          };
-        }
-        if (prop === "createTag") {
-          return async (...args: Parameters<OmniFocusAdapter["createTag"]>): Promise<TagId> => {
-            const id = await target.createTag(...args);
-            state.tagIds.push(id);
-            return id;
-          };
-        }
-        if (prop === "createFolder") {
-          return async (
-            ...args: Parameters<OmniFocusAdapter["createFolder"]>
-          ): Promise<FolderId> => {
-            const id = await target.createFolder(...args);
-            state.folderIds.push(id);
-            return id;
-          };
-        }
-        // duplicateTask creates a new task (and optionally a clone subtree).
-        // Track the returned newId so cleanup deletes the clone — without
-        // this, recursive duplicates accumulate as detritus across runs.
-        // Descendants cascade-delete when newId is removed.
-        if (prop === "duplicateTask") {
-          return async (
-            ...args: Parameters<OmniFocusAdapter["duplicateTask"]>
-          ): Promise<{ newId: TaskId; descendantCount: number }> => {
-            const result = await target.duplicateTask(...args);
-            state.taskIds.push(result.newId);
-            return result;
-          };
-        }
-
-        // Delegate everything else.
-        const val = Reflect.get(target, prop, target);
-        return typeof val === "function" ? (val as (...a: unknown[]) => unknown).bind(target) : val;
-      },
-    }) as OmniFocusAdapter;
-
-    tracked.set(proxy, state);
-    return proxy;
-  }
-
-  /**
-   * Delete all entities created during this test. Errors are swallowed —
-   * the test may have already deleted the entity (e.g. "deleteTask removes
-   * the task"), and we must not fail the cleanup pass.
-   *
-   * Deletion order: tasks → projects → tags → folders (child before parent).
-   * IDs are processed in reverse-creation order so subtasks are removed
-   * before their parent containers.
-   */
-  async function cleanupAdapter(adapter: OmniFocusAdapter): Promise<void> {
-    const state = tracked.get(adapter);
-    if (!state) return;
-
-    for (const id of [...state.taskIds].reverse()) {
-      await router.deleteTask(id).catch(() => {});
-    }
-    for (const id of [...state.projectIds].reverse()) {
-      await router.deleteProject(id).catch(() => {});
-    }
-    for (const id of [...state.tagIds].reverse()) {
-      await router.deleteTag(id).catch(() => {});
-    }
-    for (const id of [...state.folderIds].reverse()) {
-      await router.deleteFolder(id).catch(() => {});
-    }
-
-    tracked.delete(adapter);
-  }
-
-  // Mount the shared contract suite against the live TransportRouter.
-  // Cleanup deletes entities through osascript one round-trip at a time and
-  // frequently needs more than vitest's 10s default; bump only the hook
-  // timeout here. The per-test timeout is bumped at the script level — see
-  // `pnpm test:integration` in package.json.
   runAdapterContract("TransportRouter (live OmniFocus)", {
-    createAdapter: makeTrackingAdapter,
-    cleanup: cleanupAdapter,
+    createAdapter: () => router,
+    sandbox: { prefix: "mcp-fixture" },
+    // Cleanup deletes entities through osascript; the bulk teardown lands
+    // a single recursive folder delete (cascades projects + contained
+    // tasks) and parallel sweeps for inbox tasks + tags. 90s is generous
+    // headroom — typical teardown is ≤ 5s.
     hookTimeoutMs: 90_000,
   });
 }
