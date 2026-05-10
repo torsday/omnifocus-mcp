@@ -10,8 +10,21 @@
  * }
  * Returns JSON: { tasks: Task[] }
  *
+ * Performance: when no source-narrowing branch applies (`projectId` /
+ * `tagId` / `parentId` / `inbox`), the no-filter branch pushes the
+ * boolean and date-range predicates into OF's runtime via `whose({...})`
+ * (#789 / #893; mirrors the 25× speedup pattern from `forecast_get.js`
+ * and `changes_since.js`). On a real-user DB (10k+ tasks) this avoids
+ * materializing the long tail of unrelated tasks. The `try`/`catch`
+ * fallback to a full scan keeps the script correct if OF rejects the
+ * predicate for any reason; the post-loop filters are kept intact as a
+ * safety net and to handle filters that don't push down (`tagId`,
+ * `available`, `blocked`, `completedSince` — all need `buildTask`'s
+ * computed values).
+ *
  * @see src/adapter/jxa/JxaTransport.ts — caller
  * @see src/domain/task.ts — Task domain type
+ * @see src/scripts/jxa/forecast_get.js — same whose() pushdown pattern
  */
 
 // biome-ignore lint/correctness/noUnusedVariables: osascript invokes run(argv) by convention.
@@ -22,6 +35,12 @@ function run(argv) {
 
   // @inline _helpers/build_task.js
   // @inline _helpers/lookup_or_throw.js
+
+  const completedSince = args.completedSince ? new Date(args.completedSince) : null;
+  const dueBefore = args.dueBefore ? new Date(args.dueBefore) : null;
+  const dueAfter = args.dueAfter ? new Date(args.dueAfter) : null;
+  const deferredBefore = args.deferredBefore ? new Date(args.deferredBefore) : null;
+  const deferredAfter = args.deferredAfter ? new Date(args.deferredAfter) : null;
 
   let tasks;
   if (args.inbox) {
@@ -57,14 +76,40 @@ function run(argv) {
     );
     tasks = tag.tasks();
   } else {
-    tasks = ofApp.defaultDocument.flattenedTasks();
+    // No source-narrowing branch — push every pushable predicate into
+    // OF's runtime via whose(). Predicates that don't push down (tag /
+    // available / blocked / completedSince — all need buildTask's
+    // computed values) stay client-side in the loop below.
+    const predicate = {};
+    if (args.flagged !== null && args.flagged !== undefined) {
+      predicate.flagged = args.flagged;
+    }
+    if (args.completed !== null && args.completed !== undefined) {
+      predicate.completed = args.completed;
+    }
+    if (dueBefore !== null || dueAfter !== null) {
+      predicate.dueDate = {};
+      if (dueBefore !== null) predicate.dueDate._lessThan = dueBefore;
+      if (dueAfter !== null) predicate.dueDate._greaterThan = dueAfter;
+    }
+    if (deferredBefore !== null || deferredAfter !== null) {
+      predicate.deferDate = {};
+      if (deferredBefore !== null) predicate.deferDate._lessThan = deferredBefore;
+      if (deferredAfter !== null) predicate.deferDate._greaterThan = deferredAfter;
+    }
+    const hasPushable = Object.keys(predicate).length > 0;
+    if (hasPushable) {
+      try {
+        tasks = ofApp.defaultDocument.flattenedTasks.whose(predicate)();
+      } catch (_e) {
+        // OF rejected the predicate for some reason — fall back to the
+        // full scan so the post-loop filters still produce correct results.
+        tasks = ofApp.defaultDocument.flattenedTasks();
+      }
+    } else {
+      tasks = ofApp.defaultDocument.flattenedTasks();
+    }
   }
-
-  const completedSince = args.completedSince ? new Date(args.completedSince) : null;
-  const dueBefore = args.dueBefore ? new Date(args.dueBefore) : null;
-  const dueAfter = args.dueAfter ? new Date(args.dueAfter) : null;
-  const deferredBefore = args.deferredBefore ? new Date(args.deferredBefore) : null;
-  const deferredAfter = args.deferredAfter ? new Date(args.deferredAfter) : null;
 
   const result = [];
   for (let i = 0; i < tasks.length; i++) {
