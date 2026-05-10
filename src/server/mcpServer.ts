@@ -32,6 +32,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 // so this stays a compile-time constant — no runtime fs read.
 import packageJson from "../../package.json" with { type: "json" };
 import { wrapWithConcurrency } from "../adapter/concurrent.js";
+import { configureRetryPolicy } from "../adapter/jxa/scriptRunner.js";
 import { ReadPool } from "../concurrency/ReadPool.js";
 import { WriteQueue } from "../concurrency/WriteQueue.js";
 import { parseConfig, redactConfig } from "../config/env.js";
@@ -267,6 +268,13 @@ export async function startServer(): Promise<void> {
 
   // Apply validated log level before the first structured log event.
   logger.level = config.OMNIFOCUS_LOG_LEVEL;
+
+  // Apply the JXA retry-once policy (#816). Done before any tool registration
+  // so the very first invocation respects the configured policy.
+  configureRetryPolicy({
+    enabled: config.OMNIFOCUS_TRANSIENT_RETRY_ENABLED,
+    delayMs: config.OMNIFOCUS_TRANSIENT_RETRY_DELAY_MS,
+  });
 
   const server = createMcpServer();
 
