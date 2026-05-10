@@ -19,6 +19,8 @@ Three subtrees ship a directory-scoped `CLAUDE.md` — agents that respect Claud
 - `src/envelope/CLAUDE.md` — response-envelope pipeline (project → elide → truncate → cap), defaults registry, the per-tool `verbose` contract.
 - `src/tools/CLAUDE.md` — adding a tool (4 touch points), descriptionShape lint, common pitfalls.
 
+**Finding tools:** Read `src/tools/INDEX.md` for a one-line-per-tool index grouped by domain. Much cheaper than grepping across 142 tool files.
+
 ## Project-specific conventions
 
 - **Adapter seam is sacred.** Services never see `osascript` or URL schemes. The `OmniFocusAdapter` interface is the only boundary between domain logic and the OS. Tests swap in `InMemoryAdapter`.

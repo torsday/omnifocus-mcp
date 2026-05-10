@@ -8,6 +8,9 @@
 # Auto-generated tool reference (180 KB); canonical source: src/tools/**
 docs/tools.md linguist-generated=true
 
+# Auto-generated tool index (~12 KB); canonical source: src/tools/**
+src/tools/INDEX.md linguist-generated=true
+
 # Lockfile (134 KB); query with `pnpm list <pkg>` or `pnpm why <pkg>`
 pnpm-lock.yaml linguist-generated=true
 
