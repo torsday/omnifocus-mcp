@@ -1,9 +1,19 @@
 name: Token-cost benchmark
 
-# Non-required check (#771). Runs the hermetic in-memory benchmark suite
-# against the checked-in baseline; fails on ≥ 5% drift in any tracked
-# field. Promote to required once the baseline has held for one week of
-# unrelated PR traffic — see tests/benchmark/token-cost/README.md.
+# Per-PR regression gate (#822). Runs the hermetic in-memory benchmark suite
+# against the checked-in baseline; fails on ≥ 5% drift in any tracked field.
+#
+# Allowlist: PRs labeled `bench: regression-allowed` skip the failure path —
+# the bench still runs for visibility and the drift is reported in the job
+# summary, but the job exits 0 so the PR is not blocked. Use sparingly: the
+# label is for *intentional* byte-cost increases (a feature that genuinely
+# needs more wire bytes; a security mitigation that adds metadata). Always
+# explain the regression in the PR description.
+#
+# Promote to a *required* check via:
+#   gh api repos/{owner}/{repo}/branches/main/protection/required_status_checks/contexts \
+#     -X POST -f 'contexts[]=token-cost bench'
+# See CONTRIBUTING.md § "Token-cost regression gate" for the full policy.
 
 on:
   pull_request:
@@ -19,6 +29,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: token-cost-bench-${{ github.ref }}
@@ -38,4 +49,48 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test:bench:tokens
+
+      # Run the benchmark. On `pull_request`, capture the exit status and let
+      # the next step decide whether the regression is allowlisted. On `push`
+      # / `merge_group`, just fail directly — main has no PR label to consult.
+      - name: Run token-cost benchmark
+        id: bench
+        run: |
+          set +e
+          pnpm test:bench:tokens
+          status=$?
+          set -e
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" -ne 0 ] && [ "${{ github.event_name }}" != "pull_request" ]; then
+            exit "$status"
+          fi
+
+      # Allowlist gate: PRs labeled `bench: regression-allowed` exit 0 even on
+      # benchmark failure. Both the regression and the allowlist are recorded
+      # in the job summary so reviewers see exactly what was waived.
+      - name: Apply regression allowlist
+        if: github.event_name == 'pull_request'
+        env:
+          STATUS: ${{ steps.bench.outputs.status }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels) }}
+        run: |
+          allowlisted=$(echo "$PR_LABELS" | jq -r '
+            [.[] | select(.name == "bench: regression-allowed")] | length > 0
+          ')
+          {
+            echo "## Token-cost benchmark"
+            echo ""
+            if [ "$STATUS" = "0" ]; then
+              echo "✅ No regression beyond the 5% threshold."
+            elif [ "$allowlisted" = "true" ]; then
+              echo "🟡 **Regression detected, but allowlisted via \`bench: regression-allowed\` label.**"
+              echo ""
+              echo "The drift breakdown is in the step log above. The PR description should explain why this regression is intentional."
+            else
+              echo "❌ Regression beyond the 5% threshold. Either fix the regression or add the \`bench: regression-allowed\` label with a justification in the PR description."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$STATUS" != "0" ] && [ "$allowlisted" != "true" ]; then
+            exit "$STATUS"
+          fi

@@ -81,6 +81,21 @@ if (!parsed.success) {
 5. **Conventional Commits.** Follow [`commit.md`](https://github.com/torsday/llm_prompts/blob/main/commit.md). One concern per commit. Split multi-concern diffs.
 6. **Update the design.** If your change invalidates something in `DESIGN.md`, `SPEC.md`, or an ADR, update it in the same PR. A PR that diverges from its design doc is not ready to merge.
 
+## Token-cost regression gate
+
+The `Token-cost benchmark` workflow (`.github/workflows/token-cost-bench.yml`) runs the hermetic in-memory benchmark suite against `tests/benchmark/token-cost/__snapshots__/baseline.snap.json` on every PR that touches `src/**`, the benchmark itself, or the workflow / lockfile. It **fails the PR** when any tracked field drifts ≥ 5% from baseline. The tracked fields are `toolListBytes`, per-workflow `totalRequestBytes` / `totalResponseBytes` / `totalRoundTripBytes` / `totalTokens`, and per-tool `byTool[<name>].responseBytes`. See [`tests/benchmark/token-cost/README.md`](./tests/benchmark/token-cost/README.md) for the full list and how to re-baseline.
+
+**Fixing a regression** — the diff in the failing job step is the byte-by-byte breakdown. Most regressions are an envelope field that should be elided, a verbose error message, or a default value that grew. Iterate locally with `OMNIFOCUS_BENCH=1 pnpm test:bench:tokens` until the diff is back under threshold.
+
+**Intentional regressions** — when a feature genuinely needs more wire bytes (a new field, a security mitigation that adds metadata, a richer error envelope), apply the **`bench: regression-allowed`** label to the PR. The workflow still runs the benchmark for visibility — the drift breakdown lands in the job summary — but the job exits 0 so the PR is not blocked. Always explain the regression in the PR description so the next reviewer can confirm the cost is justified. Re-baseline in a follow-up PR per the README.
+
+**Promoting to required check** — the gate is an opt-in advisory check by default. To make it block merge, add it to branch protection:
+
+```bash
+gh api repos/torsday/omnifocus-mcp/branches/main/protection/required_status_checks/contexts \
+  -X POST -f 'contexts[]=token-cost bench'
+```
+
 ## Pull request template
 
 ```markdown
