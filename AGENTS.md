@@ -129,6 +129,60 @@ These files are large, generated, or both. Reading them directly wastes token bu
 
 These files are marked `linguist-generated` in `.gitattributes` so GitHub collapses them in PR diffs and excludes them from language statistics.
 
+## Common task recipes
+
+Each recipe lists the **minimum touch points** for a common change, plus the lint/test that catches a half-done implementation. Recipes route to the right starting point — they don't restate content. The deeper "what to know to work here" lives in the per-directory `CLAUDE.md` files (`src/tools/`, `src/scripts/jxa/`, `src/envelope/`).
+
+### Add a tool
+
+1. **Source** — `src/tools/<noun>/<verb>.ts`. Naming `<noun>_<verb>` per [ADR-0003](./docs/adr/0003-tool-surface-namespaced.md). Pattern reference: `src/tools/task/list.ts` (a list tool) or `src/tools/task/create.ts` (a write tool).
+2. **Registration** — wire in `src/server/mcpServer.ts` (or the relevant `register*` helper). Without this the tool exists in code but is invisible to MCP clients.
+3. **Test** — `src/tools/<noun>/<verb>.test.ts`. Use `InMemoryAdapter` and the in-process service stack — no `osascript`. Goldilocks coverage: input schema + happy path + one error / edge.
+4. **`describe()` strings** — every input field needs the four-section shape ([#777](https://github.com/torsday/omnifocus-mcp/issues/777)) under the per-tool token budget.
+5. **Regenerate docs** — `pnpm docs:generate`; CI's `docs:check` blocks merge if `docs/tools.md` is stale.
+
+**Verify:** `pnpm test`, `src/tools/descriptions.lint.test.ts`, `descriptionShape.test.ts`. See [`src/tools/CLAUDE.md`](./src/tools/CLAUDE.md) for the deeper rules and read-tool envelope wiring.
+
+### Add a JXA script
+
+1. **Source** — `src/scripts/jxa/<verb>.js`. Reads its single argv via `JSON.parse` ([ADR-0005](./docs/adr/0005-script-assets-as-files.md)). No imports, no Buffer, nothing not in JavaScriptCore on the supported macOS.
+2. **Helper inlining** — if you reuse a build helper (`buildTask`, `buildProject`, etc.), put `// @inline _helpers/<helper>.js` at the top — the build splices it ([ADR-0020](./docs/adr/0020-jxa-script-build-time-helper-inlining.md)).
+3. **Sandboxed test** — `src/adapter/jxa/sandbox/` runs the script against a JS-eval mock of the OF DOM. Use this for filter / mapping logic without spawning `osascript`.
+4. **Bridge-mock test** — `src/adapter/jxa/JxaTransport.test.ts`-style: pass a `spawner` that returns canned stdout. Use this to assert the right script was invoked with the right args.
+5. **OF 4.x quirks** — read [`src/scripts/jxa/CLAUDE.md`](./src/scripts/jxa/CLAUDE.md) before touching `tag.parent()`, `containingProject().class()`, or `flattenedTasks().byId()`.
+
+**Verify:** `pnpm test` (sandbox + bridge-mock), `pnpm build` (inlining still parses), `pnpm test:integration` if the change touches a verb live OF actually exercises.
+
+### Add an envelope helper
+
+1. **Place in pipeline** — decide which step the new transformation belongs to: `project → elide → truncate → cap`. Reordering changes wire shape; two transformations in one step must commute or they're separate steps.
+2. **Source** — `src/envelope/<helper>.ts`, exported via `src/envelope/index.ts`.
+3. **Defaults registry** — if it's a per-domain default, register in `src/envelope/defaultsRegistry.ts` in the same PR. Forgetting leaves the field always-present on the wire and silently bloats responses.
+4. **Per-tool wiring** — read tools accept the relevant flag (`verbose`, `notePreviewChars`, etc.) and pipe through the helper. Document in the tool's `describe()` string so callers know.
+5. **Test** — colocated `<helper>.test.ts` covers the contract (default-elision, edge cases, opt-out flag).
+
+**Verify:** `pnpm test`, token-cost benchmark (`pnpm bench:tokens` and re-baseline if intentional). See [`src/envelope/CLAUDE.md`](./src/envelope/CLAUDE.md) for composition order and the canonical contract.
+
+### Add an ADR
+
+1. **Number** — next available in `docs/adr/`. List existing: `ls docs/adr/*.md | tail -3`. Don't reuse a number; ADRs are append-only.
+2. **Filename** — `NNNN-kebab-case-title.md`. Title in the file is `# ADR-NNNN: <Title>` (full sentence-cased title).
+3. **Frontmatter** — three lines: `**Date:** YYYY-MM-DD` / `**Status:** Proposed | Accepted | Superseded by ADR-NNNN` / horizontal rule.
+4. **Sections** — Context · Decision · Alternatives considered · Consequences · References. Pattern reference: [ADR-0020](./docs/adr/0020-jxa-script-build-time-helper-inlining.md) (substantive) or [ADR-0022](./docs/adr/0022-envelope-text-content-duplication.md) (recent).
+5. **Cross-references** — link from the relevant `docs/design/<area>.md` and (if it changes a load-bearing rule) the relevant `CLAUDE.md`. The README's ADR roundup picks it up via the narrative line — no table edit needed.
+
+**Verify:** `pnpm lint` (markdown check), `git grep -l 'ADR-<NNNN>'` returns the new file plus its referrers.
+
+### Bump a dependency
+
+1. **Update** — `pnpm update <pkg>` for a minor/patch; `pnpm add <pkg>@<version>` for a deliberate major. Lockfile (`pnpm-lock.yaml`) is regenerated automatically.
+2. **Peer deps + breaking changes** — read the package's CHANGELOG for the version range you crossed. If it's a peer of `@modelcontextprotocol/sdk`, double-check our SDK version still allows it.
+3. **Production-dep policy** — runtime dependencies are inventoried in [`docs/design/distribution-and-versioning.md`](./docs/design/distribution-and-versioning.md). Adding a new runtime dep needs justification in the PR description; a simple bump doesn't.
+4. **Path-filtered jobs** — if you change a `src/` subtree's tooling (e.g. moving build files), check `meta-lint.yml`'s path filters cover the new tree (memory: filter must cover `src/**`).
+5. **CHANGELOG** — release-please regenerates the `Unreleased` section from commit messages; do not hand-edit (it gets clobbered).
+
+**Verify:** `pnpm typecheck && pnpm lint && pnpm test`, `pnpm build` (bundle still under `OMNIFOCUS_BUNDLE_BUDGET_KB`), `pnpm audit --prod` for security advisories on the new tree.
+
 ## Calling this MCP from an agent
 
 The conventions below cover the runtime contract for an agent **using** the deployed MCP server (as distinct from the contributor-facing material above). They were previously embedded in `README.md`; the canonical home is here so an agent reads them once.
