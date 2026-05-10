@@ -3,7 +3,11 @@
 # runner, except for documented allowlist entries below.
 #
 # Policy (see AGENTS.md):
-#   - ci.yml: self-hosted mac — OS parity required.
+#   - ci.yml: ubuntu-latest (build job, marked `# allow-hosted` per-line). The
+#     build runs typecheck/lint/test/build against the InMemoryAdapter — no
+#     osascript / OmniFocus calls — so OS parity is not required, and keeping
+#     CI off the self-hosted runner restores parallelism that prevented today's
+#     queue starvation when integration tests hung.
 #   - integration.yml: integration job stays on self-hosted mac (OF access);
 #     `integration-gate` job is intentionally on ubuntu-latest so the required
 #     check is reachable even when the self-hosted runner is offline — that's
@@ -70,9 +74,12 @@ GitHub-hosted runner detected in a non-allowlisted workflow.
 Offending lines:
 $hits
 
-Policy: ci.yml and integration.yml must use \`runs-on: [self-hosted, macos]\`
-(OS parity / OmniFocus access). Admin workflows (board-sync, meta-lint, etc.)
-use ubuntu-latest — see AGENTS.md. If this workflow genuinely needs a hosted
-runner, add it to ALLOWLIST in this script with a comment explaining why.
+Policy: integration.yml's heavy job must use \`runs-on: [self-hosted, macos-omnifocus]\`
+(OmniFocus access required). ci.yml's build job uses ubuntu-latest with a
+\`# allow-hosted\` line marker since it only exercises the InMemoryAdapter.
+Admin workflows (board-sync, meta-lint, etc.) use ubuntu-latest — see
+AGENTS.md. If this workflow genuinely needs a hosted runner, either add a
+\`# allow-hosted\` comment on the offending \`runs-on:\` line with a code
+comment explaining why, or add the file to ALLOWLIST in this script.
 EOF
 exit 1
