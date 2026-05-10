@@ -8,8 +8,16 @@
  * - `lastSortValue` — the sort-field value of that item (null when the field
  *   is absent on the item, e.g. a task with no dueDate); null values sort last
  *   regardless of direction
- * - `filterHash` — SHA-256 (hex) of the serialized filter object; a mismatch
- *   means the client changed filters mid-page and gets a ValidationError
+ * - `filterHash` — first 16 hex chars (64 bits) of SHA-256 of the serialized
+ *   filter object; a mismatch means the client changed filters mid-page and
+ *   gets a ValidationError. 64-bit collision resistance is vastly more than
+ *   needed for a page sequence (~2^32 expected collisions only after 4 billion
+ *   distinct filter objects, well beyond any realistic usage).
+ *
+ * **Breaking change from v1 cursors (pre-#802):** `filterHash` was previously
+ * the full 64-char SHA-256 hex. Old cursors produce a filterHash-mismatch
+ * ValidationError, which already carries the correct suggestion ("start a
+ * fresh query"). No migration is needed on the client side.
  *
  * Sort order is determined by the caller (default `createdAt ASC, id ASC`).
  *
@@ -36,7 +44,12 @@ export interface CursorPayload {
 // ---------------------------------------------------------------------------
 
 /**
- * Compute a stable SHA-256 hex digest of an arbitrary filter object.
+ * Compute a stable, truncated SHA-256 digest of an arbitrary filter object.
+ *
+ * Returns the first 16 hex characters (64 bits) of the SHA-256 hash. The
+ * truncation shrinks the cursor blob by ~48 chars vs the previous full-hex
+ * output while preserving more than enough collision resistance for a page
+ * sequence (1-in-2^64 per filter object — #802).
  *
  * Uses {@link stableStringify} so keys are sorted at every depth — the
  * earlier top-level-only sort would let two semantically-identical
@@ -45,7 +58,7 @@ export interface CursorPayload {
  * page 2 (#760).
  */
 export function hashFilter(filter: Record<string, unknown>): string {
-  return createHash("sha256").update(stableStringify(filter)).digest("hex");
+  return createHash("sha256").update(stableStringify(filter)).digest("hex").slice(0, 16);
 }
 
 /** Encode a cursor payload to a base64url string. */
