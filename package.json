@@ -57,6 +57,8 @@
     "lint:nl-quality": "tsx scripts/verify-nl-quality.ts",
     "format": "biome format --write .",
     "test": "vitest run",
+    "test:quiet": "VITEST_REPORTER=dot vitest run",
+    "test:loud": "VITEST_REPORTER=verbose vitest run",
     "test:watch": "vitest",
     "test:integration": "OMNIFOCUS_INTEGRATION=1 vitest run tests/integration --testTimeout=90000",
     "test:perf": "OMNIFOCUS_PERF=1 vitest run tests/perf",
