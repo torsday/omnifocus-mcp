@@ -76,7 +76,7 @@ export const searchQueryInputSchema = z.object({
     .min(1)
     .max(500)
     .optional()
-    .describe("Max results per page (1..500). Default 100."),
+    .describe("Max results per page (1..500). Default 50."),
   cursor: z
     .string()
     .optional()

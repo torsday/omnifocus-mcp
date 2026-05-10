@@ -79,7 +79,7 @@ export const projectListInputSchema = z.object({
     .max(1000)
     .optional()
     .describe(
-      "Max projects per page (1..1000). Default 200. Use `cursor` to fetch subsequent pages.",
+      "Max projects per page (1..1000). Default 50. Use `cursor` to fetch subsequent pages.",
     ),
   cursor: z
     .string()

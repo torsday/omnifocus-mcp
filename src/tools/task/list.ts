@@ -118,7 +118,7 @@ export const taskListInputSchema = z.object({
     .min(1)
     .max(1000)
     .optional()
-    .describe("Max tasks per page (1..1000). Default 200. Use `cursor` to fetch subsequent pages."),
+    .describe("Max tasks per page (1..1000). Default 50. Use `cursor` to fetch subsequent pages."),
   sortBy: TaskSortBySchema.optional().describe(
     "Field to sort tasks by: 'createdAt' (default), 'dueDate', 'modifiedAt', or 'name'. " +
       "Tasks with no value for the chosen field (e.g. no dueDate) sort last.",

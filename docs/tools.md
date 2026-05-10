@@ -2070,7 +2070,7 @@ List projects in OmniFocus with optional filters. Use for queries across project
 | `status` | unknown | No |  |
 | `flagged` | boolean | No | true = flagged only; false = unflagged only; omit = both. |
 | `reviewDueBefore` | string | No | Restrict to projects whose next review date is strictly before this moment. ISO-8601 with offset (e.g. '2026-05-01T00:00:00-07:00'). Projects without a review interval are excluded. |
-| `limit` | number | No | Max projects per page (1..1000). Default 200. Use `cursor` to fetch subsequent pages. |
+| `limit` | number | No | Max projects per page (1..1000). Default 50. Use `cursor` to fetch subsequent pages. |
 | `cursor` | string | No | Opaque cursor from a previous project_list response. Must use the same filters — changing filters mid-sequence returns a ValidationError. |
 | `verbose` | boolean | No | When true, return the full unelided project shape. Default: false — fields equal to their documented default (status: 'active', completionCriterion: 'parallel', flagged: false, tagIds: [], note: null, etc.) are omitted. See docs/token-cost.md for the defaults table. |
 | `fields` | string[] | No | Restrict each returned project to this list of top-level fields (id is always returned). Omit for the full project shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. |
@@ -2611,7 +2611,7 @@ Full-text search across OmniFocus task names and/or notes. Use for finding tasks
 | `tagIds` | string[] | No | Restrict to tasks carrying ALL of these tags. Get IDs from tag_list. |
 | `flagged` | boolean | No | true = flagged tasks only; false = unflagged only; omit = all. |
 | `completed` | one of: any | only | exclude | No | 'exclude' = active tasks only; 'only' = completed only; 'any' = both. Default 'any'. |
-| `limit` | number | No | Max results per page (1..500). Default 100. |
+| `limit` | number | No | Max results per page (1..500). Default 50. |
 | `cursor` | string | No | Opaque cursor from a previous search_query response. Must use identical filters — changing filters returns a ValidationError. |
 | `fields` | string[] | No | Restrict each returned task to this list of top-level fields (id is always returned). Omit for the full task shape. Empty array returns just id. Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. Allowed: name, note, noteHtml, projectId, parentId, tagIds, deferDate, deferDateFloating, dueDate, dueDateFloating, estimatedMinutes, flagged, completed, completedAt, dropped, droppedAt, available, blocked, sequential, completedByChildren, repetition, notifications, createdAt, modifiedAt, _links. |
 
@@ -4415,7 +4415,7 @@ List tasks in OmniFocus with optional filters (project, tag, inbox, flagged, com
 | `dueAfter` | string | No | Tasks with dueDate strictly after this moment. ISO-8601 with offset. |
 | `deferredBefore` | string | No | Tasks deferred until before this moment (already unlocked or soon). ISO-8601 with offset. |
 | `parentId` | string | No | Restrict to direct children of this task (subtasks). Get the ID from task_get or task_list. |
-| `limit` | number | No | Max tasks per page (1..1000). Default 200. Use `cursor` to fetch subsequent pages. |
+| `limit` | number | No | Max tasks per page (1..1000). Default 50. Use `cursor` to fetch subsequent pages. |
 | `sortBy` | one of: dueDate | createdAt | modifiedAt | name | No | Field to sort tasks by: 'createdAt' (default), 'dueDate', 'modifiedAt', or 'name'. Tasks with no value for the chosen field (e.g. no dueDate) sort last. |
 | `sortDirection` | one of: asc | desc | No | Sort direction: 'asc' (default, oldest/lowest first) or 'desc' (newest/highest first). |
 | `updatedSince` | string | No | Return only tasks modified strictly after this timestamp. Accepts ISO-8601 with offset (e.g. '2026-04-21T10:00:00-07:00') or a relative shortcut: today, yesterday, this-week, next-week, end-of-week, end-of-month. Use this for incremental sync: call without updatedSince on session start, then pass the previous response timestamp on subsequent calls. Note: deleted tasks cannot be detected — use a snapshot resource for deletion detection. |
