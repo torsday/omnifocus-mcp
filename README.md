@@ -826,6 +826,10 @@ See the [troubleshooting guide](./docs/troubleshooting.md) and per-client guides
 
 Full table with override semantics: [`DESIGN.md §22`](./DESIGN.md#22-configuration--environment).
 
+### Running tests
+
+See [`tests/README.md`](./tests/README.md) for the full test-directory map (benchmark, chaos, contract, e2e, fixtures, integration, perf, scripts) and routing guidance on which sub-directory to use for a given type of test.
+
 ### Running integration tests
 
 Integration tests run against a live OmniFocus install:
