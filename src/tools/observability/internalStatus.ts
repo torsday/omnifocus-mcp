@@ -29,7 +29,7 @@ import { type MutationScoreSnapshot, probeMutationScore } from "./mutationScore.
 export const INTERNAL_STATUS_DESCRIPTION =
   "Return a health snapshot of the running omnifocus-mcp server. " +
   "Do NOT use this to read OmniFocus data — prefer task_list, project_list, sync_status, etc. " +
-  "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth, responseStats }. " +
+  "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth, responseStats, stores }. " +
   "cache.services maps key prefixes (tag, folder, forecast, task, project) to { hits, misses, hitRate }. " +
   "uptimeMs is the milliseconds since the server process started. " +
   "circuits lists each circuit-breaker name and state (closed/open/half_open). " +
@@ -40,11 +40,13 @@ export const INTERNAL_STATUS_DESCRIPTION =
   "available is false. Read-only — does NOT trigger the macOS Calendar TCC prompt. " +
   "mutation surfaces Stryker calibration freshness — { score, lastRunAt } where score is the " +
   "latest mutation-testing score (0–100) per ADR-0017 and lastRunAt is the report's mtime. " +
-  "Returns null when no report file is present. " +
+  "Returns null when no report file is present (the published npm tarball ships without one). " +
   "responseStats reports per-tool response-byte aggregates (#778) — " +
   "{ since, sampleRate, thresholdBytes, tools: { <toolName>: { count, total, max, p50, p95 } } } — " +
   "or null when sampling is disabled (sampleRate 0). " +
-  "Read-only. Example: internal_status()";
+  "stores: { idempotencyEntries, loopDetectorKeys } live retention-store sizes — null when not wired. " +
+  "Read-only; no side effects. " +
+  "Example: internal_status()";
 
 // ---------------------------------------------------------------------------
 // Input schema
@@ -60,6 +62,14 @@ export type InternalStatusInput = z.infer<typeof internalStatusInputSchema>;
 export interface CircuitSnapshot {
   name: string;
   state: CircuitState;
+}
+
+/** Current sizes of bounded in-process retention stores (#813). */
+export interface StoresSizeSnapshot {
+  /** Number of live entries in the idempotency LRU (cap: env OMNIFOCUS_IDEMPOTENCY_MAX_ENTRIES, default 1024). */
+  idempotencyEntries: number;
+  /** Number of distinct (tool, args-hash) keys in the loop-detector window map (cap: env OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS, default 4096). */
+  loopDetectorKeys: number;
 }
 
 export interface InternalStatusData {
@@ -98,6 +108,11 @@ export interface InternalStatusData {
    * opt in by setting `OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE`.
    */
   responseStats: ResponseStatsSnapshot | null;
+  /**
+   * Current sizes of bounded in-process stores (#813). `null` when the
+   * probe is not wired (e.g. in unit tests that only supply minimal context).
+   */
+  stores: StoresSizeSnapshot | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,6 +147,11 @@ export interface InternalStatusContext {
    * or `null` when no cache is wired. Omitting also surfaces as `null`.
    */
   probeCache?: () => InternalStatusData["cache"];
+  /**
+   * Optional store-size probe (#813). Returns current entry counts for
+   * bounded in-process stores. Omitting surfaces as `null` in the response.
+   */
+  probeStores?: () => StoresSizeSnapshot;
 }
 
 /**
@@ -190,6 +210,15 @@ export async function handleInternalStatus(
     }
   }
 
+  let stores: StoresSizeSnapshot | null = null;
+  if (ctx.probeStores !== undefined) {
+    try {
+      stores = ctx.probeStores();
+    } catch {
+      stores = null;
+    }
+  }
+
   const data: InternalStatusData = {
     uptimeMs,
     ofRunning: true,
@@ -200,6 +229,7 @@ export async function handleInternalStatus(
     circuits,
     queueDepth: null,
     responseStats,
+    stores,
   };
 
   return ok(data, ctx.makeMeta());

@@ -222,6 +222,7 @@ import {
   makeDatabaseChangeHandler,
   makeMeta,
 } from "./composition.js";
+import { idempotencyStore } from "./idempotencyStore.js";
 import { installToolMiddleware } from "./middleware.js";
 import { shutdownController } from "./shutdown.js";
 import { installStdoutGuard } from "./stdoutGuard.js";
@@ -285,7 +286,7 @@ export async function startServer(): Promise<void> {
   // its sliding window across calls, the loop detector its dedup keys, and
   // the circuit-breaker registry already holds per-tool state.
   const rateLimiter = new ToolRateLimiter(config.OMNIFOCUS_TOOL_RATE_LIMIT);
-  const loopDetector = new LoopDetector();
+  const loopDetector = new LoopDetector({ maxKeys: config.OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS });
   const responseStats = new ResponseStatsRegistry({
     sampleRate: config.OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE,
     thresholdBytes: config.OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES,
@@ -337,6 +338,10 @@ export async function startServer(): Promise<void> {
       const s = services.cache.stats();
       return { ...s, services: services.cache.serviceStats() };
     },
+    probeStores: () => ({
+      idempotencyEntries: idempotencyStore.size,
+      loopDetectorKeys: loopDetector.size,
+    }),
   });
 
   // Register MCP prompts (DESIGN §29) — four workflow templates.

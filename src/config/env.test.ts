@@ -28,6 +28,7 @@ describe("parseConfig", () => {
         OMNIFOCUS_TEMPLATES_FOLDER_NAME: "Templates",
         OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE: 0,
         OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES: 51200,
+        OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS: 4096,
       });
     });
   });

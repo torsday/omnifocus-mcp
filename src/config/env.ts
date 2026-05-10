@@ -88,6 +88,11 @@ const envSchema = z.object({
   // (once, on the transition above). Default 51200 bytes ≈ ~13k tokens — the
   // rough boundary at which a single response starts to dominate context.
   OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES: z.coerce.number().int().positive().default(51200),
+  // Hard cap on distinct (tool, args-hash) keys the loop detector tracks
+  // simultaneously. When exceeded, the oldest key is evicted (FIFO). Raise
+  // if a long-running server legitimately calls many unique arg combos per
+  // minute; lower to tighten the memory ceiling. Default 4096. (#813)
+  OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS: z.coerce.number().int().positive().default(4096),
 });
 
 // ---------------------------------------------------------------------------
@@ -135,6 +140,7 @@ export function parseConfig(
     OMNIFOCUS_TEMPLATES_FOLDER_NAME: processEnv.OMNIFOCUS_TEMPLATES_FOLDER_NAME,
     OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE: processEnv.OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE,
     OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES: processEnv.OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES,
+    OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS: processEnv.OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS,
   });
 
   if (!result.success) {
@@ -184,5 +190,6 @@ export function redactConfig(config: Config): Record<string, unknown> {
     OMNIFOCUS_TEMPLATES_FOLDER_NAME: config.OMNIFOCUS_TEMPLATES_FOLDER_NAME,
     OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE: config.OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE,
     OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES: config.OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES,
+    OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS: config.OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS,
   };
 }
