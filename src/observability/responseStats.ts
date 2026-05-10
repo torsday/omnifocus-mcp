@@ -38,11 +38,12 @@ type LoggerLike = Pick<pino.Logger, "warn" | "info">;
 export const RESERVOIR_SIZE = 1024;
 
 /**
- * Aggregates exposed for one tool. All byte counts are wire-size of the
- * `structuredContent` envelope as JSON. `count` and `total` are not capped
- * by the reservoir — they accumulate across the lifetime of the registry.
- * `p50` / `p95` / `max` are computed against the most recent
- * {@link RESERVOIR_SIZE} samples.
+ * Aggregates exposed for one tool. All byte counts are wire-size of the full
+ * SDK result — JSON-stringified `{ content, structuredContent }` (per ADR-0022,
+ * both fields ship to the consumer; measuring only one half under-reports true
+ * token cost by ~2×). `count` and `total` are not capped by the reservoir —
+ * they accumulate across the lifetime of the registry. `p50` / `p95` / `max`
+ * are computed against the most recent {@link RESERVOIR_SIZE} samples.
  *
  * `null` when the tool has no recorded samples yet.
  */

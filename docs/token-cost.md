@@ -58,7 +58,7 @@ When sampling is disabled (`OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE=0`), `responseS
 
 - **`count`** / **`total`** / **`max`** are *lifetime* aggregates: they accumulate across the whole process, never reset.
 - **`p50`** / **`p95`** are computed against the most recent ~1024 samples per tool (a ring buffer). They reflect *recent* behaviour — the right semantics for "what's expensive right now?". Older samples roll out as new ones arrive.
-- All byte counts are the wire size of `structuredContent` as JSON — what the LLM actually consumes. Errors are not recorded; they're SDK-shaped, not tool-shaped.
+- All byte counts are the wire size of the full SDK result — `JSON.stringify({ content, structuredContent })`. Both fields ship to the consumer (per [ADR-0013](./adr/0013-tool-response-envelope.md) and [ADR-0022](./adr/0022-envelope-text-content-duplication.md)); measuring only the typed half under-reports true token cost by ~2× until v2 ships. Errors are not recorded; they're SDK-shaped, not tool-shaped.
 
 ## Threshold events
 

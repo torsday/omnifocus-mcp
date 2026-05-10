@@ -105,7 +105,7 @@ describe("composeToolCallback", () => {
     await expect(wrapped({}, {})).rejects.toMatchObject({ code: "OF_CIRCUIT_OPEN" });
   });
 
-  it("records the response wire size into responseStats on success (#778)", async () => {
+  it("records the full SDK-result wire size into responseStats on success (#778, corrected #793)", async () => {
     const responseStats = new ResponseStatsRegistry({
       sampleRate: 1,
       thresholdBytes: Infinity,
@@ -116,18 +116,19 @@ describe("composeToolCallback", () => {
     const deps = makeDeps({ responseStats });
     const wrapped = composeToolCallback("tool_stats", makeOkCallback(), deps);
 
-    await wrapped({}, {});
+    const result = await wrapped({}, {});
     await wrapped({}, {});
     await wrapped({}, {});
 
     const snap = responseStats.snapshot();
     expect(snap.tools.tool_stats?.count).toBe(3);
-    // Each successful response carries the same envelope structure, so total
-    // bytes ≈ 3 × per-call wire size; just assert the recorded total is > 0
-    // and aggregates are coherent.
-    expect(snap.tools.tool_stats?.total).toBeGreaterThan(0);
-    expect(snap.tools.tool_stats?.max).toBeGreaterThan(0);
-    expect(snap.tools.tool_stats?.p50).toBeGreaterThan(0);
+
+    // Measurement covers the full SDK result (`content[].text` + `structuredContent`),
+    // not just `structuredContent`. Per ADR-0022, both ship on the wire, so the
+    // recorded `max` must be at least the size of `JSON.stringify(structuredContent)` +
+    // the length of the duplicated text payload — i.e. close to ~2× the typed half.
+    const structuredBytes = Buffer.byteLength(JSON.stringify(result.structuredContent), "utf-8");
+    expect(snap.tools.tool_stats?.max).toBeGreaterThanOrEqual(structuredBytes * 2);
   });
 
   it("does not record into responseStats on a thrown handler error", async () => {
