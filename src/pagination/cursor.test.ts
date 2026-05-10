@@ -9,9 +9,9 @@ import {
 } from "./cursor.js";
 
 describe("hashFilter", () => {
-  it("produces a 64-char hex string", () => {
+  it("produces a 16-char hex string (64-bit truncation, #802)", () => {
     const h = hashFilter({ available: true });
-    expect(h).toHaveLength(64);
+    expect(h).toHaveLength(16);
     expect(h).toMatch(/^[0-9a-f]+$/);
   });
 
