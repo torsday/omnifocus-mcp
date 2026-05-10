@@ -77,6 +77,13 @@
   "simple-git-hooks": {
     "pre-push": "pnpm typecheck && pnpm lint && pnpm test"
   },
+  "pnpm": {
+    "overrides": {
+      "fast-uri": ">=3.1.2",
+      "ip-address": ">=10.1.1",
+      "hono": ">=4.12.18"
+    }
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.4.0",
     "lru-cache": "^11.3.6",
