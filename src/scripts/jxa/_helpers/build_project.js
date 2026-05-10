@@ -110,12 +110,8 @@ function buildProject(proj) {
     /* OF 4.x: property access may not exist on all object types — default used */
   }
 
-  let noteHtml = null;
-  try {
-    if (proj.noteHtml) noteHtml = proj.noteHtml() || null;
-  } catch (_e) {
-    /* OF 4.x: property access may not exist on all object types — default used */
-  }
+  // noteHtml is intentionally omitted from all project responses — use note_get_html
+  // to retrieve HTML note content on demand. See perf issue #791.
 
   let flagged = false;
   try {
@@ -192,7 +188,7 @@ function buildProject(proj) {
     id: proj.id(),
     name: proj.name(),
     note: note,
-    noteHtml: noteHtml,
+    noteHtml: null,
     folderId: folderId,
     tagIds: tagIds,
     status: status,

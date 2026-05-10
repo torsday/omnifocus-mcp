@@ -148,6 +148,9 @@ export class OmniJsTransport implements OmniFocusAdapter {
   async getTask(_id: TaskId): Promise<Task> {
     return notYetWired("getTask");
   }
+  async getNoteHtml(_kind: "task" | "project", _id: TaskId | ProjectId): Promise<string | null> {
+    return notYetWired("getNoteHtml");
+  }
   async getTasksMany(_ids: TaskId[]): Promise<(Task | null)[]> {
     return notYetWired("getTasksMany");
   }

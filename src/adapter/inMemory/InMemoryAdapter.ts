@@ -170,6 +170,16 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     return this.withAlarms(task);
   }
 
+  async getNoteHtml(kind: "task" | "project", id: TaskId | ProjectId): Promise<string | null> {
+    if (kind === "task") {
+      // getTask throws NotFound if missing — delegate to keep error shape consistent
+      const task = await this.getTask(TaskIdCtor.of(String(id)));
+      return task.noteHtml ?? null;
+    }
+    const proj = await this.getProject(ProjectIdCtor.of(String(id)));
+    return proj.noteHtml ?? null;
+  }
+
   async getTasksMany(ids: TaskId[]): Promise<(Task | null)[]> {
     return ids.map((id) => {
       const t = this.tasks.get(id);

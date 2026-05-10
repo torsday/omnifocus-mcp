@@ -58,6 +58,7 @@ import folderGetScript from "../../scripts/jxa/folder_get.js";
 import folderListScript from "../../scripts/jxa/folder_list.js";
 import folderUpdateScript from "../../scripts/jxa/folder_update.js";
 import forecastGetScript from "../../scripts/jxa/forecast_get.js";
+import noteGetHtmlScript from "../../scripts/jxa/note_get_html.js";
 import perspectiveEvaluateScript from "../../scripts/jxa/perspective_evaluate.js";
 import perspectiveListScript from "../../scripts/jxa/perspective_list.js";
 import projectBatchCompleteScript from "../../scripts/jxa/project_batch_complete.js";
@@ -209,6 +210,15 @@ export class JxaTransport implements OmniFocusAdapter {
       { ...this.runOpts, scriptName: "task_get" },
     );
     return { ...result.task, id: TaskIdCtor.of(result.task.id) };
+  }
+
+  async getNoteHtml(kind: "task" | "project", id: TaskId | ProjectId): Promise<string | null> {
+    const result = await runJxaScript<{ noteHtml: string | null }>(
+      noteGetHtmlScript,
+      { kind, id },
+      { ...this.runOpts, scriptName: "note_get_html" },
+    );
+    return result.noteHtml;
   }
 
   async getTasksMany(ids: TaskId[]): Promise<(Task | null)[]> {
