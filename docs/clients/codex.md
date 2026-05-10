@@ -64,7 +64,7 @@ Anything in `env` is set on the spawned server process. The most useful values:
 | `OMNIFOCUS_E2E` | (unset) | Set to `1` only for the E2E test suite — never in production |
 | `OMNIFOCUS_ALLOW_RAW_SCRIPT` | (unset) | Set to `1` to expose `run_jxa_script` / `run_omnijs_script`. **Off by default for safety** (ADR-0004) |
 
-Full reference: [`DESIGN.md` § 22 Configuration & environment](../../DESIGN.md#22-configuration--environment).
+Full reference: [`docs/design/configuration.md`](../design/configuration.md).
 
 ## Troubleshooting
 

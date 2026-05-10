@@ -177,7 +177,7 @@ Three recipes that take seconds; you don't have to take this README's word for a
 
 The threat model deliberately excludes anything outside this codebase: vulnerabilities in OmniFocus itself, Apple's JXA / OmniJS / `osascript` runtimes, transitive npm-dependency CVEs (track and patch via `npm audit` / Dependabot, but not part of this project's guarantees), and any attacker with root-equivalent local access (who could replace `osascript`, the MCP server binary, or your shell). See [SECURITY.md § Scope](./SECURITY.md#scope).
 
-Full threat model: [`SECURITY.md`](./SECURITY.md), [`DESIGN.md` § 18 Security posture](./DESIGN.md#18-security-posture).
+Full threat model: [`SECURITY.md`](./SECURITY.md), [`docs/design/security.md`](./docs/design/security.md).
 
 ---
 
@@ -208,7 +208,7 @@ flowchart LR
 - **30s LRU read cache** — invalidated on every write. Mutations are never served stale.
 - **Middleware stack** — every registered tool runs through: `assertNotShuttingDown` → `circuitBreaker` → `rateLimitMeta` → `loopDetection`.
 
-The full layered diagram with queues, circuit breakers, and the test adapter lives in [`DESIGN.md §6`](./DESIGN.md#6-architecture).
+The full layered diagram with queues, circuit breakers, and the test adapter lives in [`docs/design/architecture.md`](./docs/design/architecture.md).
 
 ---
 
@@ -244,11 +244,11 @@ Track open issues and future enhancements on the [**GitHub Project board**](http
 | [`docs/security.md`](./docs/security.md) | Attack surface, mitigations, test coverage |
 | [`SECURITY.md`](./SECURITY.md) | Vulnerability reporting, scope |
 | [`SPEC.md`](./SPEC.md) | Functional scope and resolved v1 decisions |
-| [`DESIGN.md`](./DESIGN.md) | 28-section architecture; options evaluated; example tool implementation |
+| [`DESIGN.md`](./DESIGN.md) | Index of the per-area design files under [`docs/design/`](./docs/design/) — architecture, envelope, IDs/dates, security, testing, observability, configuration, distribution, example tool, resources |
 | [`docs/adr/`](./docs/adr/) | Architecture Decision Records — every load-bearing choice (TypeScript+Node 24, dual transport, namespacing, raw-script gating, scripts-as-files, LRU cache, ISO-8601 dates, branded IDs, pool+queue, stdio transport, semver, npx distribution, response envelope, E2E adapter switch, NL envelope, webhooks, Stryker mutation gate, EventKit calendar bridge, cross-transport ID interop, JXA helper inlining, reactive runtime spike, envelope text/structured split) |
 | [`CHANGELOG.md`](./CHANGELOG.md) | Release history per [Keep a Changelog](https://keepachangelog.com/) |
 
-For the **full environment-variable surface** with override semantics see [`DESIGN.md §22`](./DESIGN.md#22-configuration--environment); the load-bearing knobs are `OMNIFOCUS_LOG_LEVEL`, `OMNIFOCUS_CACHE_TTL_MS`, `OMNIFOCUS_ALLOW_RAW_SCRIPT`, and `OMNIFOCUS_ATTACHMENT_PATHS`.
+For the **full environment-variable surface** with override semantics see [`docs/design/configuration.md`](./docs/design/configuration.md); the load-bearing knobs are `OMNIFOCUS_LOG_LEVEL`, `OMNIFOCUS_CACHE_TTL_MS`, `OMNIFOCUS_ALLOW_RAW_SCRIPT`, and `OMNIFOCUS_ATTACHMENT_PATHS`.
 
 ---
 

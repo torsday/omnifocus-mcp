@@ -40,4 +40,4 @@ Out of scope:
 - User content (task names, notes, tag names) never appears in protocol metadata fields (`suggestion`, `error.message`, `meta.warnings`) — enforced by the `no-metadata-interpolation` custom lint rule
 - Config secrets are redacted from the `server.started` log event
 
-See [`DESIGN.md` §18 — Security posture](./DESIGN.md#18-security-posture) for the full threat model.
+See [`docs/design/security.md`](./docs/design/security.md) for the full threat model.

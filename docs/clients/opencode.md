@@ -90,7 +90,7 @@ Pass environment variables via the `"environment"` map in the config:
 | `OMNIFOCUS_CACHE_TTL_MS` | `30000` | Read-cache TTL in milliseconds |
 | `OMNIFOCUS_ALLOW_RAW_SCRIPT` | — | Set to `1` to enable `run_jxa_script` / `run_omnijs_script` escape hatches |
 
-Full reference: [`DESIGN.md` § 22 Configuration & environment](../../DESIGN.md#22-configuration--environment).
+Full reference: [`docs/design/configuration.md`](../design/configuration.md).
 
 ## Troubleshooting
 
