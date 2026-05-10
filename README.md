@@ -954,6 +954,10 @@ See [`docs/clients/README.md`](./docs/clients/README.md) for the full index with
 | [0016](./docs/adr/0016-webhook-delivery.md) | Webhook delivery for OmniFocus state changes |
 | [0017](./docs/adr/0017-mutation-testing-release-gate.md) | Stryker mutation testing as release-time hard gate |
 | [0018](./docs/adr/0018-calendar-bridge-eventkit-only.md) | Calendar bridge — EventKit-only via Swift-binary subprocess |
+| [0019](./docs/adr/0019-cross-transport-id-interoperability.md) | Cross-transport ID interoperability |
+| [0020](./docs/adr/0020-jxa-script-build-time-helper-inlining.md) | JXA script build-time helper inlining |
+| [0021](./docs/adr/0021-reactive-automation-runtime.md) | Reactive automation runtime (proposed, deferred) |
+| [0022](./docs/adr/0022-envelope-text-content-duplication.md) | Envelope `content[].text` becomes a placeholder; `structuredContent` unchanged |
 
 ---
 

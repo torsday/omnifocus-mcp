@@ -95,4 +95,6 @@ This JSON is serialized and returned as the text content of the MCP tool respons
 
 - `DESIGN.md` §12 — envelope shape in full with examples
 - `ADR-0011-versioning-and-stability.md` — the envelope is explicitly part of the public contract
+- `ADR-0015-nl-excellence-response-envelope.md` — additive extensions (`hints`, `clarification`, `humanReadableSummary`)
+- `ADR-0022-envelope-text-content-duplication.md` — wire-format decision: `content[].text` becomes a placeholder in v2; `structuredContent` is unchanged
 - `~/src/github.com/torsday/llm_prompts/agent_systems.md` — "rich responses" and "actionable errors" principles
