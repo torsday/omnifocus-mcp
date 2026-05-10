@@ -174,6 +174,73 @@ export const EMPTY_CATCH_RE = /catch\s*\([^)]*\)\s*\{\s*\}/;
 /** Files in `src/scripts/` where empty catches are banned */
 export const IN_SCRIPTS_RE = /src[/\\]scripts[/\\]/;
 
+/** Files in `src/scripts/jxa/` — target for OF 4.x JXA runtime quirk rules */
+export const IN_JXA_SCRIPTS_RE = /src[/\\]scripts[/\\]jxa[/\\]/;
+
+// ---------------------------------------------------------------------------
+// Rule 7: containing-project-class-must-be-try-guarded
+// ---------------------------------------------------------------------------
+
+/**
+ * Detects `.containingProject().class()` calls that may throw in OF 4.x when
+ * the task has no containing project (returns a sentinel that errors on `.class()`).
+ */
+export const CONTAINING_PROJECT_CLASS_RE = /\.containingProject\(\)\.class\(\)/;
+
+// ---------------------------------------------------------------------------
+// Rule 8: flattened-tasks-byid-must-use-lookup-or-throw
+// ---------------------------------------------------------------------------
+
+/**
+ * Detects bare `flattenedTasks.byId(` calls not wrapped by `lookupOrThrow(`.
+ * A bad ID returns a `-1728` stub specifier instead of null/undefined in OF 4.x.
+ */
+export const FLATTENED_TASKS_BY_ID_RE = /flattenedTasks\.byId\(/;
+
+/**
+ * `_helpers/` directory is excluded — helpers may contain legitimate bare uses
+ * with explanatory comments.
+ */
+export const JXA_HELPERS_RE = /[/\\]_helpers[/\\]/;
+
+// ---------------------------------------------------------------------------
+// Rule 9: quirky-date-getter-must-be-try-guarded
+// ---------------------------------------------------------------------------
+
+/**
+ * Detects `.creationDate()` or `.modificationDate()` method calls in JXA
+ * scripts that may throw despite the property existing in the sdef.
+ */
+export const QUIRKY_DATE_GETTER_RE = /\.(creationDate|modificationDate)\(\)/;
+
+// ---------------------------------------------------------------------------
+// Rule 10: flattened-tasks-must-narrow-before-full-scan
+// ---------------------------------------------------------------------------
+
+/**
+ * Detects a full `.flattenedTasks()` scan (with parentheses) where the script
+ * receives a tagId or projectId argument — the caller should narrow the query.
+ */
+/**
+ * Match `defaultDocument.flattenedTasks()` — a full, unnarrowed task scan.
+ * `proj.flattenedTasks()` is already narrowed and not flagged.
+ */
+export const FLATTENED_TASKS_FULL_SCAN_RE = /defaultDocument\.flattenedTasks\(\)/;
+
+/** Indicates the script takes a tagId or projectId — full scans should be narrowed */
+export const ARGS_TAG_OR_PROJECT_RE = /args\.(tagId|projectId)/;
+
+/** Narrowing indicators that precede a flattenedTasks() call */
+export const NARROWING_RE = /taggedWith|containingProject|whose\(/;
+
+/**
+ * Escape hatch: a `/* narrow-scan-ok: reason *\/` comment on the same line
+ * suppresses the `flattened-tasks-must-narrow-before-full-scan` violation.
+ * Use when the full scan is intentional (e.g. else-branch fallback when no
+ * tag or project filter is present in the current call).
+ */
+export const NARROW_SCAN_OK_RE = /narrow-scan-ok:/;
+
 export interface Violation {
   file: string;
   line: number;
@@ -183,13 +250,30 @@ export interface Violation {
     | "no-metadata-interpolation"
     | "no-network-import"
     | "no-layer-violation"
-    | "no-empty-catch-in-scripts";
+    | "no-empty-catch-in-scripts"
+    | "containing-project-class-must-be-try-guarded"
+    | "flattened-tasks-byid-must-use-lookup-or-throw"
+    | "quirky-date-getter-must-be-try-guarded"
+    | "flattened-tasks-must-narrow-before-full-scan";
   excerpt: string;
 }
 
 // ---------------------------------------------------------------------------
 // Per-file checker (pure function — easy to test)
 // ---------------------------------------------------------------------------
+
+/**
+ * Returns true if any of the `window` lines preceding index `i` (inclusive)
+ * contains a try-guard pattern (`try {` or `} catch`).
+ */
+function hasTryGuardBefore(lines: string[], i: number, window = 8): boolean {
+  const start = Math.max(0, i - window);
+  for (let j = start; j <= i; j++) {
+    const l = lines[j] as string;
+    if (/try\s*\{/.test(l) || /\}\s*catch/.test(l)) return true;
+  }
+  return false;
+}
 
 /**
  * Check `content` (the text of `filePath`) for rule violations.
@@ -277,6 +361,75 @@ export function checkFileContent(filePath: string, content: string): Violation[]
         rule: "no-layer-violation",
         excerpt: line.trim(),
       });
+    }
+
+    // Rules 7–10 apply only to src/scripts/jxa/
+    if (IN_JXA_SCRIPTS_RE.test(filePath)) {
+      // Rule 7: containing-project-class-must-be-try-guarded
+      if (CONTAINING_PROJECT_CLASS_RE.test(line) && !hasTryGuardBefore(lines, i)) {
+        violations.push({
+          file: filePath,
+          line: i + 1,
+          rule: "containing-project-class-must-be-try-guarded",
+          excerpt: line.trim(),
+        });
+      }
+
+      // Rule 8: flattened-tasks-byid-must-use-lookup-or-throw
+      // Exempt: _helpers/ directory. Also check the previous line for lookupOrThrow(
+      // to handle multi-line call patterns where lookupOrThrow( is on line N-1 and
+      // flattenedTasks.byId( is on line N.
+      const prevLine = i > 0 ? (lines[i - 1] as string) : "";
+      if (
+        FLATTENED_TASKS_BY_ID_RE.test(line) &&
+        !line.includes("lookupOrThrow") &&
+        !prevLine.includes("lookupOrThrow") &&
+        !JXA_HELPERS_RE.test(filePath)
+      ) {
+        violations.push({
+          file: filePath,
+          line: i + 1,
+          rule: "flattened-tasks-byid-must-use-lookup-or-throw",
+          excerpt: line.trim(),
+        });
+      }
+
+      // Rule 9: quirky-date-getter-must-be-try-guarded
+      if (QUIRKY_DATE_GETTER_RE.test(line) && !hasTryGuardBefore(lines, i)) {
+        violations.push({
+          file: filePath,
+          line: i + 1,
+          rule: "quirky-date-getter-must-be-try-guarded",
+          excerpt: line.trim(),
+        });
+      }
+
+      // Rule 10: flattened-tasks-must-narrow-before-full-scan
+      // Only fires when the script accepts tagId or projectId args.
+      // Escape hatch: add `/* narrow-scan-ok: reason */` on the same line.
+      if (
+        FLATTENED_TASKS_FULL_SCAN_RE.test(line) &&
+        ARGS_TAG_OR_PROJECT_RE.test(content) &&
+        !NARROW_SCAN_OK_RE.test(line)
+      ) {
+        // Check if a narrowing call appears in the 10 lines before this line
+        const narrowStart = Math.max(0, i - 10);
+        let narrowFound = false;
+        for (let j = narrowStart; j < i; j++) {
+          if (NARROWING_RE.test(lines[j] as string)) {
+            narrowFound = true;
+            break;
+          }
+        }
+        if (!narrowFound) {
+          violations.push({
+            file: filePath,
+            line: i + 1,
+            rule: "flattened-tasks-must-narrow-before-full-scan",
+            excerpt: line.trim(),
+          });
+        }
+      }
     }
   }
 

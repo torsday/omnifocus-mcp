@@ -14,16 +14,13 @@ function run(argv) {
   const ofApp = Application("OmniFocus");
   ofApp.includeStandardAdditions = false;
 
+  // @inline _helpers/lookup_or_throw.js
+
   let item;
   if (args.kind === "task") {
-    item = ofApp.defaultDocument.flattenedTasks.byId(args.id);
+    item = lookupOrThrow(ofApp.defaultDocument.flattenedTasks.byId(args.id), "Task", args.id);
   } else {
-    item = ofApp.defaultDocument.flattenedProjects.byId(args.id);
-  }
-
-  // biome-ignore lint/complexity/useOptionalChain: JXA runtime — optional chain breaks bridge calls
-  if (!item || !item.id || !item.id()) {
-    throw new Error(`NotFound: ${args.kind} not found: ${args.id}`);
+    item = lookupOrThrow(ofApp.defaultDocument.flattenedProjects.byId(args.id), "Project", args.id);
   }
 
   let noteHtml = null;
