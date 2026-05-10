@@ -16,7 +16,13 @@ on:
     # `ready_for_review` fires when a draft flips to ready — that's the right
     # moment to move linked issues to "In Review". Raw `opened`/`reopened` on
     # a draft is premature; the job below guards with draft == false.
-    types: [opened, reopened, ready_for_review, closed]
+    # `synchronize` fires on every push to a PR's head ref. Without it, the
+    # required `pr` status check is only attached to the head SHA at the time
+    # of `opened`/`reopened`, so any subsequent push leaves the PR
+    # `mergeStateStatus: BLOCKED` despite every other required check being
+    # green. Including it here keeps the `pr` check fresh on every push and
+    # makes the status-checks gate honest. (#905)
+    types: [opened, reopened, ready_for_review, closed, synchronize]
   issues:
     types: [closed, reopened]
 
