@@ -39,12 +39,20 @@ export interface LoopDetectorConfig {
   errorThreshold: number;
   /** Sliding window in seconds. Default 60. */
   windowSeconds: number;
+  /**
+   * Hard cap on distinct (tool, args-hash) keys tracked simultaneously.
+   * When exceeded, the oldest inserted key is evicted (FIFO). This bounds
+   * memory for long-running servers that see many unique argument combinations.
+   * Env: `OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS`. Default: 4096.
+   */
+  maxKeys: number;
 }
 
 const DEFAULT_CONFIG: LoopDetectorConfig = {
   threshold: 5,
   errorThreshold: 10,
   windowSeconds: 60,
+  maxKeys: 4096,
 };
 
 /**
@@ -63,11 +71,16 @@ export function buildCallKey(toolName: string, args: unknown): string {
 
 export class LoopDetector {
   private readonly config: LoopDetectorConfig;
-  /** Maps call key → sorted list of invocation timestamps (ms). */
+  /** Maps call key → sorted list of invocation timestamps (ms). Insertion-ordered for FIFO eviction. */
   private readonly windows: Map<string, number[]> = new Map();
 
   constructor(config: Partial<LoopDetectorConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+  }
+
+  /** Current number of distinct (tool, args-hash) keys tracked. */
+  get size(): number {
+    return this.windows.size;
   }
 
   /**
@@ -117,20 +130,43 @@ export class LoopDetector {
     }
   }
 
-  /** Get the timestamp array for a key, pruning stale entries in place. */
+  /**
+   * Get the timestamp array for a key, pruning stale entries in place.
+   *
+   * After pruning, if the array is empty and the key already existed, the key
+   * is removed from the map so memory is reclaimed as windows expire.
+   *
+   * Before inserting a new key, enforces `maxKeys` by evicting the
+   * oldest-inserted key (FIFO — Map preserves insertion order).
+   */
   private getAndPrune(key: string, cutoff: number): number[] {
-    if (!this.windows.has(key)) {
-      this.windows.set(key, []);
-    }
-    const timestamps = this.windows.get(key) as number[];
+    const existing = this.windows.get(key);
 
-    // Prune oldest-first (timestamps are appended in order, so oldest is at [0])
-    let i = 0;
-    while (i < timestamps.length && (timestamps[i] as number) <= cutoff) {
-      i++;
-    }
-    if (i > 0) timestamps.splice(0, i);
+    if (existing !== undefined) {
+      // Prune oldest-first (timestamps are appended in order, so oldest is at [0])
+      let i = 0;
+      while (i < existing.length && (existing[i] as number) <= cutoff) {
+        i++;
+      }
+      if (i > 0) existing.splice(0, i);
 
-    return timestamps;
+      // Evict keys whose window has fully expired to reclaim memory.
+      if (existing.length === 0) {
+        this.windows.delete(key);
+        // Fall through to re-insert below — caller will push a new timestamp.
+      } else {
+        return existing;
+      }
+    }
+
+    // New key (or re-inserted after full expiry): enforce maxKeys cap via FIFO eviction.
+    if (this.windows.size >= this.config.maxKeys) {
+      const oldest = this.windows.keys().next().value;
+      if (oldest !== undefined) this.windows.delete(oldest);
+    }
+
+    const fresh: number[] = [];
+    this.windows.set(key, fresh);
+    return fresh;
   }
 }

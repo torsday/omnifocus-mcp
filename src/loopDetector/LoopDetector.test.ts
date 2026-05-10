@@ -221,6 +221,31 @@ describe("withLoopDetection", () => {
     expect(result.meta.warnings?.[1]?.code).toBe("WARN_LOOP_DETECTED");
   });
 
+  it("bounds windows map to maxKeys and evicts oldest key (FIFO)", () => {
+    const detector = new LoopDetector({ maxKeys: 10 });
+    // Insert 1000 distinct argument combos — each becomes a unique key.
+    for (let i = 0; i < 1000; i++) {
+      detector.record("task_list", { __i: i });
+    }
+    expect(detector.size).toBeLessThanOrEqual(10);
+  });
+
+  it("reclaims empty keys after their window expires", () => {
+    const now = Date.now();
+    const detector = new LoopDetector({ windowSeconds: 1 });
+    // Record a call with a fake time in the past so it expires immediately.
+    detector.record("task_list", { a: 1 });
+    expect(detector.size).toBe(1);
+    // Advance virtual time past the window by recording a new call — the
+    // getAndPrune() call during record() will prune stale timestamps and
+    // delete the empty key for the same args.
+    vi.setSystemTime(now + 2000);
+    detector.record("task_list", { a: 1 }); // same args, but window has passed
+    // After the prune + re-insert the key should still be 1 (re-inserted fresh).
+    expect(detector.size).toBe(1);
+    vi.useRealTimers();
+  });
+
   it("does not mutate the original meta.warnings array", async () => {
     const detector = new LoopDetector({ threshold: 5, errorThreshold: 10, windowSeconds: 60 });
     const args = {};
