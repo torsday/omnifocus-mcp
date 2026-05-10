@@ -64,6 +64,8 @@ See [`docs/examples.md`](./docs/examples.md) for concrete prompt-to-tool-call se
 
 ## Quick start
 
+**Prerequisites:** macOS 13 (Ventura) or later · OmniFocus 3.x or 4.x (4.x recommended; some tools require 4.x — see [version compatibility](./docs/troubleshooting.md#omnifocus-version-compatibility)) · Node 24+ (not required for Homebrew install)
+
 1. **Install**
    ```bash
    # Homebrew (no Node required)
