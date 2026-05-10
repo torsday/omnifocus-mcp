@@ -36,6 +36,11 @@ on:
       # meta-lint job, and branch protection blocked the merge. Widen the
       # net to src/** so any production-code diff fires the regression guards.
       - "src/**"
+      # tests-only PRs (e.g. #903) hit the same wall — touching only
+      # tests/** triggers no meta-lint job and branch protection blocks
+      # the merge waiting on required jobs that never fired. Cover the
+      # tests tree too; the regression guards are cheap on unchanged inputs.
+      - "tests/**"
       # dep-bump PRs (dependabot/renovate) only touch package.json and
       # pnpm-lock.yaml. Without these entries the workflow never fires,
       # required checks are never reported, and branch protection blocks
