@@ -69,12 +69,10 @@ fi
 source "$CONSTANTS_FILE"
 
 # Required for any verb
-for v in PROJECT_ID; do
-  if [ -z "${!v:-}" ] || [[ "${!v}" == YOUR_* ]]; then
-    echo "FATAL: $v is unset or unfilled in $CONSTANTS_FILE" >&2
-    exit 3
-  fi
-done
+if [ -z "${PROJECT_ID:-}" ] || [[ "${PROJECT_ID}" == YOUR_* ]]; then
+  echo "FATAL: PROJECT_ID is unset or unfilled in $CONSTANTS_FILE" >&2
+  exit 3
+fi
 
 # ---------------------------------------------------------------------------
 # Verb → field-id variable + value → option-id variable
