@@ -26,7 +26,8 @@ export const TASK_GET_DESCRIPTION =
   "Fetch a single OmniFocus task by persistent ID. " +
   "Use when you have a known task ID and need its full detail. " +
   "Do NOT use for multiple IDs — use task_get_many instead. " +
-  "Returns the Task object plus its direct subtasks (when includeSubtasks=true, the default). " +
+  "Returns the Task object plus subtaskIds[] and subtaskCount (when includeSubtasks omitted or false). " +
+  "Pass includeSubtasks: true to get full subtask bodies; use task_get_many to fetch specific subtasks by ID. " +
   "Read-only; safe to retry. " +
   'Example: task_get({ id: "abc123" })';
 
@@ -37,7 +38,10 @@ export const taskGetInputSchema = z.object({
   includeSubtasks: z
     .boolean()
     .optional()
-    .describe("Include direct subtasks in the response. Default true."),
+    .describe(
+      "Include full subtask bodies in the response. Default false — returns subtaskIds[] and subtaskCount instead. " +
+        "Pass true only when you need subtask detail; otherwise use task_get_many with subtaskIds.",
+    ),
   notePreviewChars: z
     .number()
     .int()
@@ -111,6 +115,8 @@ export async function handleTaskGet(input: TaskGetToolInput, ctx: TaskGetContext
   return ok(
     {
       task,
+      ...(result.subtaskIds !== undefined && { subtaskIds: result.subtaskIds }),
+      ...(result.subtaskCount !== undefined && { subtaskCount: result.subtaskCount }),
       ...(subtasks !== undefined && { subtasks }),
       ...(waitingOn !== undefined && { waitingOn }),
       ...(decision !== undefined && { decision }),
