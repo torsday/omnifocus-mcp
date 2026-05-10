@@ -41,6 +41,7 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     calls,
     listTasks: record("listTasks"),
     getTask: record("getTask"),
+    getNoteHtml: record("getNoteHtml"),
     getTasksMany: record("getTasksMany"),
     createTask: record("createTask"),
     updateTask: record("updateTask"),
@@ -136,6 +137,7 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
   return {
     listTasks: () => r.listTasks({}),
     getTask: () => r.getTask(T_ID),
+    getNoteHtml: () => r.getNoteHtml("task", T_ID),
     getTasksMany: () => r.getTasksMany([T_ID]),
     createTask: () => r.createTask({ name: "x" }),
     updateTask: () => r.updateTask(T_ID, { name: "y" }),

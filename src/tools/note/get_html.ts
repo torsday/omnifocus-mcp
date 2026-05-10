@@ -65,12 +65,9 @@ export interface NoteGetHtmlContext {
  * @throws {NotFound} when the task or project ID does not exist
  */
 export async function handleNoteGetHtml(input: NoteGetHtmlToolInput, ctx: NoteGetHtmlContext) {
-  const noteHtml =
-    input.targetKind === "task"
-      ? (await ctx.adapter.getTask(TaskId.of(input.id))).noteHtml
-      : (await ctx.adapter.getProject(ProjectId.of(input.id))).noteHtml;
-
-  return ok({ noteHtml: noteHtml ?? null }, ctx.makeMeta());
+  const id = input.targetKind === "task" ? TaskId.of(input.id) : ProjectId.of(input.id);
+  const noteHtml = await ctx.adapter.getNoteHtml(input.targetKind, id);
+  return ok({ noteHtml }, ctx.makeMeta());
 }
 
 // ---------------------------------------------------------------------------

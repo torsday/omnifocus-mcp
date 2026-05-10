@@ -328,6 +328,8 @@ export interface OmniFocusAdapter {
 
   listTasks(filter: TaskFilter): Promise<Task[]>;
   getTask(id: TaskId): Promise<Task>;
+  /** Fetch the HTML note for a task or project. Returns null when the item has no note or noteHtml is unavailable. */
+  getNoteHtml(kind: "task" | "project", id: TaskId | ProjectId): Promise<string | null>;
   /** Bulk fetch by ID list — returns tasks in input order. Missing IDs surface in `meta.warnings` at the service layer; the adapter signals them by returning `null` for those positions. */
   getTasksMany(ids: TaskId[]): Promise<(Task | null)[]>;
   createTask(input: CreateTaskInput): Promise<TaskId>;

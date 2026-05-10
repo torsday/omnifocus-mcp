@@ -127,12 +127,8 @@ function buildTask(task, options) {
     /* OF 4.x: property access may not exist on all object types — default used */
   }
 
-  let noteHtml = null;
-  try {
-    if (task.noteHtml) noteHtml = task.noteHtml() || null;
-  } catch (_e) {
-    /* OF 4.x: property access may not exist on all object types — default used */
-  }
+  // noteHtml is intentionally omitted from all task responses — use note_get_html
+  // to retrieve HTML note content on demand. See perf issue #791.
 
   let flagged = false;
   try {
@@ -204,7 +200,7 @@ function buildTask(task, options) {
     id: task.id(),
     name: task.name(),
     note: note,
-    noteHtml: noteHtml,
+    noteHtml: null,
     projectId: projectId,
     parentId: parentId,
     tagIds: tagIds,

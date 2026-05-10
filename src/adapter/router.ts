@@ -92,6 +92,7 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   // -- Tasks ----------------------------------------------------------------
   listTasks: "jxa",
   getTask: "jxa",
+  getNoteHtml: "jxa",
   getTasksMany: "jxa",
   // Per ADR-0019: routes through OmniJS so the returned id is a persistent
   // primaryKey interoperable with both transports (vs JXA's transient
@@ -275,6 +276,9 @@ export class TransportRouter implements OmniFocusAdapter {
   }
   getTask(id: TaskId): Promise<Task> {
     return this.pick("getTask").getTask(id);
+  }
+  getNoteHtml(kind: "task" | "project", id: TaskId | ProjectId): Promise<string | null> {
+    return this.pick("getNoteHtml").getNoteHtml(kind, id);
   }
   getTasksMany(ids: TaskId[]): Promise<(Task | null)[]> {
     return this.pick("getTasksMany").getTasksMany(ids);
