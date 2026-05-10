@@ -93,7 +93,11 @@ function run(argv) {
   // events. .id() is safe immediately; all other properties require re-fetch.
   if (args.parentId || args.projectId) {
     const taskId = newTask.id();
-    const fetchedTask = ofApp.defaultDocument.flattenedTasks.byId(taskId);
+    const fetchedTask = lookupOrThrow(
+      ofApp.defaultDocument.flattenedTasks.byId(taskId),
+      "Newly created task",
+      taskId,
+    );
     return JSON.stringify({ task: buildTask(fetchedTask) });
   }
   return JSON.stringify({ task: buildTask(newTask) });

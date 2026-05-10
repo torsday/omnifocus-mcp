@@ -329,3 +329,129 @@ describe("multi-rule", () => {
     expect(v.map((x) => x.rule)).toEqual(["no-id-cast", "no-generic-error"]);
   });
 });
+
+describe("containing-project-class-must-be-try-guarded rule", () => {
+  const JXA_FILE = "src/scripts/jxa/task_get.js";
+
+  it("flags .containingProject().class() without try guard", () => {
+    const v = checkFileContent(JXA_FILE, "const cls = task.containingProject().class();");
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("containing-project-class-must-be-try-guarded");
+  });
+
+  it("does NOT flag .containingProject().class() when try { precedes it", () => {
+    const content = "try {\n  const cls = task.containingProject().class();\n} catch (e) {}";
+    const v = checkFileContent(JXA_FILE, content);
+    const rule7 = v.filter((x) => x.rule === "containing-project-class-must-be-try-guarded");
+    expect(rule7).toHaveLength(0);
+  });
+
+  it("does NOT flag comment lines containing .containingProject().class()", () => {
+    const v = checkFileContent(JXA_FILE, "// task.containingProject().class() — don't use bare");
+    expect(v.filter((x) => x.rule === "containing-project-class-must-be-try-guarded")).toHaveLength(0);
+  });
+
+  it("does NOT flag in non-JXA files", () => {
+    const v = checkFileContent("src/services/foo.ts", "task.containingProject().class();");
+    expect(v.filter((x) => x.rule === "containing-project-class-must-be-try-guarded")).toHaveLength(0);
+  });
+});
+
+describe("flattened-tasks-byid-must-use-lookup-or-throw rule", () => {
+  const JXA_FILE = "src/scripts/jxa/task_get.js";
+
+  it("flags flattenedTasks.byId( without lookupOrThrow", () => {
+    const v = checkFileContent(JXA_FILE, "const task = doc.flattenedTasks.byId(id);");
+    expect(v).toHaveLength(1);
+    expect(v[0]?.rule).toBe("flattened-tasks-byid-must-use-lookup-or-throw");
+  });
+
+  it("does NOT flag flattenedTasks.byId( when lookupOrThrow is on same line", () => {
+    const v = checkFileContent(JXA_FILE, "const t = lookupOrThrow(doc.flattenedTasks.byId(id), id);");
+    expect(v.filter((x) => x.rule === "flattened-tasks-byid-must-use-lookup-or-throw")).toHaveLength(0);
+  });
+
+  it("does NOT flag in _helpers/ directory", () => {
+    const v = checkFileContent(
+      "src/scripts/jxa/_helpers/byId.js",
+      "const task = doc.flattenedTasks.byId(id);",
+    );
+    expect(v.filter((x) => x.rule === "flattened-tasks-byid-must-use-lookup-or-throw")).toHaveLength(0);
+  });
+
+  it("does NOT flag in non-JXA files", () => {
+    const v = checkFileContent("src/services/foo.ts", "doc.flattenedTasks.byId(id)");
+    expect(v.filter((x) => x.rule === "flattened-tasks-byid-must-use-lookup-or-throw")).toHaveLength(0);
+  });
+});
+
+describe("quirky-date-getter-must-be-try-guarded rule", () => {
+  const JXA_FILE = "src/scripts/jxa/task_get.js";
+
+  it("flags .creationDate() without try guard", () => {
+    const v = checkFileContent(JXA_FILE, "const d = task.creationDate();");
+    expect(v.filter((x) => x.rule === "quirky-date-getter-must-be-try-guarded")).toHaveLength(1);
+  });
+
+  it("flags .modificationDate() without try guard", () => {
+    const v = checkFileContent(JXA_FILE, "const d = task.modificationDate();");
+    expect(v.filter((x) => x.rule === "quirky-date-getter-must-be-try-guarded")).toHaveLength(1);
+  });
+
+  it("does NOT flag .creationDate() when preceded by try {", () => {
+    const content = "try {\n  const d = task.creationDate();\n} catch (e) { throw e; }";
+    const v = checkFileContent(JXA_FILE, content);
+    expect(v.filter((x) => x.rule === "quirky-date-getter-must-be-try-guarded")).toHaveLength(0);
+  });
+
+  it("does NOT flag comment lines", () => {
+    const v = checkFileContent(JXA_FILE, "// task.creationDate() may throw");
+    expect(v.filter((x) => x.rule === "quirky-date-getter-must-be-try-guarded")).toHaveLength(0);
+  });
+
+  it("does NOT flag in non-JXA files", () => {
+    const v = checkFileContent("src/services/foo.ts", "task.creationDate()");
+    expect(v.filter((x) => x.rule === "quirky-date-getter-must-be-try-guarded")).toHaveLength(0);
+  });
+});
+
+describe("flattened-tasks-must-narrow-before-full-scan rule", () => {
+  const JXA_FILE = "src/scripts/jxa/task_list_by_tag.js";
+
+  it("flags .flattenedTasks() full scan in a script with args.tagId and no narrowing", () => {
+    const content =
+      "const tagId = args.tagId;\nconst tasks = ofApp.defaultDocument.flattenedTasks();";
+    const v = checkFileContent(JXA_FILE, content);
+    expect(v.filter((x) => x.rule === "flattened-tasks-must-narrow-before-full-scan")).toHaveLength(1);
+  });
+
+  it("does NOT flag .flattenedTasks() when narrowing keyword precedes it within 10 lines", () => {
+    const content = [
+      "const tagId = args.tagId;",
+      "const proj = ofApp.defaultDocument.flattenedProjects.byId(tagId);",
+      "const narrowed = proj.whose({ completed: false });",
+      "const tasks = ofApp.defaultDocument.flattenedTasks();",
+    ].join("\n");
+    const v = checkFileContent(JXA_FILE, content);
+    expect(v.filter((x) => x.rule === "flattened-tasks-must-narrow-before-full-scan")).toHaveLength(0);
+  });
+
+  it("does NOT flag .flattenedTasks() in scripts without tagId/projectId args", () => {
+    const content = "const tasks = ofApp.defaultDocument.flattenedTasks();";
+    const v = checkFileContent(JXA_FILE, content);
+    expect(v.filter((x) => x.rule === "flattened-tasks-must-narrow-before-full-scan")).toHaveLength(0);
+  });
+
+  it("does NOT flag in non-JXA files", () => {
+    const content = "const x = args.tagId;\nofApp.defaultDocument.flattenedTasks()";
+    const v = checkFileContent("src/services/foo.ts", content);
+    expect(v.filter((x) => x.rule === "flattened-tasks-must-narrow-before-full-scan")).toHaveLength(0);
+  });
+
+  it("does NOT flag when narrow-scan-ok escape hatch is present", () => {
+    const content =
+      "const tagId = args.tagId;\nconst tasks = ofApp.defaultDocument.flattenedTasks(); /* narrow-scan-ok: fallback */";
+    const v = checkFileContent(JXA_FILE, content);
+    expect(v.filter((x) => x.rule === "flattened-tasks-must-narrow-before-full-scan")).toHaveLength(0);
+  });
+});

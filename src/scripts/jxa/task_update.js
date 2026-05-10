@@ -22,7 +22,7 @@ function run(argv) {
 
   // @inline _helpers/build_task.js
 
-  const allTasks = ofApp.defaultDocument.flattenedTasks();
+  const allTasks = ofApp.defaultDocument.flattenedTasks(); /* narrow-scan-ok: must resolve task by id; no scope hint available */
   let found = null;
   for (let i = 0; i < allTasks.length; i++) {
     if (allTasks[i].id() === args.id) {

@@ -13,7 +13,7 @@ function run(argv) {
   const ofApp = Application("OmniFocus");
   ofApp.includeStandardAdditions = false;
 
-  const allTasks = ofApp.defaultDocument.flattenedTasks();
+  const allTasks = ofApp.defaultDocument.flattenedTasks(); /* narrow-scan-ok: must resolve source task by id before knowing its container */
   let found = null;
   for (let i = 0; i < allTasks.length; i++) {
     if (allTasks[i].id() === args.id) {
