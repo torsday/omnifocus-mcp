@@ -14,8 +14,18 @@
  * }
  * Returns JSON: { tasks: Task[] }
  *
+ * Performance: when no `projectId` is provided, the script pushes
+ * `flagged` / `completed` / `dueDate` predicates into OF's runtime via
+ * `whose({...})` (#789 / #895; mirrors the `forecast_get.js` pattern).
+ * Tag, available, and text-search predicates stay client-side because
+ * they need `buildTask`'s computed values. The text-search `_contains`
+ * pushdown is intentionally skipped for v1 — `_contains` support in OF
+ * 4.x's whose() is unverified; landing it would need a hands-on test
+ * against live OF that's outside this loop. See the parent #789 audit.
+ *
  * @see src/adapter/jxa/JxaTransport.ts — searchTasks() caller
  * @see src/domain/task.ts — Task domain type
+ * @see src/scripts/jxa/forecast_get.js — same whose() pushdown pattern
  */
 
 // biome-ignore lint/correctness/noUnusedVariables: osascript invokes run(argv) by convention.
@@ -40,6 +50,9 @@ function run(argv) {
 
   let tasks;
   if (args.projectId) {
+    // Source-narrowed: project's own tasks. The whose() pushdown still
+    // applies but we'd need to attach it to proj.flattenedTasks — skip
+    // for v1 since the project scope is already bounded.
     const proj = lookupOrThrow(
       ofApp.defaultDocument.flattenedProjects.byId(args.projectId),
       "Project",
@@ -47,11 +60,40 @@ function run(argv) {
     );
     tasks = proj.flattenedTasks();
   } else {
-    tasks = ofApp.defaultDocument.flattenedTasks();
+    // No source-narrowing — push pushable predicates into whose() so the
+    // long tail of non-matching tasks is never iterated.
+    const predicate = {};
+    if (args.flagged !== null && args.flagged !== undefined) {
+      predicate.flagged = args.flagged;
+    }
+    if (completed === "exclude") {
+      predicate.completed = false;
+    } else if (completed === "only") {
+      predicate.completed = true;
+    }
+    // "any" passes through — no completed predicate.
+    if (dueBefore !== null || dueAfter !== null) {
+      predicate.dueDate = {};
+      if (dueBefore !== null) predicate.dueDate._lessThan = dueBefore;
+      if (dueAfter !== null) predicate.dueDate._greaterThan = dueAfter;
+    }
+    const hasPushable = Object.keys(predicate).length > 0;
+    if (hasPushable) {
+      try {
+        tasks = ofApp.defaultDocument.flattenedTasks.whose(predicate)();
+      } catch (_e) {
+        // OF rejected the predicate — fall back to the full scan so the
+        // post-loop filters still produce correct results.
+        tasks = ofApp.defaultDocument.flattenedTasks();
+      }
+    } else {
+      tasks = ofApp.defaultDocument.flattenedTasks();
+    }
   }
 
   // ---------------------------------------------------------------------------
-  // Filter
+  // Filter (post-loop guards — defensive against whose() partial coverage,
+  // and required for predicates that didn't push down: tag, available, q)
   // ---------------------------------------------------------------------------
 
   const result = [];
