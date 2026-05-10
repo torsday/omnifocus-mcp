@@ -41,6 +41,7 @@ jobs:
     # directly, but the guard is consistent with other workflows.)
     if: github.repository == 'torsday/omnifocus-mcp'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write       # create commits + branches for the Release PR
       pull-requests: write  # open / update the Release PR

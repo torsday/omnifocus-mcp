@@ -36,6 +36,7 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest   # required by `pnpm publish --provenance` (see header)
+    timeout-minutes: 20
     permissions:
       contents: write   # needed to create a GitHub Release
       id-token: write   # needed for npm provenance (and future OIDC publish)

@@ -152,6 +152,7 @@ jobs:
     #   failure / cancelled                  → fail
     name: integration-gate
     runs-on: ubuntu-latest  # allow-hosted: gate must be reachable when self-hosted runner is offline (gap 2 of #679)
+    timeout-minutes: 5
     needs: integration
     if: always()
     steps:

@@ -17,6 +17,7 @@ permissions:
 jobs:
   require-issue-link:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     # Waivers (any one match → skip):
     #   1. `no-issue` label on the PR — explicit waiver for pure-infra PRs.
     #   2. Fork-PR guard — fork code cannot execute on the self-hosted runner.

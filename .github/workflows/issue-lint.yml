@@ -28,6 +28,7 @@ permissions:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     # Skip if the edit was made by the filer script — it verifies its own output.
     if: github.event.issue.state == 'open'
     env:
