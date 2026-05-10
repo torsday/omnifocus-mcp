@@ -8,6 +8,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { FolderId } from "../../domain/ids.js";
+import { NAME_MAX_CHARS } from "../../domain/inputLimits.js";
 import { summaryFolderCreate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { FolderService } from "../../services/folderService.js";
@@ -22,7 +23,11 @@ export const FOLDER_CREATE_DESCRIPTION =
   'Example: folder_create({ name: "Archive", parentId: "fld123" })';
 
 export const folderCreateInputSchema = z.object({
-  name: z.string().min(1).describe("Folder name. Must be non-empty."),
+  name: z
+    .string()
+    .min(1)
+    .max(NAME_MAX_CHARS, "max 1 KB")
+    .describe("Folder name. Must be non-empty."),
   parentId: FolderId.schema
     .optional()
     .describe("Parent folder ID. Omit for a root-level folder. Get from folder_list."),

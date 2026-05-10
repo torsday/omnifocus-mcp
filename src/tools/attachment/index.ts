@@ -18,6 +18,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { AttachmentOwner } from "../../adapter/OmniFocusAdapter.js";
 import { AttachmentId, ProjectId, TaskId } from "../../domain/ids.js";
+import { FILE_PATH_MAX_CHARS } from "../../domain/inputLimits.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import { ValidationError } from "../../errors/index.js";
 import type { AttachmentService } from "../../services/attachmentService.js";
@@ -101,6 +102,7 @@ export const attachmentAddInputSchema = ownerBaseSchema.extend({
   filePath: z
     .string()
     .min(1)
+    .max(FILE_PATH_MAX_CHARS, "max 4 KB")
     .describe(
       "Absolute path to the source file to attach. " +
         "Must be within the allowed attachment path scope.",

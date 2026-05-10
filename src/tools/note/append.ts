@@ -20,6 +20,7 @@ import {
   invalidateTaskMutation,
 } from "../../cache/invalidation.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
+import { NOTE_MAX_CHARS } from "../../domain/inputLimits.js";
 import { summaryNoteAppend } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
@@ -54,6 +55,7 @@ export const noteAppendInputSchema = z.object({
   text: z
     .string()
     .min(1)
+    .max(NOTE_MAX_CHARS, "max 1 MB")
     .describe("Text to append. A newline separator is inserted before the text if a note exists."),
 });
 

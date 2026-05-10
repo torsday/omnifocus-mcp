@@ -13,6 +13,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ProjectId, TagId } from "../../domain/ids.js";
+import { SEARCH_QUERY_MAX_CHARS } from "../../domain/inputLimits.js";
 import { TASK_FIELD_NAMES, TASK_FIELD_NAMES_SET } from "../../domain/task.js";
 import {
   ok,
@@ -44,6 +45,7 @@ export const SEARCH_QUERY_DESCRIPTION =
 export const searchQueryInputSchema = z.object({
   q: z
     .string()
+    .max(SEARCH_QUERY_MAX_CHARS, "max 4 KB")
     .describe(
       "Search query. Case-insensitive substring match. Empty string matches all tasks (useful with filters).",
     ),

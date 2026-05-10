@@ -16,6 +16,7 @@ import { z } from "zod";
 import type { CreateTaskInput, OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { ProjectId, TagId, TaskId } from "../../domain/ids.js";
+import { NAME_MAX_CHARS, NOTE_MAX_CHARS } from "../../domain/inputLimits.js";
 import { summaryBatchCreate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
@@ -34,14 +35,18 @@ export const TASK_BATCH_CREATE_DESCRIPTION =
 
 const singleItemSchema = z
   .object({
-    name: z.string().min(1).describe("Task name. Required, non-empty."),
+    name: z
+      .string()
+      .min(1)
+      .max(NAME_MAX_CHARS, "max 1 KB")
+      .describe("Task name. Required, non-empty."),
     projectId: ProjectId.schema
       .optional()
       .describe("Project to add the task to. Omit for inbox or subtask."),
     parentTaskId: TaskId.schema
       .optional()
       .describe("Parent task ID for a subtask. Omit for inbox or project task."),
-    note: z.string().optional().describe("Plain-text note."),
+    note: z.string().max(NOTE_MAX_CHARS, "max 1 MB").optional().describe("Plain-text note."),
     flagged: z.boolean().optional().describe("Flag the task."),
     dueDate: z
       .string()

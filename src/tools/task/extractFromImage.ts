@@ -58,6 +58,7 @@ import type { CreateTaskInput, OmniFocusAdapter } from "../../adapter/OmniFocusA
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import type { Attachment } from "../../domain/attachment.js";
 import { AttachmentId, ProjectId, TaskId } from "../../domain/ids.js";
+import { NAME_MAX_CHARS, NOTE_MAX_CHARS } from "../../domain/inputLimits.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import { ValidationError } from "../../errors/index.js";
 import { validateRefined } from "../../errors/validateRefined.js";
@@ -115,8 +116,16 @@ export const TASK_EXTRACT_FROM_IMAGE_DESCRIPTION =
  * prompt (#475) and other composers can accept either tool's output.
  */
 const proposedTaskSchema = z.object({
-  name: z.string().min(1).describe("Task name extracted from the image."),
-  note: z.string().optional().describe("Additional context or plain-text note for the task."),
+  name: z
+    .string()
+    .min(1)
+    .max(NAME_MAX_CHARS, "max 1 KB")
+    .describe("Task name extracted from the image."),
+  note: z
+    .string()
+    .max(NOTE_MAX_CHARS, "max 1 MB")
+    .optional()
+    .describe("Additional context or plain-text note for the task."),
   deferDate: z
     .string()
     .datetime({ offset: true })

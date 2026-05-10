@@ -22,6 +22,7 @@ import {
   invalidateTaskMutation,
 } from "../../cache/invalidation.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
+import { NOTE_HTML_MAX_CHARS } from "../../domain/inputLimits.js";
 import { summaryNoteSet } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
@@ -57,6 +58,7 @@ export const noteSetHtmlInputSchema = z.object({
     ),
   noteHtml: z
     .string()
+    .max(NOTE_HTML_MAX_CHARS, "max 1 MB")
     .nullable()
     .describe("HTML fragment to set as the note. Pass null to clear the note entirely."),
 });
