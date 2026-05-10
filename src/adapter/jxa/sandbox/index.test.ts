@@ -780,6 +780,59 @@ describe("JXA sandbox — changes_since", () => {
     expect(result.tasks).toHaveLength(0);
     expect(result.projects).toHaveLength(0);
   });
+
+  // -------------------------------------------------------------------------
+  // whose() pushdown coverage (#789)
+  //
+  // The script now pushes `modificationDate >= since` into OF's runtime via
+  // `flattenedTasks.whose({...})()`. The sandbox honors the same predicate,
+  // so a tighter assertion is possible: items below the threshold should
+  // never have their accessors invoked by user code.
+  // -------------------------------------------------------------------------
+
+  it("does not invoke buildTask-side accessors on items below the threshold", () => {
+    const since = new Date("2026-04-01T00:00:00Z");
+    let beforeIdCalls = 0;
+    let afterIdCalls = 0;
+    const before = fakeTask({
+      id: () => {
+        beforeIdCalls++;
+        return "task_before";
+      },
+      modificationDate: () => new Date("2026-03-01T00:00:00Z"),
+    });
+    const after = fakeTask({
+      id: () => {
+        afterIdCalls++;
+        return "task_after";
+      },
+      modificationDate: () => new Date("2026-04-15T00:00:00Z"),
+    });
+    runJxaScriptInSandbox(
+      changesSinceScript,
+      { sinceIso: since.toISOString() },
+      { tasks: [before, after] },
+    );
+    // The whose() filter ran first and excluded `before`, so its `id()` was
+    // never invoked by the script's iteration loop. `after` was emitted
+    // and its `id()` got called once for the result payload.
+    expect(beforeIdCalls).toBe(0);
+    expect(afterIdCalls).toBe(1);
+  });
+
+  it("includes items at exactly the threshold (>= semantic)", () => {
+    const since = new Date("2026-04-01T00:00:00Z");
+    const exact = fakeTask({
+      id: () => "task_exact",
+      modificationDate: () => new Date("2026-04-01T00:00:00Z"),
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      changesSinceScript,
+      { sinceIso: since.toISOString() },
+      { tasks: [exact] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["task_exact"]);
+  });
 });
 
 // ---------------------------------------------------------------------------
