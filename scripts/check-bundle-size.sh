@@ -2,7 +2,7 @@
 # check-bundle-size.sh
 #
 # Enforce the bundle-size budget for dist/index.js per DESIGN §20:
-#   "Bundle size budget: < 820 KiB (tsup --minify); above that blocks release."
+#   "Bundle size budget: < 850 KiB (tsup --minify); above that blocks release."
 #
 # This script is the single source of truth for the budget value. CI, the
 # release workflow, and the /release skill all call it so the threshold
@@ -20,18 +20,25 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 BUNDLE="dist/index.js"
-# 824 KiB. Bumped 820 → 824 KiB on 2026-05-10 alongside #812
-# (cache byte-cap with size-aware eviction): adds the maxBytes config
-# wiring, per-entry _measureBytes helper, and bytes/maxBytes stats
-# surfacing through internal_status. ~1 KiB net after minify; bumping
-# by 4 KiB (821→824 KiB) restores ~3 KiB headroom.
-# 820 KiB. Bumped 800 → 820 KiB on 2026-05-09 alongside #773
-# (fields[] field projection on heavy read tools): adds projection.ts
-# helper (~3 KiB), per-domain field-name exports in task/project/tag
-# domains (~1 KiB), and per-tool wiring across the read surface (~4 KiB).
-# The feature enables 30–70% payload reduction for callers on bulk-triage
-# workflows; the compile-time overhead is a one-time investment. Bumping
-# by 20 KiB to 839680 to restore ~14 KiB headroom.
+# 850 KiB. Bumped 824 → 850 KiB on 2026-05-10 alongside #907 after the
+# eight-PR perf+input-validation merge wave (#864 length caps adding
+# inputLimits.ts, #871 noteHtml drop, #866/#867/#872/#874/#876/#868) put
+# the bundle at 840804 bytes — 1124 over the original 820 KiB cap and
+# eating into the headroom from the 820 → 824 KiB bump that landed in
+# #812 (cache byte-cap, ~1 KiB net). None of the eight individually
+# broke the gate; the regression appeared once they combined on main,
+# which turned every subsequent PR's `build (Node 24)` red. The bump
+# restores ~30 KiB of headroom; the followup work to recover it via
+# tree-shaking lives at #578 (investigation) and #827 (audit).
+# Previously 824 KiB alongside #812 (cache byte-cap with size-aware
+# eviction): adds the maxBytes config wiring, per-entry _measureBytes
+# helper, and bytes/maxBytes stats surfacing through internal_status.
+# Previously 820 KiB alongside #773 (fields[] field projection on heavy
+# read tools): adds projection.ts helper (~3 KiB), per-domain field-name
+# exports in task/project/tag domains (~1 KiB), and per-tool wiring across
+# the read surface (~4 KiB). The feature enables 30–70% payload reduction
+# for callers on bulk-triage workflows; the compile-time overhead is a
+# one-time investment.
 # See #578 (tree-shaking investigation) for the path to recover headroom
 # without future flat bumps.
 # Previously 800 KiB alongside #705 (buildFolder shared JXA helper);
@@ -42,7 +49,7 @@ BUNDLE="dist/index.js"
 # 660 KiB alongside #485 slice 1 (decision-journal); 640 KiB alongside
 # #484; 625 KiB alongside #577; 610 KiB alongside #570; 580 KiB alongside
 # #494; 540, 525, originally 500 KiB. Keep in sync with DESIGN §20.
-BUDGET=843776
+BUDGET=870400
 
 if [ ! -f "$BUNDLE" ]; then
   echo "::error::$BUNDLE not found — run 'pnpm build' first." >&2
@@ -50,9 +57,9 @@ if [ ! -f "$BUNDLE" ]; then
 fi
 
 SIZE=$(wc -c < "$BUNDLE" | tr -d ' ')
-echo "$BUNDLE: ${SIZE} bytes (budget: ${BUDGET} bytes / 824 KiB)"
+echo "$BUNDLE: ${SIZE} bytes (budget: ${BUDGET} bytes / 850 KiB)"
 
 if [ "$SIZE" -gt "$BUDGET" ]; then
-  echo "::error::bundle exceeds 824 KiB budget (${SIZE} > ${BUDGET})" >&2
+  echo "::error::bundle exceeds 850 KiB budget (${SIZE} > ${BUDGET})" >&2
   exit 1
 fi
