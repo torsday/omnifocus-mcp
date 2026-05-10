@@ -44,7 +44,17 @@ export async function handleReviewListDue(
 ) {
   const result = await ctx.reviewService.listDue();
   const meta = ctx.makeMeta({ cacheHit: result.cacheHit });
-  return ok({ projects: result.projects }, meta);
+  // Project to the documented 5 fields only — full Project[] shape carries
+  // noteHtml, taskCount, completedTaskCount, etc. that inflate token cost
+  // without adding review-workflow value. Use project_get for heavy fields.
+  const projects = result.projects.map((p) => ({
+    id: p.id,
+    name: p.name,
+    nextReviewDate: p.nextReviewDate,
+    lastReviewDate: p.lastReviewDate,
+    reviewIntervalDays: p.reviewIntervalDays,
+  }));
+  return ok({ projects }, meta);
 }
 
 // ---------------------------------------------------------------------------
