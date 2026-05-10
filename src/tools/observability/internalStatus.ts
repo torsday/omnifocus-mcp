@@ -34,16 +34,11 @@ export const INTERNAL_STATUS_DESCRIPTION =
   "uptimeMs is the milliseconds since the server process started. " +
   "circuits lists each circuit-breaker name and state (closed/open/half_open). " +
   "lastSync mirrors sync_status data; null if getLastSync throws. " +
-  "calendarAccess reports the macOS Calendar bridge state — { available, permission } where " +
-  "available is true when the Swift binary is callable and permission is the live EventKit " +
-  "authorization status (granted | denied | restricted | not-determined), or 'unknown' when " +
-  "available is false. Read-only — does NOT trigger the macOS Calendar TCC prompt. " +
+  "calendarAccess: macOS Calendar bridge state — { available, permission: granted|denied|restricted|not-determined|unknown }. Read-only; does NOT trigger TCC prompt. " +
   "mutation surfaces Stryker calibration freshness — { score, lastRunAt } where score is the " +
   "latest mutation-testing score (0–100) per ADR-0017 and lastRunAt is the report's mtime. " +
   "Returns null when no report file is present (the published npm tarball ships without one). " +
-  "responseStats reports per-tool response-byte aggregates (#778) — " +
-  "{ since, sampleRate, thresholdBytes, tools: { <toolName>: { count, total, max, p50, p95 } } } — " +
-  "or null when sampling is disabled (sampleRate 0). " +
+  "responseStats: per-tool response-byte aggregates { since, sampleRate, thresholdBytes, tools } — null when sampleRate is 0. " +
   "stores: { idempotencyEntries, loopDetectorKeys } live retention-store sizes — null when not wired. " +
   "Read-only; no side effects. " +
   "Example: internal_status()";
