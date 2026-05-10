@@ -12,6 +12,7 @@ Environment variables only — no config file in v1 (see "out of scope" in SPEC)
 | `OMNIFOCUS_ALLOW_RAW_SCRIPT`       | Register `run_jxa_script` / `run_omnijs_script`                        | unset     |
 | `OMNIFOCUS_CACHE_TTL_MS`           | Read-cache TTL (ms)                                                    | 30000     |
 | `OMNIFOCUS_CACHE_CAPACITY`         | LRU capacity (entries)                                                 | 256       |
+| `OMNIFOCUS_READ_CACHE_MAX_BYTES`   | LRU byte-cap (size-aware eviction; 0 disables)                         | 16777216  |
 | `OMNIFOCUS_READ_POOL_SIZE`         | Concurrent `osascript` processes for reads                             | 2         |
 | `OMNIFOCUS_WRITE_QUEUE_CAP`        | Max pending writes before `QueueFull`                                  | 50        |
 | `OMNIFOCUS_JXA_TIMEOUT_MS`         | Per-call JXA timeout (ms)                                              | 30000     |

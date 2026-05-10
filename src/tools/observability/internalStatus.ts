@@ -88,6 +88,10 @@ export interface InternalStatusData {
     misses: number;
     evictions: number;
     coalesced: number;
+    /** Total bytes currently held; `null` when no byte-cap is configured (#812). */
+    bytes: number | null;
+    /** Configured byte-cap; `null` when bounded by entry count only (#812). */
+    maxBytes: number | null;
     services: Record<string, ServiceCacheStats>;
   } | null;
   circuits: CircuitSnapshot[];

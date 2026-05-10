@@ -64,6 +64,7 @@ We will use an **in-memory LRU cache with a 30-second TTL, invalidated proactive
 - **Incorrect invalidation rule** → agent sees stale data after a write. Mitigated by tests that exercise every mutating service method and assert cache state afterward, plus the TTL as a backstop.
 - **Cache keyed on serialized args with unstable key ordering** → cache misses that should hit. Mitigated by a single canonical JSON serializer for cache keys (sorted keys, no whitespace).
 - **Cache grows memory on high-cardinality queries** (e.g. many different searches) → bounded by LRU capacity; no uncontrolled growth.
+- **One oversized cached response pinning memory** (e.g. a forecast page with thousands of full Task objects) → bounded by `OMNIFOCUS_READ_CACHE_MAX_BYTES` (default 16 MB); per-entry `Buffer.byteLength(JSON.stringify(value))` is measured at insert and `lru-cache` evicts oldest entries until the running total fits the cap (#812).
 
 ## References
 

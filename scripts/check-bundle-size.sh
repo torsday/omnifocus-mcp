@@ -20,6 +20,11 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 BUNDLE="dist/index.js"
+# 824 KiB. Bumped 820 → 824 KiB on 2026-05-10 alongside #812
+# (cache byte-cap with size-aware eviction): adds the maxBytes config
+# wiring, per-entry _measureBytes helper, and bytes/maxBytes stats
+# surfacing through internal_status. ~1 KiB net after minify; bumping
+# by 4 KiB (821→824 KiB) restores ~3 KiB headroom.
 # 820 KiB. Bumped 800 → 820 KiB on 2026-05-09 alongside #773
 # (fields[] field projection on heavy read tools): adds projection.ts
 # helper (~3 KiB), per-domain field-name exports in task/project/tag
@@ -37,7 +42,7 @@ BUNDLE="dist/index.js"
 # 660 KiB alongside #485 slice 1 (decision-journal); 640 KiB alongside
 # #484; 625 KiB alongside #577; 610 KiB alongside #570; 580 KiB alongside
 # #494; 540, 525, originally 500 KiB. Keep in sync with DESIGN §20.
-BUDGET=839680
+BUDGET=843776
 
 if [ ! -f "$BUNDLE" ]; then
   echo "::error::$BUNDLE not found — run 'pnpm build' first." >&2
@@ -45,9 +50,9 @@ if [ ! -f "$BUNDLE" ]; then
 fi
 
 SIZE=$(wc -c < "$BUNDLE" | tr -d ' ')
-echo "$BUNDLE: ${SIZE} bytes (budget: ${BUDGET} bytes / 820 KiB)"
+echo "$BUNDLE: ${SIZE} bytes (budget: ${BUDGET} bytes / 824 KiB)"
 
 if [ "$SIZE" -gt "$BUDGET" ]; then
-  echo "::error::bundle exceeds 820 KiB budget (${SIZE} > ${BUDGET})" >&2
+  echo "::error::bundle exceeds 824 KiB budget (${SIZE} > ${BUDGET})" >&2
   exit 1
 fi

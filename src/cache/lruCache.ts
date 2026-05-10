@@ -51,6 +51,19 @@ export interface CacheStats {
    * thundering-herd coalescing.
    */
   coalesced: number;
+  /**
+   * Total bytes currently held in the cache (sum of per-entry
+   * `Buffer.byteLength(JSON.stringify(value))` measured at insert time).
+   * `null` when no byte-cap is configured (`maxBytes` omitted) — the cache
+   * is bounded by entry count only and `lru-cache` does not track size.
+   */
+  bytes: number | null;
+  /**
+   * Configured byte-cap, or `null` when bounded by entry count only.
+   * Surfaced in `internal_status` for operators tuning
+   * `OMNIFOCUS_READ_CACHE_MAX_BYTES`.
+   */
+  maxBytes: number | null;
 }
 
 /** Per-service hit/miss breakdown surfaced in `internal_status`. */
@@ -76,6 +89,18 @@ export interface LruCacheOptions {
    * Set to 0 to disable threshold events.
    */
   hitRateThreshold?: number;
+  /**
+   * Optional total-bytes cap. When set, each entry's serialized JSON byte
+   * length is measured at insert time, accumulated cache-wide, and
+   * `lru-cache` evicts oldest entries until the sum is back under the cap
+   * — independent of the entry-count cap, which still applies. One
+   * oversized cached response (e.g. a forecast page with thousands of
+   * full Task objects) cannot pin disproportionate memory under this
+   * bound.
+   *
+   * Wired from `OMNIFOCUS_READ_CACHE_MAX_BYTES` (default 16 MB).
+   */
+  maxBytes?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,7 +115,10 @@ export interface LruCacheOptions {
  */
 export class OmniFocusLruCache extends EventEmitter {
   // lru-cache requires value extends {}; wrap in a box so we can store any value.
-  private readonly cache: LRUCache<string, { v: unknown }>;
+  // The boxed entry caches its measured byte-length so eviction reads it
+  // without re-stringifying.
+  private readonly cache: LRUCache<string, { v: unknown; bytes?: number }>;
+  private readonly maxBytes: number | null;
   /**
    * Promises for in-flight `wrap()` factory invocations, keyed by cache key.
    * A second `wrap()` call for the same key while a prior factory is still
@@ -111,17 +139,49 @@ export class OmniFocusLruCache extends EventEmitter {
   private readonly serviceCounts = new Map<string, { hits: number; misses: number }>();
   private readonly hitRateThreshold: number;
 
-  constructor({ capacity = 256, ttlMs = 30_000, hitRateThreshold = 0.5 }: LruCacheOptions = {}) {
+  constructor({
+    capacity = 256,
+    ttlMs = 30_000,
+    hitRateThreshold = 0.5,
+    maxBytes,
+  }: LruCacheOptions = {}) {
     super();
     this.hitRateThreshold = hitRateThreshold;
-    this.cache = new LRUCache<string, { v: unknown }>({
+    this.maxBytes = maxBytes !== undefined && maxBytes > 0 ? maxBytes : null;
+    // `lru-cache` enforces the byte-cap when both `maxSize` and
+    // `sizeCalculation` are supplied (or `size` is set on each `set()`).
+    // We pre-compute size at insert via `_measureBytes` and stash it on
+    // the boxed entry, then return it from `sizeCalculation` so the lib
+    // doesn't re-walk the value.
+    this.cache = new LRUCache<string, { v: unknown; bytes?: number }>({
       max: capacity,
       ttl: ttlMs,
+      ...(this.maxBytes !== null
+        ? {
+            maxSize: this.maxBytes,
+            sizeCalculation: (entry) => entry.bytes ?? 1,
+          }
+        : {}),
       // Count evictions for stats surface
       disposeAfter: () => {
         this.evictions++;
       },
     });
+  }
+
+  /**
+   * Measure a value's serialized JSON byte-length. Mirrors the pattern in
+   * `src/observability/responseStats.ts`. Returns `1` (a sentinel
+   * minimum, since `lru-cache` requires `size > 0`) when the value
+   * cannot be serialized — circular refs, BigInts, etc. — so the entry
+   * still occupies a slot but doesn't blow up the cache.
+   */
+  private _measureBytes(value: unknown): number {
+    try {
+      return Buffer.byteLength(JSON.stringify(value) ?? "", "utf8") || 1;
+    } catch {
+      return 1;
+    }
   }
 
   /**
@@ -160,7 +220,10 @@ export class OmniFocusLruCache extends EventEmitter {
         // invalidate() during flight clears the inflight entry so the stale
         // result is not committed to the cache.
         if (this.inflight.get(key)?.token === token) {
-          this.cache.set(key, { v: value });
+          this.cache.set(
+            key,
+            this.maxBytes !== null ? { v: value, bytes: this._measureBytes(value) } : { v: value },
+          );
         }
         return value;
       } finally {
@@ -270,12 +333,17 @@ export class OmniFocusLruCache extends EventEmitter {
       misses: this.misses,
       evictions: this.evictions,
       coalesced: this.coalesced,
+      bytes: this.maxBytes !== null ? this.cache.calculatedSize : null,
+      maxBytes: this.maxBytes,
     };
   }
 
   /** Directly set a value (for testing / seeding). */
   set(key: string, value: unknown): void {
-    this.cache.set(key, { v: value });
+    this.cache.set(
+      key,
+      this.maxBytes !== null ? { v: value, bytes: this._measureBytes(value) } : { v: value },
+    );
   }
 
   /** Check whether a key is present (without affecting hit/miss counters). */

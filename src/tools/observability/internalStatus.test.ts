@@ -274,6 +274,8 @@ describe("handleInternalStatus — probeCache", () => {
         misses: 2,
         evictions: 0,
         coalesced: 1,
+        bytes: 4096,
+        maxBytes: 16_777_216,
         services: {
           tag: { hits: 5, misses: 1, hitRate: 5 / 6 },
           task: { hits: 5, misses: 1, hitRate: 5 / 6 },
