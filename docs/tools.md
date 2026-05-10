@@ -956,7 +956,7 @@ _No parameters._
 
 ## forecast_get
 
-Get forecast-view tasks from OmniFocus grouped by category: overdue, dueToday, deferredToday, flagged. Use this for 'what's on my plate today' or multi-day planning queries. Do NOT use to list all tasks across all projects; prefer task_list instead. Supply date (ISO-8601 or shortcut like 'today', 'tomorrow') and days (1–7) for the ergonomic interface, or use from/to for exact ISO-8601 ranges. All include flags default to true; set to false to omit a category. When days > 1, response also includes byDate[] grouping tasks per calendar day. Returns { overdue[], dueToday[], deferredToday[], flagged[], byDate? }; safe to call repeatedly; no side effects. Example: forecast_get({ date: "today" }) Example: forecast_get({ date: "today", days: 3, includeFlagged: false })
+Get forecast-view tasks from OmniFocus grouped by category: overdue, dueToday, deferredToday, flagged. Use this for 'what's on my plate today' or multi-day planning queries. Do NOT use to list all tasks across all projects; prefer task_list instead. Supply date (ISO-8601 or shortcut like 'today', 'tomorrow') and days (1–7) for the ergonomic interface, or use from/to for exact ISO-8601 ranges. All include flags default to true; set to false to omit a category. When days > 1, response also includes byDate[] grouping task IDs per calendar day (dereference from dueToday[]). Returns { overdue[], dueToday[], deferredToday[], flagged[], byDate? }; byDate entries are { date, taskIds[] }. Safe to call repeatedly; no side effects. Example: forecast_get({ date: "today" }) Example: forecast_get({ date: "today", days: 3, includeFlagged: false })
 
 ### Input
 

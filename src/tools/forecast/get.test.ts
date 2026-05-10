@@ -229,6 +229,14 @@ describe("forecast_get — date/days interface", () => {
     const dates = envelope.data.byDate!.map((g) => g.date);
     expect(dates).toContain("2026-04-23");
     expect(dates).toContain("2026-04-24");
+    // byDate entries must contain taskIds (strings), not full task objects
+    // biome-ignore lint/style/noNonNullAssertion: guarded by Array.isArray assertion above
+    for (const entry of envelope.data.byDate!) {
+      expect(Array.isArray(entry.taskIds)).toBe(true);
+      // @ts-expect-error: `tasks` must not exist on entries; only `taskIds`
+      expect(entry.tasks).toBeUndefined();
+      expect(entry.taskIds.every((id: unknown) => typeof id === "string")).toBe(true);
+    }
   });
 
   it("handler: byDate entries are sorted chronologically", async () => {

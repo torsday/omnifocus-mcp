@@ -34,8 +34,8 @@ export const FORECAST_GET_DESCRIPTION =
   "Supply date (ISO-8601 or shortcut like 'today', 'tomorrow') and days (1–7) for the ergonomic interface, " +
   "or use from/to for exact ISO-8601 ranges. " +
   "All include flags default to true; set to false to omit a category. " +
-  "When days > 1, response also includes byDate[] grouping tasks per calendar day. " +
-  "Returns { overdue[], dueToday[], deferredToday[], flagged[], byDate? }; safe to call repeatedly; no side effects. " +
+  "When days > 1, response also includes byDate[] grouping task IDs per calendar day (dereference from dueToday[]). " +
+  "Returns { overdue[], dueToday[], deferredToday[], flagged[], byDate? }; byDate entries are { date, taskIds[] }. Safe to call repeatedly; no side effects. " +
   'Example: forecast_get({ date: "today" }) ' +
   'Example: forecast_get({ date: "today", days: 3, includeFlagged: false })';
 
@@ -197,20 +197,22 @@ function resolveRange(input: ForecastGetToolInput): { from: string; to: string; 
 
 /**
  * Group tasks by the calendar day (YYYY-MM-DD) of their `dueDate`.
+ * Returns task IDs only — full Task objects already appear in the top-level
+ * `dueToday` / `overdue` arrays, so repeating them here would duplicate bytes.
  * Tasks without a dueDate are omitted from the grouping.
  */
-function groupByDate(tasks: Task[]): { date: string; tasks: Task[] }[] {
-  const map = new Map<string, Task[]>();
+function groupByDate(tasks: Task[]): { date: string; taskIds: string[] }[] {
+  const map = new Map<string, string[]>();
   for (const task of tasks) {
     if (!task.dueDate) continue;
     const day = task.dueDate.slice(0, 10); // "YYYY-MM-DD"
     const bucket = map.get(day) ?? [];
-    bucket.push(task);
+    bucket.push(task.id);
     map.set(day, bucket);
   }
   return [...map.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, tasks]) => ({ date, tasks }));
+    .map(([date, taskIds]) => ({ date, taskIds }));
 }
 
 export async function handleForecastGet(input: ForecastGetToolInput, ctx: ForecastGetContext) {
@@ -234,7 +236,7 @@ export async function handleForecastGet(input: ForecastGetToolInput, ctx: Foreca
     dueToday: ProjectedTask[];
     deferredToday: ProjectedTask[];
     flagged: ProjectedTask[];
-    byDate?: { date: string; tasks: ProjectedTask[] }[];
+    byDate?: { date: string; taskIds: string[] }[];
   } = {
     overdue: result.overdue.map(project),
     dueToday: result.dueToday.map(project),
@@ -243,12 +245,10 @@ export async function handleForecastGet(input: ForecastGetToolInput, ctx: Foreca
   };
 
   if (days > 1) {
-    // Group on the *full* tasks (uses .dueDate which projection may strip),
-    // then project each grouped task at the end.
-    payload.byDate = groupByDate(result.dueToday).map(({ date, tasks }) => ({
-      date,
-      tasks: tasks.map(project),
-    }));
+    // groupByDate returns ID-only buckets so byDate doesn't duplicate the task
+    // objects already serialised under dueToday/overdue. Dereference IDs from
+    // the top-level arrays.
+    payload.byDate = groupByDate(result.dueToday);
   }
 
   const warnings =
