@@ -27,8 +27,15 @@
  * @see src/adapter/OmniFocusAdapter.ts — the interface under test
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import type { OmniFocusAdapter } from "../../src/adapter/OmniFocusAdapter.js";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "vitest";
+import type {
+  CreateFolderInput,
+  CreateProjectInput,
+  CreateTagInput,
+  CreateTaskInput,
+  OmniFocusAdapter,
+} from "../../src/adapter/OmniFocusAdapter.js";
+import type { FolderId, TagId, TaskId } from "../../src/domain/ids.js";
 import { NotFound, ValidationError } from "../../src/errors/index.js";
 
 /**
@@ -51,6 +58,38 @@ export interface AdapterContractOptions {
   createAdapter: () => OmniFocusAdapter | Promise<OmniFocusAdapter>;
   cleanup?: (adapter: OmniFocusAdapter) => void | Promise<void>;
   hookTimeoutMs?: number;
+  /**
+   * Optional **suite-scoped sandbox** for live drivers. When provided, the
+   * harness creates one fixture folder before any test runs, transparently
+   * routes top-level `createProject` / `createFolder` calls into that folder,
+   * and bulk-deletes the folder once all tests finish (cascades projects,
+   * nested folders, and contained tasks in a single round-trip).
+   *
+   * Inbox tasks (`createTask` without `projectId` or `parentId`) and tags
+   * have no folder home; the harness tracks their IDs and bulk-deletes them
+   * in parallel during teardown.
+   *
+   * In-memory drivers omit this — `createAdapter()` already returns fresh
+   * state per test, so cleanup is a no-op.
+   *
+   * See #881 for the per-suite-sandbox motivation.
+   */
+  sandbox?: SandboxOptions;
+}
+
+export interface SandboxOptions {
+  /**
+   * Prefix for the fixture folder name. Reused by
+   * `scripts/seed-integration-db.js`'s sweep so abandoned fixtures from
+   * crashed runs eventually get cleaned up. Defaults to `"mcp-fixture"`.
+   */
+  prefix?: string;
+}
+
+/** Internal accumulator for sandbox-mode bulk teardown. */
+interface SandboxAccumulated {
+  inboxTaskIds: TaskId[];
+  tagIds: TagId[];
 }
 
 /**
@@ -66,16 +105,48 @@ export interface AdapterContractOptions {
  */
 export function runAdapterContract(label: string, options: AdapterContractOptions): void {
   const hookTimeout = options.hookTimeoutMs;
+  const sandboxEnabled = options.sandbox !== undefined;
 
   describe(`adapter contract — ${label}`, () => {
     let adapter: OmniFocusAdapter;
+    let sandboxFolderId: FolderId | null = null;
+    const accumulated: SandboxAccumulated = { inboxTaskIds: [], tagIds: [] };
+
+    // Suite-scoped sandbox — one fixture folder for all tests in this
+    // describe. Tests' top-level project/folder creates are routed inside;
+    // teardown does one recursive folder delete plus parallel sweeps for
+    // inbox tasks and top-level tags. Replaces the per-test cleanup loop
+    // for live drivers (#881).
+    beforeAll(async () => {
+      if (!sandboxEnabled) return;
+      const setupAdapter = await options.createAdapter();
+      const prefix = options.sandbox?.prefix ?? "mcp-fixture";
+      const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      sandboxFolderId = await setupAdapter.createFolder({ name: `${prefix}-${runId}` });
+    }, hookTimeout);
 
     beforeEach(async () => {
-      adapter = await options.createAdapter();
+      const base = await options.createAdapter();
+      adapter = sandboxFolderId ? wrapWithSandbox(base, sandboxFolderId, accumulated) : base;
     }, hookTimeout);
 
     afterEach(async () => {
-      if (options.cleanup) await options.cleanup(adapter);
+      // Per-test cleanup only fires for non-sandbox drivers. Sandbox mode
+      // accumulates IDs and bulk-deletes once in afterAll.
+      if (!sandboxEnabled && options.cleanup) await options.cleanup(adapter);
+    }, hookTimeout);
+
+    afterAll(async () => {
+      if (!sandboxEnabled || !sandboxFolderId) return;
+      const teardownAdapter = await options.createAdapter();
+      // Inbox tasks and tags first (in parallel) — folder cascade kills
+      // everything else. Errors are swallowed: tests may have already
+      // deleted these IDs intentionally.
+      await Promise.allSettled(
+        accumulated.inboxTaskIds.map((id) => teardownAdapter.deleteTask(id)),
+      );
+      await Promise.allSettled(accumulated.tagIds.map((id) => teardownAdapter.deleteTag(id)));
+      await teardownAdapter.deleteFolder(sandboxFolderId).catch(() => {});
     }, hookTimeout);
 
     // ---------------------------------------------------------------------
@@ -512,4 +583,75 @@ export function runAdapterContract(label: string, options: AdapterContractOption
       });
     });
   });
+}
+
+/**
+ * Wrap an adapter so top-level entity creates land inside a fixture folder
+ * (or — for inbox tasks and tags, which have no folder home — get tracked
+ * for parallel bulk-delete during teardown).
+ *
+ * Routing rules:
+ * - `createProject` without `folderId` → inject sandbox folder
+ * - `createFolder` without `parentId` → inject sandbox folder
+ * - `createTask` without `projectId` AND `parentId` → tracked for sweep
+ * - `createTag` without `parentId` → tracked for sweep
+ * - `duplicateTask` → newId tracked (over-tracks: clones inside sandboxed
+ *   projects also die in the folder cascade, but the second deleteTask
+ *   throws NotFound which `Promise.allSettled` swallows).
+ *
+ * Tests that explicitly set `tagIds` on a task (or `parentId` on a tag)
+ * are not interfered with — those tests typically test specific semantics
+ * (e.g. "deleteTag removes the tag from any tasks that carried it") and
+ * the wrapper would otherwise leak fixture-tag IDs into their assertions.
+ */
+function wrapWithSandbox(
+  base: OmniFocusAdapter,
+  sandboxFolderId: FolderId,
+  accumulated: SandboxAccumulated,
+): OmniFocusAdapter {
+  return new Proxy(base, {
+    get(target, prop: string | symbol) {
+      if (prop === "createProject") {
+        return async (
+          input: CreateProjectInput,
+        ): Promise<ReturnType<OmniFocusAdapter["createProject"]>> => {
+          const routed = input.folderId ? input : { ...input, folderId: sandboxFolderId };
+          return target.createProject(routed);
+        };
+      }
+      if (prop === "createFolder") {
+        return async (
+          input: CreateFolderInput,
+        ): Promise<ReturnType<OmniFocusAdapter["createFolder"]>> => {
+          const routed = input.parentId ? input : { ...input, parentId: sandboxFolderId };
+          return target.createFolder(routed);
+        };
+      }
+      if (prop === "createTask") {
+        return async (input: CreateTaskInput): Promise<TaskId> => {
+          const id = await target.createTask(input);
+          if (!input.projectId && !input.parentId) accumulated.inboxTaskIds.push(id);
+          return id;
+        };
+      }
+      if (prop === "createTag") {
+        return async (input: CreateTagInput): Promise<TagId> => {
+          const id = await target.createTag(input);
+          if (!input.parentId) accumulated.tagIds.push(id);
+          return id;
+        };
+      }
+      if (prop === "duplicateTask") {
+        return async (
+          ...args: Parameters<OmniFocusAdapter["duplicateTask"]>
+        ): Promise<ReturnType<OmniFocusAdapter["duplicateTask"]>> => {
+          const result = await target.duplicateTask(...args);
+          accumulated.inboxTaskIds.push(result.newId);
+          return result;
+        };
+      }
+      const val = Reflect.get(target, prop, target);
+      return typeof val === "function" ? (val as (...a: unknown[]) => unknown).bind(target) : val;
+    },
+  }) as OmniFocusAdapter;
 }
