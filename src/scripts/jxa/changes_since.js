@@ -16,10 +16,16 @@
  *   projects: Array<{ id: string, modificationDate: string }>
  * }
  *
- * Performance: scans all flattenedTasks and flattenedProjects in a single
- * JXA invocation. On databases with 1 000–5 000 tasks this takes ~300–700 ms
- * (same budget as any other task-list call). The Node side debounces change
- * events to avoid stampeding this script.
+ * Performance: pushes the `modificationDate >= since` predicate into OF's
+ * runtime via `whose({...})` (see #789, mirrors `forecast_get.js`'s 25×
+ * pattern). On databases with thousands of tasks this avoids materializing
+ * every task's accessor — typically a sub-second query vs the original
+ * full-scan loop's hundreds-of-ms-per-thousand-tasks. The `try`/`catch`
+ * around the `whose()` call is a safety net: if OF rejects the predicate
+ * for any reason, we fall back to the previous client-side filter so this
+ * script never returns wrong results because of a query-engine surprise.
+ *
+ * The Node side debounces change events to avoid stampeding this script.
  *
  * Note: `modificationDate` in OF reflects the last local write including
  * sync-incoming changes. It does NOT distinguish between field-level changes;
@@ -28,6 +34,7 @@
  *
  * @see src/watcher/types.ts — ChangedObjects shape
  * @see src/adapter/jxa/JxaTransport.ts — caller (getChangesSince)
+ * @see src/scripts/jxa/forecast_get.js — same whose() pushdown pattern
  */
 
 // biome-ignore lint/correctness/noUnusedVariables: osascript invokes run(argv)
@@ -37,38 +44,38 @@ function run(argv) {
 
   const ofApp = Application("OmniFocus");
   ofApp.includeStandardAdditions = false;
+  const doc = ofApp.defaultDocument;
 
-  // ------- Tasks -----------------------------------------------------------
-
-  const rawTasks = ofApp.defaultDocument.flattenedTasks();
-  const tasks = [];
-  for (let i = 0; i < rawTasks.length; i++) {
+  // Try the whose() pushdown first; fall back to a full scan if OF rejects
+  // the predicate for any reason (older OF, unexpected accessor behavior).
+  function collectModifiedSince(collection) {
+    let raw;
     try {
-      const t = rawTasks[i];
-      const modDate = t.modificationDate();
-      if (modDate && modDate >= since) {
-        tasks.push({ id: t.id(), modificationDate: modDate.toISOString() });
-      }
+      raw = collection.whose({ modificationDate: { _greaterThanEquals: since } })();
     } catch (_e) {
-      // Skip tasks that error (e.g. inbox pseudo-tasks with no stable id)
+      raw = collection();
     }
+    const out = [];
+    for (let i = 0; i < raw.length; i++) {
+      try {
+        const item = raw[i];
+        const modDate = item.modificationDate();
+        // The whose() filter already excludes earlier dates, but the
+        // post-loop guard keeps the fallback path correct and defends
+        // against whose() silently falling back to client-side
+        // matching for some operators.
+        if (modDate && modDate >= since) {
+          out.push({ id: item.id(), modificationDate: modDate.toISOString() });
+        }
+      } catch (_e) {
+        // Skip items that error (e.g. inbox pseudo-tasks with no stable id)
+      }
+    }
+    return out;
   }
 
-  // ------- Projects --------------------------------------------------------
-
-  const rawProjects = ofApp.defaultDocument.flattenedProjects();
-  const projects = [];
-  for (let i = 0; i < rawProjects.length; i++) {
-    try {
-      const p = rawProjects[i];
-      const modDate = p.modificationDate();
-      if (modDate && modDate >= since) {
-        projects.push({ id: p.id(), modificationDate: modDate.toISOString() });
-      }
-    } catch (_e) {
-      // Skip
-    }
-  }
+  const tasks = collectModifiedSince(doc.flattenedTasks);
+  const projects = collectModifiedSince(doc.flattenedProjects);
 
   return JSON.stringify({ tasks, projects });
 }
