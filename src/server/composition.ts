@@ -117,6 +117,11 @@ export function composeServices(adapter: OmniFocusAdapter, config: Config): Serv
   const cache = new OmniFocusLruCache({
     capacity: config.OMNIFOCUS_CACHE_CAPACITY,
     ttlMs: config.OMNIFOCUS_CACHE_TTL_MS,
+    // 0 disables the byte-cap (entry-count bound only); any positive value
+    // enables size-aware eviction at insert time.
+    ...(config.OMNIFOCUS_READ_CACHE_MAX_BYTES > 0
+      ? { maxBytes: config.OMNIFOCUS_READ_CACHE_MAX_BYTES }
+      : {}),
   });
   return {
     cache,

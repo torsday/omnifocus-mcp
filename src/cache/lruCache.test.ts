@@ -305,4 +305,67 @@ describe("OmniFocusLruCache — serviceStats", () => {
     cache.clear();
     expect(cache.serviceStats()).toEqual({});
   });
+
+  // ---------------------------------------------------------------------------
+  // Byte-cap eviction (#812)
+  //
+  // When `maxBytes` is configured the cache measures
+  // `Buffer.byteLength(JSON.stringify(value))` at insert and lru-cache evicts
+  // oldest entries until the running total fits the cap. The stats surface
+  // exposes both the running byte total and the configured cap so operators
+  // can tune `OMNIFOCUS_READ_CACHE_MAX_BYTES` from `internal_status`.
+  // ---------------------------------------------------------------------------
+  describe("byte-cap eviction (#812)", () => {
+    it("reports null bytes/maxBytes when no byte-cap is configured", async () => {
+      const cache = new OmniFocusLruCache();
+      await cache.wrap("k", async () => "v");
+      const s = cache.stats();
+      expect(s.bytes).toBeNull();
+      expect(s.maxBytes).toBeNull();
+    });
+
+    it("reports running bytes and configured maxBytes when capped", async () => {
+      const cache = new OmniFocusLruCache({ maxBytes: 1024 });
+      await cache.wrap("k", async () => ({ a: "x".repeat(50) }));
+      const s = cache.stats();
+      expect(s.maxBytes).toBe(1024);
+      expect(typeof s.bytes).toBe("number");
+      expect(s.bytes).toBeGreaterThan(0);
+    });
+
+    it("evicts oldest entry when total bytes would exceed maxBytes", async () => {
+      // Each value serializes to ~114 bytes (`{"payload":"<mark>-<100 xs>"}`).
+      // Cap fits two entries (~228) but not three (~342) — third insert
+      // must evict the oldest.
+      const cache = new OmniFocusLruCache({ maxBytes: 250 });
+      const blob = (mark: string) => ({ payload: `${mark}-${"x".repeat(100)}` });
+      await cache.wrap("a", async () => blob("a"));
+      await cache.wrap("b", async () => blob("b"));
+      await cache.wrap("c", async () => blob("c")); // forces eviction of "a"
+      expect(cache.has("a")).toBe(false);
+      expect(cache.has("b")).toBe(true);
+      expect(cache.has("c")).toBe(true);
+      expect(cache.stats().evictions).toBeGreaterThanOrEqual(1);
+      expect(cache.stats().bytes ?? 0).toBeLessThanOrEqual(250);
+    });
+
+    it("byte-cap and entry-count cap operate independently — first to bind wins", async () => {
+      // Tight entry cap so it bites before the byte cap.
+      const cache = new OmniFocusLruCache({ capacity: 2, maxBytes: 10_000 });
+      await cache.wrap("a", async () => 1);
+      await cache.wrap("b", async () => 2);
+      await cache.wrap("c", async () => 3);
+      expect(cache.has("a")).toBe(false);
+      expect(cache.has("b")).toBe(true);
+      expect(cache.has("c")).toBe(true);
+    });
+
+    it("survives non-JSON-serializable values without crashing", async () => {
+      // BigInts throw in JSON.stringify; cache must fall back to the sentinel
+      // size (1 byte) rather than refusing to cache.
+      const cache = new OmniFocusLruCache({ maxBytes: 1024 });
+      await cache.wrap("k", async () => ({ n: 1n }));
+      expect(cache.stats().size).toBe(1);
+    });
+  });
 });

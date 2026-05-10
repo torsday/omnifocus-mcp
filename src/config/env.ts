@@ -59,6 +59,15 @@ const envSchema = z.object({
     .transform((v) => v === "1"),
   OMNIFOCUS_CACHE_TTL_MS: z.coerce.number().int().positive().default(30000),
   OMNIFOCUS_CACHE_CAPACITY: z.coerce.number().int().positive().default(256),
+  // Total-bytes cap on the read cache (#812). Bounds memory pinned by
+  // oversized cached responses (e.g. forecast pages with thousands of
+  // full Task objects); evicts oldest when the sum is over the cap,
+  // independent of the entry-count cap above. Default 16 MB.
+  OMNIFOCUS_READ_CACHE_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .default(16 * 1024 * 1024),
   OMNIFOCUS_READ_POOL_SIZE: z.coerce.number().int().min(1).max(8).default(2),
   OMNIFOCUS_WRITE_QUEUE_CAP: z.coerce.number().int().positive().default(50),
   OMNIFOCUS_JXA_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
@@ -122,6 +131,7 @@ export function parseConfig(
     OMNIFOCUS_WEBHOOKS_ENABLED: processEnv.OMNIFOCUS_WEBHOOKS_ENABLED,
     OMNIFOCUS_CACHE_TTL_MS: processEnv.OMNIFOCUS_CACHE_TTL_MS,
     OMNIFOCUS_CACHE_CAPACITY: processEnv.OMNIFOCUS_CACHE_CAPACITY,
+    OMNIFOCUS_READ_CACHE_MAX_BYTES: processEnv.OMNIFOCUS_READ_CACHE_MAX_BYTES,
     OMNIFOCUS_READ_POOL_SIZE: processEnv.OMNIFOCUS_READ_POOL_SIZE,
     OMNIFOCUS_WRITE_QUEUE_CAP: processEnv.OMNIFOCUS_WRITE_QUEUE_CAP,
     OMNIFOCUS_JXA_TIMEOUT_MS: processEnv.OMNIFOCUS_JXA_TIMEOUT_MS,
@@ -170,6 +180,7 @@ export function redactConfig(config: Config): Record<string, unknown> {
     OMNIFOCUS_WEBHOOKS_ENABLED: config.OMNIFOCUS_WEBHOOKS_ENABLED,
     OMNIFOCUS_CACHE_TTL_MS: config.OMNIFOCUS_CACHE_TTL_MS,
     OMNIFOCUS_CACHE_CAPACITY: config.OMNIFOCUS_CACHE_CAPACITY,
+    OMNIFOCUS_READ_CACHE_MAX_BYTES: config.OMNIFOCUS_READ_CACHE_MAX_BYTES,
     OMNIFOCUS_READ_POOL_SIZE: config.OMNIFOCUS_READ_POOL_SIZE,
     OMNIFOCUS_WRITE_QUEUE_CAP: config.OMNIFOCUS_WRITE_QUEUE_CAP,
     OMNIFOCUS_JXA_TIMEOUT_MS: config.OMNIFOCUS_JXA_TIMEOUT_MS,
