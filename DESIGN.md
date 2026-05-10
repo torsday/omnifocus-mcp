@@ -43,7 +43,7 @@ This file is now a thin index. The actual design content lives under [`docs/desi
 | §3 OF transport | [`decisions.md`](./docs/design/decisions.md) |
 | §4 Tool surface | [`decisions.md`](./docs/design/decisions.md) |
 | §5 Raw script tools | [`decisions.md`](./docs/design/decisions.md) |
-| §6 Architecture (incl. §6.7 errors, §6.8 description standard, §6.8.1 tool-count) | [`architecture.md`](./docs/design/architecture.md) |
+| §6 Architecture (incl. §6.7 errors, §6.8 description standard) | [`architecture.md`](./docs/design/architecture.md) |
 | §7 R/S/M evaluation | [`decisions.md`](./docs/design/decisions.md) |
 | §8 What's being cut | [`decisions.md`](./docs/design/decisions.md) |
 | §9 Build sequence | retained in git history; superseded by GitHub Issues + milestones |
