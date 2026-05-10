@@ -35,7 +35,11 @@ export const TASK_BATCH_CREATE_DESCRIPTION =
 
 const singleItemSchema = z
   .object({
-    name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").describe("Task name. Required, non-empty."),
+    name: z
+      .string()
+      .min(1)
+      .max(NAME_MAX_CHARS, "max 1 KB")
+      .describe("Task name. Required, non-empty."),
     projectId: ProjectId.schema
       .optional()
       .describe("Project to add the task to. Omit for inbox or subtask."),

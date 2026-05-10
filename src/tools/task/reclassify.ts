@@ -69,7 +69,10 @@ const predicateSchema: z.ZodType<TaskPredicate> = z.lazy(() =>
   z.discriminatedUnion("kind", [
     z.object({
       kind: z.literal("title-contains"),
-      value: z.string().max(SUBSTRING_MAX_CHARS, "max 4 KB").describe("Substring to search for in task names."),
+      value: z
+        .string()
+        .max(SUBSTRING_MAX_CHARS, "max 4 KB")
+        .describe("Substring to search for in task names."),
       caseSensitive: z
         .boolean()
         .optional()

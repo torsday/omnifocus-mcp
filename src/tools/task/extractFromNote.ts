@@ -65,7 +65,11 @@ export const TASK_EXTRACT_FROM_NOTE_DESCRIPTION =
 
 const proposedTaskSchema = z.object({
   name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").describe("Task name."),
-  note: z.string().max(NOTE_MAX_CHARS, "max 1 MB").optional().describe("Optional note body for the created task."),
+  note: z
+    .string()
+    .max(NOTE_MAX_CHARS, "max 1 MB")
+    .optional()
+    .describe("Optional note body for the created task."),
   deferDate: z.string().datetime({ offset: true }).optional(),
   dueDate: z.string().datetime({ offset: true }).optional(),
   tags: z

@@ -69,7 +69,12 @@ export const taskUpdateInputBaseSchema = z.object({
   id: TaskId.schema.describe("Persistent task ID. Get from task_list or search_query."),
 
   // Scalar editable fields
-  name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").optional().describe("New task name. Must be non-empty if supplied."),
+  name: z
+    .string()
+    .min(1)
+    .max(NAME_MAX_CHARS, "max 1 KB")
+    .optional()
+    .describe("New task name. Must be non-empty if supplied."),
   note: z
     .string()
     .nullable()

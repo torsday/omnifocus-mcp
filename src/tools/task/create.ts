@@ -61,7 +61,11 @@ export const TASK_CREATE_DESCRIPTION =
  * The SDK needs individual field descriptors; ZodEffects from .refine() lacks .shape.
  */
 export const taskCreateInputBaseSchema = z.object({
-  name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").describe("Task name. Required, must be non-empty."),
+  name: z
+    .string()
+    .min(1)
+    .max(NAME_MAX_CHARS, "max 1 KB")
+    .describe("Task name. Required, must be non-empty."),
 
   // Target: at most one of projectId or parentTaskId; neither = inbox
   projectId: ProjectId.schema

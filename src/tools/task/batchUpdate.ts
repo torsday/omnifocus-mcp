@@ -36,7 +36,12 @@ export const TASK_BATCH_UPDATE_DESCRIPTION =
 const patchSchema = z
   .object({
     name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").optional().describe("New task name."),
-    note: z.string().max(NOTE_MAX_CHARS, "max 1 MB").nullable().optional().describe("Plain-text note. Null clears the note."),
+    note: z
+      .string()
+      .max(NOTE_MAX_CHARS, "max 1 MB")
+      .nullable()
+      .optional()
+      .describe("Plain-text note. Null clears the note."),
     flagged: z.boolean().optional().describe("Flag or unflag the task."),
     dueDate: z
       .string()

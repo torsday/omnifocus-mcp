@@ -68,7 +68,11 @@ const scopeSchema = z
   });
 
 export const taskFindSimilarInputSchema = z.object({
-  name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").describe("The candidate task name to compare against existing tasks."),
+  name: z
+    .string()
+    .min(1)
+    .max(NAME_MAX_CHARS, "max 1 KB")
+    .describe("The candidate task name to compare against existing tasks."),
   note: z
     .string()
     .optional()

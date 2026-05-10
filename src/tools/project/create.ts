@@ -52,11 +52,19 @@ export const PROJECT_CREATE_DESCRIPTION =
 // ---------------------------------------------------------------------------
 
 export const projectCreateInputSchema = z.object({
-  name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").describe("Project name. Required, must be non-empty."),
+  name: z
+    .string()
+    .min(1)
+    .max(NAME_MAX_CHARS, "max 1 KB")
+    .describe("Project name. Required, must be non-empty."),
   folderId: FolderId.schema
     .optional()
     .describe("Folder ID to place the project in. Omit for root."),
-  note: z.string().max(NOTE_MAX_CHARS, "max 1 MB").optional().describe("Plain-text note for the project."),
+  note: z
+    .string()
+    .max(NOTE_MAX_CHARS, "max 1 MB")
+    .optional()
+    .describe("Plain-text note for the project."),
   status: aliasedEnum(
     ["active", "on-hold"] as const,
     { paused: "on-hold" },

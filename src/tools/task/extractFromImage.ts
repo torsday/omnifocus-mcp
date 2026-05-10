@@ -116,8 +116,16 @@ export const TASK_EXTRACT_FROM_IMAGE_DESCRIPTION =
  * prompt (#475) and other composers can accept either tool's output.
  */
 const proposedTaskSchema = z.object({
-  name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").describe("Task name extracted from the image."),
-  note: z.string().max(NOTE_MAX_CHARS, "max 1 MB").optional().describe("Additional context or plain-text note for the task."),
+  name: z
+    .string()
+    .min(1)
+    .max(NAME_MAX_CHARS, "max 1 KB")
+    .describe("Task name extracted from the image."),
+  note: z
+    .string()
+    .max(NOTE_MAX_CHARS, "max 1 MB")
+    .optional()
+    .describe("Additional context or plain-text note for the task."),
   deferDate: z
     .string()
     .datetime({ offset: true })

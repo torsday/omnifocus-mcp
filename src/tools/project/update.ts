@@ -58,8 +58,18 @@ export const PROJECT_UPDATE_DESCRIPTION =
 
 export const projectUpdateInputSchema = z.object({
   id: ProjectId.schema.describe("Persistent project ID. Get from project_list or project_get."),
-  name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").optional().describe("New project name. Must be non-empty if supplied."),
-  note: z.string().max(NOTE_MAX_CHARS, "max 1 MB").nullable().optional().describe("Plain-text note. Pass null to clear."),
+  name: z
+    .string()
+    .min(1)
+    .max(NAME_MAX_CHARS, "max 1 KB")
+    .optional()
+    .describe("New project name. Must be non-empty if supplied."),
+  note: z
+    .string()
+    .max(NOTE_MAX_CHARS, "max 1 MB")
+    .nullable()
+    .optional()
+    .describe("Plain-text note. Pass null to clear."),
   noteHtml: z
     .string()
     .nullable()

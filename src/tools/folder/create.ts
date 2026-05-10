@@ -23,7 +23,11 @@ export const FOLDER_CREATE_DESCRIPTION =
   'Example: folder_create({ name: "Archive", parentId: "fld123" })';
 
 export const folderCreateInputSchema = z.object({
-  name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").describe("Folder name. Must be non-empty."),
+  name: z
+    .string()
+    .min(1)
+    .max(NAME_MAX_CHARS, "max 1 KB")
+    .describe("Folder name. Must be non-empty."),
   parentId: FolderId.schema
     .optional()
     .describe("Parent folder ID. Omit for a root-level folder. Get from folder_list."),
