@@ -38,6 +38,7 @@ import {
 } from "../../errors/index.js";
 import { logger } from "../../logging/logger.js";
 import { emitTransportCall } from "../../logging/transportCall.js";
+import { type RetryPolicy, resolveRetryPolicy } from "../_shared/retryPolicy.js";
 
 // ---------------------------------------------------------------------------
 // Spawner seam (injectable for tests)
@@ -175,29 +176,11 @@ function transientReason(
   return "other";
 }
 
-/**
- * Runtime knobs for the retry-once policy. Defaults are sourced from env
- * vars (`OMNIFOCUS_TRANSIENT_RETRY_ENABLED`,
- * `OMNIFOCUS_TRANSIENT_RETRY_DELAY_MS`) at server boot but unit tests
- * override directly via `RunScriptOptions.retry`.
- */
-export interface RetryPolicy {
-  enabled: boolean;
-  delayMs: number;
-}
-
-let defaultRetryPolicy: RetryPolicy = {
-  enabled: process.env.OMNIFOCUS_TRANSIENT_RETRY_ENABLED !== "0",
-  delayMs: Number(process.env.OMNIFOCUS_TRANSIENT_RETRY_DELAY_MS ?? 100),
-};
-
-/**
- * Configure the default retry policy. Called once from server startup with
- * the parsed env config; otherwise the env-derived defaults above apply.
- */
-export function configureRetryPolicy(policy: Partial<RetryPolicy>): void {
-  defaultRetryPolicy = { ...defaultRetryPolicy, ...policy };
-}
+// `RetryPolicy`, the module-level defaults, and `configureRetryPolicy` live
+// in `../_shared/retryPolicy.ts` so the OmniJS runner can use the same env
+// vars and runtime override (#890). Re-exported here for callers that
+// already imported them through this module pre-#890.
+export { configureRetryPolicy, type RetryPolicy } from "../_shared/retryPolicy.js";
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -234,7 +217,7 @@ export async function runJxaScript<T = unknown>(
   const timeoutMs = options.timeoutMs ?? 30_000;
   const jsonArg = JSON.stringify(args ?? {});
   const scriptName = options.scriptName;
-  const retry: RetryPolicy = { ...defaultRetryPolicy, ...(options.retry ?? {}) };
+  const retry = resolveRetryPolicy(options.retry);
 
   const startedAt = performance.now();
   let result = await spawner(scriptBody, jsonArg, timeoutMs);

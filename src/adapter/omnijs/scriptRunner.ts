@@ -39,6 +39,7 @@
  */
 
 import { execFile } from "node:child_process";
+import { setTimeout as sleep } from "node:timers/promises";
 import {
   OmniFocusNotRunning,
   PermissionDenied,
@@ -46,7 +47,9 @@ import {
   Timeout,
   TransportUnavailable,
 } from "../../errors/index.js";
+import { logger } from "../../logging/logger.js";
 import { emitTransportCall } from "../../logging/transportCall.js";
+import { type RetryPolicy, resolveRetryPolicy } from "../_shared/retryPolicy.js";
 
 // ---------------------------------------------------------------------------
 // Spawner seam (injectable for tests)
@@ -118,6 +121,51 @@ export const defaultOmniJsSpawner: ScriptSpawner = (wrappedJxaBody, _argsJson, t
   });
 
 // ---------------------------------------------------------------------------
+// Retry-once on known-transient failures (#890 — mirror of #816)
+// ---------------------------------------------------------------------------
+
+/**
+ * Read-only OmniJS scripts whose retry on transient failure is safe by
+ * definition (no side effects). Mirrors `READ_ONLY_JXA_SCRIPTS` in the JXA
+ * runner. Writes are intentionally omitted; retrying a non-idempotent write
+ * risks duplicate side effects.
+ *
+ * Coverage check: every entry must correspond to a real file under
+ * `src/scripts/omnijs/<name>.js`. The smoke test in `scriptRunner.test.ts`
+ * pins this set so silent additions surface in review.
+ */
+export const READ_ONLY_OMNIJS_SCRIPTS: ReadonlySet<string> = new Set([
+  "forecast_get_tag",
+  "perspective_evaluate",
+  "perspective_evaluate_dry_run",
+  "perspective_get",
+  "ping",
+]);
+
+/**
+ * Transient-failure detection for OmniJS. Unlike JXA, OmniJS doesn't surface
+ * `errAEAccessorNotFound` / `-1728` style codes via `osascript` stderr — the
+ * URL-handler bridge swallows those into generic JS exceptions. So the
+ * retry trigger here is conservative: hard timeout only. That's the most
+ * common transient on a sluggish runner anyway, and matches the mitigation
+ * for #887 (integration-tier flakes on slow first calls).
+ *
+ * If future investigation surfaces additional retryable signals (e.g. a
+ * specific stderr substring from the URL-handler bridge), expand
+ * `isTransientFailure` to recognize them — same shape as the JXA half.
+ */
+function isTransientFailure(result: SpawnResult): boolean {
+  if (result.spawnError !== undefined) return false;
+  return result.timedOut;
+}
+
+/** Telemetry-friendly classification of why a retry fired. */
+function transientReason(result: SpawnResult): "timeout" | "other" {
+  if (result.timedOut) return "timeout";
+  return "other";
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -128,6 +176,13 @@ export interface RunScriptOptions {
   spawner?: ScriptSpawner;
   /** Optional script name for error context (`details.scriptName`). */
   scriptName?: string;
+  /**
+   * Per-call override for the retry-once policy. Production callers omit;
+   * tests pass `{ enabled: false }` to deterministically observe the
+   * first-attempt failure path, or `{ delayMs: 0 }` to skip the backoff
+   * and keep tests fast.
+   */
+  retry?: Partial<RetryPolicy>;
 }
 
 /**
@@ -148,10 +203,45 @@ export async function runOmniJsScript<T = unknown>(
   const timeoutMs = options.timeoutMs ?? 45_000;
   const argsJson = JSON.stringify(args ?? {});
   const scriptName = options.scriptName;
+  const retry = resolveRetryPolicy(options.retry);
 
   const wrapped = wrapOmniJsForJxa(omniJsScriptBody, argsJson);
   const startedAt = performance.now();
-  const result = await spawner(wrapped, argsJson, timeoutMs);
+  let result = await spawner(wrapped, argsJson, timeoutMs);
+
+  // Retry-once on transient failures for read-only scripts (#890; mirrors
+  // the JXA half in #816). Writes and unknown scripts skip retry to avoid
+  // duplicate side effects.
+  const isReadOnly = scriptName !== undefined && READ_ONLY_OMNIJS_SCRIPTS.has(scriptName);
+  const shouldRetry = retry.enabled && isReadOnly && isTransientFailure(result);
+  if (shouldRetry) {
+    const reason = transientReason(result);
+    const retryStartedAt = performance.now();
+    if (retry.delayMs > 0) await sleep(retry.delayMs);
+    const retryResult = await spawner(wrapped, argsJson, timeoutMs);
+    const retryDurationMs = Math.round(performance.now() - retryStartedAt);
+    const retryOutcome: "ok" | "error" =
+      retryResult.spawnError !== undefined ||
+      retryResult.timedOut ||
+      retryResult.exitCode !== 0 ||
+      retryResult.stdout.trim() === ""
+        ? "error"
+        : "ok";
+    logger.info(
+      {
+        event: "transport.retry",
+        transport: "omnijs",
+        scriptName,
+        reason,
+        outcome: retryOutcome,
+        delayMs: retry.delayMs,
+        durationMs: retryDurationMs,
+      },
+      "transport.retry",
+    );
+    result = retryResult;
+  }
+
   const durationMs = Math.round(performance.now() - startedAt);
   const outcome: "ok" | "error" =
     result.spawnError !== undefined ||

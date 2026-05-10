@@ -31,8 +31,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 // `resolveJsonModule` in tsconfig and tsup's bundler both inline the JSON,
 // so this stays a compile-time constant — no runtime fs read.
 import packageJson from "../../package.json" with { type: "json" };
+import { configureRetryPolicy } from "../adapter/_shared/retryPolicy.js";
 import { wrapWithConcurrency } from "../adapter/concurrent.js";
-import { configureRetryPolicy } from "../adapter/jxa/scriptRunner.js";
 import { ReadPool } from "../concurrency/ReadPool.js";
 import { WriteQueue } from "../concurrency/WriteQueue.js";
 import { parseConfig, redactConfig } from "../config/env.js";

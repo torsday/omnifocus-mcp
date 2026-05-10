@@ -204,3 +204,150 @@ describe("wrapOmniJsForJxa", () => {
     expect(decoded).toBe(`globalThis.__args = {};\n${tricky}`);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Retry-once on transient failures (#890; mirror of #816 for JXA)
+// ---------------------------------------------------------------------------
+
+describe("runOmniJsScript — retry-once on transient failures", () => {
+  /**
+   * Sequenced spawner: returns the first result on call N=1, the second on
+   * N=2, etc. Asserts the right number of attempts via `mock.calls.length`.
+   */
+  function sequenceSpawner(
+    ...results: Partial<SpawnResult>[]
+  ): ScriptSpawner & ReturnType<typeof vi.fn> {
+    const sequence: SpawnResult[] = results.map((r) => ({
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      timedOut: false,
+      ...r,
+    }));
+    let i = 0;
+    return vi.fn(
+      async (_b: string, _a: string, _t: number): Promise<SpawnResult> =>
+        sequence[i++] as SpawnResult,
+    ) as ScriptSpawner & ReturnType<typeof vi.fn>;
+  }
+
+  it("retries a read-only script on timeout and returns the second-attempt result", async () => {
+    const spawner = sequenceSpawner({ timedOut: true }, { stdout: '{"ok":true}' });
+    const out = await runOmniJsScript<{ ok: true }>(
+      "script",
+      {},
+      { spawner, scriptName: "perspective_evaluate", retry: { delayMs: 0 } },
+    );
+    expect(out).toEqual({ ok: true });
+    expect(spawner.mock.calls).toHaveLength(2);
+  });
+
+  it("does NOT retry a write-shaped script even on transient failure", async () => {
+    const spawner = sequenceSpawner({ timedOut: true });
+    await expect(
+      runOmniJsScript(
+        "script",
+        {},
+        {
+          spawner,
+          scriptName: "task_create",
+          retry: { delayMs: 0 },
+        },
+      ),
+    ).rejects.toBeInstanceOf(OmniFocusError);
+    expect(spawner.mock.calls).toHaveLength(1);
+  });
+
+  it("does NOT retry when scriptName is unknown (safe default)", async () => {
+    const spawner = sequenceSpawner({ timedOut: true });
+    await expect(
+      runOmniJsScript("script", {}, { spawner, retry: { delayMs: 0 } }),
+    ).rejects.toBeInstanceOf(OmniFocusError);
+    expect(spawner.mock.calls).toHaveLength(1);
+  });
+
+  it("does NOT retry when retry.enabled is false", async () => {
+    const spawner = sequenceSpawner({ timedOut: true });
+    await expect(
+      runOmniJsScript(
+        "script",
+        {},
+        {
+          spawner,
+          scriptName: "perspective_evaluate",
+          retry: { enabled: false, delayMs: 0 },
+        },
+      ),
+    ).rejects.toBeInstanceOf(OmniFocusError);
+    expect(spawner.mock.calls).toHaveLength(1);
+  });
+
+  it("does NOT retry on non-transient errors (e.g. PermissionDenied via stderr)", async () => {
+    const spawner = sequenceSpawner({
+      exitCode: 1,
+      stderr: "Not authorized to send Apple events",
+    });
+    await expect(
+      runOmniJsScript(
+        "script",
+        {},
+        {
+          spawner,
+          scriptName: "perspective_evaluate",
+          retry: { delayMs: 0 },
+        },
+      ),
+    ).rejects.toBeInstanceOf(PermissionDenied);
+    expect(spawner.mock.calls).toHaveLength(1);
+  });
+
+  it("on second-attempt timeout, throws Timeout (no wrapping)", async () => {
+    const spawner = sequenceSpawner({ timedOut: true }, { timedOut: true });
+    const err = await runOmniJsScript(
+      "script",
+      {},
+      {
+        spawner,
+        scriptName: "perspective_evaluate",
+        retry: { delayMs: 0 },
+      },
+    ).catch((e: unknown) => e);
+    expect((err as Error).constructor.name).toBe("Timeout");
+    expect(spawner.mock.calls).toHaveLength(2);
+  });
+
+  it("does NOT retry on spawn failure (binary missing — not transient)", async () => {
+    const spawnErr = Object.assign(new Error("ENOENT"), {
+      code: "ENOENT",
+    }) as NodeJS.ErrnoException;
+    const spawner = sequenceSpawner({ exitCode: 127, spawnError: spawnErr });
+    await expect(
+      runOmniJsScript(
+        "script",
+        {},
+        {
+          spawner,
+          scriptName: "perspective_evaluate",
+          retry: { delayMs: 0 },
+        },
+      ),
+    ).rejects.toBeInstanceOf(TransportUnavailable);
+    expect(spawner.mock.calls).toHaveLength(1);
+  });
+});
+
+describe("READ_ONLY_OMNIJS_SCRIPTS — coverage pin", () => {
+  it("includes every documented read-shaped OmniJS script name", async () => {
+    const { READ_ONLY_OMNIJS_SCRIPTS } = await import("./scriptRunner.js");
+    // Pin the set so additions are visible in review. New read-shaped
+    // OmniJS scripts need to be added here to benefit from the
+    // retry-once policy.
+    expect([...READ_ONLY_OMNIJS_SCRIPTS].sort()).toEqual([
+      "forecast_get_tag",
+      "perspective_evaluate",
+      "perspective_evaluate_dry_run",
+      "perspective_get",
+      "ping",
+    ]);
+  });
+});
