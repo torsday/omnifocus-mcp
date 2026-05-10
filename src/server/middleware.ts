@@ -116,12 +116,14 @@ export function composeToolCallback(
 
         const sdkResult = toolResponse(enveloped as ToolEnvelope<unknown>);
 
-        // Per-tool response-byte telemetry (#778). Measure the wire size of
-        // `structuredContent` — that's what the LLM actually pays for. The
-        // registry is sample-gated; default deploys pay zero overhead.
-        if (deps.responseStats !== undefined && sdkResult.structuredContent !== undefined) {
+        // Per-tool response-byte telemetry (#778, corrected #793). Measure the
+        // full SDK result on the wire — both `content[].text` and
+        // `structuredContent` ship to the consumer, so the operator-visible
+        // cost is the sum, not just the typed half (see ADR-0022). The registry
+        // is sample-gated; default deploys pay zero overhead.
+        if (deps.responseStats !== undefined) {
           try {
-            const bytes = Buffer.byteLength(JSON.stringify(sdkResult.structuredContent), "utf-8");
+            const bytes = Buffer.byteLength(JSON.stringify(sdkResult), "utf-8");
             deps.responseStats.record(toolName, bytes);
           } catch {
             // Pathological envelopes (cycles, BigInt) shouldn't break the
