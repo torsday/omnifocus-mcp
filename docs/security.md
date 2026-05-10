@@ -21,9 +21,10 @@ omnifocus-mcp speaks **stdio** — there is no network listener, no open port, a
 - `src/attachment/assertAttachmentPath.ts` resolves symlinks via `realpath()` **before** checking the allowlist, defeating symlink-escape attacks.
 - An allowlist of path prefixes (default: `[$HOME]`) restricts all file operations to the user's home directory unless `OMNIFOCUS_ATTACHMENT_PATHS` explicitly extends it.
 - Hard-blocked system prefixes (`/System/`, `/Library/`, `/private/System/`, `/private/Library/`) are always rejected, regardless of the allowlist.
+- Null bytes and ASCII control characters (U+0000–U+001F, U+007F) are rejected at the boundary before any filesystem call. This surfaces a typed `ValidationError` instead of Node's generic `ERR_INVALID_ARG_VALUE` and prevents path bytes from confusing downstream tooling that treats certain control bytes as separators.
 - `assertAttachmentSize` enforces the `maxAttachmentMb` cap before the OmniFocus call.
 
-**Test coverage:** `src/attachment/assertAttachmentPath.test.ts` — includes symlink-escape, hard-blocked prefix, and allowlist boundary cases.
+**Test coverage:** `src/attachment/assertAttachmentPath.test.ts` — includes symlink-escape, hard-blocked prefix, allowlist boundary, and null-byte/control-char rejection cases.
 
 ---
 

@@ -130,6 +130,39 @@ describe("assertAttachmentPath", () => {
     });
   });
 
+  describe("control characters and null bytes", () => {
+    it("rejects a path containing a null byte", async () => {
+      const err = await assertAttachmentPath(`${HOME}/file\x00.pdf`, ALLOWED).catch((e) => e);
+      expect(err).toBeInstanceOf(ValidationError);
+      expect(err.message).toContain("control characters");
+      // realpath must NOT have been called — the rejection happens at the boundary.
+      expect(mockRealpath).not.toHaveBeenCalled();
+    });
+
+    it("rejects a path containing a tab", async () => {
+      const err = await assertAttachmentPath(`${HOME}/file\t.pdf`, ALLOWED).catch((e) => e);
+      expect(err).toBeInstanceOf(ValidationError);
+      expect(err.message).toContain("control characters");
+    });
+
+    it("rejects a path containing a newline", async () => {
+      const err = await assertAttachmentPath(`${HOME}/file\n.pdf`, ALLOWED).catch((e) => e);
+      expect(err).toBeInstanceOf(ValidationError);
+    });
+
+    it("rejects a path containing DEL (U+007F)", async () => {
+      const err = await assertAttachmentPath(`${HOME}/file\x7f.pdf`, ALLOWED).catch((e) => e);
+      expect(err).toBeInstanceOf(ValidationError);
+    });
+
+    it("accepts paths with high-bit / UTF-8 characters (non-ASCII is fine)", async () => {
+      // U+00E9 (é) and U+1F600 (😀) are not control chars; macOS HFS+/APFS
+      // accept Unicode filenames. The guard must not reject these.
+      resolveAs(`${HOME}/résumé😀.pdf`);
+      await expect(assertAttachmentPath(`${HOME}/résumé😀.pdf`, ALLOWED)).resolves.toBeUndefined();
+    });
+  });
+
   describe("error quality", () => {
     it("out-of-scope error mentions OMNIFOCUS_ATTACHMENT_PATHS in suggestion", async () => {
       resolveAs("/etc/hosts");

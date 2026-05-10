@@ -54,6 +54,25 @@ export async function assertAttachmentPath(
   filePath: string,
   allowedPaths: readonly string[],
 ): Promise<void> {
+  // Reject null bytes and ASCII control chars before any filesystem call.
+  // Node's fs treats `\0` as a string terminator and rejects it with a
+  // generic ERR_INVALID_ARG_VALUE; surfacing a typed ValidationError here
+  // gives callers a clearer remediation hint and keeps the rejection at the
+  // boundary. Control chars (U+0000..U+001F, U+007F) have no legitimate use
+  // in a real macOS file path; their presence indicates a bug or an attempt
+  // to confuse downstream tooling that treats certain bytes as separators.
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: that's exactly what we're rejecting
+  if (/[\x00-\x1f\x7f]/.test(filePath)) {
+    throw new ValidationError(
+      `Attachment path contains control characters: ${JSON.stringify(filePath)}`,
+      {
+        suggestion:
+          "Remove null bytes and ASCII control characters from the path; use only printable ASCII or UTF-8.",
+        details: { field: "filePath", value: filePath },
+      },
+    );
+  }
+
   // Resolve symlinks — this is the critical step that defeats traversal.
   let resolved: string;
   try {
