@@ -94,6 +94,37 @@ The `adapter/router.ts` and `src/server/composition.ts` are the only permitted w
 
 ---
 
+### 7. PII redaction in structured logs
+
+**Risk:** OmniFocus task names and notes routinely contain user-sensitive content (passwords, addresses, financial data). If any of that reaches `pino`'s structured-log output — stderr today, an opt-in JSONL disk sink in the future ([#823](https://github.com/torsday/omnifocus-mcp/issues/823)) — it persists outside the user's control.
+
+**Mitigations:**
+
+- `pino`'s `redact.paths` censors PII at every log level (debug, info, warn, error). The `info` / `debug` distinction is purely a *visibility threshold for whether the event emits*, **not** a toggle for whether the field is censored.
+- Redaction paths cover every shape we ship that can carry user content:
+  - **Direct fields:** `name`, `note`, `noteHtml`, `tagNames`, `tagNames[*]`, plus one-level wildcards (`*.name`, `*.note`, etc.) and `data.*` envelope variants.
+  - **Domain arrays:** `tasks[*]`, `projects[*]`, `tags[*]`, `folders[*]`, `attachments[*]` at top-level AND under `data.*`.
+  - **Forecast buckets:** `data.overdue[*]`, `data.dueToday[*]`, `data.deferredToday[*]`, `data.flagged[*]`, `data.inbox[*]`.
+  - **Single-object wrappers:** `data.task.*`, `data.project.*`, `data.tag.*`, `data.folder.*`, `data.attachment.*`.
+  - **Attachment-specific:** `attachments[*].name` AND `attachments[*].path` (filenames can leak intent).
+  - **Error / details surfaces:** `details.input.*`, `err.details.input.*` for `name` / `note` / `noteHtml` / `destPath` — covers user inputs echoed back in validation errors.
+
+**Explicitly NOT redacted** (visible in logs by design):
+- **IDs** (`id`, `projectId`, `tagIds[*]`, `folderId`) — opaque OmniFocus identifiers; useful for correlation, no PII.
+- **Booleans** (`completed`, `flagged`, `dropped`, `available`, `blocked`, `sequential`).
+- **Dates** (`dueDate`, `deferDate`, `completedAt`, `modificationDate`).
+- **Status enums** (`status: "active"`, `nextReviewDate`).
+- **Counts** (`tasks.length`, `cache.hitRate`).
+- **Internal meta** (`correlationId`, `transport`, `durationMs`, `cacheHit`, `syncPending`).
+
+**Test coverage:** `src/logging/logger.test.ts` § "PII redaction canary (#842)" — a synthetic record mirrors every shape we ship with each PII leaf assigned a unique `CANARY_*_PASSWORD_S3CR3T_xyz` sentinel. The test logs the record at info / warn / error / debug levels and fails if any sentinel reaches output. New shapes need an entry in both the canary fixture AND a path in `PII_REDACT_PATHS` — the test surfaces either gap.
+
+**Limitations:**
+- Pino's `redact.paths` (via `fast-redact`) does not support a deep wildcard. Every nested-array shape is enumerated explicitly. New shapes that surface in `data.*` need a corresponding path; the canary test catches additions that miss it.
+- Stringified payloads (e.g. `details.stderr` from a JXA failure that included a task name in its error) are NOT path-redacted. The OF stderr surfaces are best-effort: `stderr` is truncated to 512–1024 bytes in the typed errors, but a user note appearing inside a stderr message would survive that truncation if short enough. Future work: regex-scrub `*.stderr` before logging if cases surface.
+
+---
+
 ## Lint gate
 
 All custom rules are enforced via `scripts/lint-custom.ts`. Run locally:
