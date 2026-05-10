@@ -275,6 +275,132 @@ describe("JXA sandbox — task_list", () => {
     );
     expect(result.tasks[0]?.completed).toBe(false);
   });
+
+  // -------------------------------------------------------------------------
+  // whose() pushdown coverage (#789 / #893)
+  //
+  // The no-filter branch now pushes pushable predicates (`flagged`,
+  // `completed`, `dueBefore`/`After`, `deferredBefore`/`After`) into
+  // OF's runtime via `flattenedTasks.whose({...})()`. The sandbox honors
+  // the same predicate semantics, so a tighter assertion is possible:
+  // tasks excluded by the predicate should never have their `buildTask`
+  // accessors invoked.
+  // -------------------------------------------------------------------------
+
+  it("pushes flagged: true into whose() — unflagged tasks never have buildTask called", () => {
+    let unflaggedNameCalls = 0;
+    let flaggedNameCalls = 0;
+    const unflagged = fakeTask({
+      flagged: () => false,
+      name: () => {
+        unflaggedNameCalls++;
+        return "task_unflagged";
+      },
+    });
+    const flagged = fakeTask({
+      flagged: () => true,
+      name: () => {
+        flaggedNameCalls++;
+        return "task_flagged";
+      },
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { flagged: boolean }[] }>(
+      taskListScript,
+      { flagged: true },
+      { tasks: [unflagged, flagged] },
+    );
+    expect(result.tasks).toHaveLength(1);
+    expect(result.tasks[0]?.flagged).toBe(true);
+    // unflagged was filtered by whose() — buildTask never called name()
+    expect(unflaggedNameCalls).toBe(0);
+    // flagged passed the predicate — name() was called by buildTask
+    expect(flaggedNameCalls).toBeGreaterThanOrEqual(1);
+  });
+
+  it("pushes completed: false into whose() — completed tasks excluded at the source", () => {
+    let completedNameCalls = 0;
+    const done = fakeTask({
+      completed: () => true,
+      name: () => {
+        completedNameCalls++;
+        return "task_done";
+      },
+    });
+    const open = fakeTask({ completed: () => false, name: () => "task_open" });
+    const result = runJxaScriptInSandbox<{ tasks: { name: string }[] }>(
+      taskListScript,
+      { completed: false },
+      { tasks: [done, open] },
+    );
+    expect(result.tasks.map((t) => t.name)).toEqual(["task_open"]);
+    expect(completedNameCalls).toBe(0);
+  });
+
+  it("pushes dueDate < dueBefore into whose() — tasks past the bound stay out", () => {
+    const earlier = fakeTask({
+      dueDate: () => new Date("2026-04-01T00:00:00Z"),
+      name: () => "task_earlier",
+    });
+    const later = fakeTask({
+      dueDate: () => new Date("2026-06-01T00:00:00Z"),
+      name: () => "task_later",
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { name: string }[] }>(
+      taskListScript,
+      { dueBefore: "2026-05-01T00:00:00Z" },
+      { tasks: [earlier, later] },
+    );
+    expect(result.tasks.map((t) => t.name)).toEqual(["task_earlier"]);
+  });
+
+  it("composes multiple predicates: flagged + dueBefore", () => {
+    const a = fakeTask({
+      flagged: () => true,
+      dueDate: () => new Date("2026-04-01T00:00:00Z"),
+      name: () => "task_a",
+    });
+    const b = fakeTask({
+      flagged: () => false,
+      dueDate: () => new Date("2026-04-01T00:00:00Z"),
+      name: () => "task_b",
+    });
+    const c = fakeTask({
+      flagged: () => true,
+      dueDate: () => new Date("2026-06-01T00:00:00Z"),
+      name: () => "task_c",
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { name: string }[] }>(
+      taskListScript,
+      { flagged: true, dueBefore: "2026-05-01T00:00:00Z" },
+      { tasks: [a, b, c] },
+    );
+    expect(result.tasks.map((t) => t.name)).toEqual(["task_a"]);
+  });
+
+  it("falls back to the full scan when no pushable predicate is provided", () => {
+    // No filter at all — no whose() predicate is built; `flattenedTasks()`
+    // is the source. Confirms the no-filter path still returns everything.
+    const t = fakeTask({ name: () => "task_default" });
+    const result = runJxaScriptInSandbox<{ tasks: { name: string }[] }>(
+      taskListScript,
+      {},
+      { tasks: [t] },
+    );
+    expect(result.tasks.map((t) => t.name)).toEqual(["task_default"]);
+  });
+
+  it("source-narrowing branches (projectId/tagId/parentId/inbox) are unchanged — no whose() applied", () => {
+    // `inbox: true` uses inboxTasks() — the whose() pushdown branch is not
+    // taken even when filters are present. The post-loop filters still apply.
+    const inboxA = fakeTask({ flagged: () => true, name: () => "inbox_flagged" });
+    const inboxB = fakeTask({ flagged: () => false, name: () => "inbox_unflagged" });
+    const result = runJxaScriptInSandbox<{ tasks: { name: string }[] }>(
+      taskListScript,
+      { inbox: true, flagged: true },
+      { inboxTasks: [inboxA, inboxB] },
+    );
+    expect(result.tasks.map((t) => t.name)).toEqual(["inbox_flagged"]);
+  });
 });
 
 // ---------------------------------------------------------------------------
