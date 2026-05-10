@@ -132,6 +132,7 @@ These files are marked `linguist-generated` in `.gitattributes` so GitHub collap
 - `README.md` — project overview with architecture at a glance
 - `SPEC.md` — functional scope and resolved decisions
 - `DESIGN.md` — architecture and options evaluated (28 sections covering envelope, IDs, dates, pagination, concurrency, lifecycle, security, testing, CI, observability, config, distribution, versioning, deps, example tool, i18n, resources)
+- `docs/clients/README.md` — index of the 6 client integration guides (Claude Code, Claude Desktop, Codex, OpenCode, Pi, generic stdio); read this for any client-specific routing question
 - `docs/domain-reference.md` — canonical OmniFocus schemas and glossary
 - `docs/project-views.md` — recommended GitHub Project board views
 - `CONTRIBUTING.md` — patterns, conventions, PR template

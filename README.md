@@ -911,6 +911,8 @@ Writes are saved locally and show up immediately in subsequent tool calls. Chang
 
 ## Client setup guides
 
+See [`docs/clients/README.md`](./docs/clients/README.md) for the full index with transport details and notable differences between clients.
+
 | Client | Guide |
 |---|---|
 | Claude Code (CLI) | [`docs/clients/claude-code.md`](./docs/clients/claude-code.md) |
