@@ -31,6 +31,7 @@ Three subtrees ship a directory-scoped `CLAUDE.md` — agents that respect Claud
 - **Mutations invalidate the 30s LRU read cache.** Never bypass the cache layer directly.
 - **Rich notes round-trip.** Task notes expose both `note` (plain) and `noteHtml` (fidelity). Prefer plain on read unless explicitly requested.
 - **Attachments by path, never bytes.** Binary payloads don't belong in MCP text responses.
+- **Doc-size budgets.** `AGENTS.md` ≤ 200 lines, `src/**/CLAUDE.md` ≤ 80 lines each. `pnpm lint:docs` enforces these. Suppress with `<!-- doc-size-lint-disable: reason -->` if genuinely necessary (logged as a warning). See `scripts/lint-doc-sizes.ts` for the full budget table.
 
 ## Commands
 
@@ -40,7 +41,7 @@ pnpm build                # tsup bundle → dist/
 pnpm dev                  # tsx watch mode
 pnpm test                 # vitest (unit only; mocked adapter)
 pnpm test:integration     # requires OMNIFOCUS_INTEGRATION=1 and a live OF
-pnpm lint                 # biome check
+pnpm lint                 # biome check + custom lint + NL quality + doc-size budgets + docs freshness
 pnpm format               # biome format --write
 pnpm typecheck            # tsc --noEmit
 ```
