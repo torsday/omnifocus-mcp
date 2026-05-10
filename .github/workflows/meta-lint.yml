@@ -55,6 +55,7 @@ jobs:
   shellcheck:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Ensure shellcheck is installed
@@ -71,6 +72,7 @@ jobs:
   actionlint:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Ensure actionlint is installed
@@ -91,6 +93,7 @@ jobs:
     # workflow in this repo runs on `[self-hosted, macos]`.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Verify no GitHub-hosted runners are referenced
@@ -105,6 +108,7 @@ jobs:
     # miss four others; this guard removes the regression class.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Verify no tool-count strings in living docs
@@ -116,6 +120,7 @@ jobs:
     # Surfaces as an ::error:: annotation on the doc itself.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
         with:
@@ -145,6 +150,7 @@ jobs:
     # surfaces failures as `::error::` annotations directly on the PR.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v5
@@ -154,3 +160,48 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run lint:nl-quality
+
+  workflow-timeouts:
+    # Regression guard — fails if any workflow job lacks an explicit
+    # `timeout-minutes:`. Without one a hung step holds the runner for
+    # GitHub's 6-hour default; the 2026-05-10 incident hit this exactly
+    # (#912 capped integration.yml at 30m after a hung osascript held the
+    # macOS runner for 70+ minutes). This guard codifies the lesson at the
+    # workflow-author level. See scripts/verify-workflow-timeouts.sh.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Verify every workflow job declares timeout-minutes
+        run: scripts/verify-workflow-timeouts.sh
+
+  pnpm-audit:
+    # Surface dependabot-style advisories on every dep-touching PR — this
+    # is the followup from #918 (pnpm overrides cleared 8 advisories that
+    # had been showing up on every push for weeks). Informational, not
+    # blocking: an unfixable upstream advisory shouldn't gate unrelated
+    # PRs, but the warning surface keeps the security panel honest at PR
+    # time instead of letting noise accumulate at push time.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: pnpm audit (informational — surfaces moderate+ advisories)
+        run: |
+          set +e
+          pnpm audit --audit-level=moderate
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "::warning::pnpm audit found moderate-or-higher advisories — run \`pnpm audit\` locally and consider a pnpm.overrides bump"
+          fi
+          # Always exit 0 — informational only.
+          exit 0

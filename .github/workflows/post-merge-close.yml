@@ -62,6 +62,7 @@ jobs:
     # PAT is provisioned, and the operator opts in by setting the variable.
     if: vars.AUTO_CLOSE_ENABLED == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Check token
         id: token
