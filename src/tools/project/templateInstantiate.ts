@@ -27,6 +27,7 @@ import {
   substituteTemplateParameters,
 } from "../../domain/projectTemplates.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { NotFound, ValidationError } from "../../errors/index.js";
 import { ExportService } from "../../services/exportService.js";
 
 // ---------------------------------------------------------------------------
@@ -74,20 +75,28 @@ export type ProjectTemplateInstantiateToolInput = z.infer<
 // Errors
 // ---------------------------------------------------------------------------
 
-export class TemplateNotFoundError extends Error {
-  readonly code = "TEMPLATE_NOT_FOUND";
+export class TemplateNotFoundError extends NotFound {
   constructor(name: string) {
-    super(`No template named "${name}" was found in the Templates folder.`);
-    this.name = "TemplateNotFoundError";
+    super(`No template named "${name}" was found in the Templates folder.`, {
+      suggestion:
+        "List available templates with project_template_list, then retry with a valid name.",
+      details: { templateName: name },
+    });
   }
 }
 
-export class MissingTemplateParameterError extends Error {
-  readonly code = "MISSING_TEMPLATE_PARAMETER";
+export class MissingTemplateParameterError extends ValidationError {
+  /** Names of the missing parameters (also available in `details.missing`). */
   readonly missing: string[];
   constructor(missing: string[]) {
-    super(`Template requires parameters not supplied: ${missing.map((n) => `"${n}"`).join(", ")}.`);
-    this.name = "MissingTemplateParameterError";
+    super(
+      `Template requires parameters not supplied: ${missing.map((n) => `"${n}"`).join(", ")}.`,
+      {
+        suggestion:
+          "Provide values for all required template parameters listed in `details.missing`.",
+        details: { missing },
+      },
+    );
     this.missing = missing;
   }
 }
