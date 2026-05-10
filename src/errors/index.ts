@@ -391,3 +391,23 @@ export class LoopDetected extends OmniFocusError {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Protocol guard
+// ---------------------------------------------------------------------------
+
+/**
+ * Thrown when a stray byte is detected on stdout — which is the MCP transport
+ * channel and must remain clean. Any write to stdout (from a console.log,
+ * third-party library, etc.) corrupts the JSON-RPC framing.
+ */
+export class StrayStdout extends OmniFocusError {
+  constructor(message: string, options: ErrorOptions = {}) {
+    super("OF_STRAY_STDOUT", message, {
+      remediationClass: "infrastructure",
+      suggestion:
+        "A process wrote to stdout, which corrupts the MCP transport. Check for console.log calls or third-party libraries that write to stdout. All logging must go to stderr.",
+      ...options,
+    });
+  }
+}

@@ -28,6 +28,7 @@ import {
   type ProjectTemplateMeta,
 } from "../../domain/projectTemplates.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { ConflictError } from "../../errors/index.js";
 import { renderTaskPaper } from "../../services/export/taskpaper.js";
 import { fetchProjectTaskTree, partitionTasksByParent } from "../../services/export/tree.js";
 
@@ -66,11 +67,13 @@ export type ProjectTemplateSaveToolInput = z.infer<typeof projectTemplateSaveInp
 // Errors
 // ---------------------------------------------------------------------------
 
-export class TemplateExistsError extends Error {
-  readonly code = "TEMPLATE_EXISTS";
+export class TemplateExistsError extends ConflictError {
   constructor(name: string) {
-    super(`A template named "${name}" already exists in the Templates folder.`);
-    this.name = "TemplateExistsError";
+    super(`A template named "${name}" already exists in the Templates folder.`, {
+      suggestion:
+        "Delete the existing template with project_template_delete first, or choose a different name.",
+      details: { templateName: name },
+    });
   }
 }
 
