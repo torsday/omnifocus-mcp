@@ -42,4 +42,4 @@ Every read tool that uses these helpers must:
 
 - `docs/design/envelope.md` — the deeper "how the system thinks" view (post-[#805](https://github.com/torsday/omnifocus-mcp/issues/805))
 - `docs/token-cost.md` — defaults registry user-facing reference
-- ADR-0013 (response envelope), ADR-0011 (versioning + breaking changes)
+- ADR-0013 (response envelope), ADR-0011 (versioning + breaking changes), ADR-0022 (`content[].text` → placeholder in v2)
