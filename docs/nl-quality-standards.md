@@ -84,7 +84,7 @@ follow-up scores each tool by hand.
 
 ## 2 · Worked examples in tool descriptions
 
-The four-section description shape ([DESIGN.md §6.8][design-68], enforced by
+The four-section description shape ([architecture.md — Tool description standard][design-68], enforced by
 [`descriptionShape.ts`][shape-ts]) is the structural floor. The NL-quality
 extension on top of it is: include 1–2 worked examples in the description
 itself, so the agent's first attempt at composing arguments has a concrete
@@ -119,7 +119,7 @@ exhaustive flag listing.
 constant contains the substring `Example:`". The audit follow-up grades
 existing descriptions and adds examples where missing.
 
-[design-68]: ../DESIGN.md#68-tool-description-standard
+[design-68]: ./design/architecture.md#tool-description-standard
 [shape-ts]: ../src/tools/descriptionShape.ts
 
 ---
@@ -283,7 +283,7 @@ structured `failures` array.
 Apply this to every new tool and every tool you touch. A "no" on any line
 is a blocker, not a nit:
 
-- [ ] Description follows the four-section shape (DESIGN.md §6.8) — `checkDescriptionShape` passes
+- [ ] Description follows the four-section shape ([architecture.md — Tool description standard][design-68]) — `checkDescriptionShape` passes
 - [ ] Description ends with at least one `Example:` line of a representative call
 - [ ] Every Zod input field has `.describe(...)` — one sentence, under ~120 chars
 - [ ] Aliases accepted at the boundary for fields with stable canonical sets, documented in `.describe(...)`
@@ -308,10 +308,10 @@ modes specific to NL-driven tool use.
 
 What's *not* on the list and why:
 
-- **Number of tools** — discussed extensively in [DESIGN.md §6.8.1][design-681];
+- **Number of tools** — discussed extensively in [architecture.md — Tool-count policy][design-681];
   not an NL-quality concern, separately governed.
 - **Streaming / progress reporting** — orthogonal; ADR scope, not lever.
 - **Tool composition / orchestration** — emergent from individual tool
   quality plus the agent's reasoning; the levers above are inputs to that.
 
-[design-681]: ../DESIGN.md#681-tool-count-policy-478
+[design-681]: ./design/architecture.md#tool-count-policy-478

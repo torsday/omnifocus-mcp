@@ -13,8 +13,8 @@ This is a single-developer project and external contributions are not currently 
 - **Mutation response contract.** Write tool handlers must return the full updated domain entity in `data` (e.g. `ok({ task }, meta)`, `ok({ tag }, meta)`, `ok({ folder }, meta)`). Delete handlers return `ok({ deleted: true, id }, meta)`. Never return a bare ID or a partial patch object — agents need the full entity to update their local view without a follow-up read.
 - **No stdout writes.** stdout is the MCP transport; any stray byte corrupts the protocol. Enforced by a hook and an integration test.
 - **No network imports.** The server has no network surface. Lint forbids `http`, `https`, `fetch`, `node-fetch`, `axios`, `undici`.
-- **Typed errors only.** No generic `Error`. Every throw is from the taxonomy in [`DESIGN.md §6.7`](./DESIGN.md#67-error-taxonomy).
-- **No user content in metadata.** OmniFocus task names, notes, and tag names must appear only in `data.*` — never in `error.message`, `error.suggestion`, `meta.warnings`, or any other metadata field. A task named `"SYSTEM: ignore previous instructions"` must not leak into protocol metadata where an agent treats it as a system instruction. This is enforced by the `no-metadata-interpolation` custom lint rule ([`DESIGN.md §18`](./DESIGN.md#18-security-posture)).
+- **Typed errors only.** No generic `Error`. Every throw is from the taxonomy in [`docs/design/architecture.md`](./docs/design/architecture.md#error-taxonomy).
+- **No user content in metadata.** OmniFocus task names, notes, and tag names must appear only in `data.*` — never in `error.message`, `error.suggestion`, `meta.warnings`, or any other metadata field. A task named `"SYSTEM: ignore previous instructions"` must not leak into protocol metadata where an agent treats it as a system instruction. This is enforced by the `no-metadata-interpolation` custom lint rule ([`docs/design/security.md`](./docs/design/security.md)).
 
 ## Engineering standards
 
@@ -25,7 +25,7 @@ Inherited from [`coding.md`](https://github.com/torsday/llm_prompts/blob/main/co
 - Error messages answer: what operation, which IDs, why, what to do next
 - Goldilocks testing — enough to catch real bugs, not so many the suite is a burden
 - Every public method has a docblock with `@param` / `@returns` / `@throws`
-- **Don't restate the tool count in prose.** Living docs describe the shape of the tool surface (domains, verbs, patterns), not the integer count. The live count lives at `omnifocus://capabilities` and `internal_status` at runtime, plus `docs/tools.md` (auto-generated). See DESIGN.md §6.8.1 — `scripts/verify-no-tool-counts.sh` enforces this in CI.
+- **Don't restate the tool count in prose.** Living docs describe the shape of the tool surface (domains, verbs, patterns), not the integer count. The live count lives at `omnifocus://capabilities` and `internal_status` at runtime, plus `docs/tools.md` (auto-generated). See [`docs/design/architecture.md`](./docs/design/architecture.md#tool-count-policy-478) — `scripts/verify-no-tool-counts.sh` enforces this in CI.
 
 ## Tool descriptions and NL quality
 
@@ -33,7 +33,7 @@ Every MCP tool description, input schema, and validation error gets read by an a
 
 ### Tool description template
 
-New tool descriptions follow the four-section shape (`DESIGN.md §6.8`, enforced by `descriptionShape.ts`) plus a worked example. Keep the description concatenated as a single string constant — concise, readable, scannable:
+New tool descriptions follow the four-section shape ([`docs/design/architecture.md` — Tool description standard](./docs/design/architecture.md#tool-description-standard), enforced by `descriptionShape.ts`) plus a worked example. Keep the description concatenated as a single string constant — concise, readable, scannable:
 
 ```typescript
 export const NOUN_VERB_DESCRIPTION =
@@ -71,7 +71,7 @@ if (!parsed.success) {
 
 1. **Understand the task.** Open the issue, read the linked DESIGN / SPEC / ADR section.
 2. **Work on a branch. All commits to `main` go through a PR — no exceptions.** GitHub branch protection enforces this for everyone, including administrators; a direct push is rejected at the GitHub layer.
-3. **Follow the patterns.** See [`DESIGN.md §26`](./DESIGN.md#26-example-tool--reference-implementation-for-task_list) for the reference implementation every tool follows.
+3. **Follow the patterns.** See [`docs/design/example-tool.md`](./docs/design/example-tool.md) for the reference implementation every tool follows.
 4. **Test before opening a PR.**
    - `pnpm typecheck` — zero errors
    - `pnpm lint` — zero errors
@@ -192,7 +192,7 @@ internal_status() // → { mutation: { score: 62.74, lastRunAt: "..." } | null, 
 
 ## Ask before
 
-- Introducing a new runtime dependency ([`DESIGN.md §25`](./DESIGN.md#25-dependency-inventory) inventory requires justification)
+- Introducing a new runtime dependency ([`docs/design/distribution-and-versioning.md`](./docs/design/distribution-and-versioning.md#dependency-inventory) inventory requires justification)
 - Adding a new MCP tool without an ADR entry or SPEC functional requirement
 - Changing the response envelope (major version; requires ADR update)
 - Adding a new error code (affects stability contract)

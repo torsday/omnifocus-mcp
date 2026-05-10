@@ -748,7 +748,7 @@ prototyping.
 
 ### Other docs
 
-- [DESIGN.md §18](../../DESIGN.md#18-security-posture) — trust posture
+- [docs/design/security.md](../design/security.md) — trust posture
   the runtime must preserve
 - [SECURITY.md](../../SECURITY.md) — reporting channel for any security
   concerns about this design
