@@ -220,7 +220,7 @@ export class TaskService {
         const enrichedSubtasks = subtaskList.map((t) => ({ ...t, _links: buildTaskLinks(t) }));
         return { task: enrichedTask, subtasks: enrichedSubtasks };
       }
-      const subtaskIds = subtaskList.map((t) => t.id) as TaskId[];
+      const subtaskIds = subtaskList.map((t) => t.id);
       return { task: enrichedTask, subtaskIds, subtaskCount: subtaskIds.length };
     });
 
