@@ -56,6 +56,6 @@ The MCP client surfaces an error whose `suggestion` field reads:
 
 ## Additional resources
 
-- [README — Quickstart](../README.md#quickstart)
+- [README — Quick start](../README.md#quick-start)
 - [Per-client setup guides](./clients/)
 - [Domain reference](./domain-reference.md)

@@ -129,6 +129,134 @@ These files are large, generated, or both. Reading them directly wastes token bu
 
 These files are marked `linguist-generated` in `.gitattributes` so GitHub collapses them in PR diffs and excludes them from language statistics.
 
+## Calling this MCP from an agent
+
+The conventions below cover the runtime contract for an agent **using** the deployed MCP server (as distinct from the contributor-facing material above). They were previously embedded in `README.md`; the canonical home is here so an agent reads them once.
+
+### IDs, not names
+
+Every OmniFocus resource — tasks, projects, tags, folders — is identified by a **persistent opaque ID** (e.g. `"hKx9vLmNp2"`). Names collide and change; IDs don't. Always resolve names to IDs with the corresponding `*_list` tool before calling any other tool.
+
+### Error codes and what to do next
+
+Every error carries a stable `code`, a human-readable `suggestion`, and a machine-readable `remediationClass`:
+
+| `remediationClass` | Meaning | Your action |
+|--------------------|---------|-------------|
+| `environment` | OmniFocus is not running, permissions denied, or a Pro/version feature is missing | Stop. Surface `suggestion` to the user; do not retry automatically |
+| `input` | Bad ID, invalid field value, schema violation, or loop detected | Fix the input using `details` for specifics; retry |
+| `transient` | Timeout, rate limit, queue full, or circuit open | Wait `details.retryAfterMs` ms, then retry once |
+| `infrastructure` | JXA or OmniJS script failed | Retry once; if still failing, surface to user |
+| `lifecycle` | Server is shutting down | Reconnect to a fresh server instance |
+
+`RateLimited` and `CircuitOpen` always include `details.retryAfterMs` (default `60000` ms). Do not poll faster than that.
+
+### Dates
+
+All date inputs accept either **ISO-8601 with UTC offset** (`"2026-04-22T09:00:00-07:00"`) or a **relative shortcut**:
+
+`today` · `tomorrow` · `yesterday` · `this-week` · `next-week` · `end-of-week` · `end-of-month`
+
+Shortcuts resolve to midnight in the server's local timezone.
+
+### Mutations and sync
+
+Every write tool returns the full updated domain object, not just an acknowledgement. The response `meta.syncPending` is `true` immediately after a write — OmniFocus has saved locally but not yet synced to iCloud. Call `sync_trigger` if cross-device visibility matters; otherwise sync happens automatically within a few minutes.
+
+### Null consistency
+
+All optional scalar fields are **always present** in responses, set to `null` when unset. You can safely destructure without null-checks on field presence.
+
+### Idempotency — safe retries
+
+`project_create`, `project_update`, and `project_delete` accept an optional `idempotency_key?: string`. If you supply one and the call succeeds, replaying the exact same key within 5 minutes returns the cached result with `meta.idempotentReplay: true` and skips the OmniFocus call. Use a deterministic key scoped to your session and intent (e.g. `"session-abc/create-project-finance"`).
+
+### Dry-run — validate before committing
+
+`task_update` and `project_update` accept `dry_run?: boolean`. When `true`, input is fully validated and the would-be result is returned, but nothing is written to OmniFocus. `meta.dryRun: true` is set on the response.
+
+### Additive tag edits — no read-modify-write needed
+
+`task_update` accepts `addTags`, `removeTags`, and `setFlagged` patch fields alongside the existing full-replacement `tagIds` field. Prefer these for incremental edits — they apply a diff atomically inside the write queue with no race against concurrent user edits.
+
+### Conflict detection — optimistic concurrency
+
+`task_update` accepts `expectedModifiedAt`. If the task was modified since your read, the server returns `OF_CONFLICT` (`remediationClass: "input"`). Re-read with `task_get`, merge your changes, and retry with the fresh `modifiedAt`.
+
+### Loop detection — don't get stuck
+
+If you call the same tool with identical arguments 5+ times in a 60-second window, the server appends `WARN_LOOP_DETECTED` to `meta.warnings`. At 10 repetitions it throws `OF_LOOP_DETECTED` (`remediationClass: "input"`). Act on the result of your previous call rather than repeating it.
+
+### Capabilities pre-flight
+
+Read `omnifocus://capabilities` once at session start. It returns OF version, edition (Standard/Pro), transport availability, and feature flags (`customPerspectives`, `forecastTag`, `rawScriptTools`). Use it to skip Pro-gated tools rather than discovering unavailability via error.
+
+### Rate limit state — self-throttle before hitting the wall
+
+Every response includes `meta.rateLimit?: { remaining: number; resetAt: string }`. Check this after each call. If `remaining < 10`, slow down. If `remaining === 0`, do not call before `meta.rateLimit.resetAt`. The default limit is 120 calls/min per tool.
+
+### Structured warnings — act on `meta.warnings[].code`
+
+Non-fatal issues appear in `meta.warnings` as `{ code, message, suggestion?, details? }`. Switch on `code`, not `message`:
+
+| `code` | Means | Action |
+|---|---|---|
+| `WARN_IDS_NOT_FOUND` | Some IDs in a bulk call were not found | Check `details.missing` |
+| `WARN_RESULT_TRUNCATED` | Response hit size limit; more items exist | Follow pagination cursor |
+| `WARN_SYNC_PENDING` | Write saved locally; iCloud sync not yet triggered | Call `sync_trigger` if needed |
+| `WARN_LOOP_DETECTED` | Same tool+args called ≥5 times in 60s | Act on previous result before repeating |
+
+### Incremental sync — `updatedSince`
+
+`task_list` accepts `updatedSince?: string` (ISO-8601 or relative shortcut). Use it to fetch only changed items after your initial load:
+
+```jsonc
+// First call: full load
+{ "available": true, "limit": 200 }
+
+// Subsequent calls: only changes
+{ "available": true, "updatedSince": "2026-04-21T10:00:00-07:00", "limit": 200 }
+```
+
+Note: deleted items cannot be surfaced via `updatedSince` — compare `meta.snapshot` counts if you need to detect deletions.
+
+### Navigation hints — follow `_links`
+
+Every `Task` response includes `_links` with resource URIs for related objects:
+
+```jsonc
+{
+  "id": "hKx9vLmNp2",
+  "_links": {
+    "self": "omnifocus://task/hKx9vLmNp2",
+    "project": "omnifocus://project/pXY3",
+    "tags": ["omnifocus://tag/tABC"]
+  }
+}
+```
+
+Pass the ID fragment to `task_get`, `project_get`, etc. You never need to construct a URI manually.
+
+### Response envelope
+
+All responses have this shape:
+
+```jsonc
+// success
+{ "data": { … }, "meta": { "correlationId": "…", "durationMs": 12, "cacheHit": false, "transport": "jxa", "syncPending": false } }
+
+// error
+{ "error": { "code": "OF_NOT_FOUND", "remediationClass": "input", "message": "…", "suggestion": "…", "details": { … } }, "meta": { … } }
+```
+
+### Where to start
+
+- **Daily work**: `task_list` (inbox or today filter) → `task_create` / `task_update` / `task_complete`
+- **Projects**: `project_list` → `project_create` / `project_update`
+- **Finding things**: `task_search` (keyword + optional tag/project/date filters); `tag_list` for available tags
+- **Bulk ops**: `task_batch_create` / `task_batch_update` / `task_batch_complete` for up to 50 items atomically
+- **Sync**: `sync_trigger` after bulk mutations; `internal_status` to check server health
+
 ## Reference docs
 
 - `README.md` — project overview with architecture at a glance
