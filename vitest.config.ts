@@ -14,6 +14,24 @@ const PERF = process.env.OMNIFOCUS_PERF === "1";
 const TEST_TIMEOUT = PERF ? 120_000 : INTEGRATION ? 30_000 : 5_000;
 const HOOK_TIMEOUT = PERF ? 120_000 : INTEGRATION ? 30_000 : 5_000;
 
+// Auto-detect non-interactive environments (agent shells, CI, pipes) and
+// switch to a compact reporter. Full verbose output is only useful when a
+// human is watching — for agents and CI the summary line per file is enough,
+// and failures always show the full stack trace regardless of reporter.
+//
+// Override with VITEST_REPORTER env var, or use pnpm test:loud / pnpm test:quiet.
+//
+// Reporter selection:
+//   VITEST_REPORTER=verbose  → explicit verbose (override)
+//   VITEST_REPORTER=dot      → explicit dot (override)
+//   no TTY and no env var    → "dot" (compact)
+//   TTY                      → "default" (verbose with watch support)
+function resolveReporter(): string {
+  if (process.env.VITEST_REPORTER) return process.env.VITEST_REPORTER;
+  const isInteractive = process.stdout.isTTY === true && !process.env.CI;
+  return isInteractive ? "default" : "dot";
+}
+
 export default defineConfig({
   // Vite plugin — inlines `src/scripts/**\/*.js` as default string exports,
   // matching the production build (tsup + scriptInlinerPlugin). Without this,
@@ -36,7 +54,7 @@ export default defineConfig({
     exclude: ["node_modules", "dist"],
     environment: "node",
     globals: false,
-    reporters: ["default"],
+    reporters: [resolveReporter()],
     testTimeout: TEST_TIMEOUT,
     hookTimeout: HOOK_TIMEOUT,
     clearMocks: true,
