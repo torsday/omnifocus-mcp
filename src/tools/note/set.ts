@@ -18,6 +18,7 @@ import {
   invalidateTaskMutation,
 } from "../../cache/invalidation.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
+import { NOTE_MAX_CHARS } from "../../domain/inputLimits.js";
 import { summaryNoteSet } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
@@ -47,7 +48,7 @@ export const noteSetInputSchema = z.object({
       "Persistent ID of the task or project. " +
         "Get task IDs from task_list; project IDs from project_list.",
     ),
-  note: z.string().nullable().describe("New note text. Pass null to clear the note entirely."),
+  note: z.string().max(NOTE_MAX_CHARS, "max 1 MB").nullable().describe("New note text. Pass null to clear the note entirely."),
 });
 
 export type NoteSetToolInput = z.infer<typeof noteSetInputSchema>;

@@ -9,6 +9,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import { TagId } from "../../domain/ids.js";
+import { NAME_MAX_CHARS } from "../../domain/inputLimits.js";
 import { summaryTagUpdate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TagService } from "../../services/tagService.js";
@@ -25,7 +26,7 @@ export const TAG_UPDATE_DESCRIPTION =
 
 export const tagUpdateInputSchema = z.object({
   id: TagId.schema.describe("Persistent tag ID. Get from tag_list."),
-  name: z.string().min(1).optional().describe("New tag name. Must be non-empty if supplied."),
+  name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").optional().describe("New tag name. Must be non-empty if supplied."),
   parentId: TagId.schema
     .nullable()
     .optional()

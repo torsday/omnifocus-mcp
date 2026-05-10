@@ -25,6 +25,7 @@ import {
   repeatHintForName,
 } from "../../domain/hints.js";
 import { ProjectId, TagId, TaskId } from "../../domain/ids.js";
+import { NAME_MAX_CHARS, NOTE_MAX_CHARS } from "../../domain/inputLimits.js";
 import { summaryTaskCreate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import { validateRefined } from "../../errors/validateRefined.js";
@@ -60,7 +61,7 @@ export const TASK_CREATE_DESCRIPTION =
  * The SDK needs individual field descriptors; ZodEffects from .refine() lacks .shape.
  */
 export const taskCreateInputBaseSchema = z.object({
-  name: z.string().min(1).describe("Task name. Required, must be non-empty."),
+  name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").describe("Task name. Required, must be non-empty."),
 
   // Target: at most one of projectId or parentTaskId; neither = inbox
   projectId: ProjectId.schema
@@ -71,7 +72,7 @@ export const taskCreateInputBaseSchema = z.object({
     .describe("Parent task ID for a subtask. Omit for inbox or project task."),
 
   // Optional fields
-  note: z.string().optional().describe("Plain-text note."),
+  note: z.string().max(NOTE_MAX_CHARS, "max 1 MB").optional().describe("Plain-text note."),
   flagged: z.boolean().optional().describe("Flag the task."),
   dueDate: z
     .string()

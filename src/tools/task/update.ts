@@ -27,6 +27,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { TagId, TaskId } from "../../domain/ids.js";
+import { NAME_MAX_CHARS } from "../../domain/inputLimits.js";
 import type { Task } from "../../domain/task.js";
 import { ok, type ResponseMeta, type ToolEnvelope, toolResponse } from "../../envelope/index.js";
 import { validateRefined } from "../../errors/validateRefined.js";
@@ -68,7 +69,7 @@ export const taskUpdateInputBaseSchema = z.object({
   id: TaskId.schema.describe("Persistent task ID. Get from task_list or search_query."),
 
   // Scalar editable fields
-  name: z.string().min(1).optional().describe("New task name. Must be non-empty if supplied."),
+  name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").optional().describe("New task name. Must be non-empty if supplied."),
   note: z
     .string()
     .nullable()

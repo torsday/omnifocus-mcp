@@ -14,6 +14,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter, UpdateTaskInput } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { TagId, TaskId } from "../../domain/ids.js";
+import { NAME_MAX_CHARS, NOTE_MAX_CHARS } from "../../domain/inputLimits.js";
 import { summaryBatchUpdate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 
@@ -34,8 +35,8 @@ export const TASK_BATCH_UPDATE_DESCRIPTION =
 
 const patchSchema = z
   .object({
-    name: z.string().min(1).optional().describe("New task name."),
-    note: z.string().nullable().optional().describe("Plain-text note. Null clears the note."),
+    name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").optional().describe("New task name."),
+    note: z.string().max(NOTE_MAX_CHARS, "max 1 MB").nullable().optional().describe("Plain-text note. Null clears the note."),
     flagged: z.boolean().optional().describe("Flag or unflag the task."),
     dueDate: z
       .string()

@@ -8,6 +8,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { FolderId } from "../../domain/ids.js";
+import { NAME_MAX_CHARS } from "../../domain/inputLimits.js";
 import { summaryFolderUpdate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { FolderService } from "../../services/folderService.js";
@@ -22,7 +23,7 @@ export const FOLDER_UPDATE_DESCRIPTION =
 
 export const folderUpdateInputSchema = z.object({
   id: FolderId.schema.describe("Persistent folder ID. Get from folder_list."),
-  name: z.string().min(1).optional().describe("New folder name. Must be non-empty if supplied."),
+  name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").optional().describe("New folder name. Must be non-empty if supplied."),
 });
 
 export type FolderUpdateToolInput = z.infer<typeof folderUpdateInputSchema>;

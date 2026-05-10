@@ -35,6 +35,7 @@ import { z } from "zod";
 import type { CreateTaskInput, OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/invalidation.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
+import { NAME_MAX_CHARS, NOTE_MAX_CHARS } from "../../domain/inputLimits.js";
 import { extractTasksFromProse } from "../../domain/proseExtractor.js";
 import { summaryBatchCreate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
@@ -63,8 +64,8 @@ export const TASK_EXTRACT_FROM_NOTE_DESCRIPTION =
 // ---------------------------------------------------------------------------
 
 const proposedTaskSchema = z.object({
-  name: z.string().min(1).describe("Task name."),
-  note: z.string().optional().describe("Optional note body for the created task."),
+  name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").describe("Task name."),
+  note: z.string().max(NOTE_MAX_CHARS, "max 1 MB").optional().describe("Optional note body for the created task."),
   deferDate: z.string().datetime({ offset: true }).optional(),
   dueDate: z.string().datetime({ offset: true }).optional(),
   tags: z

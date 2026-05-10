@@ -20,6 +20,7 @@ import { z } from "zod";
 
 import type { OmniFocusAdapter, TaskFilter } from "../../adapter/OmniFocusAdapter.js";
 import { ProjectId, TagId } from "../../domain/ids.js";
+import { NAME_MAX_CHARS } from "../../domain/inputLimits.js";
 import type { Task } from "../../domain/task.js";
 import { score } from "../../domain/textSimilarity.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
@@ -67,7 +68,7 @@ const scopeSchema = z
   });
 
 export const taskFindSimilarInputSchema = z.object({
-  name: z.string().min(1).describe("The candidate task name to compare against existing tasks."),
+  name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").describe("The candidate task name to compare against existing tasks."),
   note: z
     .string()
     .optional()

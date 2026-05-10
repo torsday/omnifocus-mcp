@@ -9,6 +9,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import { TagId } from "../../domain/ids.js";
+import { NAME_MAX_CHARS } from "../../domain/inputLimits.js";
 import { summaryTagCreate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { TagService } from "../../services/tagService.js";
@@ -23,7 +24,7 @@ export const TAG_CREATE_DESCRIPTION =
   'Example: tag_create({ name: "home", parentId: "tag123" })';
 
 export const tagCreateInputSchema = z.object({
-  name: z.string().min(1).describe("Tag name. Must be non-empty."),
+  name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").describe("Tag name. Must be non-empty."),
   parentId: TagId.schema
     .optional()
     .describe("Parent tag ID to nest under. Omit for a root tag. Get from tag_list."),

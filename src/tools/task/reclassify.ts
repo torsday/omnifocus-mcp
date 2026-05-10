@@ -27,6 +27,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import type { InvalidatingCache } from "../../cache/invalidation.js";
 import { ProjectId, TagId, TaskId } from "../../domain/ids.js";
+import { SUBSTRING_MAX_CHARS } from "../../domain/inputLimits.js";
 import type { Task } from "../../domain/task.js";
 import { evaluatePredicate, type TaskPredicate } from "../../domain/taskPredicate.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
@@ -68,7 +69,7 @@ const predicateSchema: z.ZodType<TaskPredicate> = z.lazy(() =>
   z.discriminatedUnion("kind", [
     z.object({
       kind: z.literal("title-contains"),
-      value: z.string().describe("Substring to search for in task names."),
+      value: z.string().max(SUBSTRING_MAX_CHARS, "max 4 KB").describe("Substring to search for in task names."),
       caseSensitive: z
         .boolean()
         .optional()

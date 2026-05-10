@@ -23,6 +23,7 @@ import { type InvalidatingCache, invalidateProjectMutation } from "../../cache/i
 import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import type { ProjectId as ProjectIdType } from "../../domain/ids.js";
 import { ProjectId, TagId } from "../../domain/ids.js";
+import { NAME_MAX_CHARS, NOTE_MAX_CHARS } from "../../domain/inputLimits.js";
 import { summaryProjectUpdate } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, type ToolEnvelope, toolResponse } from "../../envelope/index.js";
 import { assertNotModifiedSince } from "../../server/assertNotModifiedSince.js";
@@ -57,8 +58,8 @@ export const PROJECT_UPDATE_DESCRIPTION =
 
 export const projectUpdateInputSchema = z.object({
   id: ProjectId.schema.describe("Persistent project ID. Get from project_list or project_get."),
-  name: z.string().min(1).optional().describe("New project name. Must be non-empty if supplied."),
-  note: z.string().nullable().optional().describe("Plain-text note. Pass null to clear."),
+  name: z.string().min(1).max(NAME_MAX_CHARS, "max 1 KB").optional().describe("New project name. Must be non-empty if supplied."),
+  note: z.string().max(NOTE_MAX_CHARS, "max 1 MB").nullable().optional().describe("Plain-text note. Pass null to clear."),
   noteHtml: z
     .string()
     .nullable()
