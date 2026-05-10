@@ -122,9 +122,12 @@ function run(argv) {
       if (dueAfter !== null && due <= dueAfter) continue;
     }
 
-    // Tag filter — task must carry ALL listed tags
+    // Tag filter — task must carry ALL listed tags.
+    // Build a Set<string> once per task for O(1) membership checks instead of
+    // O(filterTags × taskTags) nested scan (#803).
     if (args.tagIds && args.tagIds.length > 0) {
-      const allPresent = args.tagIds.every((tid) => built.tagIds.includes(tid));
+      const taskTagSet = new Set(built.tagIds);
+      const allPresent = args.tagIds.every((tid) => taskTagSet.has(tid));
       if (!allPresent) continue;
     }
 
