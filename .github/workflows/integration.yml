@@ -57,6 +57,12 @@ jobs:
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macos-omnifocus]
+    # Cap the heavy job so a wedged osascript / hung integration test surfaces
+    # as a clean failure instead of holding the single self-hosted runner for
+    # the GitHub default of 6h and starving every other PR's required checks.
+    # CI workflow has the same kind of cap (15m); this matches at 30m to give
+    # the suite + seeding headroom over its typical 8–12m wall time.
+    timeout-minutes: 30
 
     strategy:
       # Run all matrix entries even if one fails (collect full picture).
