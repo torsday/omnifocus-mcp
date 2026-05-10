@@ -105,6 +105,32 @@ jobs:
       - name: Verify no tool-count strings in living docs
         run: scripts/verify-no-tool-counts.sh
 
+  migrations-doc:
+    # Regression guard — any PR labelled `breaking-change` must update
+    # docs/migrations.md with what changed, why, and how to migrate.
+    # Surfaces as an ::error:: annotation on the doc itself.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Collect PR labels and changed files
+        id: ctx
+        run: |
+          labels=$(gh pr view "${{ github.event.pull_request.number }}" \
+            --json labels --jq '[.labels[].name] | join(",")' 2>/dev/null || echo "")
+          changed=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | tr '\n' ' ')
+          echo "labels=$labels" >> "$GITHUB_OUTPUT"
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Verify migrations.md updated for breaking-change PRs
+        run: scripts/verify-migrations-doc.sh
+        env:
+          PR_LABELS: ${{ steps.ctx.outputs.labels }}
+          CHANGED_FILES: ${{ steps.ctx.outputs.changed }}
+
   nl-quality:
     # NL-quality lint per `docs/nl-quality-standards.md` — every tool
     # description includes a worked Example, every Zod input schema field
