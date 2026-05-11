@@ -205,3 +205,37 @@ jobs:
           fi
           # Always exit 0 — informational only.
           exit 0
+
+  release-notes-polish:
+    # Fail release-please PRs whose newly-added CHANGELOG section is still
+    # in raw bot-output shape (no Summary paragraph, single-line bot
+    # bullets). Codifies the lesson from 2026-05-10: three releases
+    # (v1.4.0, v1.5.0, v1.5.1) shipped with raw bot output because the
+    # /release-notes polish step in .claude/commands/release.md was
+    # skipped during auto-merge. See #927 / #925.
+    #
+    # Only runs on release-please PRs (head ref matches release-please--*);
+    # no-ops for everything else. Escape hatch: add the
+    # `release-notes-polish-ack` label to permit a bot-output release for
+    # the rare case where polishing makes no sense (e.g., a one-line
+    # patch).
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'release-please--')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Collect PR labels
+        id: ctx
+        run: |
+          labels=$(gh pr view "${{ github.event.pull_request.number }}" \
+            --json labels --jq '[.labels[].name] | join(",")' 2>/dev/null || echo "")
+          echo "labels=$labels" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Verify CHANGELOG section is polished
+        run: scripts/verify-release-notes-polish.sh
+        env:
+          PR_LABELS: ${{ steps.ctx.outputs.labels }}
