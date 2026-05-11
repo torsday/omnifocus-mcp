@@ -5,6 +5,13 @@ All notable changes to `@torsday/omnifocus-mcp` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [ADR-0011](./docs/adr/0011-versioning-and-stability.md) for the explicit definition of breaking vs additive changes in this project.
 
 
+## [1.5.3](https://github.com/torsday/omnifocus-mcp/compare/v1.5.2...v1.5.3) (2026-05-11)
+
+
+### Fixed
+
+* **ci:** soft-fail integration-gate in release.yml until [#932](https://github.com/torsday/omnifocus-mcp/issues/932) lands ([#933](https://github.com/torsday/omnifocus-mcp/issues/933)) ([9aa571e](https://github.com/torsday/omnifocus-mcp/commit/9aa571ea0c0fdf6a14651fe792751abc3a636509))
+
 ## [1.5.2](https://github.com/torsday/omnifocus-mcp/compare/v1.5.1...v1.5.2) (2026-05-11)
 
 **Summary** — Second release-pipeline recovery; ships the **same user-facing payload as v1.5.1 / v1.5.0 / v1.4.0** (none of which actually published to npm or Homebrew) plus three CI-side fixes that close the gaps which kept those earlier tags from landing. If you've been pinned to `v1.3.0` because the npm registry never moved off it across today's release cascade, **this is the version to upgrade to** — `npm install @torsday/omnifocus-mcp@latest` or `brew upgrade torsday/tap/omnifocus-mcp` will pull `1.5.2` directly. Functionally identical to v1.5.1 from a behavior standpoint; the three new entries below are infrastructure-side guards that make the next release land cleanly. Treat the `[1.4.0]` and `[1.5.0]` sections below as the changelog for what's *in* v1.5.2 from a runtime perspective.
