@@ -5,6 +5,18 @@ All notable changes to `@torsday/omnifocus-mcp` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [ADR-0011](./docs/adr/0011-versioning-and-stability.md) for the explicit definition of breaking vs additive changes in this project.
 
 
+## [1.5.2](https://github.com/torsday/omnifocus-mcp/compare/v1.5.1...v1.5.2) (2026-05-11)
+
+
+### Fixed
+
+* **scripts:** pass --clean to seed-integration-db.js in integration.yml; fix docstring ([#930](https://github.com/torsday/omnifocus-mcp/issues/930)) ([72fc823](https://github.com/torsday/omnifocus-mcp/commit/72fc82329ee4a4362763644fdf96899c19f7d7a4)), closes [#929](https://github.com/torsday/omnifocus-mcp/issues/929)
+
+
+### Documentation
+
+* **changelog:** retroactive polish for v1.4.0, v1.5.0, v1.5.1 ([#924](https://github.com/torsday/omnifocus-mcp/issues/924)) ([90d05f2](https://github.com/torsday/omnifocus-mcp/commit/90d05f21fb3f22bef1188d1f54bc2b5c80b97238))
+
 ## [1.5.1](https://github.com/torsday/omnifocus-mcp/compare/v1.5.0...v1.5.1) (2026-05-10)
 
 **Summary** — Release-pipeline recovery. v1.4.0 and v1.5.0 were both tagged on 2026-05-10 but neither published to npm or Homebrew: v1.4.0 was blocked by an unrelated integration-test flake at the release-gate check, and v1.5.0 was cancelled mid-Stryker by an overly tight job-level timeout that had landed in the same wave of CI hardening. v1.5.1 corrects that — it ships the **same payload v1.5.0 was meant to ship** (the perf + observability + CI work bundled in `[1.5.0]` below), with one additional fix to the release workflow so the next cut lands cleanly. If you've been pinned to `v1.3.0` because the npm registry never moved off `1.3.0` today, **this is the version to upgrade to** — `npm install @torsday/omnifocus-mcp@latest` or `brew upgrade torsday/tap/omnifocus-mcp` will pull `1.5.1` directly. No content changes vs `v1.5.0`; user-facing behavior is identical.
