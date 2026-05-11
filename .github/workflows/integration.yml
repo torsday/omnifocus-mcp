@@ -113,15 +113,19 @@ jobs:
 
       - name: Seed integration fixtures
         # The integration suite operates on `mcp-fixture:`-prefixed
-        # folders, projects, tasks, and tags. The seed script is
-        # idempotent — it removes any existing fixtures with that prefix
-        # before re-creating the canonical set, so re-running it across
-        # runs (or partial runs, after a previous failure) leaves the
-        # database in the same known-good state every time. Without
-        # this step the integration suite hits ~23 failures of the form
-        # `expected '<id>' to be null` and `Hook timed out in 30000ms`
-        # — symptoms of tests asserting against missing or stale fixtures.
-        run: node scripts/seed-integration-db.js
+        # folders, projects, tasks, and tags. `--clean` first wipes any
+        # leftover fixtures from prior cancelled / partial runs, then
+        # re-creates the canonical set — so the test suite starts from a
+        # known state every run. Without `--clean`, `mcp-fixture:` orphans
+        # accumulate across cancelled runs (today's 2026-05-10 release-
+        # pipeline incident hit 25 stale fixture tags before someone
+        # noticed), and tests that assert "this is the only fixture
+        # with name X" start failing intermittently. See #929 for the
+        # mode-comments / docstring fix in the seed script itself, and
+        # #928 for the matching runner-side job-started hook (defense
+        # in depth — works even if a new runner doesn't have this flag
+        # plumbed through).
+        run: node scripts/seed-integration-db.js --clean
 
       - name: Run integration tests
         env:

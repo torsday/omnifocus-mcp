@@ -1,18 +1,23 @@
 #!/usr/bin/env node
 // Seed the integration-test fixtures into a live OmniFocus database.
 //
-// **Idempotent.** Every call removes any existing entities with the
-// `mcp-fixture:` prefix before re-creating the canonical set, so it is
-// safe to re-run across CI invocations and after partial / failed runs
-// without accumulating stale state. `integration.yml` invokes it before
-// every test run for this reason.
+// Modes:
+//   default      — skip-if-exists. Creates only the canonical fixtures that
+//                  aren't already present. Does NOT remove orphan
+//                  `mcp-fixture:` items from prior runs.
+//   `--clean`    — remove ALL `mcp-fixture:`-prefixed items (tags, folders,
+//                  projects, tasks) before re-creating the canonical set.
+//                  Use this when prior cancelled / partial runs may have left
+//                  orphans that would collide with current-run expectations.
+//                  `integration.yml` passes `--clean` so CI starts from a
+//                  known state every run (#929).
 //
-// Production OmniFocus data is untouched: only `mcp-fixture:`-prefixed
-// objects are touched. Pass `--clean` to delete fixtures without
-// re-creating them (used by interactive cleanup).
+// Production OmniFocus data is untouched in both modes: only
+// `mcp-fixture:`-prefixed objects are touched.
 //
 // Run locally with:
-//   node scripts/seed-integration-db.js
+//   node scripts/seed-integration-db.js          # additive seed
+//   node scripts/seed-integration-db.js --clean  # wipe and re-seed
 // Then run the integration suite:
 //   OMNIFOCUS_INTEGRATION=1 pnpm test:integration
 
@@ -33,7 +38,13 @@ const cleanFirst = args.includes("--clean");
 function jxa(script) {
   const result = spawnSync("osascript", ["-l", "JavaScript", "-e", script], {
     encoding: "utf8",
-    timeout: 30_000,
+    // 60s — the per-item .delete() loop in the clean pass can run 25+ tags on
+    // a polluted runner, and OmniFocus's per-Tag deletion triggers a
+    // synchronous index update that costs ~1s each. 30s was tight enough to
+    // time out today (2026-05-10) with 25 stale fixture tags; doubled to 60s.
+    // Long-term, batching the cleanup via `whose({}).delete()` instead of the
+    // per-item loop would let us drop this back — tracked in #929 followup.
+    timeout: 60_000,
   });
 
   if (result.error) {
