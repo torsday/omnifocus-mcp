@@ -58,6 +58,7 @@ expected=(
   "F_PRIORITY=Priority"
   "F_SIZE=Size"
   "F_RISK=Risk"
+  "F_MODEL_QUEUE=Model Queue"
   "STATUS_BACKLOG=Status::Backlog"
   "STATUS_UP_NEXT=Status::Up Next"
   "STATUS_IN_PROGRESS=Status::In Progress"
@@ -82,6 +83,14 @@ expected=(
   "O_RISK_HIGH=Risk::High"
   "O_RISK_MED=Risk::Medium"
   "O_RISK_LOW=Risk::Low"
+  "O_MQ_SONNET_LOW=Model Queue::sonnet-low"
+  "O_MQ_OPUS_MED=Model Queue::opus-med"
+  "O_MQ_OPUS_HIGH=Model Queue::opus-high"
+  "O_MQ_OPUS_1M_MAX=Model Queue::opus-1m-max"
+  "O_MQ_IN_PROGRESS=Model Queue::In Progress"
+  "O_MQ_IN_REVIEW=Model Queue::In Review"
+  "O_MQ_ON_HOLD=Model Queue::On Hold"
+  "O_MQ_DONE=Model Queue::Done"
 )
 
 # Resolve a "<field>" or "<field>::<option>" selector against the live payload.

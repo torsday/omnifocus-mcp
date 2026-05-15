@@ -4,9 +4,10 @@
 # =============================================================================
 # One command, hard to get wrong. Creates the GitHub issue with the full label
 # set + milestone, adds it to project #4, sets the Status field, populates
-# Phase/Priority/Size/Risk from the labels, and verifies all wiring before
-# returning. Exits nonzero on any missing step so the caller can't proceed
-# under the illusion that the issue is fully tracked.
+# Phase/Priority/Size/Risk + Model Queue (tier column on view #3, derived from
+# --model) from the labels, and verifies all wiring before returning. Exits
+# nonzero on any missing step so the caller can't proceed under the illusion
+# that the issue is fully tracked.
 #
 # Required flags:
 #   --title       "<issue title>"                 — verb-first imperative
@@ -240,11 +241,18 @@ case "$SIZE" in
   L)  SIZE_OPT="$O_SIZE_L" ;;
   XL) SIZE_OPT="$O_SIZE_XL" ;;
 esac
+case "$MODEL" in
+  sonnet-low)  MQ_OPT="$O_MQ_SONNET_LOW" ;;
+  opus-med)    MQ_OPT="$O_MQ_OPUS_MED" ;;
+  opus-high)   MQ_OPT="$O_MQ_OPUS_HIGH" ;;
+  opus-1m-max) MQ_OPT="$O_MQ_OPUS_1M_MAX" ;;
+esac
 
-echo "==> Setting Phase=$PHASE, Priority=$PRIORITY, Size=$SIZE" >&2
-set_field "$F_PHASE"    "$PHASE_OPT" "Phase"
-set_field "$F_PRIORITY" "$PRI_OPT"   "Priority"
-set_field "$F_SIZE"     "$SIZE_OPT"  "Size"
+echo "==> Setting Phase=$PHASE, Priority=$PRIORITY, Size=$SIZE, Model Queue=$MODEL" >&2
+set_field "$F_PHASE"       "$PHASE_OPT" "Phase"
+set_field "$F_PRIORITY"    "$PRI_OPT"   "Priority"
+set_field "$F_SIZE"        "$SIZE_OPT"  "Size"
+set_field "$F_MODEL_QUEUE" "$MQ_OPT"    "Model Queue"
 
 if [ -n "$RISK" ]; then
   case "$RISK" in
@@ -269,7 +277,7 @@ if [ "$MODEL_LABEL_COUNT" != "1" ]; then
   exit 6
 fi
 
-# 2) Item is on project with Status, Phase, Priority, Size populated
+# 2) Item is on project with Status, Phase, Priority, Size, Model Queue populated
 VERIFY_JSON="$(gh api graphql -f query='
   query($id: ID!) {
     node(id: $id) {
@@ -288,7 +296,7 @@ VERIFY_JSON="$(gh api graphql -f query='
   }' -f id="$ITEM_ID")"
 
 missing=()
-for field in Status Phase Priority Size; do
+for field in Status Phase Priority Size "Model Queue"; do
   value="$(echo "$VERIFY_JSON" | jq -r --arg f "$field" \
     '[.data.node.fieldValues.nodes[] | select(.field.name == $f)][0].name // empty')"
   if [ -z "$value" ]; then
@@ -303,7 +311,7 @@ fi
 
 echo "    ✓ model: label (exactly 1)" >&2
 echo "    ✓ on project #$PROJECT_NUM" >&2
-echo "    ✓ Status, Phase, Priority, Size all populated" >&2
+echo "    ✓ Status, Phase, Priority, Size, Model Queue all populated" >&2
 echo "" >&2
 echo "Filed #$ISSUE_NUM → $ISSUE_URL" >&2
 
