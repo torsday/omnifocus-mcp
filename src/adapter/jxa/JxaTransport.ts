@@ -269,6 +269,7 @@ export class JxaTransport implements OmniFocusAdapter {
         ...(patch.completedByChildren !== undefined
           ? { completedByChildren: patch.completedByChildren }
           : {}),
+        ...(patch.repetition !== undefined ? { repetition: patch.repetition } : {}),
       },
       { ...this.runOpts, scriptName: "task_update" },
     );

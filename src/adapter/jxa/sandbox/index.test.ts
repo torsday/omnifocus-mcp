@@ -2178,6 +2178,47 @@ describe("JXA sandbox — task_update", () => {
     expect(result.task.id).toBe("task_target");
   });
 
+  it("delegates repetition rule to OmniJS via evaluateJavascript (#938)", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    const result = runJxaScriptInSandbox<{ task: { id: string } }>(
+      taskUpdateScript,
+      {
+        id: "task_target",
+        repetition: { method: "start-again", unit: "days", steps: 1 },
+      },
+      { tasks: [target] },
+    );
+    expect(result.task.id).toBe("task_target");
+  });
+
+  it("accepts a null repetition (clear) without throwing (#938)", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    const result = runJxaScriptInSandbox<{ task: { id: string } }>(
+      taskUpdateScript,
+      { id: "task_target", repetition: null },
+      { tasks: [target] },
+    );
+    expect(result.task.id).toBe("task_target");
+  });
+
+  it("accepts a weekly repetition with weekdays (#938)", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    const result = runJxaScriptInSandbox<{ task: { id: string } }>(
+      taskUpdateScript,
+      {
+        id: "task_target",
+        repetition: {
+          method: "fixed",
+          unit: "weeks",
+          steps: 2,
+          weekdays: ["monday", "wednesday", "friday"],
+        },
+      },
+      { tasks: [target] },
+    );
+    expect(result.task.id).toBe("task_target");
+  });
+
   it("throws when the id does not exist", () => {
     expect(() =>
       runJxaScriptInSandbox(
