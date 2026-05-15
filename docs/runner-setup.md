@@ -75,6 +75,36 @@ runs-on: [self-hosted, macos-omnifocus]
 
 ---
 
+## 5. JXA bridge contention with concurrent MCP clients
+
+The OmniFocus JXA bridge is **single-threaded**: one `osascript -l JavaScript` invocation in flight at a time, queued by macOS. On a runner host that is also the maintainer's daily-driver laptop, every active Claude client (Desktop, Code, etc.) spawns its own `@torsday/omnifocus-mcp` server, and each of those servers periodically polls `changes_since` and other read operations. With 5+ Claude clients open, 30+ osascript processes can be queued on the bridge at any moment.
+
+Integration tests assume exclusive bridge access. When the runner picks up an integration job while the maintainer's clients are active, the 60-second `osascript` timeout in `scripts/seed-integration-db.js` fires before the seed query even starts executing. The release-pipeline failure of v1.5.2 (2026-05-10 → 11) is the canonical incident — see [`docs/adr/0023-runner-host-bridge-contention.md`](./adr/0023-runner-host-bridge-contention.md) for the full trace and the architectural options weighed.
+
+### Operational guidance — release procedure
+
+Until either a dedicated CI runner exists ([ADR-0023](./adr/0023-runner-host-bridge-contention.md) Option C) or a cooperative quiesce flag ships ([ADR-0023](./adr/0023-runner-host-bridge-contention.md) Option B):
+
+- **Open release-please PRs any time** — the polish-and-merge step doesn't need OmniFocus.
+- **Merge release-please PRs only when the bridge is quiet.** Two equivalent options:
+  1. **Off-hours window** — early morning or late night, when no interactive Claude session is active.
+  2. **Explicit quiesce** — quit every active Claude client (Desktop, Code, browser extensions) before merging. Confirm with:
+     ```bash
+     pgrep -af "osascript -l JavaScript" | grep -v "actions-runner" | wc -l
+     # expected: 0–2 (the runner's own scripts and incidental ambient processes)
+     ```
+- **If a release pipeline fails on `Seed integration fixtures` with `ETIMEDOUT`,** the contention pattern is the most likely cause. Don't retry blindly — check the bridge first:
+  ```bash
+  pgrep -af "osascript -l JavaScript" | wc -l
+  ```
+  Any double-digit count means the bridge is saturated. Quit Claude clients, wait 60s for the queue to drain, then re-run.
+
+### Why this isn't fixed in the runner config
+
+The maintainer's interactive MCP servers are spawned by their actual Claude clients — they're not orphans the runner can clean up. SIGKILL on them would break the user's working session. The architectural alternatives (dedicated CI machine; cooperative quiesce protocol) are recorded in [ADR-0023](./adr/0023-runner-host-bridge-contention.md); both are explicitly deferred for a single-developer project where temporal isolation is sufficient.
+
+---
+
 ## Appendix: LaunchAgent alternative (dedicated runner)
 
 If the runner moves to a headless dedicated machine, use a LaunchAgent instead of Login Items:
