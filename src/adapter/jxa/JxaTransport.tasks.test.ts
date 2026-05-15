@@ -216,6 +216,28 @@ describe("JxaTransport — updateTask", () => {
     expect(arg.flagged).toBe(true);
     expect(arg.name).toBeUndefined();
   });
+
+  it("forwards a repetition rule to the script (#938)", async () => {
+    const spawner = spawnerReturning({ task: BASE_TASK });
+    const t = new JxaTransport({ spawner });
+    await t.updateTask("task_aaa" as TaskId, {
+      repetition: { method: "start-again", unit: "days", steps: 1 },
+    });
+    const arg = JSON.parse(
+      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string])[1],
+    ) as { id: string; repetition: { method: string; unit: string; steps: number } };
+    expect(arg.repetition).toEqual({ method: "start-again", unit: "days", steps: 1 });
+  });
+
+  it("forwards a null repetition (clear) to the script (#938)", async () => {
+    const spawner = spawnerReturning({ task: BASE_TASK });
+    const t = new JxaTransport({ spawner });
+    await t.updateTask("task_aaa" as TaskId, { repetition: null });
+    const arg = JSON.parse(
+      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string])[1],
+    ) as { id: string; repetition: unknown };
+    expect(arg.repetition).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------

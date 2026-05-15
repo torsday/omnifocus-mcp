@@ -6,7 +6,8 @@
  *   name?: string, note?: string|null, flagged?: boolean,
  *   deferDate?: string|null, dueDate?: string|null,
  *   estimatedMinutes?: number|null, tagIds?: string[],
- *   sequential?: boolean, completedByChildren?: boolean
+ *   sequential?: boolean, completedByChildren?: boolean,
+ *   repetition?: RepetitionRule|null
  * }
  * Returns JSON: { task: Task }
  *
@@ -54,6 +55,87 @@ function run(argv) {
     } catch (_e) {
       /* OF 4.x: property access may not exist on all object types — default used */
     }
+  }
+
+  if (Object.hasOwn(args, "repetition")) {
+    // OmniFocus 4.x: JXA assignment to `task.repetitionRule` silently fails (#938) —
+    // the property accepts the write without error but the rule never persists.
+    // OmniJS's `Task.RepetitionRule` constructor and `task.repetitionRule =` setter
+    // are reliable, so delegate via evaluateJavascript. The rule string is RFC 5545
+    // RRULE: FREQ + INTERVAL plus optional BYDAY (weekly) and BYMONTHDAY / BYDAY
+    // with position (monthly anchor). A null rule clears the repetition.
+    const rule = args.repetition;
+    let omniJsScript;
+    if (rule === null) {
+      omniJsScript =
+        "(() => {" +
+        "  const t = Task.byIdentifier(" +
+        JSON.stringify(args.id) +
+        ");" +
+        "  if (!t) return;" +
+        "  t.repetitionRule = null;" +
+        "})()";
+    } else {
+      const FREQ_BY_UNIT = {
+        minutes: "MINUTELY",
+        hours: "HOURLY",
+        days: "DAILY",
+        weeks: "WEEKLY",
+        months: "MONTHLY",
+        years: "YEARLY",
+      };
+      const ICAL_DAYS = {
+        sunday: "SU",
+        monday: "MO",
+        tuesday: "TU",
+        wednesday: "WE",
+        thursday: "TH",
+        friday: "FR",
+        saturday: "SA",
+      };
+      const METHOD_BY_NAME = {
+        fixed: "Fixed",
+        "start-again": "Start",
+        "due-again": "DueDate",
+      };
+      const freq = FREQ_BY_UNIT[rule.unit];
+      const methodEnum = METHOD_BY_NAME[rule.method];
+      if (!freq) throw new Error(`Unsupported repetition unit: ${rule.unit}`);
+      if (!methodEnum) throw new Error(`Unsupported repetition method: ${rule.method}`);
+      const parts = [`FREQ=${freq}`, `INTERVAL=${rule.steps}`];
+      if (rule.unit === "weeks" && Array.isArray(rule.weekdays) && rule.weekdays.length > 0) {
+        const codes = [];
+        for (let i = 0; i < rule.weekdays.length; i++) {
+          const c = ICAL_DAYS[rule.weekdays[i]];
+          if (c) codes.push(c);
+        }
+        if (codes.length > 0) parts.push(`BYDAY=${codes.join(",")}`);
+      }
+      if (rule.unit === "months" && rule.monthlyAnchor) {
+        const a = rule.monthlyAnchor;
+        if (typeof a.day === "number") {
+          parts.push(`BYMONTHDAY=${a.day}`);
+        } else if (a.weekday && a.position !== undefined) {
+          const dayCode = ICAL_DAYS[a.weekday];
+          const pos = a.position === "last" ? -1 : a.position;
+          if (dayCode && typeof pos === "number") parts.push(`BYDAY=${pos}${dayCode}`);
+        }
+      }
+      const ruleString = parts.join(";");
+      omniJsScript =
+        "(() => {" +
+        "  const t = Task.byIdentifier(" +
+        JSON.stringify(args.id) +
+        ");" +
+        "  if (!t) return;" +
+        "  t.repetitionRule = new Task.RepetitionRule(" +
+        JSON.stringify(ruleString) +
+        ", Task.RepetitionMethod." +
+        methodEnum +
+        ");" +
+        "})()";
+    }
+    ofApp.evaluateJavascript(omniJsScript);
   }
 
   if (args.tagIds !== undefined) {
