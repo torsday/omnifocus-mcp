@@ -47,7 +47,7 @@ body:
     attributes:
       label: Dependencies
       description: |
-        List blockers using `Blocked by: #N` (one per line). This is the canonical reverse-reference format that `/groom`'s dependency audit reads. Forward `Blocks: #N` references are fine to include for narrative context but don't drive board automation.
+        List dependencies using either `Blocked by: #N` (this issue depends on N — record on the dependent's body) or `Blocks: #N` (this issue blocks N — record on the blocker's body). `/groom`'s dependency audit reads both directions and resolves them to the same edge.
       placeholder: |
         - Blocked by: #123
         - Blocks: #456

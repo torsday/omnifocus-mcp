@@ -1,6 +1,6 @@
 name: Bug
 description: Something in the built MCP server is broken
-title: "[bug] <short description>"
+title: "<short description of the bad behavior — no [bug] prefix; the type label carries that>"
 labels: ["type: bug"]
 body:
   - type: textarea
@@ -55,3 +55,12 @@ body:
       label: Relevant log lines
       description: stderr JSON lines, redacted of PII
       render: shell
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: |
+        List dependencies using either `Blocked by: #N` (this issue depends on N — record on the dependent's body) or `Blocks: #N` (this issue blocks N — record on the blocker's body). `/groom`'s dependency audit reads both directions and resolves them to the same edge.
+      placeholder: |
+        - Blocked by: #123
+        - Blocks: #456

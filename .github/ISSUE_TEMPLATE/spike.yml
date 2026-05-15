@@ -1,6 +1,6 @@
 name: Spike
 description: Time-boxed research whose output is a decision, not code
-title: "[spike] <question to answer>"
+title: "<verb-first imperative — e.g. 'Evaluate <option A> vs <option B> for <decision>'>"
 labels: ["type: spike"]
 body:
   - type: textarea
@@ -32,3 +32,12 @@ body:
     attributes:
       label: Success criteria
       description: What does "done" look like?
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: |
+        List dependencies using either `Blocked by: #N` (this issue depends on N — record on the dependent's body) or `Blocks: #N` (this issue blocks N — record on the blocker's body). `/groom`'s dependency audit reads both directions and resolves them to the same edge.
+      placeholder: |
+        - Blocked by: #123
+        - Blocks: #456

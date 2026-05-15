@@ -45,3 +45,12 @@ body:
     attributes:
       label: Notes
       description: Design links, constraints, cross-cutting concerns.
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: |
+        List epic-level dependencies using either `Blocked by: #N` (this epic depends on N — record on this body) or `Blocks: #N` (this epic blocks N — record on this body). `/groom`'s dependency audit reads both directions. Most epic dependencies belong on individual child issues, but cross-epic ordering can live here.
+      placeholder: |
+        - Blocked by: #123
+        - Blocks: #456
