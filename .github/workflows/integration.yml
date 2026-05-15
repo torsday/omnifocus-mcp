@@ -56,7 +56,8 @@ jobs:
     # tests. Runs only on pull_request events; skipped on push/dispatch so
     # those triggers always run the full suite regardless.
     name: Detect paths needing integration
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # allow-hosted: path detection only — no OmniFocus access needed
+    timeout-minutes: 2
     if: github.event_name == 'pull_request'
     outputs:
       needs_integration: ${{ steps.filter.outputs.integration }}
