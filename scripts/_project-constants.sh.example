@@ -44,6 +44,10 @@ F_PHASE="YOUR_PHASE_FIELD_ID"
 F_PRIORITY="YOUR_PRIORITY_FIELD_ID"
 F_SIZE="YOUR_SIZE_FIELD_ID"
 F_RISK="YOUR_RISK_FIELD_ID"
+# Model Queue — secondary single-select that drives the ModelBan view. Holds the model
+# tier for Backlog / Up Next items and mirrors Status for in-flight items. Optional —
+# leave empty if the project doesn't have a Model Queue field.
+F_MODEL_QUEUE="YOUR_MODEL_QUEUE_FIELD_ID"
 
 # Status option IDs  (from the discovery query above — "options[].id" on the Status field)
 STATUS_BACKLOG="YOUR_BACKLOG_OPTION_ID"
@@ -78,3 +82,15 @@ O_SIZE_XL="YOUR_SIZE_XL_OPTION_ID"
 O_RISK_HIGH="YOUR_RISK_HIGH_OPTION_ID"
 O_RISK_MED="YOUR_RISK_MED_OPTION_ID"
 O_RISK_LOW="YOUR_RISK_LOW_OPTION_ID"
+
+# Model Queue option IDs  (options[].id on the Model Queue field)
+# Tier columns — for Backlog / Up Next items, set from the `model: *` label
+O_MQ_SONNET_LOW="YOUR_MQ_SONNET_LOW_OPTION_ID"
+O_MQ_OPUS_MED="YOUR_MQ_OPUS_MED_OPTION_ID"
+O_MQ_OPUS_HIGH="YOUR_MQ_OPUS_HIGH_OPTION_ID"
+O_MQ_OPUS_1M_MAX="YOUR_MQ_OPUS_1M_MAX_OPTION_ID"
+# Lifecycle columns — for in-flight items, mirrors the Status field
+O_MQ_IN_PROGRESS="YOUR_MQ_IN_PROGRESS_OPTION_ID"
+O_MQ_IN_REVIEW="YOUR_MQ_IN_REVIEW_OPTION_ID"
+O_MQ_ON_HOLD="YOUR_MQ_ON_HOLD_OPTION_ID"
+O_MQ_DONE="YOUR_MQ_DONE_OPTION_ID"
