@@ -47,4 +47,8 @@ body:
     id: dependencies
     attributes:
       label: Dependencies
-      description: Blocked-by / blocks relationships, with issue numbers.
+      description: |
+        List blockers using `Blocked by: #N` (one per line). This is the canonical reverse-reference format that `/groom`'s dependency audit reads. Forward `Blocks: #N` references are fine to include for narrative context but don't drive board automation.
+      placeholder: |
+        - Blocked by: #123
+        - Blocks: #456
