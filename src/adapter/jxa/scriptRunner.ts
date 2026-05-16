@@ -39,6 +39,7 @@ import {
 import { logger } from "../../logging/logger.js";
 import { emitTransportCall } from "../../logging/transportCall.js";
 import { type RetryPolicy, resolveRetryPolicy } from "../_shared/retryPolicy.js";
+import { ensureSpawnFloorCalibration, getSpawnFloorMs } from "../_shared/spawnFloor.js";
 
 // ---------------------------------------------------------------------------
 // Spawner seam (injectable for tests)
@@ -219,6 +220,11 @@ export async function runJxaScript<T = unknown>(
   const scriptName = options.scriptName;
   const retry = resolveRetryPolicy(options.retry);
 
+  // Kick off osascript spawn-floor calibration on first call (#939).
+  // Fire-and-forget — the very first transport call may complete before
+  // the cache is populated; subsequent calls see the split fields.
+  void ensureSpawnFloorCalibration(spawner);
+
   const startedAt = performance.now();
   let result = await spawner(scriptBody, jsonArg, timeoutMs);
 
@@ -263,7 +269,7 @@ export async function runJxaScript<T = unknown>(
     result.stdout.trim() === ""
       ? "error"
       : "ok";
-  emitTransportCall("jxa", scriptName, args, durationMs, outcome);
+  emitTransportCall("jxa", scriptName, args, durationMs, outcome, getSpawnFloorMs());
 
   // 1. Spawn failure (binary missing) — the transport itself is unavailable.
   if (result.spawnError !== undefined) {
