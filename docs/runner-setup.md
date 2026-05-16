@@ -75,7 +75,44 @@ runs-on: [self-hosted, macos-omnifocus]
 
 ---
 
-## 5. JXA bridge contention with concurrent MCP clients
+## 5. Runner hooks (`job-started` and `job-completed`)
+
+The `runner-omnifocus-mcp` runner has two lifecycle hooks wired via its `.env` file at
+`~/github-runners/runner-omnifocus-mcp/.env`:
+
+```
+ACTIONS_RUNNER_HOOK_JOB_STARTED=…/hooks/job-started.sh
+ACTIONS_RUNNER_HOOK_JOB_COMPLETED=…/hooks/job-completed.sh
+```
+
+### `job-started.sh` — pre-job fixture cleanup
+
+Runs synchronously before every job. For non-Integration-Tests workflows it exits immediately (no-op). For Integration Tests it:
+
+1. **Ensures OmniFocus is running.** `activate` is a no-op when OF is already up; it recovers the edge case where OF crashed or was force-quit between jobs (Login Items only auto-launches at login, not between runner jobs).
+2. **Wipes all `mcp-fixture:`-prefixed items** from the OmniFocus database via JXA — projects, inbox tasks, folders, and tags, in dependency order. This clears orphan fixtures left by cancelled or partially-completed prior runs before the workflow's own `seed-integration-db.js --clean` step runs.
+
+The cleanup is best-effort (`set +e`): individual item deletions that throw don't abort the whole pass, and hook failure never fails the job from GitHub's perspective.
+
+**Why this is necessary:** cancelled or partially-completed integration jobs do not run their teardown steps, so fixture items accumulate across runs. By the time the v1.5.1 release pipeline ran, there were 25 stale `mcp-fixture:` tags + 2 stale folders; 13–15 tests failed per run due to fixture collisions. The hook is the runtime backstop; per-test isolation (tracked separately) is the proper fix at the test level.
+
+### `job-completed.sh` — post-job process cleanup
+
+Runs synchronously after every job (success, failure, or cancellation). It SIGTERMs any orphan `osascript` processes reparented to launchd (ppid == 1) — the JXA wedge mode where a worker dies mid-bridge-call and leaves `osascript` stuck. It skips processes with a live parent to avoid killing the maintainer's interactive Claude sessions.
+
+### Verify the hooks are wired
+
+```bash
+grep ACTIONS_RUNNER_HOOK ~/github-runners/runner-omnifocus-mcp/.env
+# expected: both HOOK_JOB_STARTED and HOOK_JOB_COMPLETED lines
+
+tail -f ~/Library/Logs/runner-omnifocus-mcp-cleanup.log
+# watch live during an integration run — both [pre-job] and cleanup entries appear
+```
+
+---
+
+## 6. JXA bridge contention with concurrent MCP clients
 
 The OmniFocus JXA bridge is **single-threaded**: one `osascript -l JavaScript` invocation in flight at a time, queued by macOS. On a runner host that is also the maintainer's daily-driver laptop, every active Claude client (Desktop, Code, etc.) spawns its own `@torsday/omnifocus-mcp` server, and each of those servers periodically polls `changes_since` and other read operations. With 5+ Claude clients open, 30+ osascript processes can be queued on the bridge at any moment.
 
