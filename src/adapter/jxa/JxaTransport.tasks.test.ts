@@ -13,7 +13,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ProjectId, TaskId } from "../../domain/ids.js";
 import { NotFound, ScriptError } from "../../errors/index.js";
-import { JxaTransport } from "./JxaTransport.js";
+import { JxaTransport, NOTE_INLINE_THRESHOLD_BYTES } from "./JxaTransport.js";
 import type { ScriptSpawner, SpawnResult } from "./scriptRunner.js";
 
 // ---------------------------------------------------------------------------
@@ -191,6 +191,57 @@ describe("JxaTransport — createTask", () => {
     ) as { projectId: string };
     expect(arg.projectId).toBe("proj_zzz");
   });
+
+  it("inlines a small note in the initial create call (#937)", async () => {
+    const spawner = spawnerReturning({ task: BASE_TASK });
+    const t = new JxaTransport({ spawner });
+    const smallNote = "a".repeat(NOTE_INLINE_THRESHOLD_BYTES); // == threshold, not >
+    await t.createTask({ name: "Write tests", note: smallNote });
+    const mock = spawner as ReturnType<typeof vi.fn>;
+    expect(mock.mock.calls).toHaveLength(1);
+    const arg = JSON.parse((mock.mock.calls[0] as [string, string])[1]) as { note: string | null };
+    expect(arg.note).toBe(smallNote);
+  });
+
+  it("splits a large note into a phase-2 note-only update (#937)", async () => {
+    const spawner = spawnerReturning({ task: BASE_TASK });
+    const t = new JxaTransport({ spawner });
+    const bigNote = "x".repeat(NOTE_INLINE_THRESHOLD_BYTES + 1);
+    await t.createTask({
+      name: "Write tests",
+      note: bigNote,
+      projectId: "proj_zzz" as ProjectId,
+      flagged: true,
+    });
+    const mock = spawner as ReturnType<typeof vi.fn>;
+    expect(mock.mock.calls).toHaveLength(2);
+    // Phase 1: create call drops the note but keeps everything else.
+    const phase1Script = (mock.mock.calls[0] as [string, string])[0];
+    const phase1Arg = JSON.parse((mock.mock.calls[0] as [string, string])[1]) as {
+      name: string;
+      projectId: string;
+      flagged: boolean;
+      note: string | null;
+    };
+    expect(phase1Script).toContain("task_create");
+    expect(phase1Arg.name).toBe("Write tests");
+    expect(phase1Arg.projectId).toBe("proj_zzz");
+    expect(phase1Arg.flagged).toBe(true);
+    expect(phase1Arg.note).toBeNull();
+    // Phase 2: note-only update against the just-created task ID.
+    const phase2Script = (mock.mock.calls[1] as [string, string])[0];
+    const phase2Arg = JSON.parse((mock.mock.calls[1] as [string, string])[1]) as {
+      id: string;
+      note: string;
+      name?: string;
+      flagged?: boolean;
+    };
+    expect(phase2Script).toContain("task_update");
+    expect(phase2Arg.id).toBe("task_aaa");
+    expect(phase2Arg.note).toBe(bigNote);
+    expect(phase2Arg.name).toBeUndefined();
+    expect(phase2Arg.flagged).toBeUndefined();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -237,6 +288,64 @@ describe("JxaTransport — updateTask", () => {
       ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string])[1],
     ) as { id: string; repetition: unknown };
     expect(arg.repetition).toBeNull();
+  });
+
+  it("inlines a small note in the single update call (#937)", async () => {
+    const spawner = spawnerReturning({ task: BASE_TASK });
+    const t = new JxaTransport({ spawner });
+    const smallNote = "a".repeat(NOTE_INLINE_THRESHOLD_BYTES); // == threshold, not >
+    await t.updateTask("task_aaa" as TaskId, { name: "x", note: smallNote });
+    const mock = spawner as ReturnType<typeof vi.fn>;
+    expect(mock.mock.calls).toHaveLength(1);
+    const arg = JSON.parse((mock.mock.calls[0] as [string, string])[1]) as {
+      note: string;
+      name: string;
+    };
+    expect(arg.note).toBe(smallNote);
+    expect(arg.name).toBe("x");
+  });
+
+  it("splits a large note off when other fields are present (#937)", async () => {
+    const spawner = spawnerReturning({ task: BASE_TASK });
+    const t = new JxaTransport({ spawner });
+    const bigNote = "x".repeat(NOTE_INLINE_THRESHOLD_BYTES + 1);
+    await t.updateTask("task_aaa" as TaskId, { name: "Renamed", note: bigNote, flagged: true });
+    const mock = spawner as ReturnType<typeof vi.fn>;
+    expect(mock.mock.calls).toHaveLength(2);
+    const phase1Arg = JSON.parse((mock.mock.calls[0] as [string, string])[1]) as {
+      id: string;
+      name: string;
+      flagged: boolean;
+      note?: string;
+    };
+    expect(phase1Arg.id).toBe("task_aaa");
+    expect(phase1Arg.name).toBe("Renamed");
+    expect(phase1Arg.flagged).toBe(true);
+    expect(phase1Arg.note).toBeUndefined();
+    const phase2Arg = JSON.parse((mock.mock.calls[1] as [string, string])[1]) as {
+      id: string;
+      note: string;
+      name?: string;
+    };
+    expect(phase2Arg.id).toBe("task_aaa");
+    expect(phase2Arg.note).toBe(bigNote);
+    expect(phase2Arg.name).toBeUndefined();
+  });
+
+  it("does not split when only a large note is supplied (#937)", async () => {
+    const spawner = spawnerReturning({ task: BASE_TASK });
+    const t = new JxaTransport({ spawner });
+    const bigNote = "y".repeat(NOTE_INLINE_THRESHOLD_BYTES + 1);
+    await t.updateTask("task_aaa" as TaskId, { note: bigNote });
+    const mock = spawner as ReturnType<typeof vi.fn>;
+    // Single-field note-only patch already avoids the property-bag bottleneck —
+    // a recursive split would be both wasteful and a stack hazard.
+    expect(mock.mock.calls).toHaveLength(1);
+    const arg = JSON.parse((mock.mock.calls[0] as [string, string])[1]) as {
+      id: string;
+      note: string;
+    };
+    expect(arg.note).toBe(bigNote);
   });
 });
 
