@@ -149,6 +149,23 @@ export interface JxaTransportOptions {
 // ---------------------------------------------------------------------------
 
 /**
+ * Byte threshold above which an inline `note` write is split off into a
+ * dedicated single-field follow-up call (#937).
+ *
+ * Why: JXA's `ofApp.Task({note: longString, ...})` and multi-field
+ * `task_update` calls serialize the entire property bag through a single
+ * AppleEvent payload that scales poorly with large strings — empirically the
+ * 30s `runJxaScript` hard timeout fires around ~2KB. A dedicated note-only
+ * `task_update` call (one setter, one field) stays well under the timeout
+ * because the single-field path doesn't pay the property-bag overhead.
+ */
+export const NOTE_INLINE_THRESHOLD_BYTES = 1024;
+
+function noteExceedsInlineThreshold(note: string | null | undefined): boolean {
+  return typeof note === "string" && Buffer.byteLength(note, "utf8") > NOTE_INLINE_THRESHOLD_BYTES;
+}
+
+/**
  * Type-narrow a window-script result to its error envelope. Window scripts
  * (window_get_state / window_set_perspective / window_set_focus, #466) return
  * either a success payload or `{ error: { code, message } }` where `code` is
@@ -231,13 +248,16 @@ export class JxaTransport implements OmniFocusAdapter {
   }
 
   async createTask(input: CreateTaskInput): Promise<TaskId> {
+    // #937: a large `note` in the multi-field create payload blows the JXA
+    // hard timeout. Defer the note to a dedicated single-field follow-up.
+    const splitNote = noteExceedsInlineThreshold(input.note);
     const result = await runJxaScript<{ task: Task }>(
       taskCreateScript,
       {
         name: input.name,
         projectId: input.projectId ?? null,
         parentId: input.parentId ?? null,
-        note: input.note ?? null,
+        note: splitNote ? null : (input.note ?? null),
         flagged: input.flagged ?? false,
         deferDate: input.deferDate ?? null,
         dueDate: input.dueDate ?? null,
@@ -248,16 +268,27 @@ export class JxaTransport implements OmniFocusAdapter {
       },
       { ...this.runOpts, scriptName: "task_create" },
     );
-    return TaskIdCtor.of(result.task.id);
+    const newId = TaskIdCtor.of(result.task.id);
+    if (splitNote && input.note !== undefined) {
+      await this.writeTaskNote(newId, input.note);
+    }
+    return newId;
   }
 
   async updateTask(id: TaskId, patch: UpdateTaskInput): Promise<void> {
+    // #937: a large `note` combined with other fields in a single
+    // `task_update` call blows the JXA hard timeout. When `note` is large AND
+    // the patch contains other fields, split it off into a dedicated
+    // single-field follow-up. A note-only patch is already a single-field
+    // call, so no split is needed (or possible — splitting would recurse).
+    const splitNote =
+      noteExceedsInlineThreshold(patch.note) && Object.keys(patch).some((k) => k !== "note");
     await runJxaScript<{ task: Task }>(
       taskUpdateScript,
       {
         id,
         ...(patch.name !== undefined ? { name: patch.name } : {}),
-        ...(patch.note !== undefined ? { note: patch.note } : {}),
+        ...(patch.note !== undefined && !splitNote ? { note: patch.note } : {}),
         ...(patch.flagged !== undefined ? { flagged: patch.flagged } : {}),
         ...(patch.deferDate !== undefined ? { deferDate: patch.deferDate } : {}),
         ...(patch.dueDate !== undefined ? { dueDate: patch.dueDate } : {}),
@@ -271,6 +302,23 @@ export class JxaTransport implements OmniFocusAdapter {
           : {}),
         ...(patch.repetition !== undefined ? { repetition: patch.repetition } : {}),
       },
+      { ...this.runOpts, scriptName: "task_update" },
+    );
+    if (splitNote && patch.note !== undefined) {
+      await this.writeTaskNote(id, patch.note);
+    }
+  }
+
+  /**
+   * Phase-2 note writer for the #937 large-note two-phase path. Issues a
+   * dedicated note-only `task_update` call so the underlying JXA setter sees
+   * exactly one property to assign — staying well under the hard timeout
+   * even when the note is large.
+   */
+  private async writeTaskNote(id: TaskId, note: string | null): Promise<void> {
+    await runJxaScript<{ task: Task }>(
+      taskUpdateScript,
+      { id, note },
       { ...this.runOpts, scriptName: "task_update" },
     );
   }
