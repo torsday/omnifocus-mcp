@@ -442,6 +442,10 @@ These changes don't affect runtime behavior but are recorded for traceability:
 
 ## [Unreleased]
 
+### Changed
+
+- **`task_reclassify` description trimmed back under the per-tool token budget (closes #814)** — pulled the discriminated-union AST grammar dump out of the description (the full schema is already delivered in `tools/list` JSONSchema, where the model reads it precisely); merged the redundant "prefer task_reclassify" paragraph into the existing "Do NOT use" guidance; dropped one of the two examples (the dry-run variant duplicated the apply-phase example). Token cost: 352 → ~279 (–73 tokens, ~21% of the description). Total `tools/list` description payload: 23,689 → 23,581 tokens. The exemption in `descriptions.lint.test.ts` is gone — no tool currently exceeds the 350-token budget. Behavior unchanged. A reproducible audit harness lives at `scripts/audit-description-sizes.ts` for future passes.
+
 ### Fixed
 
 - **`task_set_repetition` / `task_clear_repetition` now actually persist the rule (closes #938)** — both tools previously returned a success envelope while the underlying `repetition` field on the OmniFocus task remained unchanged. Two-layer bug: `JxaTransport.updateTask` dropped the `repetition` patch field on the floor, and `task_update.js` had no branch to handle it. Fixed by plumbing `repetition` through to the script and delegating the write to OmniJS via `evaluateJavascript` — same pattern as the existing `tagIds` workaround for OF 4.x JXA silent-write quirks. The rule is serialized to an RFC 5545 RRULE string (`FREQ=DAILY;INTERVAL=1`, `FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR`, `FREQ=MONTHLY;BYMONTHDAY=15`) and applied via `new Task.RepetitionRule(ruleString, Task.RepetitionMethod.<Fixed|Start|DueDate>)`. Optional `weekdays` (weekly) and `monthlyAnchor` (monthly) are now passed to OmniFocus; round-trip read-back of those fields via `buildRepetition` is tracked as follow-up — current read-back still returns only `{method, unit, steps}`.

@@ -43,10 +43,7 @@ const TOKEN_BUDGET = 350;
  * Do NOT add new entries here for convenience — trim the description instead.
  * The exemption mechanism exists for legacy outliers only.
  */
-const TOKEN_BUDGET_EXEMPTIONS: ReadonlySet<string> = new Set([
-  // 352 tokens at baseline — complex reclassification logic with many options
-  "task_reclassify",
-]);
+const TOKEN_BUDGET_EXEMPTIONS: ReadonlySet<string> = new Set<string>([]);
 
 describe("tool descriptions — DESIGN §6.8 shape lint", () => {
   it("every tool description satisfies the four-section shape", () => {
