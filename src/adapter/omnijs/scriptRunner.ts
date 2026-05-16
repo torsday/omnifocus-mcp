@@ -50,6 +50,7 @@ import {
 import { logger } from "../../logging/logger.js";
 import { emitTransportCall } from "../../logging/transportCall.js";
 import { type RetryPolicy, resolveRetryPolicy } from "../_shared/retryPolicy.js";
+import { ensureSpawnFloorCalibration, getSpawnFloorMs } from "../_shared/spawnFloor.js";
 
 // ---------------------------------------------------------------------------
 // Spawner seam (injectable for tests)
@@ -206,6 +207,11 @@ export async function runOmniJsScript<T = unknown>(
   const retry = resolveRetryPolicy(options.retry);
 
   const wrapped = wrapOmniJsForJxa(omniJsScriptBody, argsJson);
+
+  // Kick off osascript spawn-floor calibration on first call (#939). Shared
+  // floor with the JXA runner — same osascript binary, same fork cost.
+  void ensureSpawnFloorCalibration(spawner);
+
   const startedAt = performance.now();
   let result = await spawner(wrapped, argsJson, timeoutMs);
 
@@ -250,7 +256,7 @@ export async function runOmniJsScript<T = unknown>(
     result.stdout.trim() === ""
       ? "error"
       : "ok";
-  emitTransportCall("omnijs", scriptName, args, durationMs, outcome);
+  emitTransportCall("omnijs", scriptName, args, durationMs, outcome, getSpawnFloorMs());
 
   // 1. Spawn failure (binary missing) — the transport itself is unavailable.
   if (result.spawnError !== undefined) {

@@ -442,6 +442,10 @@ These changes don't affect runtime behavior but are recorded for traceability:
 
 ## [Unreleased]
 
+### Added
+
+- **`transport.call` events now split spawn cost from script cost (closes #939)** — every call now carries `spawnFloorMs` (the calibrated `osascript` fork + interpreter init + JXA bridge bring-up, measured once per process via a no-op JXA script) and `scriptMs = max(0, durationMs - spawnFloorMs)` alongside the existing `durationMs`. Calibration runs lazily on the first transport call (fire-and-forget) and the result is cached for the lifetime of the process; one `observability.spawn.calibrated` event records the floor value. `durationMs` is preserved for back-compat, so existing log consumers keep working unchanged. The split answers the decision-gate question for the persistent-osascript-REPL track (#882) and the latency-aggregator work (#936-Medium / #936-Full): if spawn cost dominates per-workflow time, the REPL is worth the investment; if it doesn't, the case dissolves.
+
 ### Changed
 
 - **`task_reclassify` description trimmed back under the per-tool token budget (closes #814)** — pulled the discriminated-union AST grammar dump out of the description (the full schema is already delivered in `tools/list` JSONSchema, where the model reads it precisely); merged the redundant "prefer task_reclassify" paragraph into the existing "Do NOT use" guidance; dropped one of the two examples (the dry-run variant duplicated the apply-phase example). Token cost: 352 → ~279 (–73 tokens, ~21% of the description). Total `tools/list` description payload: 23,689 → 23,581 tokens. The exemption in `descriptions.lint.test.ts` is gone — no tool currently exceeds the 350-token budget. Behavior unchanged. A reproducible audit harness lives at `scripts/audit-description-sizes.ts` for future passes.

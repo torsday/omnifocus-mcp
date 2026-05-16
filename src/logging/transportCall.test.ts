@@ -7,11 +7,12 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { __resetSpawnFloorForTesting } from "../adapter/_shared/spawnFloor.js";
 import { runJxaScript } from "../adapter/jxa/scriptRunner.js";
 import { runOmniJsScript } from "../adapter/omnijs/scriptRunner.js";
 import { withCorrelationId } from "./correlation.js";
 import { setLogLevel } from "./logger.js";
-import { hashArgs } from "./transportCall.js";
+import { emitTransportCall, hashArgs } from "./transportCall.js";
 
 // `transport.call` is a debug-level event (PII protection per DESIGN §21).
 // Force the singleton logger to debug for the duration of this suite so the
@@ -31,6 +32,8 @@ interface CapturedLine {
   argsHash?: string;
   outcome?: string;
   durationMs?: number;
+  spawnFloorMs?: number;
+  scriptMs?: number;
   correlationId?: string;
 }
 
@@ -176,5 +179,38 @@ describe("runOmniJsScript transport.call event", () => {
     expect(evt?.scriptName).toBe("omnijs_test");
     expect(evt?.outcome).toBe("ok");
     expect(evt?.argsHash).toBe(hashArgs({ y: 2 }));
+  });
+});
+
+describe("emitTransportCall — spawn / script split (#939)", () => {
+  let cap: ReturnType<typeof captureLogs>;
+
+  beforeEach(() => {
+    __resetSpawnFloorForTesting();
+    cap = captureLogs();
+  });
+  afterEach(() => {
+    cap.restore();
+  });
+
+  it("omits spawnFloorMs / scriptMs when no floor has been calibrated", () => {
+    emitTransportCall("jxa", "x", { a: 1 }, 42, "ok");
+    expect(cap.lines).toHaveLength(1);
+    expect(cap.lines[0]?.spawnFloorMs).toBeUndefined();
+    expect(cap.lines[0]?.scriptMs).toBeUndefined();
+    expect(cap.lines[0]?.durationMs).toBe(42);
+  });
+
+  it("computes scriptMs = max(0, durationMs - spawnFloorMs) when both are known", () => {
+    emitTransportCall("jxa", "x", { a: 1 }, 250, "ok", 100);
+    expect(cap.lines).toHaveLength(1);
+    expect(cap.lines[0]?.durationMs).toBe(250);
+    expect(cap.lines[0]?.spawnFloorMs).toBe(100);
+    expect(cap.lines[0]?.scriptMs).toBe(150);
+  });
+
+  it("clamps scriptMs to 0 when the floor exceeds the observed duration (system noise)", () => {
+    emitTransportCall("omnijs", "x", { a: 1 }, 80, "ok", 100);
+    expect(cap.lines[0]?.scriptMs).toBe(0);
   });
 });

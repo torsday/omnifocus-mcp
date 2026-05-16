@@ -12,10 +12,17 @@
  *     transport: "jxa" | "omnijs",
  *     scriptName: string | undefined,
  *     argsHash: string,        // sha1 prefix of stable JSON
- *     durationMs: number,
+ *     durationMs: number,      // total wall-clock (spawn + script)
+ *     spawnFloorMs?: number,   // calibrated osascript spawn floor (#939)
+ *     scriptMs?: number,       // max(0, durationMs - spawnFloorMs) (#939)
  *     outcome: "ok" | "error",
  *     correlationId?: string,  // from the surrounding withCorrelationId scope
  *   }
+ *
+ * `durationMs` is preserved for back-compat with existing consumers; the
+ * `spawnFloorMs` / `scriptMs` split (#939) is additive and only present once
+ * boot calibration has completed (omitted on the very first calls in a
+ * process while calibration is still in flight).
  *
  * `argsHash` lets operators correlate identical calls without leaking the
  * args themselves — task names and notes stay out of the high-level log
@@ -42,7 +49,12 @@ export function emitTransportCall(
   args: unknown,
   durationMs: number,
   outcome: "ok" | "error",
+  spawnFloorMs?: number,
 ): void {
+  const split =
+    spawnFloorMs !== undefined
+      ? { spawnFloorMs, scriptMs: Math.max(0, durationMs - spawnFloorMs) }
+      : {};
   logger.debug(
     {
       event: "transport.call",
@@ -50,6 +62,7 @@ export function emitTransportCall(
       scriptName,
       argsHash: hashArgs(args),
       durationMs,
+      ...split,
       outcome,
       correlationId: getCorrelationId(),
     },
