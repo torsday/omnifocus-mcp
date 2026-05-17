@@ -52,6 +52,7 @@ import { withInvocationLogging } from "../logging/withInvocationLogging.js";
 import type { LoopDetector } from "../loopDetector/LoopDetector.js";
 import { withLoopDetection } from "../loopDetector/withLoopDetection.js";
 import type { ResponseStatsRegistry } from "../observability/responseStats.js";
+import type { ToolDurationStatsRegistry } from "../observability/toolDurationStats.js";
 import type { ToolRateLimiter } from "../rateLimit/ToolRateLimiter.js";
 import { withRateLimitMeta } from "../rateLimit/withRateLimitMeta.js";
 import type { CircuitBreakerRegistry } from "./circuitBreaker.js";
@@ -70,6 +71,13 @@ export interface ToolMiddlewareDeps {
    * the SDK error envelope, not tool behaviour).
    */
   responseStats?: ResponseStatsRegistry;
+  /**
+   * Optional per-tool duration recorder (#798). Omit, or pass a registry
+   * with `sampleRate: 0`, to disable. Records both success and error paths
+   * — duration tells the same story whether the call returned an envelope
+   * or threw, and operators want both views when triaging "why is X slow?".
+   */
+  toolDurationStats?: ToolDurationStatsRegistry;
 }
 
 /** Loose shape for the SDK tool callback — `(args, extra) => Promise<CallToolResult>`. */
@@ -106,13 +114,31 @@ export function composeToolCallback(
           return result.structuredContent as unknown as ToolSuccess<unknown>;
         };
 
-        const enveloped = await withRateLimitMeta(toolName, deps.rateLimiter, () =>
-          withLoopDetection(toolName, args, deps.loopDetector, () =>
-            // `withInvocationLogging` is the innermost layer so `durationMs`
-            // measures the handler's actual wall-clock cost (#283).
-            withInvocationLogging(toolName, innerEnvelope),
-          ),
-        );
+        // Per-tool duration telemetry (#798). Measure the full middleware-
+        // layer wall time so the snapshot reflects what the calling agent
+        // observes (rate-limit wait + loop-detection + handler + envelope
+        // build), not just the inner handler. Recorded on both success and
+        // error paths — duration tells the same story either way.
+        const startNs = process.hrtime.bigint();
+        const recordDuration = (): void => {
+          if (deps.toolDurationStats === undefined) return;
+          const durationMs = Number(process.hrtime.bigint() - startNs) / 1_000_000;
+          deps.toolDurationStats.record(toolName, durationMs);
+        };
+
+        let enveloped: ToolSuccess<unknown>;
+        try {
+          enveloped = await withRateLimitMeta(toolName, deps.rateLimiter, () =>
+            withLoopDetection(toolName, args, deps.loopDetector, () =>
+              // `withInvocationLogging` is the innermost layer so `durationMs`
+              // measures the handler's actual wall-clock cost (#283).
+              withInvocationLogging(toolName, innerEnvelope),
+            ),
+          );
+        } catch (err) {
+          recordDuration();
+          throw err;
+        }
 
         const sdkResult = toolResponse(enveloped as ToolEnvelope<unknown>);
 
@@ -131,6 +157,7 @@ export function composeToolCallback(
           }
         }
 
+        recordDuration();
         return sdkResult;
       });
     });

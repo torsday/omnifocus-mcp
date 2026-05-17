@@ -106,6 +106,18 @@ const envSchema = z.object({
   // (once, on the transition above). Default 2000ms — the boundary at which
   // a single script becomes a perceptible interactive-call problem.
   OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS: z.coerce.number().int().positive().default(2000),
+  // Per-tool duration telemetry (#798). Sibling of responseStats /
+  // latencyStats: same gating model, default 0 = off, zero overhead in
+  // production. Records middleware-layer wall time per tool invocation
+  // (success + error paths). Pair with responseStats for the full
+  // "tool X returned N bytes in M ms" picture.
+  OMNIFOCUS_DURATION_STATS_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
+  // p95 millisecond threshold above which a `tool.duration.exceeded`
+  // warning fires (once, on the transition above). Default 5000ms —
+  // anything above this is unambiguously slow regardless of tool class.
+  // Per-tool budgets (cached-read p95 < 50ms, batch-write 20 < 1.2s per
+  // SPEC §9) are not encoded here; this is a single global guardrail.
+  OMNIFOCUS_DURATION_STATS_THRESHOLD_MS: z.coerce.number().int().positive().default(5000),
   // Hard cap on distinct (tool, args-hash) keys the loop detector tracks
   // simultaneously. When exceeded, the oldest key is evicted (FIFO). Raise
   // if a long-running server legitimately calls many unique arg combos per
@@ -161,6 +173,8 @@ export function parseConfig(
     OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES: processEnv.OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES,
     OMNIFOCUS_LATENCY_STATS_SAMPLE_RATE: processEnv.OMNIFOCUS_LATENCY_STATS_SAMPLE_RATE,
     OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS: processEnv.OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS,
+    OMNIFOCUS_DURATION_STATS_SAMPLE_RATE: processEnv.OMNIFOCUS_DURATION_STATS_SAMPLE_RATE,
+    OMNIFOCUS_DURATION_STATS_THRESHOLD_MS: processEnv.OMNIFOCUS_DURATION_STATS_THRESHOLD_MS,
     OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS: processEnv.OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS,
   });
 
@@ -214,6 +228,8 @@ export function redactConfig(config: Config): Record<string, unknown> {
     OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES: config.OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES,
     OMNIFOCUS_LATENCY_STATS_SAMPLE_RATE: config.OMNIFOCUS_LATENCY_STATS_SAMPLE_RATE,
     OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS: config.OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS,
+    OMNIFOCUS_DURATION_STATS_SAMPLE_RATE: config.OMNIFOCUS_DURATION_STATS_SAMPLE_RATE,
+    OMNIFOCUS_DURATION_STATS_THRESHOLD_MS: config.OMNIFOCUS_DURATION_STATS_THRESHOLD_MS,
     OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS: config.OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS,
   };
 }

@@ -40,6 +40,9 @@ function makeCtx(
     probeLatencyStats?: () =>
       | import("../../observability/latencyStats.js").LatencyStatsSnapshot
       | null;
+    probeToolDurationStats?: () =>
+      | import("../../observability/toolDurationStats.js").ToolDurationSnapshot
+      | null;
   } = {},
 ) {
   const adapter = {
@@ -74,6 +77,9 @@ function makeCtx(
   }
   if (overrides.probeLatencyStats !== undefined) {
     ctx.probeLatencyStats = overrides.probeLatencyStats;
+  }
+  if (overrides.probeToolDurationStats !== undefined) {
+    ctx.probeToolDurationStats = overrides.probeToolDurationStats;
   }
   return ctx;
 }
@@ -263,6 +269,38 @@ describe("internal_status — responseStats", () => {
 // ---------------------------------------------------------------------------
 // Handler — latencyStats (#940)
 // ---------------------------------------------------------------------------
+
+describe("internal_status — toolDurationStats", () => {
+  it("returns null when no probe is provided (telemetry off)", async () => {
+    const ctx = makeCtx();
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.toolDurationStats).toBeNull();
+  });
+
+  it("forwards the probe result verbatim when telemetry is on", async () => {
+    const snapshot = {
+      since: "2026-05-17T00:00:00.000Z",
+      sampleRate: 1,
+      thresholdMs: 5000,
+      tools: {
+        task_list: { count: 12, max: 1500, p50: 80, p95: 1200 },
+      },
+    };
+    const ctx = makeCtx({ probeToolDurationStats: vi.fn().mockReturnValue(snapshot) });
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.toolDurationStats).toEqual(snapshot);
+  });
+
+  it("surfaces null when the probe throws unexpectedly", async () => {
+    const ctx = makeCtx({
+      probeToolDurationStats: vi.fn().mockImplementation(() => {
+        throw new Error("registry exploded");
+      }),
+    });
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.toolDurationStats).toBeNull();
+  });
+});
 
 describe("internal_status — latencyStats", () => {
   it("returns null when no probe is provided (telemetry off)", async () => {

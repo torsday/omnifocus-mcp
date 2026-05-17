@@ -18,6 +18,7 @@ import type { ServiceCacheStats } from "../../cache/lruCache.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { LatencyStatsSnapshot } from "../../observability/latencyStats.js";
 import type { ResponseStatsSnapshot } from "../../observability/responseStats.js";
+import type { ToolDurationSnapshot } from "../../observability/toolDurationStats.js";
 import type { Capabilities } from "../../resources/capabilities.js";
 import { probeCalendarAccess } from "../../resources/capabilities.js";
 import type { CircuitState } from "../../server/circuitBreaker.js";
@@ -30,7 +31,7 @@ import { type MutationScoreSnapshot, probeMutationScore } from "./mutationScore.
 export const INTERNAL_STATUS_DESCRIPTION =
   "Return a health snapshot of the running omnifocus-mcp server. " +
   "Do NOT use this to read OmniFocus data — prefer task_list, project_list, sync_status, etc. " +
-  "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth, responseStats, latencyStats, stores }. " +
+  "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth, responseStats, latencyStats, toolDurationStats, stores }. " +
   "cache.services maps key prefixes (tag, folder, forecast, task, project) to { hits, misses, hitRate }. " +
   "uptimeMs is the milliseconds since the server process started. " +
   "circuits lists each circuit-breaker name and state (closed/open/half_open). " +
@@ -39,8 +40,7 @@ export const INTERNAL_STATUS_DESCRIPTION =
   "mutation surfaces Stryker calibration freshness — { score, lastRunAt } where score is the " +
   "latest mutation-testing score (0–100) per ADR-0017 and lastRunAt is the report's mtime. " +
   "Returns null when no report file is present (the published npm tarball ships without one). " +
-  "responseStats / latencyStats: telemetry snapshots — null when sample rate is 0. " +
-  "responseStats: per-tool byte aggregates. latencyStats: per-transport per-script ms aggregates with spawnFloorMs. " +
+  "responseStats / latencyStats / toolDurationStats: opt-in telemetry — bytes per tool, ms per (transport, script) with spawnFloorMs, ms per tool. Null when sample rate is 0. " +
   "stores: { idempotencyEntries, loopDetectorKeys } live retention-store sizes — null when not wired. " +
   "Read-only; no side effects. " +
   "Example: internal_status()";
@@ -118,6 +118,13 @@ export interface InternalStatusData {
    */
   latencyStats: LatencyStatsSnapshot | null;
   /**
+   * Per-tool duration aggregates (#798). `null` when telemetry is disabled
+   * (sample rate 0). Operators opt in by setting
+   * `OMNIFOCUS_DURATION_STATS_SAMPLE_RATE`. Pairs with `responseStats` for
+   * the full "tool X returned N bytes in M ms" view.
+   */
+  toolDurationStats: ToolDurationSnapshot | null;
+  /**
    * Current sizes of bounded in-process stores (#813). `null` when the
    * probe is not wired (e.g. in unit tests that only supply minimal context).
    */
@@ -157,6 +164,12 @@ export interface InternalStatusContext {
    * as {@link probeResponseStats}.
    */
   probeLatencyStats?: () => LatencyStatsSnapshot | null;
+  /**
+   * Optional tool-duration-stats probe (#798). Returns the current snapshot,
+   * or `null` to indicate telemetry is disabled. Same null-vs-omit semantics
+   * as the sibling probes.
+   */
+  probeToolDurationStats?: () => ToolDurationSnapshot | null;
   /**
    * Optional cache-stats probe (#821). Returns aggregate + per-service stats,
    * or `null` when no cache is wired. Omitting also surfaces as `null`.
@@ -225,6 +238,15 @@ export async function handleInternalStatus(
     }
   }
 
+  let toolDurationStats: ToolDurationSnapshot | null = null;
+  if (ctx.probeToolDurationStats !== undefined) {
+    try {
+      toolDurationStats = ctx.probeToolDurationStats();
+    } catch {
+      toolDurationStats = null;
+    }
+  }
+
   let cache: InternalStatusData["cache"] = null;
   if (ctx.probeCache !== undefined) {
     try {
@@ -254,6 +276,7 @@ export async function handleInternalStatus(
     queueDepth: null,
     responseStats,
     latencyStats,
+    toolDurationStats,
     stores,
   };
 
