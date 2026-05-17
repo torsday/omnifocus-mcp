@@ -138,6 +138,72 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Ensure OmniFocus is responsive (reset only if wedged)
+        # Cross-PR runs share the self-hosted runner and its single OmniFocus
+        # instance. Database residue is cleared by `seed-integration-db.js
+        # --clean` below, but *process* state (in-flight sync queue, undo
+        # stack, transcript, cached AppleEvents state) can survive between
+        # runs and has been observed to wedge OmniFocus into intermittent
+        # slow paths — surfacing as different-tests-fail-each-PR flake.
+        # See #914.
+        #
+        # Two-stage strategy:
+        #   1. Probe — is OmniFocus already JXA-responsive? If yes, skip
+        #      the reset and keep its warm caches (the suite is ~3× faster
+        #      against a warm OF than a cold-launched one).
+        #   2. If wedged, quit + relaunch + warmup loop. Pays cold-cache
+        #      cost, but that's better than running tests against a wedge.
+        #
+        # `osascript` has no built-in timeout flag and will block
+        # indefinitely against a wedged OF, so each probe/warmup call is
+        # wrapped in perl's alarm()/exec() pattern (15s deadline). GNU
+        # `timeout` is not available on macOS without `brew install
+        # coreutils`; perl is always present at /usr/bin/perl.
+        run: |
+          set -euo pipefail
+          probe='const of = Application("OmniFocus"); JSON.stringify(of.defaultDocument.name())'
+
+          # Stage 1: cheap probe.
+          if perl -e '$t=shift; alarm $t; exec @ARGV' 15 osascript -l JavaScript -e "$probe" >/dev/null 2>&1; then
+            echo "OmniFocus is already JXA-responsive — skipping reset (preserves warm cache)."
+            exit 0
+          fi
+
+          # Stage 2: reset.
+          echo "OmniFocus did not respond within 15s — performing quit + relaunch."
+          osascript -e 'tell application "OmniFocus" to quit' 2>/dev/null || true
+          for _ in $(seq 1 30); do
+            if ! osascript -e 'tell application "System Events" to (name of processes) contains "OmniFocus"' | grep -q true; then
+              echo "OmniFocus has exited."
+              break
+            fi
+            sleep 1
+          done
+          open -a OmniFocus
+          for _ in $(seq 1 60); do
+            if osascript -e 'tell application "System Events" to (name of processes) contains "OmniFocus"' | grep -q true; then
+              echo "OmniFocus has relaunched."
+              break
+            fi
+            sleep 1
+          done
+
+          # Warm up: poll for JXA-responsiveness, capped at ~3 minutes.
+          warmed=0
+          for attempt in $(seq 1 18); do
+            if perl -e '$t=shift; alarm $t; exec @ARGV' 15 osascript -l JavaScript -e "$probe" >/dev/null 2>&1; then
+              echo "OmniFocus is JXA-responsive (attempt $attempt)."
+              warmed=1
+              break
+            fi
+            echo "OmniFocus not yet responsive (attempt $attempt) — waiting 10s."
+            sleep 10
+          done
+          if [ "$warmed" -ne 1 ]; then
+            echo "::error::OmniFocus relaunched but did not become JXA-responsive within 3 minutes."
+            exit 1
+          fi
+
       - name: Verify OmniFocus is running
         # Exits non-zero if OmniFocus is not running; surfaces a clear message
         # rather than a cryptic adapter error inside the test suite.
