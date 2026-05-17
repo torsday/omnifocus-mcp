@@ -97,6 +97,15 @@ const envSchema = z.object({
   // (once, on the transition above). Default 51200 bytes ≈ ~13k tokens — the
   // rough boundary at which a single response starts to dominate context.
   OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES: z.coerce.number().int().positive().default(51200),
+  // Per-transport / per-script latency telemetry (#940). Same gating model
+  // as response stats: 0 = off (production default, zero overhead);
+  // fractional values sample at that rate; 1 = record every transport.call.
+  // Surfaces via `internal_status` and the `latency.exceeded` warning event.
+  OMNIFOCUS_LATENCY_STATS_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
+  // p95 millisecond threshold above which a `latency.exceeded` warning fires
+  // (once, on the transition above). Default 2000ms — the boundary at which
+  // a single script becomes a perceptible interactive-call problem.
+  OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS: z.coerce.number().int().positive().default(2000),
   // Hard cap on distinct (tool, args-hash) keys the loop detector tracks
   // simultaneously. When exceeded, the oldest key is evicted (FIFO). Raise
   // if a long-running server legitimately calls many unique arg combos per
@@ -150,6 +159,8 @@ export function parseConfig(
     OMNIFOCUS_TEMPLATES_FOLDER_NAME: processEnv.OMNIFOCUS_TEMPLATES_FOLDER_NAME,
     OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE: processEnv.OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE,
     OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES: processEnv.OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES,
+    OMNIFOCUS_LATENCY_STATS_SAMPLE_RATE: processEnv.OMNIFOCUS_LATENCY_STATS_SAMPLE_RATE,
+    OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS: processEnv.OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS,
     OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS: processEnv.OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS,
   });
 
@@ -201,6 +212,8 @@ export function redactConfig(config: Config): Record<string, unknown> {
     OMNIFOCUS_TEMPLATES_FOLDER_NAME: config.OMNIFOCUS_TEMPLATES_FOLDER_NAME,
     OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE: config.OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE,
     OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES: config.OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES,
+    OMNIFOCUS_LATENCY_STATS_SAMPLE_RATE: config.OMNIFOCUS_LATENCY_STATS_SAMPLE_RATE,
+    OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS: config.OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS,
     OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS: config.OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS,
   };
 }

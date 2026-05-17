@@ -42,6 +42,52 @@ export function hashArgs(args: unknown): string {
   return createHash("sha1").update(stableStringify(args)).digest("hex").slice(0, 16);
 }
 
+/**
+ * Strongly-typed event payload passed to {@link onTransportCall} subscribers.
+ * Mirrors the structured log fields written by {@link emitTransportCall}
+ * minus correlation/argsHash details that aren't relevant for in-process
+ * observers (subscribers can compute or skip them as needed).
+ */
+export interface TransportCallEvent {
+  transport: "jxa" | "omnijs";
+  scriptName: string | undefined;
+  durationMs: number;
+  /** Calibrated osascript spawn floor — absent until #939 calibration completes. */
+  spawnFloorMs?: number;
+  /** `max(0, durationMs - spawnFloorMs)` when both are known; otherwise absent. */
+  scriptMs?: number;
+  outcome: "ok" | "error";
+}
+
+type TransportCallListener = (event: TransportCallEvent) => void;
+const listeners: TransportCallListener[] = [];
+
+/**
+ * Subscribe to `transport.call` events. Returns a disposer that unsubscribes.
+ *
+ * In-process observers (response aggregators, latency aggregators, etc.)
+ * register at composition time so the script runners stay free of any
+ * observability dependency — the runners just call {@link emitTransportCall}
+ * as before, and subscribers see the events without back-coupling.
+ *
+ * Listeners are invoked synchronously, in registration order, after the
+ * structured log is written. A throwing listener does NOT abort the call
+ * or prevent other listeners from running: emit is best-effort
+ * instrumentation, never a failure point for the underlying transport.
+ */
+export function onTransportCall(listener: TransportCallListener): () => void {
+  listeners.push(listener);
+  return () => {
+    const idx = listeners.indexOf(listener);
+    if (idx >= 0) listeners.splice(idx, 1);
+  };
+}
+
+/** Test helper — remove all registered listeners. Not used in production. */
+export function __resetTransportCallListeners(): void {
+  listeners.length = 0;
+}
+
 /** Emit a single `transport.call` event at debug level. */
 export function emitTransportCall(
   transport: "jxa" | "omnijs",
@@ -68,4 +114,20 @@ export function emitTransportCall(
     },
     "transport call",
   );
+
+  if (listeners.length === 0) return;
+  const event: TransportCallEvent = {
+    transport,
+    scriptName,
+    durationMs,
+    ...split,
+    outcome,
+  };
+  for (const fn of listeners) {
+    try {
+      fn(event);
+    } catch {
+      // Listener errors are swallowed — emit must never block a transport call.
+    }
+  }
 }

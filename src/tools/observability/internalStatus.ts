@@ -16,6 +16,7 @@ import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import type { ServiceCacheStats } from "../../cache/lruCache.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import type { LatencyStatsSnapshot } from "../../observability/latencyStats.js";
 import type { ResponseStatsSnapshot } from "../../observability/responseStats.js";
 import type { Capabilities } from "../../resources/capabilities.js";
 import { probeCalendarAccess } from "../../resources/capabilities.js";
@@ -29,7 +30,7 @@ import { type MutationScoreSnapshot, probeMutationScore } from "./mutationScore.
 export const INTERNAL_STATUS_DESCRIPTION =
   "Return a health snapshot of the running omnifocus-mcp server. " +
   "Do NOT use this to read OmniFocus data — prefer task_list, project_list, sync_status, etc. " +
-  "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth, responseStats, stores }. " +
+  "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth, responseStats, latencyStats, stores }. " +
   "cache.services maps key prefixes (tag, folder, forecast, task, project) to { hits, misses, hitRate }. " +
   "uptimeMs is the milliseconds since the server process started. " +
   "circuits lists each circuit-breaker name and state (closed/open/half_open). " +
@@ -38,7 +39,8 @@ export const INTERNAL_STATUS_DESCRIPTION =
   "mutation surfaces Stryker calibration freshness — { score, lastRunAt } where score is the " +
   "latest mutation-testing score (0–100) per ADR-0017 and lastRunAt is the report's mtime. " +
   "Returns null when no report file is present (the published npm tarball ships without one). " +
-  "responseStats: per-tool response-byte aggregates { since, sampleRate, thresholdBytes, tools } — null when sampleRate is 0. " +
+  "responseStats / latencyStats: telemetry snapshots — null when sample rate is 0. " +
+  "responseStats: per-tool byte aggregates. latencyStats: per-transport per-script ms aggregates with spawnFloorMs. " +
   "stores: { idempotencyEntries, loopDetectorKeys } live retention-store sizes — null when not wired. " +
   "Read-only; no side effects. " +
   "Example: internal_status()";
@@ -108,6 +110,14 @@ export interface InternalStatusData {
    */
   responseStats: ResponseStatsSnapshot | null;
   /**
+   * Per-transport / per-script latency aggregates (#940). `null` when
+   * telemetry is disabled (sample rate 0). Operators opt in by setting
+   * `OMNIFOCUS_LATENCY_STATS_SAMPLE_RATE`. Each transport block carries the
+   * calibrated `spawnFloorMs` (#939) so callers can interpret p50/p95
+   * `scriptMs` distributions without flipping to a separate probe.
+   */
+  latencyStats: LatencyStatsSnapshot | null;
+  /**
    * Current sizes of bounded in-process stores (#813). `null` when the
    * probe is not wired (e.g. in unit tests that only supply minimal context).
    */
@@ -141,6 +151,12 @@ export interface InternalStatusContext {
    * also surfaces as `null` in the response.
    */
   probeResponseStats?: () => ResponseStatsSnapshot | null;
+  /**
+   * Optional latency-stats probe (#940). Returns the current snapshot, or
+   * `null` to indicate telemetry is disabled. Same null-vs-omit semantics
+   * as {@link probeResponseStats}.
+   */
+  probeLatencyStats?: () => LatencyStatsSnapshot | null;
   /**
    * Optional cache-stats probe (#821). Returns aggregate + per-service stats,
    * or `null` when no cache is wired. Omitting also surfaces as `null`.
@@ -200,6 +216,15 @@ export async function handleInternalStatus(
     }
   }
 
+  let latencyStats: LatencyStatsSnapshot | null = null;
+  if (ctx.probeLatencyStats !== undefined) {
+    try {
+      latencyStats = ctx.probeLatencyStats();
+    } catch {
+      latencyStats = null;
+    }
+  }
+
   let cache: InternalStatusData["cache"] = null;
   if (ctx.probeCache !== undefined) {
     try {
@@ -228,6 +253,7 @@ export async function handleInternalStatus(
     circuits,
     queueDepth: null,
     responseStats,
+    latencyStats,
     stores,
   };
 
