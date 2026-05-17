@@ -40,6 +40,7 @@ import { logger } from "../../logging/logger.js";
 import { emitTransportCall } from "../../logging/transportCall.js";
 import { type RetryPolicy, resolveRetryPolicy } from "../_shared/retryPolicy.js";
 import { ensureSpawnFloorCalibration, getSpawnFloorMs } from "../_shared/spawnFloor.js";
+import { getJxaCircuit, isCircuitTransient } from "../_shared/transportCircuit.js";
 
 // ---------------------------------------------------------------------------
 // Spawner seam (injectable for tests)
@@ -213,6 +214,22 @@ export async function runJxaScript<T = unknown>(
   scriptBody: string,
   args: unknown = {},
   options: RunScriptOptions = {},
+): Promise<T> {
+  // Transport-level circuit breaker (#835). Wraps the entire post-retry
+  // body so a sustained OF wedge (queue of Timeouts) trips the breaker
+  // and subsequent calls fail fast with CircuitOpen instead of each
+  // paying the 30s timeout. Only thrown Timeout / OmniFocusNotRunning
+  // count toward the consecutive-failure budget.
+  return getJxaCircuit().tryCall(
+    () => runJxaScriptInner<T>(scriptBody, args, options),
+    isCircuitTransient,
+  );
+}
+
+async function runJxaScriptInner<T>(
+  scriptBody: string,
+  args: unknown,
+  options: RunScriptOptions,
 ): Promise<T> {
   const spawner = options.spawner ?? defaultJxaSpawner;
   const timeoutMs = options.timeoutMs ?? 30_000;
