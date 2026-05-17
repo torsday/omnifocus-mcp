@@ -138,6 +138,43 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Reset OmniFocus to a clean process state
+        # Cross-PR runs share the self-hosted runner and its single OmniFocus
+        # instance. Database residue is cleared by `seed-integration-db.js
+        # --clean` below, but *process* state (in-flight sync queue, undo
+        # stack, transcript, cached AppleEvents state) survives between runs
+        # and has been observed to wedge OmniFocus into intermittent slow
+        # paths — surfacing as different-tests-fail-each-PR flake against an
+        # otherwise unchanged suite. Quit and relaunch before seeding so each
+        # run starts from a deterministic process state. See #914.
+        run: |
+          set -euo pipefail
+          # Quit; tolerate the case where OF isn't running (first run after reboot).
+          osascript -e 'tell application "OmniFocus" to quit' 2>/dev/null || true
+          # Wait up to 30s for the process to fully exit.
+          for _ in $(seq 1 30); do
+            if ! osascript -e 'tell application "System Events" to (name of processes) contains "OmniFocus"' | grep -q true; then
+              echo "OmniFocus has exited."
+              break
+            fi
+            sleep 1
+          done
+          # Relaunch.
+          open -a OmniFocus
+          # Poll for the process to come back. The seed step below talks to
+          # OmniFocus directly, so we need the process responsive, not just
+          # the icon launched — give it a generous window before we hand off.
+          for _ in $(seq 1 60); do
+            if osascript -e 'tell application "System Events" to (name of processes) contains "OmniFocus"' | grep -q true; then
+              echo "OmniFocus has relaunched."
+              break
+            fi
+            sleep 1
+          done
+          # Extra settle so the database finishes loading before the seed
+          # script's first JXA call (cold-start cost is non-trivial — see #887).
+          sleep 5
+
       - name: Verify OmniFocus is running
         # Exits non-zero if OmniFocus is not running; surfaces a clear message
         # rather than a cryptic adapter error inside the test suite.
