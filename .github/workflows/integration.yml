@@ -161,9 +161,7 @@ jobs:
           done
           # Relaunch.
           open -a OmniFocus
-          # Poll for the process to come back. The seed step below talks to
-          # OmniFocus directly, so we need the process responsive, not just
-          # the icon launched — give it a generous window before we hand off.
+          # Poll for the process to come back.
           for _ in $(seq 1 60); do
             if osascript -e 'tell application "System Events" to (name of processes) contains "OmniFocus"' | grep -q true; then
               echo "OmniFocus has relaunched."
@@ -171,9 +169,27 @@ jobs:
             fi
             sleep 1
           done
-          # Extra settle so the database finishes loading before the seed
-          # script's first JXA call (cold-start cost is non-trivial — see #887).
-          sleep 5
+          # Process-running is not the same as JXA-responsive — OmniFocus may
+          # still be loading its database. The seed step below issues osascript
+          # calls into OmniFocus directly, and an unresponsive OF will hit the
+          # seed script's 60s jxa() timeout (observed on the first attempt of
+          # this workflow: ETIMEDOUT on the first --clean spawn). Warm up by
+          # issuing a cheap JXA round-trip until OmniFocus answers, capped at
+          # ~3 minutes total. See #887 for the cold-start cost analysis.
+          warmed=0
+          for attempt in $(seq 1 18); do
+            if osascript -l JavaScript -e 'const of = Application("OmniFocus"); JSON.stringify(of.defaultDocument.name())' >/dev/null 2>&1; then
+              echo "OmniFocus is JXA-responsive (attempt $attempt)."
+              warmed=1
+              break
+            fi
+            echo "OmniFocus not yet responsive (attempt $attempt) — waiting 10s."
+            sleep 10
+          done
+          if [ "$warmed" -ne 1 ]; then
+            echo "::error::OmniFocus relaunched but did not become JXA-responsive within 3 minutes."
+            exit 1
+          fi
 
       - name: Verify OmniFocus is running
         # Exits non-zero if OmniFocus is not running; surfaces a clear message
