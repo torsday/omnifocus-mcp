@@ -29,6 +29,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import {
   ConflictError,
   NotFound,
+  OFBusy,
   OmniFocusNotRunning,
   PermissionDenied,
   ScriptError,
@@ -38,6 +39,7 @@ import {
 } from "../../errors/index.js";
 import { logger } from "../../logging/logger.js";
 import { emitTransportCall } from "../../logging/transportCall.js";
+import { probeOmniFocusResponsiveness } from "../_shared/busyProbe.js";
 import { type RetryPolicy, resolveRetryPolicy } from "../_shared/retryPolicy.js";
 import { ensureSpawnFloorCalibration, getSpawnFloorMs } from "../_shared/spawnFloor.js";
 import { getJxaCircuit, isCircuitTransient } from "../_shared/transportCircuit.js";
@@ -300,9 +302,35 @@ async function runJxaScriptInner<T>(
     });
   }
 
-  // 2. Hard timeout.
+  // 2. Hard timeout. Classify post-hoc via a fast responsiveness probe:
+  //    if OmniFocus answers a cheap call right after the timeout, the
+  //    timed-out call was blocked by a modal sheet or in-flight sync
+  //    (Busy) rather than a true wedge. Surface the Busy case as a
+  //    user-action error so the agent shows a useful remediation message
+  //    instead of "retry once". Probe failures fall through to the
+  //    original Timeout — that's the wedge case, and the transport
+  //    circuit (#835) picks it up after N consecutive failures.
   if (result.timedOut) {
     const suffix = scriptName !== undefined ? ` (script: ${scriptName})` : "";
+    const probe = await probeOmniFocusResponsiveness(spawner);
+    if (probe === "responsive") {
+      logger.warn(
+        {
+          event: "of.busy.detected",
+          transport: "jxa",
+          ...(scriptName !== undefined ? { scriptName } : {}),
+          timeoutMs,
+        },
+        "OmniFocus is responsive but blocked — likely a modal or active sync",
+      );
+      throw new OFBusy(`OmniFocus is busy (script: ${scriptName ?? "unknown"})`, {
+        details: {
+          transport: "jxa",
+          timeoutMs,
+          ...(scriptName !== undefined ? { scriptName } : {}),
+        },
+      });
+    }
     throw new Timeout(`JXA script exceeded ${timeoutMs}ms timeout${suffix}`, {
       details: {
         transport: "jxa",

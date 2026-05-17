@@ -41,6 +41,7 @@
 import { execFile } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
+  OFBusy,
   OmniFocusNotRunning,
   PermissionDenied,
   ScriptError,
@@ -49,6 +50,7 @@ import {
 } from "../../errors/index.js";
 import { logger } from "../../logging/logger.js";
 import { emitTransportCall } from "../../logging/transportCall.js";
+import { probeOmniFocusResponsiveness } from "../_shared/busyProbe.js";
 import { type RetryPolicy, resolveRetryPolicy } from "../_shared/retryPolicy.js";
 import { ensureSpawnFloorCalibration, getSpawnFloorMs } from "../_shared/spawnFloor.js";
 import { getOmniJsCircuit, isCircuitTransient } from "../_shared/transportCircuit.js";
@@ -285,9 +287,33 @@ async function runOmniJsScriptInner<T>(
     });
   }
 
-  // 2. Hard timeout.
+  // 2. Hard timeout. Post-hoc classification (see #817 / JXA twin): if OF
+  //    answers a cheap responsiveness probe immediately, the timed-out
+  //    call was Busy (modal / sync) rather than wedged. The probe runs on
+  //    the JXA bridge regardless of which transport hit the timeout —
+  //    `defaultDocument.name()` is a vanilla JXA call and a single source
+  //    of truth for "is OmniFocus reachable at all?".
   if (result.timedOut) {
     const suffix = scriptName !== undefined ? ` (script: ${scriptName})` : "";
+    const probe = await probeOmniFocusResponsiveness(spawner);
+    if (probe === "responsive") {
+      logger.warn(
+        {
+          event: "of.busy.detected",
+          transport: "omnijs",
+          ...(scriptName !== undefined ? { scriptName } : {}),
+          timeoutMs,
+        },
+        "OmniFocus is responsive but blocked — likely a modal or active sync",
+      );
+      throw new OFBusy(`OmniFocus is busy (script: ${scriptName ?? "unknown"})`, {
+        details: {
+          transport: "omnijs",
+          timeoutMs,
+          ...(scriptName !== undefined ? { scriptName } : {}),
+        },
+      });
+    }
     throw new Timeout(`OmniJS script exceeded ${timeoutMs}ms timeout${suffix}`, {
       details: {
         transport: "omnijs",

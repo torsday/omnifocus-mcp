@@ -22,6 +22,7 @@
 export type ErrorCode =
   // Environment — retry pointless; user action required
   | "OF_NOT_RUNNING"
+  | "OF_BUSY"
   | "OF_PERMISSION_DENIED"
   | "OF_FEATURE_REQUIRES_PRO"
   | "OF_FEATURE_REQUIRES_VERSION"
@@ -254,6 +255,29 @@ export class ConflictError extends OmniFocusError {
 // ---------------------------------------------------------------------------
 // Transient — agent may retry after waiting
 // ---------------------------------------------------------------------------
+
+/**
+ * Thrown when OmniFocus is reachable but the specific call was blocked
+ * by a modal sheet (export, sync conflict, dialog) or an active sync
+ * (#817). Distinct from {@link Timeout} (true wedge — handled by the
+ * transport circuit, #835) and {@link OmniFocusNotRunning} (app exited).
+ *
+ * Detected post-hoc: after a JXA `Timeout` fires, the runner sends a
+ * cheap responsiveness probe (`defaultDocument.name()`) with a short
+ * timeout. If the probe succeeds, OmniFocus itself is up and answering
+ * AppleEvents — so the timed-out call was specifically blocked, almost
+ * always by a UI-level modal or in-flight sync. Surface as user-action.
+ */
+export class OFBusy extends OmniFocusError {
+  constructor(message: string, options: ErrorOptions = {}) {
+    super("OF_BUSY", message, {
+      remediationClass: "environment",
+      suggestion:
+        "OmniFocus is reachable but blocked — typically a modal sheet (export, sync conflict, dialog) or an in-progress sync. Switch to OmniFocus, dismiss any open dialog, wait for sync to finish, then retry.",
+      ...options,
+    });
+  }
+}
 
 /** Thrown when an OmniFocus call exceeded its hard timeout. */
 export class Timeout extends OmniFocusError {
