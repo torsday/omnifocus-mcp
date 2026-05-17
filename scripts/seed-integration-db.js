@@ -45,16 +45,12 @@ const cleanFirst = args.includes("--clean");
 function jxa(script) {
   const result = spawnSync("osascript", ["-l", "JavaScript", "-e", script], {
     encoding: "utf8",
-    // 180s. The clean pass is now O(matches) via OmniJS bulk delete (#960)
-    // and finishes in single-digit seconds. The remaining bottleneck is
-    // re-creation: each of ~17 fixture items (tags / folders / projects /
-    // tasks) costs one JXA push + one whose(name == X) lookup, and on the
-    // populated self-hosted runner those whose lookups can run 2–3s each
-    // even for exact-match predicates. Total wall time approaches 60–90s
-    // on contended runs; 180s gives generous headroom. Reducing this to
-    // ~30s requires migrating the create-phase to OmniJS too — tracked as
-    // a follow-up to #960.
-    timeout: 180_000,
+    // 30s. Both the clean and create phases now run inside OmniFocus via
+    // OmniJS (#960 + #962): one Apple Event round-trip total, regardless
+    // of how many fixtures are involved. Measured locally at single-
+    // digit seconds against a 600+ task runner. 30s gives generous
+    // headroom for sync hiccups without inviting hangs.
+    timeout: 30_000,
   });
 
   if (result.error) {
@@ -125,266 +121,173 @@ log("✓ OmniFocus is running");
 // injected constants and returns a JSON summary of what was created/skipped.
 // ---------------------------------------------------------------------------
 
-const seedScript = `
-(function() {
+// The seed runs entirely inside OmniFocus via `evaluateJavascript` (Omni
+// Automation / OmniJS). JXA's per-item `push` + `whose({name: X})` round-
+// trips cost ~2–5s each through Apple Events; on a populated runner the
+// 17 fixture creates accumulated to 60–120s of wall time and the seed
+// had to carry a 180s spawn timeout. OmniJS runs in-process: one bridge
+// call, single-digit seconds total. The outer JXA wrapper exists only
+// to drive `evaluateJavascript`. See #962 (this change) and #960 (the
+// clean-pass migration that established this pattern).
+const seedOmniJs = `
+(() => {
   "use strict";
 
-  var of = Application("OmniFocus");
-  var doc = of.defaultDocument;
-  var PREFIX = ${JSON.stringify(FIXTURE_PREFIX)};
-  var PREFIX_BASE = ${JSON.stringify(FIXTURE_PREFIX_BASE)};
-  var cleanFirst = ${JSON.stringify(cleanFirst)};
-  var created = { tags: [], folders: [], projects: [], tasks: [] };
-  var skipped = { tags: 0, folders: 0, projects: 0, tasks: 0 };
+  const PREFIX = ${JSON.stringify(FIXTURE_PREFIX)};
+  const PREFIX_BASE = ${JSON.stringify(FIXTURE_PREFIX_BASE)};
+  const cleanFirst = ${JSON.stringify(cleanFirst)};
+  const created = { tags: [], folders: [], projects: [], tasks: [] };
+  const skipped = { tags: 0, folders: 0, projects: 0, tasks: 0 };
 
-  // -------------------------------------------------------------------------
-  // Helpers
-  // -------------------------------------------------------------------------
+  // Skip zombies: OmniJS's global collections (\`flattenedFolders\`,
+  // \`flattenedTags\`, etc.) can return stale references for objects that
+  // were just deleted in the same script. Touching .name on such a
+  // reference throws "X is no longer valid". Treat any throw as
+  // "not the one we're looking for" and continue scanning.
+  const findIn = (coll, name) => {
+    for (let i = 0; i < coll.length; i++) {
+      let n;
+      try { n = coll[i].name; } catch (_) { continue; }
+      if (n === name) return coll[i];
+    }
+    return null;
+  };
 
-  function findTag(name) {
-    var matches = doc.flattenedTags.whose({ name: name });
-    return matches.length > 0 ? matches[0] : null;
-  }
-
-  function findFolder(name) {
-    var matches = doc.flattenedFolders.whose({ name: name });
-    return matches.length > 0 ? matches[0] : null;
-  }
-
-  function findProject(name) {
-    var matches = doc.flattenedProjects.whose({ name: name });
-    return matches.length > 0 ? matches[0] : null;
-  }
-
-  function findInboxTask(name) {
-    var matches = doc.inboxTasks.whose({ name: name });
-    return matches.length > 0 ? matches[0] : null;
-  }
-
-  function findProjectTask(proj, name) {
-    var matches = proj.flattenedTasks.whose({ name: name });
-    return matches.length > 0 ? matches[0] : null;
-  }
-
-  // -------------------------------------------------------------------------
-  // Optional clean pass — remove all mcp-fixture items
-  // -------------------------------------------------------------------------
-
+  // Clean pass — wipe both seed-owned ("mcp-fixture:") and harness-owned
+  // ("mcp-fixture-<runId>") items by matching the shared base prefix.
+  // Projects before folders so OF doesn't orphan project contents.
   if (cleanFirst) {
-    // Delegate the cleanup to OmniJS (Omni Automation) via
-    // \`evaluateJavascript\`. JXA's per-item .delete() round-trips through
-    // Apple Events and costs ~5s per object on the self-hosted runner —
-    // 45 stale fixture folders observed in #960 would blow well past the
-    // seed's 60s spawn timeout. OmniJS runs inside OmniFocus's process,
-    // turning N delete calls into one bridge call (~3.6s for ~8 items
-    // measured locally).
-    //
-    // Match the literal base "mcp-fixture" so both seed-owned colon-
-    // prefixed names ("mcp-fixture:Work") AND harness-owned hyphen-
-    // prefixed sandbox names ("mcp-fixture-<runId>") get wiped together;
-    // the harness's per-suite sandbox folders had been accumulating
-    // unbounded under the previous colon-only match.
-    var cleanOmniJs = '(() => {' +
-      'const P = "' + PREFIX_BASE + '";' +
-      'let d = {projects:0,inbox:0,folders:0,tags:0};' +
-      // Projects before folders (deleting a folder otherwise orphans its
-      // contained projects in OF's internal store).
-      'flattenedProjects.forEach(p => { if (p.name && p.name.startsWith(P)) { deleteObject(p); d.projects++; } });' +
-      'inbox.forEach(t => { if (t.name && t.name.startsWith(P)) { deleteObject(t); d.inbox++; } });' +
-      'flattenedFolders.forEach(f => { if (f.name && f.name.startsWith(P)) { deleteObject(f); d.folders++; } });' +
-      'flattenedTags.forEach(t => { if (t.name && t.name.startsWith(P)) { deleteObject(t); d.tags++; } });' +
-      'return JSON.stringify(d);' +
-    '})()';
-    of.evaluateJavascript(cleanOmniJs);
+    flattenedProjects.slice().forEach(p => { if (p.name && p.name.startsWith(PREFIX_BASE)) deleteObject(p); });
+    inbox.slice().forEach(t => { if (t.name && t.name.startsWith(PREFIX_BASE)) deleteObject(t); });
+    flattenedFolders.slice().forEach(f => { if (f.name && f.name.startsWith(PREFIX_BASE)) deleteObject(f); });
+    flattenedTags.slice().forEach(t => { if (t.name && t.name.startsWith(PREFIX_BASE)) deleteObject(t); });
   }
 
-  // -------------------------------------------------------------------------
   // Tags (5)
-  // -------------------------------------------------------------------------
-
-  var tagNames = ["urgent", "waiting", "someday", "work", "personal"];
-  var tags = {};
-  for (var i = 0; i < tagNames.length; i++) {
-    var fullName = PREFIX + tagNames[i];
-    var existing = findTag(fullName);
+  const tagShortNames = ["urgent", "waiting", "someday", "work", "personal"];
+  const tags = {};
+  for (const short of tagShortNames) {
+    const fullName = PREFIX + short;
+    const existing = findIn(flattenedTags, fullName);
     if (existing) {
-      tags[tagNames[i]] = existing;
+      tags[short] = existing;
       skipped.tags++;
     } else {
-      var t = of.Tag({ name: fullName });
-      doc.tags.push(t);
-      tags[tagNames[i]] = findTag(fullName);
+      tags[short] = new Tag(fullName);
       created.tags.push(fullName);
     }
   }
 
-  // -------------------------------------------------------------------------
   // Folders (2)
-  // -------------------------------------------------------------------------
+  const workFolderName = PREFIX + "Work";
+  const personalFolderName = PREFIX + "Personal";
+  let workFolder = findIn(flattenedFolders, workFolderName);
+  if (workFolder) { skipped.folders++; } else { workFolder = new Folder(workFolderName); created.folders.push(workFolderName); }
+  let personalFolder = findIn(flattenedFolders, personalFolderName);
+  if (personalFolder) { skipped.folders++; } else { personalFolder = new Folder(personalFolderName); created.folders.push(personalFolderName); }
 
-  var workFolderName = PREFIX + "Work";
-  var personalFolderName = PREFIX + "Personal";
-
-  var workFolder = findFolder(workFolderName);
-  if (workFolder) {
-    skipped.folders++;
-  } else {
-    var wf = of.Folder({ name: workFolderName });
-    doc.folders.push(wf);
-    workFolder = findFolder(workFolderName);
-    created.folders.push(workFolderName);
-  }
-
-  var personalFolder = findFolder(personalFolderName);
-  if (personalFolder) {
-    skipped.folders++;
-  } else {
-    var pf = of.Folder({ name: personalFolderName });
-    doc.folders.push(pf);
-    personalFolder = findFolder(personalFolderName);
-    created.folders.push(personalFolderName);
-  }
-
-  // -------------------------------------------------------------------------
-  // Projects (3)
-  // -------------------------------------------------------------------------
-
-  // Active project in Work folder
-  var activeProjectName = PREFIX + "Work > Active Project";
-  var activeProject = findProject(activeProjectName);
-  if (activeProject) {
-    skipped.projects++;
-  } else {
-    var ap = of.Project({ name: activeProjectName, status: "active status" });
-    workFolder.projects.push(ap);
-    activeProject = findProject(activeProjectName);
+  // Projects (3) — passed-in folder positions the new project inside it
+  const activeProjectName = PREFIX + "Work > Active Project";
+  let activeProject = findIn(flattenedProjects, activeProjectName);
+  if (activeProject) { skipped.projects++; } else {
+    activeProject = new Project(activeProjectName, workFolder);
+    activeProject.status = Project.Status.Active;
     created.projects.push(activeProjectName);
   }
 
-  // On-hold project in Work folder
-  var onHoldProjectName = PREFIX + "Work > On-Hold Project";
-  var onHoldProject = findProject(onHoldProjectName);
-  if (onHoldProject) {
-    skipped.projects++;
-  } else {
-    var ohp = of.Project({ name: onHoldProjectName, status: "on hold status" });
-    workFolder.projects.push(ohp);
-    onHoldProject = findProject(onHoldProjectName);
+  const onHoldProjectName = PREFIX + "Work > On-Hold Project";
+  let onHoldProject = findIn(flattenedProjects, onHoldProjectName);
+  if (onHoldProject) { skipped.projects++; } else {
+    onHoldProject = new Project(onHoldProjectName, workFolder);
+    onHoldProject.status = Project.Status.OnHold;
     created.projects.push(onHoldProjectName);
   }
 
-  // Active project in Personal folder
-  var alphaProjectName = PREFIX + "Personal > Project Alpha";
-  var alphaProject = findProject(alphaProjectName);
-  if (alphaProject) {
-    skipped.projects++;
-  } else {
-    var alphap = of.Project({ name: alphaProjectName, status: "active status" });
-    personalFolder.projects.push(alphap);
-    alphaProject = findProject(alphaProjectName);
+  const alphaProjectName = PREFIX + "Personal > Project Alpha";
+  let alphaProject = findIn(flattenedProjects, alphaProjectName);
+  if (alphaProject) { skipped.projects++; } else {
+    alphaProject = new Project(alphaProjectName, personalFolder);
+    alphaProject.status = Project.Status.Active;
     created.projects.push(alphaProjectName);
   }
 
-  // -------------------------------------------------------------------------
-  // Inbox tasks (2)
-  // -------------------------------------------------------------------------
-
-  var inbox1Name = PREFIX + "Inbox Task 1";
-  if (findInboxTask(inbox1Name)) {
-    skipped.tasks++;
-  } else {
-    var it1 = of.InboxTask({ name: inbox1Name, flagged: true });
-    doc.inboxTasks.push(it1);
+  // Inbox tasks (2) — \`new Task(name)\` with no parent goes to inbox
+  const inbox1Name = PREFIX + "Inbox Task 1";
+  if (findIn(inbox, inbox1Name)) { skipped.tasks++; } else {
+    const t = new Task(inbox1Name);
+    t.flagged = true;
     created.tasks.push(inbox1Name);
   }
-
-  var inbox2Name = PREFIX + "Inbox Task 2";
-  if (findInboxTask(inbox2Name)) {
-    skipped.tasks++;
-  } else {
-    var it2 = of.InboxTask({ name: inbox2Name });
-    doc.inboxTasks.push(it2);
+  const inbox2Name = PREFIX + "Inbox Task 2";
+  if (findIn(inbox, inbox2Name)) { skipped.tasks++; } else {
+    new Task(inbox2Name);
     created.tasks.push(inbox2Name);
   }
 
-  // -------------------------------------------------------------------------
   // Tasks in active project (5)
-  // -------------------------------------------------------------------------
-
-  var tomorrow = new Date();
+  const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(17, 0, 0, 0);
+  const deferredAt = new Date();
+  deferredAt.setDate(deferredAt.getDate() + 7);
+  deferredAt.setHours(9, 0, 0, 0);
 
-  var deferred = new Date();
-  deferred.setDate(deferred.getDate() + 7);
-  deferred.setHours(9, 0, 0, 0);
+  const findInProject = (proj, name) => findIn(proj.flattenedTasks, name);
 
   // Flagged + tagged + due tomorrow
-  var activeTask1Name = PREFIX + "Active Task 1";
-  if (findProjectTask(activeProject, activeTask1Name)) {
-    skipped.tasks++;
-  } else {
-    var at1 = of.Task({
-      name: activeTask1Name,
-      flagged: true,
-      dueDate: tomorrow,
-    });
-    activeProject.tasks.push(at1);
-    if (tags["urgent"]) {
-      of.add(tags["urgent"], { to: findProjectTask(activeProject, activeTask1Name).tags });
-    }
+  const activeTask1Name = PREFIX + "Active Task 1";
+  if (findInProject(activeProject, activeTask1Name)) { skipped.tasks++; } else {
+    const at1 = new Task(activeTask1Name, activeProject);
+    at1.flagged = true;
+    at1.dueDate = tomorrow;
+    if (tags.urgent) at1.addTag(tags.urgent);
     created.tasks.push(activeTask1Name);
   }
 
   // Tagged waiting
-  var activeTask2Name = PREFIX + "Active Task 2";
-  if (findProjectTask(activeProject, activeTask2Name)) {
-    skipped.tasks++;
-  } else {
-    var at2 = of.Task({ name: activeTask2Name });
-    activeProject.tasks.push(at2);
-    if (tags["waiting"]) {
-      of.add(tags["waiting"], { to: findProjectTask(activeProject, activeTask2Name).tags });
-    }
+  const activeTask2Name = PREFIX + "Active Task 2";
+  if (findInProject(activeProject, activeTask2Name)) { skipped.tasks++; } else {
+    const at2 = new Task(activeTask2Name, activeProject);
+    if (tags.waiting) at2.addTag(tags.waiting);
     created.tasks.push(activeTask2Name);
   }
 
   // Completed
-  var completedTaskName = PREFIX + "Completed Task";
-  if (findProjectTask(activeProject, completedTaskName)) {
-    skipped.tasks++;
-  } else {
-    var ct = of.Task({ name: completedTaskName });
-    activeProject.tasks.push(ct);
-    var ctRef = findProjectTask(activeProject, completedTaskName);
-    if (ctRef) { ctRef.markComplete(); }
+  const completedTaskName = PREFIX + "Completed Task";
+  if (findInProject(activeProject, completedTaskName)) { skipped.tasks++; } else {
+    const ct = new Task(completedTaskName, activeProject);
+    ct.markComplete();
     created.tasks.push(completedTaskName);
   }
 
   // Deferred
-  var deferredTaskName = PREFIX + "Deferred Task";
-  if (findProjectTask(activeProject, deferredTaskName)) {
-    skipped.tasks++;
-  } else {
-    var dt = of.Task({ name: deferredTaskName, deferDate: deferred });
-    activeProject.tasks.push(dt);
+  const deferredTaskName = PREFIX + "Deferred Task";
+  if (findInProject(activeProject, deferredTaskName)) { skipped.tasks++; } else {
+    const dt = new Task(deferredTaskName, activeProject);
+    dt.deferDate = deferredAt;
     created.tasks.push(deferredTaskName);
   }
 
-  // Has a note
-  var noteTaskName = PREFIX + "Note Task";
-  if (findProjectTask(alphaProject, noteTaskName)) {
-    skipped.tasks++;
-  } else {
-    var nt = of.Task({
-      name: noteTaskName,
-      note: "This is a fixture note.\\nIt has multiple lines.\\nUsed to verify note round-trip.",
-    });
-    alphaProject.tasks.push(nt);
+  // Has a note (in Personal > Project Alpha)
+  const noteTaskName = PREFIX + "Note Task";
+  if (findInProject(alphaProject, noteTaskName)) { skipped.tasks++; } else {
+    const nt = new Task(noteTaskName, alphaProject);
+    nt.note = "This is a fixture note.\\nIt has multiple lines.\\nUsed to verify note round-trip.";
     created.tasks.push(noteTaskName);
   }
 
-  return JSON.stringify({ created: created, skipped: skipped });
+  return JSON.stringify({ created, skipped });
+})()
+`;
+
+// JXA wrapper — \`evaluateJavascript\` returns the OmniJS expression's value
+// as a string. The OmniJS payload returns a JSON-encoded summary; pass it
+// straight through.
+const seedScript = `
+(function() {
+  "use strict";
+  var of = Application("OmniFocus");
+  return of.evaluateJavascript(${JSON.stringify(seedOmniJs)});
 })();
 `;
 
