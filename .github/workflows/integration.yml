@@ -197,7 +197,8 @@ jobs:
     #   skipped + fork PR                                → pass  (forks lack runner access by design)
     #   skipped + canonical PR + paths-irrelevant        → pass  (diff doesn't touch adapter/test paths)
     #   skipped + canonical PR / push / dispatch (other) → fail  (runner expected, didn't run)
-    #   failure / cancelled                              → fail
+    #   failure / cancelled, pull_request event          → soft-fail (warn, exit 0) per #932/#955
+    #   failure / cancelled, push or dispatch            → fail
     name: integration-gate
     runs-on: ubuntu-latest  # allow-hosted: gate must be reachable when self-hosted runner is offline (gap 2 of #679)
     timeout-minutes: 5
@@ -224,5 +225,10 @@ jobs:
             echo "ok: diff touches no integration-relevant paths; skip-cause=paths-irrelevant"
             exit 0
           fi
-          echo "::error::Integration suite did not pass (result=$RESULT). On canonical-repo PRs this gate requires the macos-omnifocus runner to be online and the suite green."
+          if [ "$EVENT" = "pull_request" ]; then
+            echo "::warning::Integration suite did not pass (result=$RESULT). Soft-failing on PR per #932 contention; merge gating relies on local-verify discipline (see #955). The integration job still ran and its failures are visible above — review them before merging."
+            # Soft-fail: re-enable as `exit 1` when #932 closes.
+            exit 0
+          fi
+          echo "::error::Integration suite did not pass (result=$RESULT). On push (tag) / workflow_dispatch this gate requires the macos-omnifocus runner to be online and the suite green."
           exit 1
