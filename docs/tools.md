@@ -1454,7 +1454,7 @@ Delete a custom OmniFocus perspective by id. Use when a perspective is no longer
 
 ## perspective_evaluate
 
-Evaluate an OmniFocus perspective and return its task list. Accepts both built-in ids (inbox, projects, tags, forecast, flagged, nearby, review) and custom-perspective ids obtained from perspective_list — the tool selects the correct transport internally (JXA for built-in, OmniJS for custom). Custom perspectives require OmniFocus Pro; otherwise returns an error with code OF_FEATURE_REQUIRES_PRO. Returns { tasks: Task[] }. For 'review', returns [] — use review_list_due instead. For 'nearby', returns [] (location unavailable). No side effects; read-only. Example: perspective_evaluate({ perspectiveId: "flagged" }) Example: perspective_evaluate({ perspectiveId: "cust-abc123" })
+Evaluate an OmniFocus perspective and return its task list. Accepts both built-in ids (inbox, projects, tags, forecast, flagged, nearby, review) and custom-perspective ids obtained from perspective_list — the tool selects the correct transport internally (JXA for built-in, OmniJS for custom). Custom perspectives require OmniFocus Pro; otherwise returns an error with code OF_FEATURE_REQUIRES_PRO. Returns { tasks: Task[] } with cursor pagination (limit defaults to 50, max 200). For 'review', returns [] — use review_list_due instead. For 'nearby', returns [] (location unavailable). No side effects; read-only. Example: perspective_evaluate({ perspectiveId: "flagged" }) Example: perspective_evaluate({ perspectiveId: "flagged", limit: 50, cursor: "…" })
 
 ### Input
 
@@ -1462,6 +1462,8 @@ Evaluate an OmniFocus perspective and return its task list. Accepts both built-i
 |-----------|------|----------|-------------|
 | `perspectiveId` | string | Yes | OmniFocus perspective id. Accepts a built-in id (inbox, projects, tags, forecast, flagged, nearby, review) or a custom-perspective id from perspective_list (kind: custom). |
 | `fields` | string[] | No | Restrict each returned task to this list of top-level fields (id is always returned). Omit for the full task shape. Empty array returns just id. Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. Allowed: name, note, noteHtml, projectId, parentId, tagIds, deferDate, deferDateFloating, dueDate, dueDateFloating, estimatedMinutes, flagged, completed, completedAt, dropped, droppedAt, available, blocked, sequential, completedByChildren, repetition, notifications, createdAt, modifiedAt, _links. |
+| `limit` | number | No | Max results per page (1..200). Default 50. Use cursor to fetch subsequent pages. |
+| `cursor` | string | No | Opaque cursor from a previous perspective_evaluate response. Must use the same perspectiveId and fields — changing them mid-sequence returns a ValidationError. |
 
 ### Example call
 
