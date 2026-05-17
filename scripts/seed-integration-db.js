@@ -28,6 +28,13 @@ import { spawnSync } from "node:child_process";
 // ---------------------------------------------------------------------------
 
 const FIXTURE_PREFIX = "mcp-fixture:";
+// The contract harness's sandbox mode (tests/contract/adapter.contract.ts)
+// names its per-run folder `${prefix}-${runId}` where prefix defaults to
+// "mcp-fixture" — i.e. `mcp-fixture-<runId>` with a hyphen, not a colon.
+// `--clean` must wipe both shapes so harness residue doesn't accumulate
+// unbounded across runs (45 stale folders observed on the runner before
+// #960's cleanup). Both shapes share the literal `mcp-fixture` prefix.
+const FIXTURE_PREFIX_BASE = "mcp-fixture";
 const args = process.argv.slice(2);
 const cleanFirst = args.includes("--clean");
 
@@ -38,13 +45,16 @@ const cleanFirst = args.includes("--clean");
 function jxa(script) {
   const result = spawnSync("osascript", ["-l", "JavaScript", "-e", script], {
     encoding: "utf8",
-    // 60s — the per-item .delete() loop in the clean pass can run 25+ tags on
-    // a polluted runner, and OmniFocus's per-Tag deletion triggers a
-    // synchronous index update that costs ~1s each. 30s was tight enough to
-    // time out today (2026-05-10) with 25 stale fixture tags; doubled to 60s.
-    // Long-term, batching the cleanup via `whose({}).delete()` instead of the
-    // per-item loop would let us drop this back — tracked in #929 followup.
-    timeout: 60_000,
+    // 180s. The clean pass is now O(matches) via OmniJS bulk delete (#960)
+    // and finishes in single-digit seconds. The remaining bottleneck is
+    // re-creation: each of ~17 fixture items (tags / folders / projects /
+    // tasks) costs one JXA push + one whose(name == X) lookup, and on the
+    // populated self-hosted runner those whose lookups can run 2–3s each
+    // even for exact-match predicates. Total wall time approaches 60–90s
+    // on contended runs; 180s gives generous headroom. Reducing this to
+    // ~30s requires migrating the create-phase to OmniJS too — tracked as
+    // a follow-up to #960.
+    timeout: 180_000,
   });
 
   if (result.error) {
@@ -122,6 +132,7 @@ const seedScript = `
   var of = Application("OmniFocus");
   var doc = of.defaultDocument;
   var PREFIX = ${JSON.stringify(FIXTURE_PREFIX)};
+  var PREFIX_BASE = ${JSON.stringify(FIXTURE_PREFIX_BASE)};
   var cleanFirst = ${JSON.stringify(cleanFirst)};
   var created = { tags: [], folders: [], projects: [], tasks: [] };
   var skipped = { tags: 0, folders: 0, projects: 0, tasks: 0 };
@@ -160,34 +171,31 @@ const seedScript = `
   // -------------------------------------------------------------------------
 
   if (cleanFirst) {
-    // Remove projects first (deleting a folder orphans its projects in OF)
-    var allProjects = doc.flattenedProjects();
-    for (var i = allProjects.length - 1; i >= 0; i--) {
-      if (allProjects[i].name().indexOf(PREFIX) === 0) {
-        allProjects[i].delete();
-      }
-    }
-    // Remove inbox tasks
-    var inboxTasks = doc.inboxTasks();
-    for (var i = inboxTasks.length - 1; i >= 0; i--) {
-      if (inboxTasks[i].name().indexOf(PREFIX) === 0) {
-        inboxTasks[i].delete();
-      }
-    }
-    // Remove folders
-    var allFolders = doc.flattenedFolders();
-    for (var i = allFolders.length - 1; i >= 0; i--) {
-      if (allFolders[i].name().indexOf(PREFIX) === 0) {
-        allFolders[i].delete();
-      }
-    }
-    // Remove tags
-    var allTags = doc.flattenedTags();
-    for (var i = allTags.length - 1; i >= 0; i--) {
-      if (allTags[i].name().indexOf(PREFIX) === 0) {
-        allTags[i].delete();
-      }
-    }
+    // Delegate the cleanup to OmniJS (Omni Automation) via
+    // \`evaluateJavascript\`. JXA's per-item .delete() round-trips through
+    // Apple Events and costs ~5s per object on the self-hosted runner —
+    // 45 stale fixture folders observed in #960 would blow well past the
+    // seed's 60s spawn timeout. OmniJS runs inside OmniFocus's process,
+    // turning N delete calls into one bridge call (~3.6s for ~8 items
+    // measured locally).
+    //
+    // Match the literal base "mcp-fixture" so both seed-owned colon-
+    // prefixed names ("mcp-fixture:Work") AND harness-owned hyphen-
+    // prefixed sandbox names ("mcp-fixture-<runId>") get wiped together;
+    // the harness's per-suite sandbox folders had been accumulating
+    // unbounded under the previous colon-only match.
+    var cleanOmniJs = '(() => {' +
+      'const P = "' + PREFIX_BASE + '";' +
+      'let d = {projects:0,inbox:0,folders:0,tags:0};' +
+      // Projects before folders (deleting a folder otherwise orphans its
+      // contained projects in OF's internal store).
+      'flattenedProjects.forEach(p => { if (p.name && p.name.startsWith(P)) { deleteObject(p); d.projects++; } });' +
+      'inbox.forEach(t => { if (t.name && t.name.startsWith(P)) { deleteObject(t); d.inbox++; } });' +
+      'flattenedFolders.forEach(f => { if (f.name && f.name.startsWith(P)) { deleteObject(f); d.folders++; } });' +
+      'flattenedTags.forEach(t => { if (t.name && t.name.startsWith(P)) { deleteObject(t); d.tags++; } });' +
+      'return JSON.stringify(d);' +
+    '})()';
+    of.evaluateJavascript(cleanOmniJs);
   }
 
   // -------------------------------------------------------------------------
