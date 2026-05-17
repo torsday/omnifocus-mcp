@@ -172,13 +172,18 @@ jobs:
           # Process-running is not the same as JXA-responsive — OmniFocus may
           # still be loading its database. The seed step below issues osascript
           # calls into OmniFocus directly, and an unresponsive OF will hit the
-          # seed script's 60s jxa() timeout (observed on the first attempt of
-          # this workflow: ETIMEDOUT on the first --clean spawn). Warm up by
-          # issuing a cheap JXA round-trip until OmniFocus answers, capped at
-          # ~3 minutes total. See #887 for the cold-start cost analysis.
+          # seed script's 60s jxa() timeout. Warm up by issuing a cheap JXA
+          # round-trip until OmniFocus answers, capped at ~3 minutes total.
+          #
+          # Wrap each call in `timeout 15s` (gnu coreutils, available on this
+          # runner via homebrew) — `osascript` itself has no timeout flag and
+          # will block indefinitely against a wedged OmniFocus, hanging the
+          # whole job past its 30-minute cap. Fail-fast per attempt so the
+          # retry loop can either find a responsive state or exit cleanly.
+          # See #887 for the cold-start cost analysis.
           warmed=0
           for attempt in $(seq 1 18); do
-            if osascript -l JavaScript -e 'const of = Application("OmniFocus"); JSON.stringify(of.defaultDocument.name())' >/dev/null 2>&1; then
+            if timeout 15s osascript -l JavaScript -e 'const of = Application("OmniFocus"); JSON.stringify(of.defaultDocument.name())' >/dev/null 2>&1; then
               echo "OmniFocus is JXA-responsive (attempt $attempt)."
               warmed=1
               break
