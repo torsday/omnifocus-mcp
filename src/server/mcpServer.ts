@@ -42,6 +42,7 @@ import { onTransportCall } from "../logging/transportCall.js";
 import { LoopDetector } from "../loopDetector/LoopDetector.js";
 import { LatencyStatsRegistry } from "../observability/latencyStats.js";
 import { ResponseStatsRegistry } from "../observability/responseStats.js";
+import { ToolDurationStatsRegistry } from "../observability/toolDurationStats.js";
 import {
   CAPTURE_MEETING_PROMPT,
   DAILY_REVIEW_PROMPT,
@@ -314,12 +315,21 @@ export async function startServer(): Promise<void> {
       ...(event.scriptMs !== undefined ? { scriptMs: event.scriptMs } : {}),
     });
   });
+  // Per-tool middleware-layer duration telemetry (#798). Recorded
+  // alongside response-byte telemetry from the same patch point. When the
+  // sample rate is 0 (production default) `record` short-circuits.
+  const toolDurationStats = new ToolDurationStatsRegistry({
+    sampleRate: config.OMNIFOCUS_DURATION_STATS_SAMPLE_RATE,
+    thresholdMs: config.OMNIFOCUS_DURATION_STATS_THRESHOLD_MS,
+    logger,
+  });
   installToolMiddleware(server, {
     rateLimiter,
     loopDetector,
     circuitRegistry: circuitBreakerRegistry,
     shutdown: shutdownController,
     responseStats,
+    toolDurationStats,
   });
 
   const transport = new StdioServerTransport();
@@ -358,6 +368,8 @@ export async function startServer(): Promise<void> {
       config.OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE > 0 ? responseStats.snapshot() : null,
     probeLatencyStats: () =>
       config.OMNIFOCUS_LATENCY_STATS_SAMPLE_RATE > 0 ? latencyStats.snapshot() : null,
+    probeToolDurationStats: () =>
+      config.OMNIFOCUS_DURATION_STATS_SAMPLE_RATE > 0 ? toolDurationStats.snapshot() : null,
     probeCache: () => {
       const s = services.cache.stats();
       return { ...s, services: services.cache.serviceStats() };
