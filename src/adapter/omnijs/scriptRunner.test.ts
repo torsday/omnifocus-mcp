@@ -225,10 +225,14 @@ describe("runOmniJsScript — retry-once on transient failures", () => {
       ...r,
     }));
     let i = 0;
-    return vi.fn(
-      async (_b: string, _a: string, _t: number): Promise<SpawnResult> =>
-        sequence[i++] as SpawnResult,
-    ) as ScriptSpawner & ReturnType<typeof vi.fn>;
+    return vi.fn(async (_b: string, _a: string, _t: number): Promise<SpawnResult> => {
+      // Repeat the last entry so the #817 post-Timeout probe (which
+      // consumes an extra spawn whenever the main call times out) doesn't
+      // force every test to enumerate the probe explicitly.
+      const idx = Math.min(i, sequence.length - 1);
+      i += 1;
+      return sequence[idx] as SpawnResult;
+    }) as ScriptSpawner & ReturnType<typeof vi.fn>;
   }
 
   it("retries a read-only script on timeout and returns the second-attempt result", async () => {
@@ -255,7 +259,8 @@ describe("runOmniJsScript — retry-once on transient failures", () => {
         },
       ),
     ).rejects.toBeInstanceOf(OmniFocusError);
-    expect(spawner.mock.calls).toHaveLength(1);
+    // 1 main call + 1 post-timeout responsiveness probe (#817). No retry.
+    expect(spawner.mock.calls).toHaveLength(2);
   });
 
   it("does NOT retry when scriptName is unknown (safe default)", async () => {
@@ -263,7 +268,7 @@ describe("runOmniJsScript — retry-once on transient failures", () => {
     await expect(
       runOmniJsScript("script", {}, { spawner, retry: { delayMs: 0 } }),
     ).rejects.toBeInstanceOf(OmniFocusError);
-    expect(spawner.mock.calls).toHaveLength(1);
+    expect(spawner.mock.calls).toHaveLength(2); // main + probe
   });
 
   it("does NOT retry when retry.enabled is false", async () => {
@@ -279,7 +284,7 @@ describe("runOmniJsScript — retry-once on transient failures", () => {
         },
       ),
     ).rejects.toBeInstanceOf(OmniFocusError);
-    expect(spawner.mock.calls).toHaveLength(1);
+    expect(spawner.mock.calls).toHaveLength(2); // main + probe
   });
 
   it("does NOT retry on non-transient errors (e.g. PermissionDenied via stderr)", async () => {
@@ -313,7 +318,10 @@ describe("runOmniJsScript — retry-once on transient failures", () => {
       },
     ).catch((e: unknown) => e);
     expect((err as Error).constructor.name).toBe("Timeout");
-    expect(spawner.mock.calls).toHaveLength(2);
+    // 2 main attempts + 1 post-timeout responsiveness probe (#817) = 3.
+    // The probe inherits the timed-out repeat from sequenceSpawner so it
+    // also reports unresponsive — that's the wedge path (Timeout, not OFBusy).
+    expect(spawner.mock.calls).toHaveLength(3);
   });
 
   it("does NOT retry on spawn failure (binary missing — not transient)", async () => {

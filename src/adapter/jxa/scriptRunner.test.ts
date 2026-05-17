@@ -88,12 +88,36 @@ describe("runJxaScript — happy path", () => {
 });
 
 describe("runJxaScript — error mapping", () => {
-  it("maps timeout to Timeout with transport context", async () => {
+  it("maps timeout to Timeout when responsiveness probe also fails", async () => {
+    // Spawner times out on EVERY call — both the main script and the
+    // post-hoc probe → classify as a true wedge (Timeout, not OFBusy).
     const spawner = fakeSpawner({ timedOut: true, exitCode: 1 });
     await expect(runJxaScript("script", {}, { spawner, timeoutMs: 250 })).rejects.toMatchObject({
       name: "Timeout",
       code: "OF_TIMEOUT",
       details: { transport: "jxa", timeoutMs: 250 },
+    });
+  });
+
+  it("converts Timeout → OFBusy when the responsiveness probe succeeds (#817)", async () => {
+    // First call (the actual script) times out; second call (the probe)
+    // returns successfully → OF is reachable, so the original timeout
+    // was a Busy condition (modal / sync), not a wedge.
+    let call = 0;
+    const spawner: ScriptSpawner = vi.fn(async (): Promise<SpawnResult> => {
+      call += 1;
+      if (call === 1) {
+        return { stdout: "", stderr: "", exitCode: null, timedOut: true };
+      }
+      return { stdout: '{"name":"OmniFocus"}', stderr: "", exitCode: 0, timedOut: false };
+    });
+    await expect(
+      runJxaScript("script", {}, { spawner, timeoutMs: 250, scriptName: "task_create" }),
+    ).rejects.toMatchObject({
+      name: "OFBusy",
+      code: "OF_BUSY",
+      remediationClass: "environment",
+      details: { transport: "jxa", scriptName: "task_create" },
     });
   });
 
@@ -276,10 +300,18 @@ describe("runJxaScript — retry-once on transient failures", () => {
       ...r,
     }));
     let i = 0;
-    return vi.fn(
-      async (_b: string, _a: string, _t: number): Promise<SpawnResult> =>
-        sequence[i++] as SpawnResult,
-    ) as ScriptSpawner & ReturnType<typeof vi.fn>;
+    return vi.fn(async (_b: string, _a: string, _t: number): Promise<SpawnResult> => {
+      // The post-Timeout responsiveness probe (#817) consumes an extra
+      // spawn whenever the main call times out. Repeat the last entry so
+      // tests don't have to enumerate the probe explicitly — the probe
+      // sees the same shape as the last real call, which means a "still
+      // timed out" sequence stays timed-out (Timeout, not OFBusy) and a
+      // "now succeeding" sequence reports responsive (irrelevant on the
+      // success path).
+      const idx = Math.min(i, sequence.length - 1);
+      i += 1;
+      return sequence[idx] as SpawnResult;
+    }) as ScriptSpawner & ReturnType<typeof vi.fn>;
   }
 
   it("retries a read-only script on timeout and returns the second-attempt result", async () => {
@@ -356,7 +388,8 @@ describe("runJxaScript — retry-once on transient failures", () => {
         },
       ),
     ).rejects.toBeInstanceOf(OmniFocusError);
-    expect(spawner.mock.calls).toHaveLength(1);
+    // 1 main call + 1 post-timeout responsiveness probe (#817). No retry.
+    expect(spawner.mock.calls).toHaveLength(2);
   });
 
   it("does NOT retry when scriptName is unknown (safe default)", async () => {
@@ -364,7 +397,7 @@ describe("runJxaScript — retry-once on transient failures", () => {
     await expect(
       runJxaScript("script", {}, { spawner, retry: { delayMs: 0 } }),
     ).rejects.toBeInstanceOf(OmniFocusError);
-    expect(spawner.mock.calls).toHaveLength(1);
+    expect(spawner.mock.calls).toHaveLength(2); // main + probe
   });
 
   it("does NOT retry when retry.enabled is false", async () => {
@@ -380,7 +413,7 @@ describe("runJxaScript — retry-once on transient failures", () => {
         },
       ),
     ).rejects.toBeInstanceOf(OmniFocusError);
-    expect(spawner.mock.calls).toHaveLength(1);
+    expect(spawner.mock.calls).toHaveLength(2); // main + probe
   });
 
   it("does NOT retry on non-transient errors (e.g. PermissionDenied)", async () => {
@@ -415,7 +448,10 @@ describe("runJxaScript — retry-once on transient failures", () => {
       },
     ).catch((e: unknown) => e);
     expect((err as Error).constructor.name).toBe("Timeout");
-    expect(spawner.mock.calls).toHaveLength(2);
+    // 2 main attempts + 1 post-timeout responsiveness probe (#817). The
+    // probe also times out (sequenceSpawner repeats the last entry), so
+    // we surface the wedge-class Timeout rather than OFBusy.
+    expect(spawner.mock.calls).toHaveLength(3);
   });
 
   it("does NOT retry on spawn failure (binary missing — not transient)", async () => {
