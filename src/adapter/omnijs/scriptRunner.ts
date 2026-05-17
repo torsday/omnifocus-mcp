@@ -51,6 +51,7 @@ import { logger } from "../../logging/logger.js";
 import { emitTransportCall } from "../../logging/transportCall.js";
 import { type RetryPolicy, resolveRetryPolicy } from "../_shared/retryPolicy.js";
 import { ensureSpawnFloorCalibration, getSpawnFloorMs } from "../_shared/spawnFloor.js";
+import { getOmniJsCircuit, isCircuitTransient } from "../_shared/transportCircuit.js";
 
 // ---------------------------------------------------------------------------
 // Spawner seam (injectable for tests)
@@ -199,6 +200,20 @@ export async function runOmniJsScript<T = unknown>(
   omniJsScriptBody: string,
   args: unknown = {},
   options: RunScriptOptions = {},
+): Promise<T> {
+  // Transport-level circuit breaker (#835). Mirrors the JXA half — a
+  // sustained OF wedge trips this breaker independently of JXA's, since
+  // either transport can fail while the other is healthy.
+  return getOmniJsCircuit().tryCall(
+    () => runOmniJsScriptInner<T>(omniJsScriptBody, args, options),
+    isCircuitTransient,
+  );
+}
+
+async function runOmniJsScriptInner<T>(
+  omniJsScriptBody: string,
+  args: unknown,
+  options: RunScriptOptions,
 ): Promise<T> {
   const spawner = options.spawner ?? defaultOmniJsSpawner;
   const timeoutMs = options.timeoutMs ?? 45_000;

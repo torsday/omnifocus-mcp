@@ -33,6 +33,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import packageJson from "../../package.json" with { type: "json" };
 import { configureRetryPolicy } from "../adapter/_shared/retryPolicy.js";
 import { getSpawnFloorMs } from "../adapter/_shared/spawnFloor.js";
+import { configureTransportCircuits } from "../adapter/_shared/transportCircuit.js";
 import { wrapWithConcurrency } from "../adapter/concurrent.js";
 import { ReadPool } from "../concurrency/ReadPool.js";
 import { WriteQueue } from "../concurrency/WriteQueue.js";
@@ -279,6 +280,16 @@ export async function startServer(): Promise<void> {
   configureRetryPolicy({
     enabled: config.OMNIFOCUS_TRANSIENT_RETRY_ENABLED,
     delayMs: config.OMNIFOCUS_TRANSIENT_RETRY_DELAY_MS,
+  });
+
+  // Apply the transport-level circuit-breaker policy (#835). Done at boot
+  // so the breakers exist before the first script call; the runners reach
+  // for the module-level instance.
+  configureTransportCircuits({
+    enabled: config.OMNIFOCUS_CIRCUIT_ENABLED,
+    threshold: config.OMNIFOCUS_CIRCUIT_THRESHOLD,
+    recoveryMs: config.OMNIFOCUS_CIRCUIT_RECOVERY_MS,
+    logger,
   });
 
   const server = createMcpServer();

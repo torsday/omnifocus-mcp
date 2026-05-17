@@ -118,6 +118,19 @@ const envSchema = z.object({
   // Per-tool budgets (cached-read p95 < 50ms, batch-write 20 < 1.2s per
   // SPEC §9) are not encoded here; this is a single global guardrail.
   OMNIFOCUS_DURATION_STATS_THRESHOLD_MS: z.coerce.number().int().positive().default(5000),
+  // Transport-level circuit breaker (#835). Distinct from the per-tool
+  // breaker — this one scopes by transport (jxa / omnijs) so a sustained
+  // OF wedge (queue of Timeouts) short-circuits the whole transport
+  // instead of each tool paying its own 30s timeout before its own
+  // per-tool breaker trips. Enabled by default; trips after N consecutive
+  // transient failures (Timeout / OmniFocusNotRunning); fails fast for
+  // M ms before half-opening for a probe.
+  OMNIFOCUS_CIRCUIT_ENABLED: z
+    .string()
+    .prefault("1")
+    .transform((v) => v !== "0"),
+  OMNIFOCUS_CIRCUIT_THRESHOLD: z.coerce.number().int().positive().default(5),
+  OMNIFOCUS_CIRCUIT_RECOVERY_MS: z.coerce.number().int().positive().default(30_000),
   // Hard cap on distinct (tool, args-hash) keys the loop detector tracks
   // simultaneously. When exceeded, the oldest key is evicted (FIFO). Raise
   // if a long-running server legitimately calls many unique arg combos per
@@ -175,6 +188,9 @@ export function parseConfig(
     OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS: processEnv.OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS,
     OMNIFOCUS_DURATION_STATS_SAMPLE_RATE: processEnv.OMNIFOCUS_DURATION_STATS_SAMPLE_RATE,
     OMNIFOCUS_DURATION_STATS_THRESHOLD_MS: processEnv.OMNIFOCUS_DURATION_STATS_THRESHOLD_MS,
+    OMNIFOCUS_CIRCUIT_ENABLED: processEnv.OMNIFOCUS_CIRCUIT_ENABLED,
+    OMNIFOCUS_CIRCUIT_THRESHOLD: processEnv.OMNIFOCUS_CIRCUIT_THRESHOLD,
+    OMNIFOCUS_CIRCUIT_RECOVERY_MS: processEnv.OMNIFOCUS_CIRCUIT_RECOVERY_MS,
     OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS: processEnv.OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS,
   });
 
@@ -230,6 +246,9 @@ export function redactConfig(config: Config): Record<string, unknown> {
     OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS: config.OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS,
     OMNIFOCUS_DURATION_STATS_SAMPLE_RATE: config.OMNIFOCUS_DURATION_STATS_SAMPLE_RATE,
     OMNIFOCUS_DURATION_STATS_THRESHOLD_MS: config.OMNIFOCUS_DURATION_STATS_THRESHOLD_MS,
+    OMNIFOCUS_CIRCUIT_ENABLED: config.OMNIFOCUS_CIRCUIT_ENABLED,
+    OMNIFOCUS_CIRCUIT_THRESHOLD: config.OMNIFOCUS_CIRCUIT_THRESHOLD,
+    OMNIFOCUS_CIRCUIT_RECOVERY_MS: config.OMNIFOCUS_CIRCUIT_RECOVERY_MS,
     OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS: config.OMNIFOCUS_LOOP_DETECTOR_MAX_KEYS,
   };
 }
