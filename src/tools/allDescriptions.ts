@@ -26,6 +26,7 @@ import { FORECAST_GET_DESCRIPTION } from "./forecast/get.js";
 import { FORECAST_GET_TAG_DESCRIPTION } from "./forecast/get_tag.js";
 import { FORECAST_PACK_DESCRIPTION } from "./forecast/pack.js";
 import { FORECAST_SET_TAG_DESCRIPTION } from "./forecast/set_tag.js";
+import { OMNIFOCUS_DOCTOR_DESCRIPTION } from "./lifecycle/doctor.js";
 import { NOTE_APPEND_DESCRIPTION } from "./note/append.js";
 import { NOTE_GET_DESCRIPTION } from "./note/get.js";
 import { NOTE_GET_HTML_DESCRIPTION } from "./note/get_html.js";
@@ -175,6 +176,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   import_opml: IMPORT_OPML_DESCRIPTION,
   import_taskpaper: IMPORT_TASKPAPER_DESCRIPTION,
   internal_status: INTERNAL_STATUS_DESCRIPTION,
+  omnifocus_doctor: OMNIFOCUS_DOCTOR_DESCRIPTION,
   note_append: NOTE_APPEND_DESCRIPTION,
   note_get: NOTE_GET_DESCRIPTION,
   note_get_html: NOTE_GET_HTML_DESCRIPTION,

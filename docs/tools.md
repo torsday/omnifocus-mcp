@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 142 tools registered.
+> Auto-generated from source. 143 tools registered.
 
 ## Table of contents
 
@@ -41,6 +41,7 @@
 - [note_get_html](#note_get_html)
 - [note_set](#note_set)
 - [note_set_html](#note_set_html)
+- [omnifocus_doctor](#omnifocus_doctor)
 - [perspective_create](#perspective_create)
 - [perspective_delete](#perspective_delete)
 - [perspective_evaluate](#perspective_evaluate)
@@ -1375,6 +1376,37 @@ Replace the HTML fragment note on a task or project. Overwrites the existing not
     "id": "abc123",
     "noteHtml": "<p>Updated note.</p>"
   },
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## omnifocus_doctor
+
+Self-diagnostic for omnifocus-mcp setup. Probes server health and the live OmniFocus connection. Do NOT call as a substitute for the tool that actually does the work — only use to triage why another tool is failing; prefer internal_status when you already know setup is fine and only want server metrics. Returns { summary: 'ok' | 'degraded' | 'failed', checks: [{ name, status: 'pass' | 'warn' | 'fail', details, remediation }] }. summary is the worst status across all checks; surface each check's remediation back to the user verbatim. No side effects; will NOT launch OmniFocus (use app_launch for that). Example: omnifocus_doctor()
+
+### Input
+
+_No parameters._
+
+### Example call
+
+```json
+{
+  "toolName": "omnifocus_doctor",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
   "meta": {
     "requestId": "req_01ABC",
     "durationMs": 5

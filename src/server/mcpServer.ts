@@ -96,6 +96,7 @@ import { registerForecastGetTool } from "../tools/forecast/get.js";
 import { registerForecastGetTagTool } from "../tools/forecast/get_tag.js";
 import { registerForecastPackTool } from "../tools/forecast/pack.js";
 import { registerForecastSetTagTool } from "../tools/forecast/set_tag.js";
+import { registerOmnifocusDoctorTool } from "../tools/lifecycle/doctor.js";
 import { registerNoteAppendTool } from "../tools/note/append.js";
 import { registerNoteGetTool } from "../tools/note/get.js";
 import { registerNoteGetHtmlTool } from "../tools/note/get_html.js";
@@ -549,6 +550,15 @@ export async function startServer(): Promise<void> {
 
   // App.
   registerAppLaunchTool(server, { adapter, makeMeta });
+
+  // Lifecycle self-diagnostic (#838). Composes the typed-error suggestions
+  // from the reliability triad (#816 / #835 / #817) into a single probe.
+  registerOmnifocusDoctorTool(server, {
+    adapter,
+    startedAt,
+    serverVersion: PACKAGE_VERSION,
+    makeMeta,
+  });
 
   // Window controls — UI-affecting; advisory; no cache invalidation. (#466)
   const windowCtx = { adapter, makeMeta };
