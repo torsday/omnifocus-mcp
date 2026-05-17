@@ -37,6 +37,9 @@ function makeCtx(
     probeResponseStats?: () =>
       | import("../../observability/responseStats.js").ResponseStatsSnapshot
       | null;
+    probeLatencyStats?: () =>
+      | import("../../observability/latencyStats.js").LatencyStatsSnapshot
+      | null;
   } = {},
 ) {
   const adapter = {
@@ -68,6 +71,9 @@ function makeCtx(
   // distinguishes "key absent" (telemetry off) from "key present with undefined".
   if (overrides.probeResponseStats !== undefined) {
     ctx.probeResponseStats = overrides.probeResponseStats;
+  }
+  if (overrides.probeLatencyStats !== undefined) {
+    ctx.probeLatencyStats = overrides.probeLatencyStats;
   }
   return ctx;
 }
@@ -251,6 +257,48 @@ describe("internal_status — responseStats", () => {
     });
     const envelope = await handleInternalStatus({}, ctx);
     expect(envelope.data.responseStats).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Handler — latencyStats (#940)
+// ---------------------------------------------------------------------------
+
+describe("internal_status — latencyStats", () => {
+  it("returns null when no probe is provided (telemetry off)", async () => {
+    const ctx = makeCtx();
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.latencyStats).toBeNull();
+  });
+
+  it("forwards the probe result verbatim when telemetry is on", async () => {
+    const snapshot = {
+      since: "2026-05-17T00:00:00.000Z",
+      sampleRate: 1,
+      thresholdMs: 2000,
+      transports: {
+        jxa: {
+          spawnFloorMs: 180,
+          scripts: {
+            task_get: { count: 12, max: 1500, p50: 80, p95: 1200 },
+          },
+        },
+        omnijs: { spawnFloorMs: 0, scripts: {} },
+      },
+    };
+    const ctx = makeCtx({ probeLatencyStats: vi.fn().mockReturnValue(snapshot) });
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.latencyStats).toEqual(snapshot);
+  });
+
+  it("surfaces null when the probe throws unexpectedly", async () => {
+    const ctx = makeCtx({
+      probeLatencyStats: vi.fn().mockImplementation(() => {
+        throw new Error("registry exploded");
+      }),
+    });
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.latencyStats).toBeNull();
   });
 });
 

@@ -32,12 +32,15 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 // so this stays a compile-time constant — no runtime fs read.
 import packageJson from "../../package.json" with { type: "json" };
 import { configureRetryPolicy } from "../adapter/_shared/retryPolicy.js";
+import { getSpawnFloorMs } from "../adapter/_shared/spawnFloor.js";
 import { wrapWithConcurrency } from "../adapter/concurrent.js";
 import { ReadPool } from "../concurrency/ReadPool.js";
 import { WriteQueue } from "../concurrency/WriteQueue.js";
 import { parseConfig, redactConfig } from "../config/env.js";
 import { logger } from "../logging/logger.js";
+import { onTransportCall } from "../logging/transportCall.js";
 import { LoopDetector } from "../loopDetector/LoopDetector.js";
+import { LatencyStatsRegistry } from "../observability/latencyStats.js";
 import { ResponseStatsRegistry } from "../observability/responseStats.js";
 import {
   CAPTURE_MEETING_PROMPT,
@@ -292,6 +295,25 @@ export async function startServer(): Promise<void> {
     thresholdBytes: config.OMNIFOCUS_RESPONSE_STATS_THRESHOLD_BYTES,
     logger,
   });
+  // Transport latency telemetry (#940). Subscribed to `transport.call`
+  // events at composition time so the script runners stay free of
+  // observability dependencies. When the sample rate is 0 (production
+  // default) the registry's `record` short-circuits and the listener is
+  // effectively a no-op.
+  const latencyStats = new LatencyStatsRegistry({
+    sampleRate: config.OMNIFOCUS_LATENCY_STATS_SAMPLE_RATE,
+    thresholdMs: config.OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS,
+    logger,
+    getSpawnFloorMs: () => getSpawnFloorMs() ?? null,
+  });
+  onTransportCall((event) => {
+    latencyStats.record({
+      transport: event.transport,
+      scriptName: event.scriptName,
+      durationMs: event.durationMs,
+      ...(event.scriptMs !== undefined ? { scriptMs: event.scriptMs } : {}),
+    });
+  });
   installToolMiddleware(server, {
     rateLimiter,
     loopDetector,
@@ -334,6 +356,8 @@ export async function startServer(): Promise<void> {
     makeMeta,
     probeResponseStats: () =>
       config.OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE > 0 ? responseStats.snapshot() : null,
+    probeLatencyStats: () =>
+      config.OMNIFOCUS_LATENCY_STATS_SAMPLE_RATE > 0 ? latencyStats.snapshot() : null,
     probeCache: () => {
       const s = services.cache.stats();
       return { ...s, services: services.cache.serviceStats() };
