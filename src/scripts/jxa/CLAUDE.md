@@ -24,34 +24,32 @@ in `_types/`. Beachhead reference: `task_get.js` (#987 / #854). Prologue:
 // @ts-check
 /// <reference path="_types/omnifocus.d.ts" />
 /// <reference path="_types/jxa-globals.d.ts" />
-/// <reference path="_types/jxa-helpers.d.ts" />  // only if the script @inlines any helper
+/// <reference path="_types/jxa-helpers.d.ts" />     // only if the script @inlines any helper
+/// <reference path="_types/sdef-overrides.d.ts" />   // only if the script uses a documented runtime extra
 ```
 
-- `_types/omnifocus.d.ts` is **auto-generated** from `vendor/OmniFocus.sdef`
-  via `pnpm generate:jxa-types`. Never hand-edit; re-run the generator and
-  commit the regenerated file. The OF 4.x quirks above (no `parent()` on
-  Folder/Tag, etc.) are encoded as missing methods on the generated
-  interfaces — `tsc` flags them at typecheck time.
-- `_types/jxa-globals.d.ts` is **hand-maintained** — declares `Application`,
-  `Path`, `delay`, `ObjC`, `$`. Keep small; if you find yourself adding
-  OmniFocus-specific machinery here, the generator should emit it instead.
+- `_types/omnifocus.d.ts` is **auto-generated** by `pnpm generate:jxa-types`
+  from `vendor/OmniFocus.sdef`. Never hand-edit; regenerate and commit. The
+  OF 4.x quirks above (no `parent()` on Folder/Tag, etc.) are encoded as
+  missing methods on the generated interfaces — `tsc` flags them at typecheck.
+- `_types/jxa-globals.d.ts` is **hand-maintained** — JXA runtime entrypoints
+  (`Application`, `Path`, `delay`, `ObjC`, `$`). Keep small; OmniFocus-specific
+  machinery belongs in the generator. Property-vs-method overrides also live
+  here: sdef `<property>` blocks emit as parameterless methods, but JXA (and
+  the sandbox mock) accept property access too — see the `defaultDocument`
+  intersection that lets both forms typecheck.
 - `_types/jxa-helpers.d.ts` is **hand-maintained** — declares the inlined
-  helpers under `_helpers/` (`buildTask`, `buildRepetition`, `buildFolder`,
-  `buildProject`, `buildTag`, `lookupOrThrow`). Inlined symbols are
-  invisible to `tsc` (the splice happens after `tsc` sees the file per
-  ADR-0020); referencing this file is what makes them resolve. Only
-  reference when the script actually carries a `// @inline _helpers/*.js`
-  directive — otherwise the symbols leak into scope as unused globals.
-- All three `.d.ts` files are **ambient** (no `export`). The moment any
-  `export` lands the file becomes a module and the types disappear from
-  script-mode consumers — the generator emits plain `interface X { ... }`
-  for this reason; the hand-maintained files follow the same rule.
-- Sdef `<property>` blocks become parameterless methods (`defaultDocument(): Document`).
-  At runtime JXA (and the sandbox mock) accept property access too —
-  `jxa-globals.d.ts` adds an `Application & { defaultDocument: Document }`
-  override so both `ofApp.defaultDocument.flattenedTasks()` and
-  `ofApp.defaultDocument().flattenedTasks()` typecheck. Existing scripts use
-  the property form; keep it consistent.
+  `_helpers/` helpers (`buildTask`, `buildRepetition`, `buildFolder`,
+  `buildProject`, `buildTag`, `lookupOrThrow`). Inlined symbols are invisible
+  to `tsc` (splice happens after, per ADR-0020). Reference only when the
+  script carries a `// @inline _helpers/*.js` directive.
+- `_types/sdef-overrides.d.ts` is **hand-maintained** — adds runtime
+  conveniences the OF JXA-DOM exposes but the sdef snapshot doesn't (e.g.
+  `task.fileAttachments()`) via interface declaration merging. Sdef-derived
+  fields stay generator-owned; only add here when the accessor works at
+  runtime AND the sdef doesn't declare it.
+- All four `.d.ts` files are **ambient** (no `export`). One stray `export`
+  makes the file a module and the types disappear from script-mode consumers.
 - Gate: `tsconfig.jxa-tscheck.json` includes the opted-in scripts; CI runs
   `pnpm exec tsc -p tsconfig.jxa-tscheck.json`. Add new opt-ins to its
   `include` list as the rollout sweeps the directory.
