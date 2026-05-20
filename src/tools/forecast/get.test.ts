@@ -279,3 +279,145 @@ describe("forecast_get — date/days interface", () => {
     ).rejects.toThrow("mutually exclusive");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Pagination (#966 / slice 2 of #795)
+// ---------------------------------------------------------------------------
+
+describe("forecast_get — pagination", () => {
+  /** Seed `n` tasks due at ascending minute offsets within the FROM..TO window. */
+  async function seedDueToday(adapter: InMemoryAdapter, n: number) {
+    for (let i = 0; i < n; i++) {
+      // Stagger dueDate by minutes so the (dueDate ASC, id ASC) ordering is deterministic.
+      const minute = String(i).padStart(2, "0");
+      await adapter.createTask({
+        name: `Task ${i}`,
+        dueDate: `2026-04-23T10:${minute}:00.000Z`,
+      });
+    }
+  }
+
+  it("returns hasMore=false and null cursor when results fit in one page", async () => {
+    const { ctx, adapter } = makeCtx();
+    await seedDueToday(adapter, 3);
+    const envelope = await handleForecastGet(parseInput({ from: FROM, to: TO }), ctx);
+    expect(envelope.data.dueToday).toHaveLength(3);
+    expect(envelope.pagination).toBeDefined();
+    expect(envelope.pagination?.hasMore).toBe(false);
+    expect(envelope.pagination?.cursor).toBeNull();
+  });
+
+  it("default limit caps a page at 50 and surfaces a cursor when more remain", async () => {
+    const { ctx, adapter } = makeCtx();
+    await seedDueToday(adapter, 60);
+    const envelope = await handleForecastGet(parseInput({ from: FROM, to: TO }), ctx);
+    expect(envelope.data.dueToday).toHaveLength(50);
+    expect(envelope.pagination?.hasMore).toBe(true);
+    expect(envelope.pagination?.cursor).toBeTypeOf("string");
+  });
+
+  it("explicit limit controls page size and the cursor round-trips to a second page", async () => {
+    const { ctx, adapter } = makeCtx();
+    await seedDueToday(adapter, 7);
+
+    const page1 = await handleForecastGet(parseInput({ from: FROM, to: TO, limit: 3 }), ctx);
+    expect(page1.data.dueToday).toHaveLength(3);
+    expect(page1.pagination?.hasMore).toBe(true);
+    const cursor1 = page1.pagination?.cursor as string;
+    expect(cursor1).toBeTypeOf("string");
+
+    const page2 = await handleForecastGet(
+      parseInput({ from: FROM, to: TO, limit: 3, cursor: cursor1 }),
+      ctx,
+    );
+    expect(page2.data.dueToday).toHaveLength(3);
+    expect(page2.pagination?.hasMore).toBe(true);
+
+    const page3 = await handleForecastGet(
+      parseInput({
+        from: FROM,
+        to: TO,
+        limit: 3,
+        cursor: page2.pagination?.cursor as string,
+      }),
+      ctx,
+    );
+    expect(page3.data.dueToday).toHaveLength(1);
+    expect(page3.pagination?.hasMore).toBe(false);
+    expect(page3.pagination?.cursor).toBeNull();
+
+    // No overlap, no missing tasks across pages.
+    const allIds = [
+      ...page1.data.dueToday.map((t) => t.id),
+      ...page2.data.dueToday.map((t) => t.id),
+      ...page3.data.dueToday.map((t) => t.id),
+    ];
+    expect(new Set(allIds).size).toBe(7);
+  });
+
+  it("rejects a cursor whose filterHash does not match (changing filters mid-sequence)", async () => {
+    const { ctx, adapter } = makeCtx();
+    await seedDueToday(adapter, 5);
+
+    const page1 = await handleForecastGet(parseInput({ from: FROM, to: TO, limit: 2 }), ctx);
+    const cursor1 = page1.pagination?.cursor as string;
+
+    await expect(
+      handleForecastGet(
+        // Same date window but flip includeFlagged — filterHash changes.
+        parseInput({ from: FROM, to: TO, limit: 2, cursor: cursor1, includeFlagged: false }),
+        ctx,
+      ),
+    ).rejects.toThrow(/filter hash/i);
+  });
+
+  it("a task appearing in multiple buckets (overdue + flagged) counts once toward the page", async () => {
+    const { ctx, adapter } = makeCtx();
+    // Task1: overdue and flagged (one task, two buckets).
+    await adapter.createTask({
+      name: "Overdue and flagged",
+      dueDate: "2026-04-22T10:00:00.000Z",
+      flagged: true,
+    });
+    // Tasks 2..6: plain due-today.
+    await seedDueToday(adapter, 5);
+
+    const envelope = await handleForecastGet(parseInput({ from: FROM, to: TO, limit: 3 }), ctx);
+    // The overdue+flagged task should appear in BOTH overdue and flagged on this page —
+    // but it still counts as ONE unit toward the limit, leaving room for 2 more from
+    // dueToday. Sort is (dueDate ASC), so overdue (Apr 22) comes first.
+    const allIdsThisPage = new Set([
+      ...envelope.data.overdue.map((t) => t.id),
+      ...envelope.data.dueToday.map((t) => t.id),
+      ...envelope.data.flagged.map((t) => t.id),
+    ]);
+    expect(allIdsThisPage.size).toBe(3);
+    expect(envelope.data.overdue).toHaveLength(1);
+    expect(envelope.data.flagged).toHaveLength(1);
+    expect(envelope.data.overdue[0]?.id).toBe(envelope.data.flagged[0]?.id);
+  });
+
+  it("byDate references only IDs present in the current page", async () => {
+    const { ctx, adapter } = makeCtx();
+    // 5 tasks, due over 3 calendar days within a 3-day forecast.
+    await adapter.createTask({ name: "Day1-a", dueDate: "2026-04-23T08:00:00.000Z" });
+    await adapter.createTask({ name: "Day1-b", dueDate: "2026-04-23T09:00:00.000Z" });
+    await adapter.createTask({ name: "Day2-a", dueDate: "2026-04-24T08:00:00.000Z" });
+    await adapter.createTask({ name: "Day2-b", dueDate: "2026-04-24T09:00:00.000Z" });
+    await adapter.createTask({ name: "Day3-a", dueDate: "2026-04-25T08:00:00.000Z" });
+
+    const envelope = await handleForecastGet(
+      parseInput({
+        from: "2026-04-23T00:00:00.000Z",
+        to: "2026-04-25T23:59:59.999Z",
+        days: 3,
+        limit: 3,
+      }),
+      ctx,
+    );
+    const pageIds = new Set<string>(envelope.data.dueToday.map((t) => t.id as string));
+    // biome-ignore lint/style/noNonNullAssertion: days>1 guarantees byDate present
+    const byDateIds = envelope.data.byDate!.flatMap((b) => b.taskIds);
+    expect(byDateIds.every((id) => pageIds.has(id))).toBe(true);
+  });
+});

@@ -18,10 +18,22 @@ import {
   resolveRelativeDate,
 } from "../../domain/dates.js";
 import { TASK_FIELD_NAMES, TASK_FIELD_NAMES_SET, type Task } from "../../domain/task.js";
-import { ok, type ResponseMeta, toolResponse, warnUnknownFields } from "../../envelope/index.js";
+import {
+  ok,
+  type Pagination,
+  type ResponseMeta,
+  toolResponse,
+  warnUnknownFields,
+} from "../../envelope/index.js";
 import { applyProjection, validateFields } from "../../envelope/projection.js";
 import { ValidationError } from "../../errors/index.js";
+import { decodeCursor, encodeCursor, hashFilter, isAfterCursor } from "../../pagination/cursor.js";
 import type { ForecastService } from "../../services/forecastService.js";
+
+/** Default page size when `limit` is omitted (matches `task_list` / `perspective_evaluate`). */
+const DEFAULT_LIMIT = 50;
+/** Hard ceiling per #966 — keeps a single forecast page within the envelope-size budget. */
+const MAX_LIMIT = 200;
 
 // ---------------------------------------------------------------------------
 // Tool description
@@ -35,9 +47,11 @@ export const FORECAST_GET_DESCRIPTION =
   "or use from/to for exact ISO-8601 ranges. " +
   "All include flags default to true; set to false to omit a category. " +
   "When days > 1, response also includes byDate[] grouping task IDs per calendar day (dereference from dueToday[]). " +
-  "Returns { overdue[], dueToday[], deferredToday[], flagged[], byDate? }; byDate entries are { date, taskIds[] }. Safe to call repeatedly; no side effects. " +
+  "Returns { overdue[], dueToday[], deferredToday[], flagged[], byDate? } plus pagination { hasMore, cursor }; byDate entries are { date, taskIds[] }. " +
+  "Pages span the union of all four buckets (a task in multiple buckets counts once); default 50 tasks per page (max 200). Safe to call repeatedly; no side effects. " +
   'Example: forecast_get({ date: "today" }) ' +
-  'Example: forecast_get({ date: "today", days: 3, includeFlagged: false })';
+  'Example: forecast_get({ date: "today", days: 3, includeFlagged: false }) ' +
+  'Example: forecast_get({ date: "today", limit: 25, cursor: "<prev-cursor>" })';
 
 // ---------------------------------------------------------------------------
 // Input schema
@@ -103,6 +117,24 @@ export const forecastGetInputSchema = z.object({
         "Omit for the full task shape. Empty array returns just id. " +
         "Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. " +
         `Allowed: ${TASK_FIELD_NAMES.join(", ")}.`,
+    ),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_LIMIT)
+    .optional()
+    .describe(
+      `Max unique tasks per page (1..${MAX_LIMIT}). Default ${DEFAULT_LIMIT}. ` +
+        "Pagination spans the union of overdue/dueToday/deferredToday/flagged: a task that appears in multiple buckets counts once. " +
+        "Use `cursor` to fetch subsequent pages.",
+    ),
+  cursor: z
+    .string()
+    .optional()
+    .describe(
+      "Opaque cursor from a previous forecast_get response. " +
+        "Must use the same filters (date/from/to/days/include* /fields) — changing filters mid-sequence returns a ValidationError.",
     ),
 });
 
@@ -215,6 +247,64 @@ function groupByDate(tasks: Task[]): { date: string; taskIds: string[] }[] {
     .map(([date, taskIds]) => ({ date, taskIds }));
 }
 
+/**
+ * Build the stable, deduplicated cross-bucket ordering used by pagination.
+ *
+ * Forecast naturally produces four overlapping task lists (a single task can
+ * appear in `overdue` AND `flagged`, etc.). The cursor codec assumes a single
+ * sorted sequence with unique IDs, so we walk all four buckets, dedup by
+ * `id`, and emit one entry per task ordered by `(dueDate ASC nulls-last, id ASC)`
+ * — the same convention `task_list` uses when `sortBy: "dueDate"` (#783).
+ *
+ * The handler re-buckets each paged task into every original bucket by
+ * filtering the four source arrays against the page-id set, so we don't
+ * need to track bucket membership here.
+ */
+function buildPageableUnion(result: {
+  overdue: Task[];
+  dueToday: Task[];
+  deferredToday: Task[];
+  flagged: Task[];
+}): Task[] {
+  const byId = new Map<string, Task>();
+  const addAll = (tasks: Task[]) => {
+    for (const t of tasks) if (!byId.has(t.id)) byId.set(t.id, t);
+  };
+  addAll(result.overdue);
+  addAll(result.dueToday);
+  addAll(result.deferredToday);
+  addAll(result.flagged);
+
+  return [...byId.values()].sort((a, b) => {
+    const ad = a.dueDate ?? "";
+    const bd = b.dueDate ?? "";
+    // Null/missing dueDate sorts last (matches isAfterCursor nulls-last semantics).
+    if (ad === "" && bd !== "") return 1;
+    if (bd === "" && ad !== "") return -1;
+    if (ad !== bd) return ad < bd ? -1 : 1;
+    return a.id < b.id ? -1 : 1;
+  });
+}
+
+/**
+ * Filter inputs that participate in the cursor's `filterHash`. Anything that
+ * changes which tasks are eligible for pagination must be hashed — but
+ * `limit`/`cursor` themselves must NOT, or every page would invalidate the
+ * previous cursor. `fields` is also excluded: projection changes the shape
+ * of returned tasks but not which tasks are in the sequence (#783).
+ */
+function paginationFilter(input: ForecastGetToolInput): Record<string, unknown> {
+  return {
+    date: input.date,
+    from: input.from,
+    to: input.to,
+    days: input.days,
+    includeOverdue: input.includeOverdue,
+    includeDeferred: input.includeDeferred,
+    includeFlagged: input.includeFlagged,
+  };
+}
+
 export async function handleForecastGet(input: ForecastGetToolInput, ctx: ForecastGetContext) {
   const { from, to, days } = resolveRange(input);
   const result = await ctx.forecastService.get({
@@ -229,8 +319,32 @@ export async function handleForecastGet(input: ForecastGetToolInput, ctx: Foreca
     input.fields !== undefined ? validateFields(input.fields, TASK_FIELD_NAMES_SET) : undefined;
   const projectFields = projection?.valid;
   const project = (t: Task) => applyProjection(t, projectFields);
-
   type ProjectedTask = ReturnType<typeof project>;
+
+  // ── Pagination ───────────────────────────────────────────────────────────
+  const limit = input.limit ?? DEFAULT_LIMIT;
+  const filterHash = hashFilter(paginationFilter(input));
+  const cursor = input.cursor !== undefined ? decodeCursor(input.cursor, filterHash) : undefined;
+  const ordered = buildPageableUnion(result);
+
+  const after = cursor
+    ? ordered.filter((t) =>
+        isAfterCursor({ id: t.id, sortValue: t.dueDate ?? null }, cursor, "asc"),
+      )
+    : ordered;
+  const page = after.slice(0, limit);
+  const hasMore = after.length > limit;
+  const last = page[page.length - 1];
+  const nextCursor =
+    hasMore && last !== undefined
+      ? encodeCursor({ lastId: last.id, lastSortValue: last.dueDate ?? null, filterHash })
+      : null;
+
+  // Re-bucket the paged tasks into the response shape callers expect. A task
+  // that originated in multiple buckets reappears in each.
+  const pageIds = new Set(page.map((t) => t.id));
+  const inPage = (tasks: Task[]) => tasks.filter((t) => pageIds.has(t.id)).map(project);
+
   const payload: {
     overdue: ProjectedTask[];
     dueToday: ProjectedTask[];
@@ -238,18 +352,20 @@ export async function handleForecastGet(input: ForecastGetToolInput, ctx: Foreca
     flagged: ProjectedTask[];
     byDate?: { date: string; taskIds: string[] }[];
   } = {
-    overdue: result.overdue.map(project),
-    dueToday: result.dueToday.map(project),
-    deferredToday: result.deferredToday.map(project),
-    flagged: result.flagged.map(project),
+    overdue: inPage(result.overdue),
+    dueToday: inPage(result.dueToday),
+    deferredToday: inPage(result.deferredToday),
+    flagged: inPage(result.flagged),
   };
 
   if (days > 1) {
-    // groupByDate returns ID-only buckets so byDate doesn't duplicate the task
-    // objects already serialised under dueToday/overdue. Dereference IDs from
-    // the top-level arrays.
-    payload.byDate = groupByDate(result.dueToday);
+    // groupByDate emits ID-only buckets (per A4) so byDate doesn't duplicate
+    // task objects already inlined under dueToday. Restrict to the page's
+    // dueToday entries so the IDs always dereference into the current page.
+    payload.byDate = groupByDate(result.dueToday.filter((t) => pageIds.has(t.id)));
   }
+
+  const pagination: Pagination = { cursor: nextCursor, hasMore };
 
   const warnings =
     projection !== undefined && projection.unknown.length > 0
@@ -260,7 +376,7 @@ export async function handleForecastGet(input: ForecastGetToolInput, ctx: Foreca
     ...(warnings !== undefined ? { warnings } : {}),
   });
 
-  return ok(payload, meta);
+  return ok(payload, meta, pagination);
 }
 
 // ---------------------------------------------------------------------------
