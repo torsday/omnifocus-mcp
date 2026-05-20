@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": true,
+    "strict": true,
+    "target": "es2020",
+    "moduleResolution": "bundler",
+    "module": "esnext",
+    "skipLibCheck": true,
+    "lib": ["es2020"],
+    "types": []
+  },
+  "include": ["src/scripts/jxa/task_get.js"]
+}

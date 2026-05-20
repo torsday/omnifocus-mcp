@@ -268,7 +268,13 @@ function emitClass(cls: ClassDef, knownClasses: Set<string>): string {
   // Multiple-inheritance isn't expressed in .sdef, so this is always
   // 0-or-1 parent.
   const extendsClause = cls.inherits ? ` extends ${tsClassName(cls.inherits)}` : "";
-  lines.push(`export interface ${tsName}${extendsClause} {`);
+  // Ambient declaration (no `export`) — `.d.ts` files containing only
+  // non-exported declarations are script-mode and their types are
+  // available globally to JXA `// @ts-check` consumers via the
+  // triple-slash reference (#987). The moment any `export` lands here
+  // the file becomes a module and the types disappear from script-mode
+  // consumers.
+  lines.push(`interface ${tsName}${extendsClause} {`);
 
   // Properties. JXA reads each property via a zero-arg method call.
   // `parentTask()` etc. — even read-only — are method-shaped at the JXA
