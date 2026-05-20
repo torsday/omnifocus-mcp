@@ -11,6 +11,7 @@
  * @see src/domain/perspective.ts — Perspective domain type
  */
 
+/** @param {string[]} _argv — unused; this script takes no arguments. */
 // biome-ignore lint/correctness/noUnusedVariables: osascript invokes run(argv) by convention.
 function run(_argv) {
   const ofApp = Application("OmniFocus");

@@ -11,6 +11,7 @@
  * @see src/scripts/jxa/task_update.js — single-update reference
  */
 
+/** @param {string[]} argv — argv[0] is the JSON-encoded input payload. */
 // biome-ignore lint/correctness/noUnusedVariables: osascript invokes run(argv) by convention.
 function run(argv) {
   const args = JSON.parse(argv[0]);

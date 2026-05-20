@@ -8,6 +8,7 @@
  * @see src/domain/project.ts — Project domain type
  */
 
+/** @param {string[]} argv — argv[0] is the JSON-encoded input payload. */
 // biome-ignore lint/correctness/noUnusedVariables: osascript invokes run(argv) by convention.
 function run(argv) {
   JSON.parse(argv[0]); // validate JSON even though no args needed

@@ -15,6 +15,7 @@
  * @see src/scripts/jxa/project_batch_complete.js — sibling pattern
  */
 
+/** @param {string[]} argv — argv[0] is the JSON-encoded input payload. */
 // biome-ignore lint/correctness/noUnusedVariables: osascript invokes run(argv) by convention.
 function run(argv) {
   const args = JSON.parse(argv[0]);

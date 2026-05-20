@@ -12,6 +12,7 @@
  * @see src/adapter/jxa/JxaTransport.ts — caller
  */
 
+/** @param {string[]} argv — argv[0] is the JSON-encoded input payload. */
 // biome-ignore lint/correctness/noUnusedVariables: osascript invokes run(argv) by convention.
 function run(argv) {
   ObjC.import("Foundation");
