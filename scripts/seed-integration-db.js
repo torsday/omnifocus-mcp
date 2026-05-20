@@ -156,11 +156,25 @@ const seedOmniJs = `
   // Clean pass — wipe both seed-owned ("mcp-fixture:") and harness-owned
   // ("mcp-fixture-<runId>") items by matching the shared base prefix.
   // Projects before folders so OF doesn't orphan project contents.
+  //
+  // Same zombie-reference hazard as the \`findIn\` helper above (#962):
+  // deleting a parent folder/project cascades to children whose
+  // references are still in the .slice() snapshot. Touching .name on a
+  // cascaded-already child throws "X is no longer valid". Swallow that
+  // throw and continue — a zombie ref is by definition already deleted,
+  // so it doesn't need our delete call. See #975.
+  const tryDelete = (obj) => {
+    try {
+      if (obj.name && obj.name.startsWith(PREFIX_BASE)) deleteObject(obj);
+    } catch (_) {
+      // Zombie reference (parent's delete cascaded it). Already gone.
+    }
+  };
   if (cleanFirst) {
-    flattenedProjects.slice().forEach(p => { if (p.name && p.name.startsWith(PREFIX_BASE)) deleteObject(p); });
-    inbox.slice().forEach(t => { if (t.name && t.name.startsWith(PREFIX_BASE)) deleteObject(t); });
-    flattenedFolders.slice().forEach(f => { if (f.name && f.name.startsWith(PREFIX_BASE)) deleteObject(f); });
-    flattenedTags.slice().forEach(t => { if (t.name && t.name.startsWith(PREFIX_BASE)) deleteObject(t); });
+    flattenedProjects.slice().forEach(tryDelete);
+    inbox.slice().forEach(tryDelete);
+    flattenedFolders.slice().forEach(tryDelete);
+    flattenedTags.slice().forEach(tryDelete);
   }
 
   // Tags (5)
