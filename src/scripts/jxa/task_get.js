@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference path="_types/omnifocus.d.ts" />
 /// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
 
 /**
  * JXA: fetch one task by ID.
@@ -9,28 +10,22 @@
  * Returns JSON: { task: Task }
  *
  * Beachhead script for the JXA static-typing rollout (#987 / #854): the
- * `@ts-check` directive plus the triple-slash reference make this file
- * the first consumer of `_types/omnifocus.d.ts`. The reference resolves
- * `Application("OmniFocus")` to the typed `Application` interface, so
- * the `defaultDocument.flattenedTasks()` chain below is statically
- * checked against the .sdef-derived signatures. The OF 4.x quirks
- * (Folder/Tag have no `parent()`, etc.) surface at `tsc` time here, not
- * at runtime in production.
+ * `@ts-check` directive plus the triple-slash references make this file
+ * the first consumer of `_types/omnifocus.d.ts`. The references resolve
+ * `Application("OmniFocus")` to the typed `Application` interface and
+ * `buildTask` to its ambient declaration in `jxa-helpers.d.ts`, so the
+ * `defaultDocument.flattenedTasks()` chain below is statically checked
+ * against the .sdef-derived signatures. The OF 4.x quirks (Folder/Tag
+ * have no `parent()`, etc.) surface at `tsc` time here, not at runtime
+ * in production.
+ *
+ * The `// @inline _helpers/build_task.js` directive below splices the
+ * helper into the bundled script (ADR-0020); the `jxa-helpers.d.ts`
+ * reference is what lets `// @ts-check` resolve the call.
  *
  * @see src/adapter/jxa/JxaTransport.ts — caller
  * @see src/domain/task.ts — Task domain type
  */
-
-/**
- * `buildTask` is spliced into this file at build time by the
- * scriptInlinerPlugin (ADR-0020) via the `// @inline _helpers/build_task.js`
- * directive below. TypeScript can't see the inline expansion at typecheck
- * time, so declare the symbol explicitly. The helper's runtime contract
- * lives in `_helpers/build_task.js`.
- *
- * @type {(task: unknown, options?: { effectiveAvailability?: boolean }) => object}
- */
-let buildTask;
 
 /**
  * @param {string[]} argv — argv[0] is the JSON-encoded input payload.
