@@ -15,6 +15,11 @@ import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/inva
 import { TaskId } from "../../domain/ids.js";
 import { summaryBatchUndrop } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import {
+  idempotencyStore as defaultIdempotencyStore,
+  type IdempotencyStore,
+  withIdempotencyKey,
+} from "../../server/idempotencyStore.js";
 
 export const TASK_BATCH_UNDROP_DESCRIPTION =
   "Restore (undrop) many cancelled OmniFocus tasks in a single JXA round trip. " +
@@ -39,6 +44,14 @@ export const taskBatchUndropInputSchema = z.object({
     .array(singleItemSchema)
     .min(1)
     .describe("Array of { id } items. Must contain at least one item."),
+  idempotency_key: z
+    .string()
+    .min(1)
+    .max(128)
+    .optional()
+    .describe(
+      "Idempotency key for retry-safe batches. Replays within the TTL window return the cached envelope with meta.idempotentReplay = true. See docs/idempotency.md.",
+    ),
 });
 
 export type TaskBatchUndropToolInput = z.infer<typeof taskBatchUndropInputSchema>;
@@ -47,46 +60,54 @@ export interface TaskBatchUndropContext {
   adapter: OmniFocusAdapter;
   makeMeta: (partial?: Partial<ResponseMeta>) => ResponseMeta;
   cache?: InvalidatingCache;
+  /** Optional idempotency-store override (#980). Defaults to module singleton. */
+  idempotencyStore?: IdempotencyStore;
 }
 
 export async function handleTaskBatchUndrop(
   input: TaskBatchUndropToolInput,
   ctx: TaskBatchUndropContext,
 ) {
-  // Pre-fetch all task names in a single round trip — see batchComplete (#594 lever 4).
-  const ids = input.items.map((it) => it.id);
-  const tasks = await ctx.adapter.getTasksMany(ids);
-  const nameById = new Map<string, string>();
-  for (let i = 0; i < ids.length; i++) {
-    const task = tasks[i];
-    if (task !== null && task !== undefined) {
-      nameById.set(ids[i] as string, task.name);
-    }
-  }
-
-  const outcome = await ctx.adapter.batchUndropTasks(input.items.map((it) => ({ id: it.id })));
-
-  if (ctx.cache !== undefined) {
-    for (const s of outcome.succeeded) {
-      const src = input.items[s.index];
-      if (src !== undefined) {
-        invalidateTaskMutation(ctx.cache, { taskId: src.id });
+  const store = ctx.idempotencyStore ?? defaultIdempotencyStore;
+  const exec = async () => {
+    // Pre-fetch all task names in a single round trip — see batchComplete (#594 lever 4).
+    const ids = input.items.map((it) => it.id);
+    const tasks = await ctx.adapter.getTasksMany(ids);
+    const nameById = new Map<string, string>();
+    for (let i = 0; i < ids.length; i++) {
+      const task = tasks[i];
+      if (task !== null && task !== undefined) {
+        nameById.set(ids[i] as string, task.name);
       }
     }
-  }
 
-  const undropped = outcome.succeeded.map((s) => ({
-    index: s.index,
-    value: { id: s.value, name: nameById.get(s.value as string) ?? "" },
-  }));
+    const outcome = await ctx.adapter.batchUndropTasks(input.items.map((it) => ({ id: it.id })));
 
-  return ok(
-    { undropped, failed: outcome.failed },
-    ctx.makeMeta({
-      syncPending: outcome.succeeded.length > 0,
-      humanReadableSummary: summaryBatchUndrop(outcome.succeeded.length),
-    }),
-  );
+    if (ctx.cache !== undefined) {
+      for (const s of outcome.succeeded) {
+        const src = input.items[s.index];
+        if (src !== undefined) {
+          invalidateTaskMutation(ctx.cache, { taskId: src.id });
+        }
+      }
+    }
+
+    const undropped = outcome.succeeded.map((s) => ({
+      index: s.index,
+      value: { id: s.value, name: nameById.get(s.value as string) ?? "" },
+    }));
+
+    return ok(
+      { undropped, failed: outcome.failed },
+      ctx.makeMeta({
+        syncPending: outcome.succeeded.length > 0,
+        humanReadableSummary: summaryBatchUndrop(outcome.succeeded.length),
+      }),
+    );
+  };
+  return (await withIdempotencyKey(store, input.idempotency_key, exec)) as Awaited<
+    ReturnType<typeof exec>
+  >;
 }
 
 export function registerTaskBatchUndropTool(server: McpServer, ctx: TaskBatchUndropContext) {
