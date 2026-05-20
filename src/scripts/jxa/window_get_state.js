@@ -11,6 +11,7 @@
  * @see src/adapter/jxa/JxaTransport.ts — getWindowState() caller
  */
 
+/** @param {string[]} _argv — unused; this script takes no arguments. */
 // biome-ignore lint/correctness/noUnusedVariables: osascript invokes run() by convention.
 function run(_argv) {
   const ofApp = Application("OmniFocus");
