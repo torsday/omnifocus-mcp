@@ -18,7 +18,7 @@ import { describe, expect, it } from "vitest";
 const DTS = readFileSync("src/scripts/jxa/_types/omnifocus.d.ts", "utf8");
 
 function interfaceBody(name: string): string {
-  const re = new RegExp(`^export interface ${name}[^\\n]*\\{([\\s\\S]*?)^\\}`, "m");
+  const re = new RegExp(`^interface ${name}[^\\n]*\\{([\\s\\S]*?)^\\}`, "m");
   const m = DTS.match(re);
   if (!m || m[1] === undefined) {
     throw new Error(`interface ${name} not found in generated .d.ts`);
@@ -80,6 +80,6 @@ describe("omnifocus.d.ts — shape", () => {
   });
 
   it("includes the Application interface at the top of the hierarchy", () => {
-    expect(DTS).toMatch(/^export interface Application/m);
+    expect(DTS).toMatch(/^interface Application/m);
   });
 });

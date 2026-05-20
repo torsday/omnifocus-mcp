@@ -15,6 +15,40 @@ Each script reads its arguments by `JSON.parse`-ing the single argv value the sp
 - **`flattenedTasks.byId()` returns a specifier with error code `-1728`** when the ID does not exist (rather than `null`). Catch this at the transport boundary and map to `NotFoundError`; never let `-1728` leak to callers. Reference: `ec53b88` and #674.
 - **`flattenedTasks()` is full-DB.** When you have a narrowing source (a tag, a project), iterate that source's tasks instead — see `task_list.js`'s `tagId` shortcut. A naive whole-DB scan blows the 30s scriptRunner timeout on real databases.
 
+## Static typing (`// @ts-check` opt-in)
+
+Scripts can opt into TypeScript checking against the .sdef-derived ambient types
+in `_types/`. Beachhead reference: `task_get.js` (#987 / #854). Prologue:
+
+```js
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+```
+
+- `_types/omnifocus.d.ts` is **auto-generated** from `vendor/OmniFocus.sdef`
+  via `pnpm generate:jxa-types`. Never hand-edit; re-run the generator and
+  commit the regenerated file. The OF 4.x quirks above (no `parent()` on
+  Folder/Tag, etc.) are encoded as missing methods on the generated
+  interfaces — `tsc` flags them at typecheck time.
+- `_types/jxa-globals.d.ts` is **hand-maintained** — declares `Application`,
+  `Path`, `delay`, `ObjC`, `$`. Keep small; if you find yourself adding
+  OmniFocus-specific machinery here, the generator should emit it instead.
+- Both `.d.ts` files are **ambient** (no `export`). The moment any `export`
+  lands the file becomes a module and the types disappear from script-mode
+  consumers — the generator emits plain `interface X { ... }` for this reason.
+- Sdef `<property>` blocks become parameterless methods (`defaultDocument(): Document`).
+  At runtime JXA (and the sandbox mock) accept property access too —
+  `jxa-globals.d.ts` adds an `Application & { defaultDocument: Document }`
+  override so both `ofApp.defaultDocument.flattenedTasks()` and
+  `ofApp.defaultDocument().flattenedTasks()` typecheck. Existing scripts use
+  the property form; keep it consistent.
+- Symbols inlined at build time (per ADR-0020) are invisible to `tsc` —
+  declare them with `@type` JSDoc like `task_get.js` does for `buildTask`.
+- Gate: `tsconfig.jxa-tscheck.json` includes the opted-in scripts; CI runs
+  `pnpm exec tsc -p tsconfig.jxa-tscheck.json`. Add new opt-ins to its
+  `include` list as the rollout sweeps the directory.
+
 ## Testing
 
 Two harnesses, very different:

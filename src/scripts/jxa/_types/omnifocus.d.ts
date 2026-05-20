@@ -9,7 +9,7 @@
 //           54 elements.
 
 /** OmniFocus 'application' class (sdef code: capp). */
-export interface Application {
+interface Application {
   /** [read-only] The name of the application. */
   name(): string;
   /** [read-only] The version number of the application. */
@@ -35,7 +35,7 @@ export interface Application {
 }
 
 /** OmniFocus 'document' class (sdef code: docu). */
-export interface Document {
+interface Document {
   /** [read-only] Its name. */
   name(): string;
   /** [read-only] Has it been modified since the last save? */
@@ -99,7 +99,7 @@ export interface Document {
 }
 
 /** OmniFocus 'window' class (sdef code: cwin). */
-export interface Window {
+interface Window {
   /** [read-only] The document whose contents are displayed in the window. */
   document(): Document;
   /** [read-only] The title of the window. */
@@ -127,7 +127,7 @@ export interface Window {
 }
 
 /** OmniFocus 'document window' class (sdef code: FCdw). */
-export interface DocumentWindow extends Window {
+interface DocumentWindow extends Window {
   /** The search term in the toolbar. If there is no search toolbar item, this will return missing value instead of an empty string and setting it will cause an error. */
   searchTerm(): string;
   /** The selected tab in the sidebar. */
@@ -143,7 +143,7 @@ export interface DocumentWindow extends Window {
 }
 
 /** OmniFocus 'quick entry tree' class (sdef code: FCQw). */
-export interface QuickEntryTree extends Tree {
+interface QuickEntryTree extends Tree {
   /** [read-only] Whether the quick entry panel is currently visible. */
   visible(): boolean;
   /** child collection of 'folder' */
@@ -159,7 +159,7 @@ export interface QuickEntryTree extends Tree {
 }
 
 /** OmniFocus 'setting' class (sdef code: FCos). */
-export interface Setting {
+interface Setting {
   /** [read-only] The identifier of the setting. */
   id(): string;
   /** The current value of the setting. */
@@ -169,13 +169,13 @@ export interface Setting {
 }
 
 /** OmniFocus 'focus sections' class (sdef code: FCFS). */
-export interface FocusSections {
+interface FocusSections {
   /** child collection of 'item' */
   items(): unknown[];
 }
 
 /** OmniFocus 'section' class (sdef code: FCSX). */
-export interface Section {
+interface Section {
   /** [read-only] The identifier of the project or folder. */
   id(): string;
   /** The name of the project or folder. */
@@ -183,7 +183,7 @@ export interface Section {
 }
 
 /** OmniFocus 'folder' class (sdef code: FCAr). */
-export interface Folder extends Section {
+interface Folder extends Section {
   /** [read-only] The identifier of the folder. */
   id(): string;
   /** The name of the folder. */
@@ -215,7 +215,7 @@ export interface Folder extends Section {
 }
 
 /** OmniFocus 'tag' class (sdef code: FCtg). */
-export interface Tag {
+interface Tag {
   /** The identifier of the tag. */
   id(): string;
   /** The name of the tag. */
@@ -253,11 +253,11 @@ export interface Tag {
 }
 
 /** OmniFocus 'deprecated context' class (sdef code: FCct). */
-export interface DeprecatedContext extends Tag {
+interface DeprecatedContext extends Tag {
 }
 
 /** OmniFocus 'project' class (sdef code: FCpr). */
-export interface Project extends Section {
+interface Project extends Section {
   /** The identifier of the project. */
   id(): string;
   /** [read-only] The next actionable child of this project. */
@@ -347,7 +347,7 @@ export interface Project extends Section {
 }
 
 /** OmniFocus 'task' class (sdef code: FCac). */
-export interface Task {
+interface Task {
   /** The identifier of the task. */
   id(): string;
   /** The name of the task. */
@@ -435,13 +435,13 @@ export interface Task {
 }
 
 /** OmniFocus 'forecast sidebar tree' class (sdef code: FCFt). */
-export interface ForecastSidebarTree extends SidebarTree {
+interface ForecastSidebarTree extends SidebarTree {
   /** child collection of 'forecast day' */
   forecastDays(): ForecastDay[];
 }
 
 /** OmniFocus 'forecast day' class (sdef code: FCdy). */
-export interface ForecastDay {
+interface ForecastDay {
   /** The identifier of the task. */
   id(): string;
   /** A display name for the forecast day. */
@@ -453,37 +453,37 @@ export interface ForecastDay {
 }
 
 /** OmniFocus 'available task' class (sdef code: FCat). */
-export interface AvailableTask extends Task {
+interface AvailableTask extends Task {
 }
 
 /** OmniFocus 'remaining task' class (sdef code: FC0T). */
-export interface RemainingTask extends Task {
+interface RemainingTask extends Task {
 }
 
 /** OmniFocus 'inbox task' class (sdef code: FCit). */
-export interface InboxTask extends Task {
+interface InboxTask extends Task {
   /** Inbox tasks (those contained directly by the document) have a provisionally set container that is made final by the 'compact' command. This allows you to set and get said container. The container must be either a task (not in the inbox or contained by an inbox task), a project or 'missing value'. */
   assignedContainer(): unknown;
 }
 
 /** OmniFocus 'flattened task' class (sdef code: FCft). */
-export interface FlattenedTask extends Task {
+interface FlattenedTask extends Task {
 }
 
 /** OmniFocus 'flattened project' class (sdef code: FCfx). */
-export interface FlattenedProject extends Project {
+interface FlattenedProject extends Project {
 }
 
 /** OmniFocus 'flattened folder' class (sdef code: FCff). */
-export interface FlattenedFolder extends Folder {
+interface FlattenedFolder extends Folder {
 }
 
 /** OmniFocus 'flattened tag' class (sdef code: FCfc). */
-export interface FlattenedTag extends Tag {
+interface FlattenedTag extends Tag {
 }
 
 /** OmniFocus 'sidebar tree' class (sdef code: FCst). */
-export interface SidebarTree extends Tree {
+interface SidebarTree extends Tree {
   /** [read-only] The list of possible smart group identifiers that can be set as the selected smart group identifier. */
   availableSmartGroupIdentifiers(): unknown;
   /** The currently selected smart group identifier. */
@@ -491,7 +491,7 @@ export interface SidebarTree extends Tree {
 }
 
 /** OmniFocus 'content tree' class (sdef code: FCCt). */
-export interface ContentTree extends Tree {
+interface ContentTree extends Tree {
   /** [read-only] The list of possible identifiers that can be set as the selected grouping identifier. */
   availableGroupingIdentifiers(): unknown;
   /** The currently selected grouping identifier, controlling how the results shown in the content area are grouped. */
@@ -515,15 +515,15 @@ export interface ContentTree extends Tree {
 }
 
 /** OmniFocus 'inbox tree' class (sdef code: FCIs). */
-export interface InboxTree extends Tree {
+interface InboxTree extends Tree {
 }
 
 /** OmniFocus 'library tree' class (sdef code: FCLt). */
-export interface LibraryTree extends Tree {
+interface LibraryTree extends Tree {
 }
 
 /** OmniFocus 'perspective' class (sdef code: FCoo). */
-export interface Perspective {
+interface Perspective {
   /** The identifier of the perspective. */
   id(): string;
   /** The name of the perspective. */
@@ -531,15 +531,15 @@ export interface Perspective {
 }
 
 /** OmniFocus 'builtin perspective' class (sdef code: FCbp). */
-export interface BuiltinPerspective extends Perspective {
+interface BuiltinPerspective extends Perspective {
 }
 
 /** OmniFocus 'custom perspective' class (sdef code: FCcp). */
-export interface CustomPerspective extends Perspective {
+interface CustomPerspective extends Perspective {
 }
 
 /** OmniFocus 'tree' class (sdef code: OTtr). */
-export interface Tree {
+interface Tree {
   /** [read-only] The name of the object being represented by this tree. */
   name(): string;
   /** [read-only] The identifier of object being represented by this tree. */
@@ -573,31 +573,31 @@ export interface Tree {
 }
 
 /** OmniFocus 'descendant tree' class (sdef code: OTds). */
-export interface DescendantTree extends Tree {
+interface DescendantTree extends Tree {
 }
 
 /** OmniFocus 'ancestor tree' class (sdef code: OTan). */
-export interface AncestorTree extends Tree {
+interface AncestorTree extends Tree {
 }
 
 /** OmniFocus 'leaf' class (sdef code: OTlf). */
-export interface Leaf extends Tree {
+interface Leaf extends Tree {
 }
 
 /** OmniFocus 'following sibling' class (sdef code: OTfs). */
-export interface FollowingSibling extends Tree {
+interface FollowingSibling extends Tree {
 }
 
 /** OmniFocus 'preceding sibling' class (sdef code: OTps). */
-export interface PrecedingSibling extends Tree {
+interface PrecedingSibling extends Tree {
 }
 
 /** OmniFocus 'selected tree' class (sdef code: OTst). */
-export interface SelectedTree extends Tree {
+interface SelectedTree extends Tree {
 }
 
 /** OmniFocus 'style' class (sdef code: OSst). */
-export interface Style {
+interface Style {
   /** [read-only] The object owning the style. */
   container(): unknown;
   /** The name of the font of the style. */
@@ -609,7 +609,7 @@ export interface Style {
 }
 
 /** OmniFocus 'attribute' class (sdef code: OSsa). */
-export interface Attribute {
+interface Attribute {
   /** [read-only] The name of the attribute. */
   name(): string;
   /** The style to which the attribute refers. */
@@ -625,7 +625,7 @@ export interface Attribute {
 }
 
 /** OmniFocus 'named style' class (sdef code: OSns). */
-export interface NamedStyle extends Style {
+interface NamedStyle extends Style {
   /** [read-only] An identifier for the named style that is unique within its document. Currently this identifier is not persistent between two different sessions of editing the document. */
   id(): string;
   /** The name of the style. Must be unique within the containing document. */
@@ -633,7 +633,7 @@ export interface NamedStyle extends Style {
 }
 
 /** OmniFocus 'rich text' class (sdef code: OSrt). */
-export interface RichText {
+interface RichText {
   /** The plain text contents of the rich text. */
   text(): string;
   /** The color of the first character. */
@@ -665,27 +665,27 @@ export interface RichText {
 }
 
 /** OmniFocus 'character' class (sdef code: cha ). */
-export interface Character extends RichText {
+interface Character extends RichText {
 }
 
 /** OmniFocus 'paragraph' class (sdef code: cpar). */
-export interface Paragraph extends RichText {
+interface Paragraph extends RichText {
 }
 
 /** OmniFocus 'word' class (sdef code: cwor). */
-export interface Word extends RichText {
+interface Word extends RichText {
 }
 
 /** OmniFocus 'attribute run' class (sdef code: catr). */
-export interface AttributeRun extends RichText {
+interface AttributeRun extends RichText {
 }
 
 /** OmniFocus 'attachment' class (sdef code: atts). */
-export interface Attachment extends RichText {
+interface Attachment extends RichText {
 }
 
 /** OmniFocus 'file attachment' class (sdef code: OSfA). */
-export interface FileAttachment extends Attachment {
+interface FileAttachment extends Attachment {
   /** [read-only] The path to the file for the attachment, if the attachment resides outside the document. */
   fileName(): unknown;
   /** [read-only] If true, the attached file will reside inside the document on the next save. */
@@ -693,7 +693,7 @@ export interface FileAttachment extends Attachment {
 }
 
 /** OmniFocus 'preference' class (sdef code: OFpf). */
-export interface Preference {
+interface Preference {
   /** [read-only] The identifier of the preference. */
   id(): string;
   /** The current value of the preference. */
