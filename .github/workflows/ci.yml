@@ -48,11 +48,6 @@ jobs:
 
       - run: pnpm typecheck
 
-      # JXA static-typing gate (#987 / #854). Beachhead is `task_get.js`;
-      # follow-up issues sweep the remaining scripts into `tsconfig.jxa-tscheck.json`.
-      - name: Typecheck opted-in JXA scripts
-        run: pnpm exec tsc -p tsconfig.jxa-tscheck.json
-
       - run: pnpm lint
 
       - run: pnpm test

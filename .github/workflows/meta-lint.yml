@@ -47,6 +47,11 @@ on:
       # the merge requiring an admin bypass (#736).
       - "package.json"
       - "pnpm-lock.yaml"
+      # jxa-tsc job below also runs when the sdef snapshot or the
+      # opt-in tsconfig change (the generator + scripts/ are already
+      # covered by `scripts/**` / `src/**` above).
+      - "vendor/OmniFocus.sdef"
+      - "tsconfig.jxa-tscheck.json"
 
 permissions:
   contents: read
@@ -175,6 +180,47 @@ jobs:
       - uses: actions/checkout@v6
       - name: Verify every workflow job declares timeout-minutes
         run: scripts/verify-workflow-timeouts.sh
+
+  jxa-tsc:
+    # JXA static-typing gate (#988 / #854 / #987). Two guards in one job:
+    #
+    #   1. Regen-drift — re-runs `pnpm generate:jxa-types` and fails if the
+    #      committed `src/scripts/jxa/_types/omnifocus.d.ts` differs. The
+    #      generator is deterministic, so a non-empty diff means someone
+    #      edited the .d.ts by hand or forgot to regenerate after touching
+    #      `vendor/OmniFocus.sdef`.
+    #   2. Type-check — `tsc -p tsconfig.jxa-tscheck.json` over the scripts
+    #      that have opted into `// @ts-check` (beachhead: task_get.js).
+    #      The opt-in list grows in `tsconfig.jxa-tscheck.json` as #989
+    #      sweeps the directory.
+    #
+    # Informational at first per #647's CI promotion policy: failures
+    # surface as warnings and a job-summary annotation, but do not block
+    # the merge. Promote to required via branch-protection after a clean
+    # week — at which point flip `continue-on-error` to `false` and add
+    # the check to branch protection's required list.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Regen-drift — generated .d.ts matches committed copy
+        run: |
+          pnpm generate:jxa-types
+          if ! git diff --quiet -- src/scripts/jxa/_types/omnifocus.d.ts; then
+            echo "::warning file=src/scripts/jxa/_types/omnifocus.d.ts::Generated .d.ts drifted from committed copy — run \`pnpm generate:jxa-types\` and commit the result"
+            git --no-pager diff -- src/scripts/jxa/_types/omnifocus.d.ts | head -50
+            exit 1
+          fi
+      - name: Typecheck opted-in JXA scripts
+        run: pnpm exec tsc -p tsconfig.jxa-tscheck.json
 
   pnpm-audit:
     # Surface dependabot-style advisories on every dep-touching PR — this

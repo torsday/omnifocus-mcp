@@ -122,3 +122,11 @@ Every PR must pass these CI contexts before merge — `gh pr merge --auto` waits
 | `shellcheck` | Shell scripts under `scripts/` lint clean | `.github/workflows/meta-lint.yml` |
 
 `strict` is intentionally `false` (PR branches don't need to be up-to-date with `main`) — that's friction for solo dev that buys nothing the rest of the gate set isn't already covering. `enforce_admins` is also `false` (admin override is a deliberate escape hatch, not a default gate).
+
+#### Informational gates (run, surface, don't block)
+
+These checks run on every applicable PR but are configured with `continue-on-error: true` and are **not** in the branch-protection required list. Failures appear as warnings and a `::warning::` annotation; the merge is not blocked. After a clean soak week the gate is promoted by flipping `continue-on-error: false` and adding the check to the required list — this is the [#647](https://github.com/torsday/omnifocus-mcp/issues/647) CI promotion policy.
+
+| Context | What it gates | Source |
+|---|---|---|
+| `jxa-tsc` | (1) Regen-drift on `src/scripts/jxa/_types/omnifocus.d.ts` vs `pnpm generate:jxa-types`; (2) `tsc` over the JXA scripts opted into `// @ts-check` (`tsconfig.jxa-tscheck.json`). Path-filtered to PRs touching `src/scripts/jxa/**`, `vendor/OmniFocus.sdef`, `scripts/generate-jxa-types.ts`, or `tsconfig.jxa-tscheck.json`. Beachhead landed in [#987](https://github.com/torsday/omnifocus-mcp/issues/987); rollout to remaining scripts tracked in [#989](https://github.com/torsday/omnifocus-mcp/issues/989). | `.github/workflows/meta-lint.yml` |
