@@ -92,6 +92,13 @@ export interface TaskListInput {
   /** 1..1000; service default is 200 when caller omits and any filter is set. */
   limit?: number;
   cursor?: string;
+  /**
+   * When `true`, returned tasks carry a `_links` HATEOAS block (self, project,
+   * parent, tags). Default `false` — the block is omitted entirely to save
+   * payload size. Get the underlying IDs from `id`, `projectId`, `parentId`,
+   * and `tagIds` on the task directly.
+   */
+  includeLinks?: boolean;
 }
 
 export interface TaskGetInput {
@@ -103,6 +110,8 @@ export interface TaskGetInput {
    * fetch specific subtasks when you need their detail.
    */
   includeSubtasks?: boolean;
+  /** See {@link TaskListInput.includeLinks}. Applies to the returned task and any subtasks. */
+  includeLinks?: boolean;
 }
 
 export interface TaskGetResult {
@@ -183,10 +192,16 @@ export class TaskService {
     const cacheHit = this.cache.has(cacheKey);
 
     // The cached payload is the final page slice — not the adapter's raw list —
-    // so cursor pagination remains stable under cache re-use.
-    const { tasks, nextCursor } = await this.cache.wrap(cacheKey, async () =>
+    // so cursor pagination remains stable under cache re-use. `_links` is
+    // injected post-cache so toggling includeLinks doesn't fragment the cache.
+    const { tasks: bareTasks, nextCursor } = await this.cache.wrap(cacheKey, async () =>
       this.fetchPage(input, normalized, cursor, limit, filterHash),
     );
+
+    const tasks =
+      input.includeLinks === true
+        ? bareTasks.map((t) => ({ ...t, _links: buildTaskLinks(t) }))
+        : bareTasks;
 
     return {
       tasks,
@@ -208,23 +223,37 @@ export class TaskService {
    */
   async get(input: TaskGetInput): Promise<TaskGetResult> {
     const includeSubtasks = input.includeSubtasks ?? false;
+    const includeLinks = input.includeLinks ?? false;
     const cacheKey = `task:${input.id}:${includeSubtasks ? "with-subtasks" : "ids-only"}`;
     const cacheHit = this.cache.has(cacheKey);
 
+    // Cache the bare (link-free) payload — `_links` is injected post-cache so
+    // toggling includeLinks doesn't fragment the cache.
     const payload = await this.cache.wrap(cacheKey, async () => {
       const task = await this.adapter.getTask(input.id);
-      const enrichedTask = { ...task, _links: buildTaskLinks(task) };
       // Always fetch subtask list — needed for IDs even when bodies not requested.
       const subtaskList = await this.adapter.listTasks({ parentId: input.id });
       if (includeSubtasks) {
-        const enrichedSubtasks = subtaskList.map((t) => ({ ...t, _links: buildTaskLinks(t) }));
-        return { task: enrichedTask, subtasks: enrichedSubtasks };
+        return { task, subtasks: subtaskList };
       }
       const subtaskIds = subtaskList.map((t) => t.id);
-      return { task: enrichedTask, subtaskIds, subtaskCount: subtaskIds.length };
+      return { task, subtaskIds, subtaskCount: subtaskIds.length };
     });
 
-    return { ...payload, cacheHit };
+    const task = includeLinks
+      ? { ...payload.task, _links: buildTaskLinks(payload.task) }
+      : payload.task;
+    const subtasks = includeLinks
+      ? payload.subtasks?.map((t) => ({ ...t, _links: buildTaskLinks(t) }))
+      : payload.subtasks;
+
+    return {
+      task,
+      ...(payload.subtaskIds !== undefined ? { subtaskIds: payload.subtaskIds } : {}),
+      ...(payload.subtaskCount !== undefined ? { subtaskCount: payload.subtaskCount } : {}),
+      ...(subtasks !== undefined ? { subtasks } : {}),
+      cacheHit,
+    };
   }
 
   // -- Internal: page assembly -------------------------------------------
@@ -293,8 +322,9 @@ export class TaskService {
     const hasMore = afterCursor.length > limit;
     const nextCursor = hasMore ? this.encodeNextCursor(page, filterHash, getSortValue) : null;
 
-    const tasks = page.map((t) => ({ ...t, _links: buildTaskLinks(t) }));
-    return { tasks, nextCursor };
+    // Bare tasks — `_links` is injected by the public `list()` method only when
+    // the caller opts in. Caching link-free results keeps the cache compact.
+    return { tasks: page, nextCursor };
   }
 
   // -- Internal: validation ----------------------------------------------

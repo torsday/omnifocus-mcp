@@ -104,6 +104,14 @@ export const projectListInputSchema = z.object({
         "Omit for the full project shape. Empty array returns just id. " +
         "Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS.",
     ),
+  includeLinks: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, each project carries a `_links` HATEOAS block (self, folder). " +
+        "Default false — the block is omitted to save payload size. " +
+        "Use the project's `id` and `folderId` fields directly instead.",
+    ),
 });
 
 export type ProjectListToolInput = z.infer<typeof projectListInputSchema>;

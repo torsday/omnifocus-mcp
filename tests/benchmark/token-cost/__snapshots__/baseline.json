@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-05-10",
-  "toolListBytes": 174064,
+  "generatedAt": "2026-05-20",
+  "toolListBytes": 177953,
   "workflows": {
     "inbox-triage": {
       "callCount": 6,
       "totalRequestBytes": 29603,
-      "totalResponseBytes": 38226,
-      "totalRoundTripBytes": 67829,
-      "totalTokens": 60473,
+      "totalResponseBytes": 34466,
+      "totalRoundTripBytes": 64069,
+      "totalTokens": 60506,
       "byTool": {
         "tag_create": {
           "calls": 1,
@@ -27,16 +27,16 @@
         },
         "task_list": {
           "calls": 2,
-          "responseBytes": 26798
+          "responseBytes": 23038
         }
       }
     },
     "project-planning": {
       "callCount": 6,
       "totalRequestBytes": 2609,
-      "totalResponseBytes": 26154,
-      "totalRoundTripBytes": 28763,
-      "totalTokens": 50707,
+      "totalResponseBytes": 20474,
+      "totalRoundTripBytes": 23083,
+      "totalTokens": 50259,
       "byTool": {
         "project_create": {
           "calls": 1,
@@ -44,7 +44,7 @@
         },
         "project_get": {
           "calls": 1,
-          "responseBytes": 10332
+          "responseBytes": 7422
         },
         "tag_create": {
           "calls": 1,
@@ -60,16 +60,16 @@
         },
         "task_list": {
           "calls": 1,
-          "responseBytes": 9638
+          "responseBytes": 6868
         }
       }
     },
     "weekly-review": {
       "callCount": 11,
       "totalRequestBytes": 292,
-      "totalResponseBytes": 19130,
-      "totalRoundTripBytes": 19422,
-      "totalTokens": 48372,
+      "totalResponseBytes": 15410,
+      "totalRoundTripBytes": 15702,
+      "totalTokens": 48414,
       "byTool": {
         "project_mark_reviewed": {
           "calls": 5,
@@ -81,7 +81,7 @@
         },
         "task_list": {
           "calls": 5,
-          "responseBytes": 13210
+          "responseBytes": 9490
         }
       }
     }

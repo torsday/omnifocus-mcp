@@ -178,6 +178,14 @@ export const taskListInputSchema = z.object({
         "Omit for the full task shape. Empty array returns just id. " +
         "Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS.",
     ),
+  includeLinks: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, each task carries a `_links` HATEOAS block (self, project, parent, tags). " +
+        "Default false — the block is omitted to save payload size. " +
+        "Use the task's `id`, `projectId`, `parentId`, and `tagIds` fields directly instead.",
+    ),
 });
 
 /** TypeScript input type derived from {@link taskListInputSchema}. */

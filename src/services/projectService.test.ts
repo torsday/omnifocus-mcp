@@ -281,6 +281,47 @@ describe("ProjectService.get", () => {
   });
 });
 
+describe("ProjectService — _links opt-in", () => {
+  it("get() omits _links by default", async () => {
+    const { service, adapter } = makeHarness();
+    const p = await adapter.createProject({ name: "P" });
+    const out = await service.get({ id: p });
+    expect(out.project._links).toBeUndefined();
+  });
+
+  it("get() includes _links on project and tasks when includeLinks=true", async () => {
+    const { service, adapter } = makeHarness();
+    const p = await adapter.createProject({ name: "P" });
+    await adapter.createTask({ name: "t1", projectId: p });
+    const out = await service.get({ id: p, includeLinks: true });
+    expect(out.project._links?.self).toBe(`omnifocus://project/${p}`);
+    expect(out.tasks?.[0]?._links).toBeDefined();
+  });
+
+  it("list() omits _links by default", async () => {
+    const { service, adapter } = makeHarness();
+    await adapter.createProject({ name: "A" });
+    const out = await service.list({ limit: 10 });
+    expect(out.projects[0]?._links).toBeUndefined();
+  });
+
+  it("list() includes _links when includeLinks=true", async () => {
+    const { service, adapter } = makeHarness();
+    const p = await adapter.createProject({ name: "A" });
+    const out = await service.list({ limit: 10, includeLinks: true });
+    expect(out.projects[0]?._links?.self).toBe(`omnifocus://project/${p}`);
+  });
+
+  it("toggling includeLinks does not fragment the get() cache", async () => {
+    const { service, adapter } = makeHarness();
+    const p = await adapter.createProject({ name: "P" });
+    const spy = vi.spyOn(adapter, "getProject");
+    await service.get({ id: p });
+    await service.get({ id: p, includeLinks: true });
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Type-level smoke: FolderId filter is the branded type
 // ---------------------------------------------------------------------------

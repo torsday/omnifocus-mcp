@@ -69,6 +69,12 @@ export interface ProjectListInput {
   /** 1..1000; service default is 200 when caller omits and any filter is set. */
   limit?: number;
   cursor?: string;
+  /**
+   * When `true`, returned projects carry a `_links` HATEOAS block (self, folder).
+   * Default `false` — the block is omitted entirely to save payload size.
+   * Get the underlying IDs from `id` and `folderId` on the project directly.
+   */
+  includeLinks?: boolean;
 }
 
 /** Result of {@link ProjectService.list}. Same envelope shape as TaskService. */
@@ -87,6 +93,8 @@ export interface ProjectGetInput {
   id: ProjectId;
   /** Default `true`. When `false`, `tasks` is omitted from the result. */
   includeTaskTree?: boolean;
+  /** See {@link ProjectListInput.includeLinks}. Applies to the project and any attached tasks. */
+  includeLinks?: boolean;
 }
 
 /** Result of {@link ProjectService.get}. */
@@ -147,9 +155,16 @@ export class ProjectService {
     const cacheKey = this.listCacheKey(filterHash, input.cursor);
     const cacheHit = this.cache.has(cacheKey);
 
-    const { projects, nextCursor } = await this.cache.wrap(cacheKey, async () =>
+    // `_links` is injected post-cache so toggling includeLinks doesn't
+    // fragment the cache.
+    const { projects: bareProjects, nextCursor } = await this.cache.wrap(cacheKey, async () =>
       this.fetchPage(normalized, cursor, limit, filterHash),
     );
+
+    const projects =
+      input.includeLinks === true
+        ? bareProjects.map((p) => ({ ...p, _links: buildProjectLinks(p) }))
+        : bareProjects;
 
     return {
       projects,
@@ -191,19 +206,31 @@ export class ProjectService {
    */
   async get(input: ProjectGetInput): Promise<ProjectGetResult> {
     const includeTaskTree = input.includeTaskTree ?? true;
+    const includeLinks = input.includeLinks ?? false;
     const cacheKey = this.getCacheKey(input.id, includeTaskTree);
     const cacheHit = this.cache.has(cacheKey);
 
+    // Cache bare (link-free) records — `_links` is injected post-cache so
+    // toggling includeLinks doesn't fragment the cache.
     const payload = await this.cache.wrap(cacheKey, async () => {
       const project = await this.adapter.getProject(input.id);
-      const enrichedProject = { ...project, _links: buildProjectLinks(project) };
-      if (!includeTaskTree) return { project: enrichedProject };
+      if (!includeTaskTree) return { project };
       const tasks = await this.adapter.listTasks({ projectId: input.id });
-      const enrichedTasks = tasks.map((t) => ({ ...t, _links: buildTaskLinks(t) }));
-      return { project: enrichedProject, tasks: enrichedTasks };
+      return { project, tasks };
     });
 
-    return { ...payload, cacheHit };
+    const project = includeLinks
+      ? { ...payload.project, _links: buildProjectLinks(payload.project) }
+      : payload.project;
+    const tasks = includeLinks
+      ? payload.tasks?.map((t) => ({ ...t, _links: buildTaskLinks(t) }))
+      : payload.tasks;
+
+    return {
+      project,
+      ...(tasks !== undefined ? { tasks } : {}),
+      cacheHit,
+    };
   }
 
   // -- Internal: page assembly -------------------------------------------
@@ -247,8 +274,9 @@ export class ProjectService {
     const hasMore = afterCursor.length > limit;
     const nextCursor = hasMore ? this.encodeNextCursor(page, filterHash) : null;
 
-    const projects = page.map((p) => ({ ...p, _links: buildProjectLinks(p) }));
-    return { projects, nextCursor };
+    // Bare projects — `_links` is injected by the public `list()` method only
+    // when the caller opts in. Caching link-free results keeps the cache compact.
+    return { projects: page, nextCursor };
   }
 
   // -- Internal: validation ----------------------------------------------

@@ -255,3 +255,45 @@ describe("search_query — pagination", () => {
     expect(warning?.details).toMatchObject({ unknown: ["bogus"] });
   });
 });
+
+// ---------------------------------------------------------------------------
+// _links opt-in (#792)
+// ---------------------------------------------------------------------------
+
+describe("search_query — _links opt-in", () => {
+  it("omits _links from each task by default", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTask({ name: "Task" });
+    const result = await handleSearchQuery({ q: "task" }, ctx);
+    const t = result.data.tasks[0] as unknown as Record<string, unknown>;
+    expect(t._links).toBeUndefined();
+  });
+
+  it("includes _links when includeLinks=true", async () => {
+    const { ctx, adapter } = makeCtx();
+    const id = await adapter.createTask({ name: "Task" });
+    const result = await handleSearchQuery({ q: "task", includeLinks: true }, ctx);
+    const t = result.data.tasks[0] as unknown as { _links?: { self?: string } };
+    expect(t._links?.self).toBe(`omnifocus://task/${id}`);
+  });
+
+  it("explicit includeLinks=false also omits _links", async () => {
+    const { ctx, adapter } = makeCtx();
+    await adapter.createTask({ name: "Task" });
+    const result = await handleSearchQuery({ q: "task", includeLinks: false }, ctx);
+    const t = result.data.tasks[0] as unknown as Record<string, unknown>;
+    expect(t._links).toBeUndefined();
+  });
+
+  it("toggling includeLinks does not break cursor pagination (filter hash stable)", async () => {
+    const { ctx, adapter } = makeCtx();
+    for (let i = 0; i < 5; i++) await adapter.createTask({ name: `Task ${i}` });
+    const page1 = await handleSearchQuery({ q: "task", limit: 3 }, ctx);
+    const cursor = page1.pagination?.cursor ?? "";
+    expect(cursor).toBeTruthy();
+    // Switch includeLinks mid-sequence — must still succeed (not part of hash).
+    const page2 = await handleSearchQuery({ q: "task", limit: 3, cursor, includeLinks: true }, ctx);
+    expect(page2.data.tasks).toHaveLength(2);
+    expect((page2.data.tasks[0] as unknown as { _links?: unknown })._links).toBeDefined();
+  });
+});

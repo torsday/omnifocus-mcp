@@ -36,6 +36,13 @@ export interface SearchInput extends SearchFilter {
   limit?: number;
   /** Opaque cursor from a previous search_query response. */
   cursor?: string;
+  /**
+   * When `true`, returned tasks carry a `_links` HATEOAS block (self, project,
+   * parent, tags). Default `false` — the block is omitted entirely to save
+   * payload size. Get the underlying IDs from `id`, `projectId`, `parentId`,
+   * and `tagIds` on the task directly.
+   */
+  includeLinks?: boolean;
 }
 
 /** Result of {@link SearchService.search}. */
@@ -133,7 +140,11 @@ export class SearchService {
     // Take one extra to detect hasMore
     const page = afterCursor.slice(0, limit + 1);
     const hasMore = page.length > limit;
-    const tasks = page.slice(0, limit).map((t) => ({ ...t, _links: buildTaskLinks(t) }));
+    const bareTasks = page.slice(0, limit);
+    const tasks =
+      input.includeLinks === true
+        ? bareTasks.map((t) => ({ ...t, _links: buildTaskLinks(t) }))
+        : bareTasks;
 
     // Encode next cursor
     const last = tasks.at(-1);
