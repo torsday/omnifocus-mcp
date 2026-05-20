@@ -41,14 +41,20 @@
 // `attachment_add.js`, `attachment_save_to_path.js`, `attachment_remove.js`.
 // ---------------------------------------------------------------------------
 
+// `fileAttachments` is both callable (`.fileAttachments()` evaluates to a
+// snapshot — `attachment_list.js`) and property-accessible
+// (`.fileAttachments.push(att)` mutates the live element collection —
+// `attachment_add.js`). The intersection lets both forms typecheck; same
+// pattern as `defaultDocument` in `jxa-globals.d.ts`.
+
 interface Task {
   /** Runtime convenience over `note.fileAttachments` — see file header. */
-  fileAttachments(): JxaCollection<FileAttachment>;
+  fileAttachments: JxaCollection<FileAttachment> & (() => JxaCollection<FileAttachment>);
 }
 
 interface Project {
   /** Runtime convenience over `note.fileAttachments` — see file header. */
-  fileAttachments(): JxaCollection<FileAttachment>;
+  fileAttachments: JxaCollection<FileAttachment> & (() => JxaCollection<FileAttachment>);
 }
 
 // ---------------------------------------------------------------------------
@@ -76,4 +82,15 @@ interface Attachment {
   fileSize(): number | null;
   /** `true` when the attachment is an alias rather than embedded. May throw. */
   linked(): boolean;
+}
+
+interface FileAttachment {
+  /**
+   * The JXA Path object for the attachment's underlying file. Used by
+   * `attachment_save_to_path.js` to source a binary-safe copy via
+   * NSFileManager. The returned Path-like exposes `.toString()` →
+   * POSIX path; typed conservatively as `{ toString(): string }` so
+   * the only operation consumers can perform is the supported one.
+   */
+  file(): { toString(): string };
 }
