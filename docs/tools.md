@@ -482,7 +482,7 @@ Clear the decision-journal entry from a task or project's note. Strips only the 
 
 ## decision_record
 
-Record agent memory of user judgment on a task or project — kind, reason, and an optional auto-expiry. Writes a `decision-journal` fenced block to the target's note (preserving any existing user prose), so future scans (e.g. project_health) can honor the decision instead of re-litigating it. Discriminates on `targetKind`: 'task' or 'project'. Do NOT use this for short-lived state — prefer waiting-on for follow-ups, or task_update for routine field changes. Returns { targetKind, targetId, decision } with the persisted entry. Side effects: writes the target's note via task_update / project_update; sets meta.syncPending = true. Example: { "targetKind": "project", "targetId": "abc", "decision": { "kind": "stall-is-intentional", "reason": "Strategic pause until Q3" } }
+Record agent memory of user judgment on a task or project — kind, reason, and an optional auto-expiry. Writes a `decision-journal` fenced block to the target's note (preserving any existing user prose), so future scans (e.g. project_health) can honor the decision instead of re-litigating it. Discriminates on `targetKind`: 'task' or 'project'. Do NOT use this for short-lived state — prefer waiting-on for follow-ups, or task_update for routine field changes. Pass idempotency_key to coalesce retries so the same decision is recorded only once. Returns { targetKind, targetId, decision } with the persisted entry. Side effects: writes the target's note via task_update / project_update; sets meta.syncPending = true. Example: { "targetKind": "project", "targetId": "abc", "decision": { "kind": "stall-is-intentional", "reason": "Strategic pause until Q3" } }
 
 ### Input
 
@@ -491,6 +491,7 @@ Record agent memory of user judgment on a task or project — kind, reason, and 
 | `targetKind` | one of: task | project | Yes | Whether the decision attaches to a task or a project. |
 | `targetId` | string | Yes | ID of the task or project. Must match `targetKind` — agent-side validation, but the adapter call surfaces NotFound if the ID is wrong. |
 | `decision` | object | Yes | The decision payload. `recordedAt` is set automatically on write. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe writes. Append-shaped tools like this one duplicate silently on retry without a key; supply a stable per-decision identifier and identical retries within the TTL window replay the original envelope with meta.idempotentReplay = true instead of appending another journal entry. See docs/idempotency.md. |
 
 ### Example call
 
@@ -1180,7 +1181,7 @@ _No parameters._
 
 ## note_append
 
-Append text to the plain-text note on a task or project. Adds a newline between existing content and the new text unless the note is empty. Do not use to replace the note entirely; prefer note_set instead. Returns { updated: true, id, targetKind, name, note } — name is the parent task/project's display name (captured from the same read that fetched the existing note) so the agent can describe the change without a follow-up read; note is the full content after appending. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the change to appear on other devices. Example: note_append({ targetKind: "task", id: "abc123", text: "Follow up next week" })
+Append text to the plain-text note on a task or project. Adds a newline between existing content and the new text unless the note is empty. Do not use to replace the note entirely; prefer note_set instead. Pass idempotency_key to coalesce retries — append is not naturally idempotent and replays without a key duplicate the text. Returns { updated: true, id, targetKind, name, note } — name is the parent task/project's display name (captured from the same read that fetched the existing note) so the agent can describe the change without a follow-up read; note is the full content after appending. Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the change to appear on other devices. Example: note_append({ targetKind: "task", id: "abc123", text: "Follow up next week" })
 
 ### Input
 
@@ -1189,6 +1190,7 @@ Append text to the plain-text note on a task or project. Adds a newline between 
 | `targetKind` | one of: task | project | Yes | The kind of OmniFocus item whose note to append to. |
 | `id` | string | Yes | Persistent ID of the task or project. Get task IDs from task_list; project IDs from project_list. |
 | `text` | string | Yes | Text to append. A newline separator is inserted before the text if a note exists. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe appends. `append` is not naturally idempotent — replays without a key multiply the appended text. Identical subsequent calls with the same key within the TTL window replay the original envelope with meta.idempotentReplay = true instead of appending again. See docs/idempotency.md. |
 
 ### Example call
 
