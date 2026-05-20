@@ -533,7 +533,14 @@ export function runAdapterContract(label: string, options: AdapterContractOption
         expect((await adapter.getTag(id)).name).toBe("house");
       });
 
-      test("listTags filters by parentId (nested tag hierarchy)", async () => {
+      // Quarantined against the live-OmniFocus mount (#978): `tag_list`'s
+      // first call against a cold OmniFocus repeatedly hits its 30s JXA
+      // timeout — the #969 responsiveness probe correctly surfaces it as
+      // `OFBusy`, but the test still fails for cold-start reasons
+      // unrelated to the contract under test. Observed on #968, #969,
+      // #973, #977. Underlying cold-start fix lives at #887; this test
+      // graduates back to plain `test()` when that lands.
+      quarantineTest("listTags filters by parentId (nested tag hierarchy)", async () => {
         const parentId = await adapter.createTag({ name: "parent" });
         const childId = await adapter.createTag({ name: "child", parentId });
         await adapter.createTag({ name: "top" });
