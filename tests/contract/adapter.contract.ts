@@ -84,6 +84,23 @@ export interface SandboxOptions {
    * crashed runs eventually get cleaned up. Defaults to `"mcp-fixture"`.
    */
   prefix?: string;
+  /**
+   * Opt in to **per-test sub-folder isolation** (#957). When `true`,
+   * the harness creates a fresh sub-folder under the suite sandbox on
+   * every `beforeEach`, routes that test's top-level project/folder
+   * creates into it, and deletes the sub-folder on `afterEach` —
+   * cascading any contained projects/tasks in a single Apple Event.
+   * Suite-level teardown still runs (idempotent on empty residue).
+   *
+   * Inbox tasks (`createTask` without `projectId`/`parentId`) and
+   * top-level tags continue to use the real OF inbox / root tag list
+   * regardless — re-routing them would break the assertions tests use
+   * to verify inbox-membership semantics (`task.projectId === null`).
+   * Suite-level bulk cleanup still tracks and removes them.
+   *
+   * Default `false` — preserves the previous suite-only sandbox shape.
+   */
+  perTest?: boolean;
 }
 
 /** Internal accumulator for sandbox-mode bulk teardown. */
@@ -106,10 +123,17 @@ interface SandboxAccumulated {
 export function runAdapterContract(label: string, options: AdapterContractOptions): void {
   const hookTimeout = options.hookTimeoutMs;
   const sandboxEnabled = options.sandbox !== undefined;
+  const perTestEnabled = sandboxEnabled && options.sandbox?.perTest === true;
 
   describe(`adapter contract — ${label}`, () => {
     let adapter: OmniFocusAdapter;
     let sandboxFolderId: FolderId | null = null;
+    /**
+     * Per-test sub-folder ID when `sandbox.perTest === true` (#957). Created
+     * in `beforeEach`, deleted in `afterEach`. Distinct from `sandboxFolderId`
+     * which is the suite-level root. Null when per-test mode is off.
+     */
+    let perTestFolderId: FolderId | null = null;
     const accumulated: SandboxAccumulated = { inboxTaskIds: [], tagIds: [] };
 
     // Suite-scoped sandbox — one fixture folder for all tests in this
@@ -127,10 +151,33 @@ export function runAdapterContract(label: string, options: AdapterContractOption
 
     beforeEach(async () => {
       const base = await options.createAdapter();
-      adapter = sandboxFolderId ? wrapWithSandbox(base, sandboxFolderId, accumulated) : base;
+      // Route target — the suite folder by default, or a freshly-created
+      // per-test sub-folder when `perTest` mode is on (#957). Per-test
+      // mode gives each test a brand-new namespace, so accumulated fixture
+      // state from prior tests can't bleed into this one's assertions.
+      let routeTarget: FolderId | null = sandboxFolderId;
+      if (perTestEnabled && sandboxFolderId) {
+        const setupAdapter = await options.createAdapter();
+        const testId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+        perTestFolderId = await setupAdapter.createFolder({
+          name: `t-${testId}`,
+          parentId: sandboxFolderId,
+        });
+        routeTarget = perTestFolderId;
+      }
+      adapter = routeTarget ? wrapWithSandbox(base, routeTarget, accumulated) : base;
     }, hookTimeout);
 
     afterEach(async () => {
+      // Per-test sub-folder cleanup (#957) — one Apple Event, cascades
+      // every project / nested folder / task this test created inside.
+      // Errors swallowed: the test may have already deleted contents
+      // explicitly (e.g. deleteFolder assertions).
+      if (perTestEnabled && perTestFolderId) {
+        const teardownAdapter = await options.createAdapter();
+        await teardownAdapter.deleteFolder(perTestFolderId).catch(() => {});
+        perTestFolderId = null;
+      }
       // Per-test cleanup only fires for non-sandbox drivers. Sandbox mode
       // accumulates IDs and bulk-deletes once in afterAll.
       if (!sandboxEnabled && options.cleanup) await options.cleanup(adapter);
