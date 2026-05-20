@@ -41,17 +41,32 @@ declare function Application(name: string): Application & {
    * means callers may still write `ofApp.defaultDocument()` if they prefer.
    */
   defaultDocument: Document;
-  /** Standard JXA constructor proxy — used to instantiate Tag/Folder/Project/Task by name. */
-  Tag: new (props: {
-    name: string;
-    [key: string]: unknown;
-  }) => unknown;
-  Folder: new (props: { name: string; [key: string]: unknown }) => unknown;
-  Project: new (props: { name: string; status?: unknown; [key: string]: unknown }) => unknown;
-  InboxTask: new (props: { name: string; [key: string]: unknown }) => unknown;
-  Task: new (props: { name: string; [key: string]: unknown }) => unknown;
+  /**
+   * Standard JXA constructor proxies — instantiate by class name. JXA
+   * accepts both `ofApp.Tag(props)` and `new ofApp.Tag(props)`; every
+   * script in this repo uses the bare-call form (see `tag_create.js`,
+   * `folder_create.js`, `project_create.js`, `task_create.js`).
+   * Modeled as call-signature-only so both forms typecheck without
+   * forcing the `new` keyword.
+   */
+  Tag: (props: { name: string; [key: string]: unknown }) => unknown;
+  Folder: (props: { name: string; [key: string]: unknown }) => unknown;
+  Project: (props: { name: string; status?: unknown; [key: string]: unknown }) => unknown;
+  InboxTask: (props: { name: string; [key: string]: unknown }) => unknown;
+  Task: (props: { name: string; [key: string]: unknown }) => unknown;
+  /**
+   * FileAttachment constructor proxy — used by `attachment_add.js` to
+   * build an attachment from a local file (`ofApp.FileAttachment({ file: Path(...) })`)
+   * before pushing it onto an owner's `fileAttachments` collection.
+   */
+  FileAttachment: (props: { file: unknown; [key: string]: unknown }) => FileAttachment;
   /** Send-event wrapper used by some OF commands. */
   add: (item: unknown, options: { to: unknown }) => void;
+  /**
+   * Standard JXA `delete` verb — removes a specifier from its container.
+   * Used by `attachment_remove.js` (`ofApp.delete(attachment)`).
+   */
+  delete: (item: unknown) => void;
   /** Evaluate an OmniJS expression inside the OmniFocus host (#960 / #962). */
   evaluateJavascript: (source: string) => string;
   /**

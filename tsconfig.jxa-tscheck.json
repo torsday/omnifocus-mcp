@@ -13,7 +13,10 @@
   },
   "include": [
     "src/scripts/jxa/app_launch.js",
+    "src/scripts/jxa/attachment_add.js",
     "src/scripts/jxa/attachment_list.js",
+    "src/scripts/jxa/attachment_remove.js",
+    "src/scripts/jxa/attachment_save_to_path.js",
     "src/scripts/jxa/ping.js",
     "src/scripts/jxa/task_get.js"
   ]

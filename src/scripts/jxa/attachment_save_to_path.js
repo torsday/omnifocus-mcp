@@ -1,3 +1,8 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: copy an attachment's content to a local file path.
  *
