@@ -7,7 +7,14 @@
     "defaultBranch": "main"
   },
   "files": {
-    "includes": ["**", "!**/dist", "!**/node_modules", "!**/coverage", "!**/*.min.js"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/node_modules",
+      "!**/coverage",
+      "!**/*.min.js",
+      "!src/scripts/jxa/_types/**"
+    ]
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "formatter": {
