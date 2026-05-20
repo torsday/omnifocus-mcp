@@ -285,14 +285,18 @@ function emitClass(cls: ClassDef, knownClasses: Set<string>): string {
     lines.push(`  ${tsAccessor(p.name)}(): ${tsType};`);
   }
 
-  // Elements: child collections. Type is the *element-of* class.
+  // Elements: child collections. Type is the *element-of* class wrapped in
+  // `JxaCollection<T>` so the JXA element-query API (`byId`, `whose`, `at`)
+  // is exposed to `// @ts-check` consumers — see the JxaCollection comment
+  // at the top of this file. A plain `T[]` would lose those methods even
+  // though they exist at runtime.
   for (const e of cls.elements) {
     const tsType = mapTypeToTs(e.type, knownClasses);
     // Plural — JXA convention: `flattenedTasks()`, `tags()`, etc.
     // The sdef element name is singular; pluralization is mechanical.
     const plural = pluralizeAccessor(e.type);
     lines.push(`  /** child collection of '${e.type}' */`);
-    lines.push(`  ${plural}(): ${tsType}[];`);
+    lines.push(`  ${plural}(): JxaCollection<${tsType}>;`);
   }
 
   lines.push(`}`);
@@ -339,9 +343,36 @@ function main(): void {
     "",
   ].join("\n");
 
+  // JxaCollection<T> — the shape every element-collection accessor returns.
+  // The sdef declares element relationships (`<element type="task"/>` etc.)
+  // but says nothing about the query methods JXA exposes on the returned
+  // collection. At runtime `flattenedTasks()` is an array AND has `.byId(id)`,
+  // `.whose(filter)`, `.at(idx)` — none of which TypeScript can infer from a
+  // plain `T[]` return. This interface lets `// @ts-check` consumers call
+  // those methods without surfacing as `TS2339`. Ambient (no `export`) so
+  // it joins script-mode scope automatically when the .d.ts is referenced.
+  //
+  // `whose(filter)` returns a thunk (a function that, when called, yields
+  // matching specifiers) — the JXA query API is lazy. `byId` throws (-1728)
+  // at the next method call when the id is unknown rather than returning
+  // null; callers wrap with the `lookupOrThrow` helper from
+  // \`_helpers/lookup_or_throw.js\` to surface that as a structured error
+  // (#674 / #687).
+  const collectionType = [
+    `interface JxaCollection<T> extends Array<T> {`,
+    `  /** JXA element-query: fetch a specifier by id. Lazy — throws (-1728) on next access if id is unknown. */`,
+    `  byId(id: string): T;`,
+    `  /** JXA element-query: filter by sdef-attribute predicate. Returns a thunk; call it to evaluate. */`,
+    `  whose(filter: Record<string, unknown>): () => T[];`,
+    `  /** JXA element-query: random access. */`,
+    `  at(idx: number): T;`,
+    `}`,
+    "",
+  ].join("\n");
+
   const body = classes.map((c) => emitClass(c, knownClasses)).join("\n\n");
 
-  const out = `${header}\n${body}\n`;
+  const out = `${header}\n${collectionType}\n${body}\n`;
   mkdirSync(dirname(OUT_PATH), { recursive: true });
   writeFileSync(OUT_PATH, out);
 

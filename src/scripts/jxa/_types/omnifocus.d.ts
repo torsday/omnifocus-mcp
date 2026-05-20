@@ -8,6 +8,15 @@
 //           199 properties,
 //           54 elements.
 
+interface JxaCollection<T> extends Array<T> {
+  /** JXA element-query: fetch a specifier by id. Lazy — throws (-1728) on next access if id is unknown. */
+  byId(id: string): T;
+  /** JXA element-query: filter by sdef-attribute predicate. Returns a thunk; call it to evaluate. */
+  whose(filter: Record<string, unknown>): () => T[];
+  /** JXA element-query: random access. */
+  at(idx: number): T;
+}
+
 /** OmniFocus 'application' class (sdef code: capp). */
 interface Application {
   /** [read-only] The name of the application. */
@@ -25,13 +34,13 @@ interface Application {
   /** [read-only] The names of all available perspectives in the default document. */
   perspectiveNames(): unknown;
   /** child collection of 'document' */
-  documents(): Document[];
+  documents(): JxaCollection<Document>;
   /** child collection of 'window' */
-  windows(): Window[];
+  windows(): JxaCollection<Window>;
   /** child collection of 'perspective' */
-  perspectives(): Perspective[];
+  perspectives(): JxaCollection<Perspective>;
   /** child collection of 'preference' */
-  preferences(): Preference[];
+  preferences(): JxaCollection<Preference>;
 }
 
 /** OmniFocus 'document' class (sdef code: docu). */
@@ -69,33 +78,33 @@ interface Document {
   /** [read-only] The names of all available perspectives in this document. */
   perspectiveNames(): unknown;
   /** child collection of 'setting' */
-  settings(): Setting[];
+  settings(): JxaCollection<Setting>;
   /** child collection of 'document window' */
-  documentWindows(): DocumentWindow[];
+  documentWindows(): JxaCollection<DocumentWindow>;
   /** child collection of 'section' */
-  sections(): Section[];
+  sections(): JxaCollection<Section>;
   /** child collection of 'folder' */
-  folders(): Folder[];
+  folders(): JxaCollection<Folder>;
   /** child collection of 'project' */
-  projects(): Project[];
+  projects(): JxaCollection<Project>;
   /** child collection of 'tag' */
-  tags(): Tag[];
+  tags(): JxaCollection<Tag>;
   /** child collection of 'deprecated context' */
-  deprecatedContexts(): DeprecatedContext[];
+  deprecatedContexts(): JxaCollection<DeprecatedContext>;
   /** child collection of 'inbox task' */
-  inboxTasks(): InboxTask[];
+  inboxTasks(): JxaCollection<InboxTask>;
   /** child collection of 'task' */
-  tasks(): Task[];
+  tasks(): JxaCollection<Task>;
   /** child collection of 'flattened task' */
-  flattenedTasks(): FlattenedTask[];
+  flattenedTasks(): JxaCollection<FlattenedTask>;
   /** child collection of 'flattened project' */
-  flattenedProjects(): FlattenedProject[];
+  flattenedProjects(): JxaCollection<FlattenedProject>;
   /** child collection of 'flattened folder' */
-  flattenedFolders(): FlattenedFolder[];
+  flattenedFolders(): JxaCollection<FlattenedFolder>;
   /** child collection of 'flattened tag' */
-  flattenedTags(): FlattenedTag[];
+  flattenedTags(): JxaCollection<FlattenedTag>;
   /** child collection of 'perspective' */
-  perspectives(): Perspective[];
+  perspectives(): JxaCollection<Perspective>;
 }
 
 /** OmniFocus 'window' class (sdef code: cwin). */
@@ -147,15 +156,15 @@ interface QuickEntryTree extends Tree {
   /** [read-only] Whether the quick entry panel is currently visible. */
   visible(): boolean;
   /** child collection of 'folder' */
-  folders(): Folder[];
+  folders(): JxaCollection<Folder>;
   /** child collection of 'project' */
-  projects(): Project[];
+  projects(): JxaCollection<Project>;
   /** child collection of 'tag' */
-  tags(): Tag[];
+  tags(): JxaCollection<Tag>;
   /** child collection of 'deprecated context' */
-  deprecatedContexts(): DeprecatedContext[];
+  deprecatedContexts(): JxaCollection<DeprecatedContext>;
   /** child collection of 'inbox task' */
-  inboxTasks(): InboxTask[];
+  inboxTasks(): JxaCollection<InboxTask>;
 }
 
 /** OmniFocus 'setting' class (sdef code: FCos). */
@@ -171,7 +180,7 @@ interface Setting {
 /** OmniFocus 'focus sections' class (sdef code: FCFS). */
 interface FocusSections {
   /** child collection of 'item' */
-  items(): unknown[];
+  items(): JxaCollection<unknown>;
 }
 
 /** OmniFocus 'section' class (sdef code: FCSX). */
@@ -203,15 +212,15 @@ interface Folder extends Section {
   /** [read-only] The containing document or quick entry tree of the object. */
   containingDocument(): Document;
   /** child collection of 'section' */
-  sections(): Section[];
+  sections(): JxaCollection<Section>;
   /** child collection of 'folder' */
-  folders(): Folder[];
+  folders(): JxaCollection<Folder>;
   /** child collection of 'project' */
-  projects(): Project[];
+  projects(): JxaCollection<Project>;
   /** child collection of 'flattened project' */
-  flattenedProjects(): FlattenedProject[];
+  flattenedProjects(): JxaCollection<FlattenedProject>;
   /** child collection of 'flattened folder' */
-  flattenedFolders(): FlattenedFolder[];
+  flattenedFolders(): JxaCollection<FlattenedFolder>;
 }
 
 /** OmniFocus 'tag' class (sdef code: FCtg). */
@@ -239,17 +248,17 @@ interface Tag {
   /** The physical location associated with the tag. */
   location(): unknown;
   /** child collection of 'tag' */
-  tags(): Tag[];
+  tags(): JxaCollection<Tag>;
   /** child collection of 'deprecated context' */
-  deprecatedContexts(): DeprecatedContext[];
+  deprecatedContexts(): JxaCollection<DeprecatedContext>;
   /** child collection of 'flattened tag' */
-  flattenedTags(): FlattenedTag[];
+  flattenedTags(): JxaCollection<FlattenedTag>;
   /** child collection of 'task' */
-  tasks(): Task[];
+  tasks(): JxaCollection<Task>;
   /** child collection of 'available task' */
-  availableTasks(): AvailableTask[];
+  availableTasks(): JxaCollection<AvailableTask>;
   /** child collection of 'remaining task' */
-  remainingTasks(): RemainingTask[];
+  remainingTasks(): JxaCollection<RemainingTask>;
 }
 
 /** OmniFocus 'deprecated context' class (sdef code: FCct). */
@@ -427,17 +436,17 @@ interface Task {
   /** A simple textual archive of a task that can be used to create, update and distributed tasks. Please see the documentation for more information. */
   transportText(): string;
   /** child collection of 'tag' */
-  tags(): Tag[];
+  tags(): JxaCollection<Tag>;
   /** child collection of 'task' */
-  tasks(): Task[];
+  tasks(): JxaCollection<Task>;
   /** child collection of 'flattened task' */
-  flattenedTasks(): FlattenedTask[];
+  flattenedTasks(): JxaCollection<FlattenedTask>;
 }
 
 /** OmniFocus 'forecast sidebar tree' class (sdef code: FCFt). */
 interface ForecastSidebarTree extends SidebarTree {
   /** child collection of 'forecast day' */
-  forecastDays(): ForecastDay[];
+  forecastDays(): JxaCollection<ForecastDay>;
 }
 
 /** OmniFocus 'forecast day' class (sdef code: FCdy). */
@@ -557,19 +566,19 @@ interface Tree {
   /** A list of the types that can be used when reading nodes from the pasteboard (i.e., pasteing). */
   readablePasteboardTypes(): unknown;
   /** child collection of 'tree' */
-  trees(): Tree[];
+  trees(): JxaCollection<Tree>;
   /** child collection of 'descendant tree' */
-  descendantTrees(): DescendantTree[];
+  descendantTrees(): JxaCollection<DescendantTree>;
   /** child collection of 'ancestor tree' */
-  ancestorTrees(): AncestorTree[];
+  ancestorTrees(): JxaCollection<AncestorTree>;
   /** child collection of 'leaf' */
-  leafs(): Leaf[];
+  leafs(): JxaCollection<Leaf>;
   /** child collection of 'preceding sibling' */
-  precedingSiblings(): PrecedingSibling[];
+  precedingSiblings(): JxaCollection<PrecedingSibling>;
   /** child collection of 'following sibling' */
-  followingSiblings(): FollowingSibling[];
+  followingSiblings(): JxaCollection<FollowingSibling>;
   /** child collection of 'selected tree' */
-  selectedTrees(): SelectedTree[];
+  selectedTrees(): JxaCollection<SelectedTree>;
 }
 
 /** OmniFocus 'descendant tree' class (sdef code: OTds). */
@@ -603,9 +612,9 @@ interface Style {
   /** The name of the font of the style. */
   font(): string;
   /** child collection of 'named style' */
-  namedStyles(): NamedStyle[];
+  namedStyles(): JxaCollection<NamedStyle>;
   /** child collection of 'attribute' */
-  attributes(): Attribute[];
+  attributes(): JxaCollection<Attribute>;
 }
 
 /** OmniFocus 'attribute' class (sdef code: OSsa). */
@@ -651,17 +660,17 @@ interface RichText {
   /** Alignment of the text. */
   alignment(): unknown;
   /** child collection of 'character' */
-  characters(): Character[];
+  characters(): JxaCollection<Character>;
   /** child collection of 'paragraph' */
-  paragraphs(): Paragraph[];
+  paragraphs(): JxaCollection<Paragraph>;
   /** child collection of 'word' */
-  words(): Word[];
+  words(): JxaCollection<Word>;
   /** child collection of 'attribute run' */
-  attributeRuns(): AttributeRun[];
+  attributeRuns(): JxaCollection<AttributeRun>;
   /** child collection of 'attachment' */
-  attachments(): Attachment[];
+  attachments(): JxaCollection<Attachment>;
   /** child collection of 'file attachment' */
-  fileAttachments(): FileAttachment[];
+  fileAttachments(): JxaCollection<FileAttachment>;
 }
 
 /** OmniFocus 'character' class (sdef code: cha ). */
