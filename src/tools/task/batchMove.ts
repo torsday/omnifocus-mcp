@@ -17,6 +17,11 @@ import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/inva
 import { ProjectId, TaskId } from "../../domain/ids.js";
 import { summaryBatchMove } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import {
+  idempotencyStore as defaultIdempotencyStore,
+  type IdempotencyStore,
+  withIdempotencyKey,
+} from "../../server/idempotencyStore.js";
 
 export const TASK_BATCH_MOVE_DESCRIPTION =
   "Move many OmniFocus tasks to new destinations in a single OmniJS round trip. " +
@@ -57,6 +62,14 @@ export const taskBatchMoveInputSchema = z.object({
     .array(singleItemSchema)
     .min(1)
     .describe("Array of { id, destination } items. Must contain at least one item."),
+  idempotency_key: z
+    .string()
+    .min(1)
+    .max(128)
+    .optional()
+    .describe(
+      "Idempotency key for retry-safe batches. Replays within the TTL window return the cached envelope with meta.idempotentReplay = true. See docs/idempotency.md.",
+    ),
 });
 
 export type TaskBatchMoveToolInput = z.infer<typeof taskBatchMoveInputSchema>;
@@ -65,54 +78,62 @@ export interface TaskBatchMoveContext {
   adapter: OmniFocusAdapter;
   makeMeta: (partial?: Partial<ResponseMeta>) => ResponseMeta;
   cache?: InvalidatingCache;
+  /** Optional idempotency-store override (#980). Defaults to module singleton. */
+  idempotencyStore?: IdempotencyStore;
 }
 
 export async function handleTaskBatchMove(
   input: TaskBatchMoveToolInput,
   ctx: TaskBatchMoveContext,
 ) {
-  // Pre-fetch all task names in a single round trip — see batchComplete (#594/#597 lever 4).
-  const ids = input.items.map((it) => it.id);
-  const tasks = await ctx.adapter.getTasksMany(ids);
-  const nameById = new Map<string, string>();
-  for (let i = 0; i < ids.length; i++) {
-    const task = tasks[i];
-    if (task !== null && task !== undefined) {
-      nameById.set(ids[i] as string, task.name);
-    }
-  }
-
-  const outcome = await ctx.adapter.batchMoveTasks(
-    input.items.map((it) => ({
-      id: it.id,
-      destination: {
-        ...(it.destination.projectId !== undefined && { projectId: it.destination.projectId }),
-        ...(it.destination.parentId !== undefined && { parentId: it.destination.parentId }),
-      },
-    })),
-  );
-
-  if (ctx.cache !== undefined) {
-    for (const s of outcome.succeeded) {
-      const src = input.items[s.index];
-      if (src !== undefined) {
-        invalidateTaskMutation(ctx.cache, { taskId: src.id });
+  const store = ctx.idempotencyStore ?? defaultIdempotencyStore;
+  const exec = async () => {
+    // Pre-fetch all task names in a single round trip — see batchComplete (#594/#597 lever 4).
+    const ids = input.items.map((it) => it.id);
+    const tasks = await ctx.adapter.getTasksMany(ids);
+    const nameById = new Map<string, string>();
+    for (let i = 0; i < ids.length; i++) {
+      const task = tasks[i];
+      if (task !== null && task !== undefined) {
+        nameById.set(ids[i] as string, task.name);
       }
     }
-  }
 
-  const moved = outcome.succeeded.map((s) => ({
-    index: s.index,
-    value: { id: s.value, name: nameById.get(s.value as string) ?? "" },
-  }));
+    const outcome = await ctx.adapter.batchMoveTasks(
+      input.items.map((it) => ({
+        id: it.id,
+        destination: {
+          ...(it.destination.projectId !== undefined && { projectId: it.destination.projectId }),
+          ...(it.destination.parentId !== undefined && { parentId: it.destination.parentId }),
+        },
+      })),
+    );
 
-  return ok(
-    { moved, failed: outcome.failed },
-    ctx.makeMeta({
-      syncPending: outcome.succeeded.length > 0,
-      humanReadableSummary: summaryBatchMove(outcome.succeeded.length, "destination"),
-    }),
-  );
+    if (ctx.cache !== undefined) {
+      for (const s of outcome.succeeded) {
+        const src = input.items[s.index];
+        if (src !== undefined) {
+          invalidateTaskMutation(ctx.cache, { taskId: src.id });
+        }
+      }
+    }
+
+    const moved = outcome.succeeded.map((s) => ({
+      index: s.index,
+      value: { id: s.value, name: nameById.get(s.value as string) ?? "" },
+    }));
+
+    return ok(
+      { moved, failed: outcome.failed },
+      ctx.makeMeta({
+        syncPending: outcome.succeeded.length > 0,
+        humanReadableSummary: summaryBatchMove(outcome.succeeded.length, "destination"),
+      }),
+    );
+  };
+  return (await withIdempotencyKey(store, input.idempotency_key, exec)) as Awaited<
+    ReturnType<typeof exec>
+  >;
 }
 
 export function registerTaskBatchMoveTool(server: McpServer, ctx: TaskBatchMoveContext) {

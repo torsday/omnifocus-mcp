@@ -35,15 +35,15 @@ Every MCP mutation tool is in exactly one row. `✓` = the tool accepts `idempot
 
 | Tool | `idempotency_key` | Notes |
 |---|---|---|
-| `task_batch_create` | — | Batches need idempotency more than single calls — retrying a half-applied batch without a key duplicates the applied subset. |
+| `task_batch_create` | ✓ | Batches need idempotency more than single calls — retrying a half-applied batch without a key duplicates the applied subset. Key support added in #980. |
 | `task_batch_update` | ✓ | (Schema accepts the key; replay returns the cached envelope.) |
-| `task_batch_delete` | — | |
-| `task_batch_complete` | — | |
-| `task_batch_uncomplete` | — | |
-| `task_batch_drop` | — | |
-| `task_batch_undrop` | — | |
-| `task_batch_move` | — | |
-| `task_batch_assign` | — | |
+| `task_batch_delete` | ✓ | #980. |
+| `task_batch_complete` | ✓ | #980. |
+| `task_batch_uncomplete` | ✓ | #980. |
+| `task_batch_drop` | ✓ | #980. |
+| `task_batch_undrop` | ✓ | #980. |
+| `task_batch_move` | ✓ | #980. |
+| `task_batch_assign` | ✓ | #980. |
 | `task_batch_defer_smart` | ✓ | |
 
 ### Project mutations
@@ -132,7 +132,7 @@ The wiring is mechanical. Reference: [`src/tools/task/update.ts`](../src/tools/t
 
 This audit deliberately scopes to the inventory + contract; per-tool key adoption and a cross-cutting integration replay test are out of scope. Tracking:
 
-- Adding `idempotency_key` to the high-value tools currently at `—` (task batch mutations and project status changes — `note_append` and `decision_record` shipped in #981) → individual issues per tool family, filed by the audit follow-up.
+- Adding `idempotency_key` to the high-value tools currently at `—` — `note_append` + `decision_record` shipped in #981, task batch mutations shipped in #980; remaining gaps are project status changes (`project_complete`/`drop`/`move`) and tag/folder mutations.
 - An integration test that exercises replay across the wire (same key, same input → same envelope with `idempotentReplay: true`; same key, different input → ValidationError or fresh execution depending on policy) → filed as a separate issue.
 
 ## References

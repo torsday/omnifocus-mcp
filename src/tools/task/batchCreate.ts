@@ -18,7 +18,18 @@ import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/inva
 import { ProjectId, TagId, TaskId } from "../../domain/ids.js";
 import { NAME_MAX_CHARS, NOTE_MAX_CHARS } from "../../domain/inputLimits.js";
 import { summaryBatchCreate } from "../../domain/writeSummary.js";
-import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import {
+  ok,
+  type ResponseMeta,
+  type ToolEnvelope,
+  type ToolSuccess,
+  toolResponse,
+} from "../../envelope/index.js";
+import {
+  idempotencyStore as defaultIdempotencyStore,
+  type IdempotencyStore,
+  withIdempotencyKey,
+} from "../../server/idempotencyStore.js";
 
 export const TASK_BATCH_CREATE_DESCRIPTION =
   "Create many OmniFocus tasks in a single JXA round trip. " +
@@ -28,6 +39,7 @@ export const TASK_BATCH_CREATE_DESCRIPTION =
   "Prefer this tool over repeated task_create calls whenever you are creating more than one task. " +
   "Each item accepts the same shape as task_create (name, optional projectId or parentTaskId, note, " +
   "flagged, dueDate, deferDate, estimatedMinutes, tagIds, sequential, completedByChildren). " +
+  "Pass idempotency_key to coalesce retries — without one, replaying a half-applied batch duplicates the applied subset. " +
   "Returns { created: [{index, value: { id, name }}], failed: [{index, errorCode, message}] } — value carries the task name (echoed from the input) so the agent can describe each new task without a follow-up read. " +
   "Side effects: creates tasks in OmniFocus, sets meta.syncPending = true. " +
   "Call sync_trigger when you need the tasks to appear on other devices. " +
@@ -86,6 +98,14 @@ export const taskBatchCreateInputBaseSchema = z.object({
     .array(singleItemSchema)
     .min(1)
     .describe("Array of task inputs. Must contain at least one item."),
+  idempotency_key: z
+    .string()
+    .min(1)
+    .max(128)
+    .optional()
+    .describe(
+      "Idempotency key for retry-safe batches. Replays within the TTL window return the cached envelope with meta.idempotentReplay = true. See docs/idempotency.md.",
+    ),
 });
 
 export type TaskBatchCreateToolInput = z.infer<typeof taskBatchCreateInputBaseSchema>;
@@ -94,56 +114,74 @@ export interface TaskBatchCreateContext {
   adapter: OmniFocusAdapter;
   makeMeta: (partial?: Partial<ResponseMeta>) => ResponseMeta;
   cache?: InvalidatingCache;
+  /** Optional idempotency-store override (#980). Defaults to module singleton. */
+  idempotencyStore?: IdempotencyStore;
 }
+
+type TaskBatchCreateData = {
+  created: Array<{ index: number; value: { id: TaskId; name: string } }>;
+  failed: Array<{ index: number; errorCode: string; message: string }>;
+};
 
 export async function handleTaskBatchCreate(
   input: TaskBatchCreateToolInput,
   ctx: TaskBatchCreateContext,
-) {
-  const adapterInputs: CreateTaskInput[] = input.items.map((it) => ({
-    name: it.name,
-    ...(it.projectId !== undefined && { projectId: it.projectId }),
-    ...(it.parentTaskId !== undefined && { parentId: it.parentTaskId }),
-    ...(it.note !== undefined && { note: it.note }),
-    ...(it.flagged !== undefined && { flagged: it.flagged }),
-    ...(it.dueDate !== undefined && { dueDate: it.dueDate }),
-    ...(it.dueDateFloating !== undefined && { dueDateFloating: it.dueDateFloating }),
-    ...(it.deferDate !== undefined && { deferDate: it.deferDate }),
-    ...(it.deferDateFloating !== undefined && { deferDateFloating: it.deferDateFloating }),
-    ...(it.estimatedMinutes !== undefined && { estimatedMinutes: it.estimatedMinutes }),
-    ...(it.tagIds !== undefined && { tagIds: it.tagIds }),
-    ...(it.sequential !== undefined && { sequential: it.sequential }),
-    ...(it.completedByChildren !== undefined && { completedByChildren: it.completedByChildren }),
-  }));
+): Promise<ToolSuccess<TaskBatchCreateData>> {
+  const store = ctx.idempotencyStore ?? defaultIdempotencyStore;
 
-  const outcome = await ctx.adapter.batchCreateTasks(adapterInputs);
+  const envelope = (await withIdempotencyKey<TaskBatchCreateData>(
+    store,
+    input.idempotency_key,
+    async (): Promise<ToolEnvelope<TaskBatchCreateData>> => {
+      const adapterInputs: CreateTaskInput[] = input.items.map((it) => ({
+        name: it.name,
+        ...(it.projectId !== undefined && { projectId: it.projectId }),
+        ...(it.parentTaskId !== undefined && { parentId: it.parentTaskId }),
+        ...(it.note !== undefined && { note: it.note }),
+        ...(it.flagged !== undefined && { flagged: it.flagged }),
+        ...(it.dueDate !== undefined && { dueDate: it.dueDate }),
+        ...(it.dueDateFloating !== undefined && { dueDateFloating: it.dueDateFloating }),
+        ...(it.deferDate !== undefined && { deferDate: it.deferDate }),
+        ...(it.deferDateFloating !== undefined && { deferDateFloating: it.deferDateFloating }),
+        ...(it.estimatedMinutes !== undefined && { estimatedMinutes: it.estimatedMinutes }),
+        ...(it.tagIds !== undefined && { tagIds: it.tagIds }),
+        ...(it.sequential !== undefined && { sequential: it.sequential }),
+        ...(it.completedByChildren !== undefined && {
+          completedByChildren: it.completedByChildren,
+        }),
+      }));
 
-  if (ctx.cache !== undefined && outcome.succeeded.length > 0) {
-    const seen = new Set<string>();
-    for (const s of outcome.succeeded) {
-      const src = input.items[s.index];
-      const pid = src?.projectId;
-      if (pid !== undefined && !seen.has(pid)) {
-        seen.add(pid);
-        invalidateTaskMutation(ctx.cache, { projectId: pid });
+      const outcome = await ctx.adapter.batchCreateTasks(adapterInputs);
+
+      if (ctx.cache !== undefined && outcome.succeeded.length > 0) {
+        const seen = new Set<string>();
+        for (const s of outcome.succeeded) {
+          const src = input.items[s.index];
+          const pid = src?.projectId;
+          if (pid !== undefined && !seen.has(pid)) {
+            seen.add(pid);
+            invalidateTaskMutation(ctx.cache, { projectId: pid });
+          }
+        }
+        if (seen.size === 0) invalidateTaskMutation(ctx.cache, {});
       }
-    }
-    if (seen.size === 0) invalidateTaskMutation(ctx.cache, {});
-  }
 
-  // Names come from the input — no fetch needed for this verb.
-  const created = outcome.succeeded.map((s) => ({
-    index: s.index,
-    value: { id: s.value, name: input.items[s.index]?.name ?? "" },
-  }));
+      // Names come from the input — no fetch needed for this verb.
+      const created = outcome.succeeded.map((s) => ({
+        index: s.index,
+        value: { id: s.value, name: input.items[s.index]?.name ?? "" },
+      }));
 
-  return ok(
-    { created, failed: outcome.failed },
-    ctx.makeMeta({
-      syncPending: outcome.succeeded.length > 0,
-      humanReadableSummary: summaryBatchCreate(outcome.succeeded.length),
-    }),
-  );
+      return ok<TaskBatchCreateData>(
+        { created, failed: outcome.failed },
+        ctx.makeMeta({
+          syncPending: outcome.succeeded.length > 0,
+          humanReadableSummary: summaryBatchCreate(outcome.succeeded.length),
+        }),
+      );
+    },
+  )) as ToolSuccess<TaskBatchCreateData>;
+  return envelope;
 }
 
 export function registerTaskBatchCreateTool(server: McpServer, ctx: TaskBatchCreateContext) {
