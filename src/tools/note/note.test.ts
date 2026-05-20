@@ -10,6 +10,8 @@ import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import type { InvalidatingCache } from "../../cache/invalidation.js";
 import type { ResponseMeta } from "../../envelope/index.js";
+import { IdempotencyStore } from "../../server/idempotencyStore.js";
+
 import { handleNoteAppend, noteAppendInputSchema } from "./append.js";
 import { handleNoteGet, noteGetInputSchema } from "./get.js";
 import { handleNoteGetHtml, noteGetHtmlInputSchema } from "./get_html.js";
@@ -577,5 +579,108 @@ describe("note_set_html pairs name with id (#606)", () => {
     expect(envelope.data.targetKind).toBe("project");
     expect(envelope.data.name).toBe("Migration");
     expect(envelope.data.noteHtml).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// note_append — idempotency_key (#981)
+// ---------------------------------------------------------------------------
+
+describe("note_append — idempotency_key", () => {
+  function makeIdCtx() {
+    const base = makeCtx();
+    const idempotencyStore = new IdempotencyStore();
+    return {
+      ctx: { ...base.ctx, idempotencyStore },
+      adapter: base.adapter,
+    };
+  }
+
+  it("accepts an idempotency_key field on the input schema", () => {
+    const parsed = noteAppendInputSchema.parse({
+      targetKind: "task",
+      id: "task_001",
+      text: "hello",
+      idempotency_key: "k-1",
+    });
+    expect(parsed.idempotency_key).toBe("k-1");
+  });
+
+  it("rejects an empty idempotency_key", () => {
+    expect(() =>
+      noteAppendInputSchema.parse({
+        targetKind: "task",
+        id: "task_001",
+        text: "hello",
+        idempotency_key: "",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects an idempotency_key > 128 chars", () => {
+    expect(() =>
+      noteAppendInputSchema.parse({
+        targetKind: "task",
+        id: "task_001",
+        text: "hello",
+        idempotency_key: "x".repeat(129),
+      }),
+    ).toThrow();
+  });
+
+  it("replays the original envelope on retry with the same key (no double append)", async () => {
+    const { ctx, adapter } = makeIdCtx();
+    const id = await adapter.createTask({ name: "T", note: "existing" });
+
+    const first = await handleNoteAppend(
+      { targetKind: "task", id, text: "added", idempotency_key: "k-1" },
+      ctx,
+    );
+    expect(first.data.note).toBe("existing\nadded");
+    expect(first.meta.idempotentReplay).toBeUndefined();
+
+    // Second call with the same key — even with different text — replays
+    // the first envelope. The note is NOT appended again (which is the
+    // whole point of idempotency for append-shaped tools).
+    const second = await handleNoteAppend(
+      { targetKind: "task", id, text: "different", idempotency_key: "k-1" },
+      ctx,
+    );
+    expect(second.data.note).toBe("existing\nadded");
+    expect(second.meta.idempotentReplay).toBe(true);
+
+    // Adapter saw only one write — the note has the first text once.
+    const task = await adapter.getTask(id);
+    expect(task.note).toBe("existing\nadded");
+  });
+
+  it("different keys are independent (each one appends)", async () => {
+    const { ctx, adapter } = makeIdCtx();
+    const id = await adapter.createTask({ name: "T" });
+
+    await handleNoteAppend(
+      { targetKind: "task", id, text: "first", idempotency_key: "key-a" },
+      ctx,
+    );
+    await handleNoteAppend(
+      { targetKind: "task", id, text: "second", idempotency_key: "key-b" },
+      ctx,
+    );
+
+    const task = await adapter.getTask(id);
+    expect(task.note).toBe("first\nsecond");
+  });
+
+  it("no key ⇒ no caching: second call appends again (the dangerous default)", async () => {
+    const { ctx, adapter } = makeIdCtx();
+    const id = await adapter.createTask({ name: "T" });
+
+    await handleNoteAppend({ targetKind: "task", id, text: "x" }, ctx);
+    await handleNoteAppend({ targetKind: "task", id, text: "x" }, ctx);
+
+    const task = await adapter.getTask(id);
+    // Without a key, identical replays compound. This is exactly the
+    // failure mode #981's idempotency support prevents.
+    expect(task.note).toBe("x\nx");
   });
 });

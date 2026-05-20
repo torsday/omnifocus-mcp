@@ -21,7 +21,18 @@ import {
 } from "../../cache/invalidation.js";
 import { DECISION_KINDS, type Decision, writeDecision } from "../../domain/decisionJournal.js";
 import { ProjectId, TaskId } from "../../domain/ids.js";
-import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import {
+  ok,
+  type ResponseMeta,
+  type ToolEnvelope,
+  type ToolSuccess,
+  toolResponse,
+} from "../../envelope/index.js";
+import {
+  idempotencyStore as defaultIdempotencyStore,
+  type IdempotencyStore,
+  withIdempotencyKey,
+} from "../../server/idempotencyStore.js";
 
 // ---------------------------------------------------------------------------
 // Tool description
@@ -35,6 +46,7 @@ export const DECISION_RECORD_DESCRIPTION =
   "Discriminates on `targetKind`: 'task' or 'project'. " +
   "Do NOT use this for short-lived state — prefer waiting-on for follow-ups, " +
   "or task_update for routine field changes. " +
+  "Pass idempotency_key to coalesce retries so the same decision is recorded only once. " +
   "Returns { targetKind, targetId, decision } with the persisted entry. " +
   "Side effects: writes the target's note via task_update / project_update; " +
   "sets meta.syncPending = true. " +
@@ -72,6 +84,18 @@ export const decisionRecordInputSchema = z.object({
   decision: decisionInputSchema.describe(
     "The decision payload. `recordedAt` is set automatically on write.",
   ),
+  idempotency_key: z
+    .string()
+    .min(1)
+    .max(128)
+    .optional()
+    .describe(
+      "Idempotency key for retry-safe writes. Append-shaped tools like this one " +
+        "duplicate silently on retry without a key; supply a stable per-decision " +
+        "identifier and identical retries within the TTL window replay the " +
+        "original envelope with meta.idempotentReplay = true instead of " +
+        "appending another journal entry. See docs/idempotency.md.",
+    ),
 });
 
 export type DecisionRecordInput = z.infer<typeof decisionRecordInputSchema>;
@@ -86,42 +110,67 @@ export interface DecisionContext {
   cache?: InvalidatingCache;
   /** Inject `now` for tests; defaults to wall clock. */
   now?: () => Date;
+  /**
+   * Optional idempotency store override (#981). Defaults to the module
+   * singleton. Tests inject a scoped store so parallel specs don't share
+   * keys. Append-shaped tool — replay protection prevents the same
+   * decision from being journaled twice on a retry.
+   */
+  idempotencyStore?: IdempotencyStore;
 }
 
-export async function handleDecisionRecord(input: DecisionRecordInput, ctx: DecisionContext) {
-  const now = ctx.now ? ctx.now() : new Date();
-  const decision: Decision = {
-    kind: input.decision.kind,
-    reason: input.decision.reason,
-    recordedAt: now.toISOString(),
-    ...(input.decision.until !== undefined && { until: input.decision.until }),
-  };
+type DecisionRecordData =
+  | { targetKind: "task"; targetId: TaskId; decision: Decision }
+  | { targetKind: "project"; targetId: ProjectId; decision: Decision };
 
-  if (input.targetKind === "task") {
-    const taskId = TaskId.of(input.targetId);
-    const task = await ctx.adapter.getTask(taskId);
-    const newNote = writeDecision(task.note, decision);
-    await ctx.adapter.updateTask(taskId, { note: newNote });
-    if (ctx.cache !== undefined) {
-      invalidateTaskMutation(ctx.cache, { taskId, projectId: task.projectId });
-    }
-    return ok(
-      { targetKind: "task" as const, targetId: taskId, decision },
-      ctx.makeMeta({ syncPending: true }),
-    );
-  }
+export async function handleDecisionRecord(
+  input: DecisionRecordInput,
+  ctx: DecisionContext,
+): Promise<ToolSuccess<DecisionRecordData>> {
+  const store = ctx.idempotencyStore ?? defaultIdempotencyStore;
 
-  const projectId = ProjectId.of(input.targetId);
-  const project = await ctx.adapter.getProject(projectId);
-  const newNote = writeDecision(project.note, decision);
-  await ctx.adapter.updateProject(projectId, { note: newNote });
-  if (ctx.cache !== undefined) {
-    invalidateProjectMutation(ctx.cache, { projectId });
-  }
-  return ok(
-    { targetKind: "project" as const, targetId: projectId, decision },
-    ctx.makeMeta({ syncPending: true }),
-  );
+  // Inner fn always returns `ok()` (ToolSuccess); narrow back from the
+  // wrapper's `ToolEnvelope` union so callers don't have to discriminate.
+  const envelope = (await withIdempotencyKey<DecisionRecordData>(
+    store,
+    input.idempotency_key,
+    async (): Promise<ToolEnvelope<DecisionRecordData>> => {
+      const now = ctx.now ? ctx.now() : new Date();
+      const decision: Decision = {
+        kind: input.decision.kind,
+        reason: input.decision.reason,
+        recordedAt: now.toISOString(),
+        ...(input.decision.until !== undefined && { until: input.decision.until }),
+      };
+
+      if (input.targetKind === "task") {
+        const taskId = TaskId.of(input.targetId);
+        const task = await ctx.adapter.getTask(taskId);
+        const newNote = writeDecision(task.note, decision);
+        await ctx.adapter.updateTask(taskId, { note: newNote });
+        if (ctx.cache !== undefined) {
+          invalidateTaskMutation(ctx.cache, { taskId, projectId: task.projectId });
+        }
+        return ok(
+          { targetKind: "task" as const, targetId: taskId, decision },
+          ctx.makeMeta({ syncPending: true }),
+        );
+      }
+
+      const projectId = ProjectId.of(input.targetId);
+      const project = await ctx.adapter.getProject(projectId);
+      const newNote = writeDecision(project.note, decision);
+      await ctx.adapter.updateProject(projectId, { note: newNote });
+      if (ctx.cache !== undefined) {
+        invalidateProjectMutation(ctx.cache, { projectId });
+      }
+      return ok(
+        { targetKind: "project" as const, targetId: projectId, decision },
+        ctx.makeMeta({ syncPending: true }),
+      );
+    },
+  )) as ToolSuccess<DecisionRecordData>;
+  return envelope;
 }
 
 export function registerDecisionRecordTool(server: McpServer, ctx: DecisionContext) {

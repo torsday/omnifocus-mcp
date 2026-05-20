@@ -80,8 +80,8 @@ Every MCP mutation tool is in exactly one row. `✓` = the tool accepts `idempot
 | `folder_move` | — | |
 | `note_set` | — | Whole-note overwrite — replay-safe by shape but a key would still help in chained-write workflows. |
 | `note_set_html` | — | |
-| `note_append` | — | `append` is not naturally idempotent — explicit key support is load-bearing here. |
-| `decision_record` | — | Decision logs are an audit trail; replays would duplicate entries. Key strongly recommended. |
+| `note_append` | ✓ | `append` is not naturally idempotent — replays without a key duplicate the appended text. Key support is load-bearing (#981). |
+| `decision_record` | ✓ | Append-shaped audit trail — replays without a key duplicate journal entries. Key support added in #981. |
 | `decision_clear` | — | |
 | `review_mark_reviewed` | — | |
 
@@ -132,7 +132,7 @@ The wiring is mechanical. Reference: [`src/tools/task/update.ts`](../src/tools/t
 
 This audit deliberately scopes to the inventory + contract; per-tool key adoption and a cross-cutting integration replay test are out of scope. Tracking:
 
-- Adding `idempotency_key` to the high-value tools currently at `—` (task batch mutations, `note_append`, `decision_record`, project status changes) → individual issues per tool family, filed by the audit follow-up.
+- Adding `idempotency_key` to the high-value tools currently at `—` (task batch mutations and project status changes — `note_append` and `decision_record` shipped in #981) → individual issues per tool family, filed by the audit follow-up.
 - An integration test that exercises replay across the wire (same key, same input → same envelope with `idempotentReplay: true`; same key, different input → ValidationError or fresh execution depending on policy) → filed as a separate issue.
 
 ## References

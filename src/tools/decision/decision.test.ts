@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import { parseDecision } from "../../domain/decisionJournal.js";
 import type { ResponseMeta, ToolEnvelope, ToolSuccess } from "../../envelope/index.js";
+import { IdempotencyStore } from "../../server/idempotencyStore.js";
 import { decisionClearInputSchema, handleDecisionClear } from "./clear.js";
 import { decisionRecordInputSchema, handleDecisionRecord } from "./record.js";
 
@@ -240,5 +241,133 @@ describe("decision_record — recordedAt injection", () => {
     const task = await adapter.getTask(taskId);
     const parsed = parseDecision(task.note);
     expect(parsed?.recordedAt).toBe(customNow.toISOString());
+  });
+});
+
+// ---------------------------------------------------------------------------
+// decision_record — idempotency_key (#981)
+// ---------------------------------------------------------------------------
+
+describe("decision_record — idempotency_key", () => {
+  it("accepts an idempotency_key field on the input schema", () => {
+    const parsed = decisionRecordInputSchema.parse({
+      targetKind: "task",
+      targetId: "task_001",
+      decision: { kind: "stall-is-intentional", reason: "x" },
+      idempotency_key: "k-1",
+    });
+    expect(parsed.idempotency_key).toBe("k-1");
+  });
+
+  it("rejects an empty idempotency_key", () => {
+    expect(() =>
+      decisionRecordInputSchema.parse({
+        targetKind: "task",
+        targetId: "task_001",
+        decision: { kind: "stall-is-intentional", reason: "x" },
+        idempotency_key: "",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects an idempotency_key > 128 chars", () => {
+    expect(() =>
+      decisionRecordInputSchema.parse({
+        targetKind: "task",
+        targetId: "task_001",
+        decision: { kind: "stall-is-intentional", reason: "x" },
+        idempotency_key: "x".repeat(129),
+      }),
+    ).toThrow();
+  });
+
+  it("replays the original envelope on retry with the same key", async () => {
+    const { ctx, adapter, taskId } = await harness();
+    const idempotencyStore = new IdempotencyStore();
+    const idCtx = { ...ctx, idempotencyStore };
+
+    const first = await handleDecisionRecord(
+      {
+        targetKind: "task",
+        targetId: taskId,
+        decision: { kind: "stall-is-intentional", reason: "first reason" },
+        idempotency_key: "k-1",
+      },
+      idCtx,
+    );
+    expect(first.data.decision.reason).toBe("first reason");
+    expect(first.meta.idempotentReplay).toBeUndefined();
+
+    // Second call with the same key — even with a *different* reason —
+    // replays the first envelope. The decision-journal is NOT re-appended.
+    const second = await handleDecisionRecord(
+      {
+        targetKind: "task",
+        targetId: taskId,
+        decision: { kind: "stall-is-intentional", reason: "second reason — should not apply" },
+        idempotency_key: "k-1",
+      },
+      idCtx,
+    );
+    expect(second.data.decision.reason).toBe("first reason");
+    expect(second.meta.idempotentReplay).toBe(true);
+
+    // Adapter saw only the first write — the persisted decision is the
+    // first one, NOT the would-be second.
+    const task = await adapter.getTask(taskId);
+    expect(parseDecision(task.note)?.reason).toBe("first reason");
+  });
+
+  it("different keys are independent (each one records its own decision)", async () => {
+    const { ctx, adapter, taskId } = await harness();
+    const idempotencyStore = new IdempotencyStore();
+    const idCtx = { ...ctx, idempotencyStore };
+    await handleDecisionRecord(
+      {
+        targetKind: "task",
+        targetId: taskId,
+        decision: { kind: "stall-is-intentional", reason: "a" },
+        idempotency_key: "key-a",
+      },
+      idCtx,
+    );
+    await handleDecisionRecord(
+      {
+        targetKind: "task",
+        targetId: taskId,
+        decision: { kind: "stall-is-intentional", reason: "b" },
+        idempotency_key: "key-b",
+      },
+      idCtx,
+    );
+    // Different keys, two independent writes — second decision overwrites
+    // the first journal entry (the decisionJournal contract — only one
+    // active decision per target).
+    const task = await adapter.getTask(taskId);
+    expect(parseDecision(task.note)?.reason).toBe("b");
+  });
+
+  it("no key ⇒ no caching: second call records again", async () => {
+    const { ctx, adapter, taskId } = await harness();
+    const idempotencyStore = new IdempotencyStore();
+    const idCtx = { ...ctx, idempotencyStore };
+    await handleDecisionRecord(
+      {
+        targetKind: "task",
+        targetId: taskId,
+        decision: { kind: "stall-is-intentional", reason: "first" },
+      },
+      idCtx,
+    );
+    await handleDecisionRecord(
+      {
+        targetKind: "task",
+        targetId: taskId,
+        decision: { kind: "stall-is-intentional", reason: "second" },
+      },
+      idCtx,
+    );
+    const task = await adapter.getTask(taskId);
+    expect(parseDecision(task.note)?.reason).toBe("second");
   });
 });
