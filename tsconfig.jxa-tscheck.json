@@ -11,5 +11,9 @@
     "lib": ["es2020"],
     "types": []
   },
-  "include": ["src/scripts/jxa/ping.js", "src/scripts/jxa/task_get.js"]
+  "include": [
+    "src/scripts/jxa/app_launch.js",
+    "src/scripts/jxa/ping.js",
+    "src/scripts/jxa/task_get.js"
+  ]
 }

@@ -1,3 +1,7 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+
 /**
  * app_launch.js — launch OmniFocus explicitly (never automatic).
  *
@@ -13,6 +17,10 @@
  * @see docs/adr/0005-scripts-as-first-class-files.md
  */
 
+/**
+ * @param {string[]} _argv — unused; this script takes no arguments.
+ * @returns {string} JSON-encoded `{ launched, alreadyRunning }`.
+ */
 // biome-ignore lint/correctness/noUnusedVariables: osascript invokes run() by convention.
 function run(_argv) {
   const SystemEvents = Application("System Events");
