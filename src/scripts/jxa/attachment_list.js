@@ -1,3 +1,8 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: list all attachments on a task or project.
  *
@@ -36,6 +41,7 @@ function run(argv) {
     throw new Error("One of taskId or projectId is required");
   }
 
+  /** @param {Attachment} att — a FileAttachment specifier off the owner. */
   function buildAttachment(att) {
     let name = "";
     try {

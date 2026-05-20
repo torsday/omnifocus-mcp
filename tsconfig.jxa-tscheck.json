@@ -13,6 +13,7 @@
   },
   "include": [
     "src/scripts/jxa/app_launch.js",
+    "src/scripts/jxa/attachment_list.js",
     "src/scripts/jxa/ping.js",
     "src/scripts/jxa/task_get.js"
   ]
