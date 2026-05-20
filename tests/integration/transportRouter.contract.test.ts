@@ -46,11 +46,21 @@ if (!INTEGRATION) {
 
   runAdapterContract("TransportRouter (live OmniFocus)", {
     createAdapter: () => router,
-    sandbox: { prefix: "mcp-fixture" },
+    sandbox: {
+      prefix: "mcp-fixture",
+      // Per-test sub-folder isolation (#957). Each test gets a fresh
+      // sub-folder under the suite sandbox so accumulated state from
+      // earlier tests can't bleed into this one's assertions. Inbox
+      // tasks still hit the real OF inbox (preserves the
+      // task.projectId === null assertions); suite-level bulk cleanup
+      // still tracks them.
+      perTest: true,
+    },
     // Cleanup deletes entities through osascript; the bulk teardown lands
     // a single recursive folder delete (cascades projects + contained
     // tasks) and parallel sweeps for inbox tasks + tags. 90s is generous
-    // headroom — typical teardown is ≤ 5s.
+    // headroom — typical teardown is ≤ 5s. Per-test teardown is one
+    // additional folder-delete each, still tractable inside the cap.
     hookTimeoutMs: 90_000,
   });
 }
