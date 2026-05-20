@@ -47,6 +47,32 @@ Not a percentage. The target is: **every error path in every service method is e
 
 Coverage is not enforced because it's gameable. Test *fidelity* is enforced at release time via Stryker mutation testing on a curated allowlist of high-value paths (`src/domain/`, `src/errors/`, `src/middleware/`, `src/server/`, tool input-validation schemas). The gate runs in `release.yml` after the test suite and before the npm publish step; thresholds are calibrated to `baseline − 5` so the gate enforces non-regression. See [ADR-0017](../adr/0017-mutation-testing-release-gate.md).
 
+### Flaky-test quarantine ([#958](https://github.com/torsday/omnifocus-mcp/issues/958))
+
+Tests that flake intermittently against the live-OmniFocus integration mount — cold-start JXA latency, sync timing, synthetic-ID collisions on a polluted runner — are quarantined via the `quarantineTest` helper at `tests/lib/quarantine.ts`. Quarantine is a triage tool, not a fix: it keeps the gating integration check honest while flake repairs land separately.
+
+**To move a test into quarantine:**
+
+1. Replace its `test("name", fn)` call with `quarantineTest("name", fn)`. The helper is a drop-in for `test`.
+2. Add an inline comment above the call explaining what flakes (the failure mode and why it's confined to the integration mount).
+3. File or reference the issue tracking the underlying repair.
+
+The helper appends `[quarantine]` to the test name so reviewers scanning a CI log can immediately tell which failures are gating vs. informational.
+
+**Behavior of quarantined tests:**
+
+| Tier / script | Behavior |
+|---|---|
+| Unit (default `pnpm test`) | **Runs** — the same contract harness is also mounted against `InMemoryAdapter`, which has no flake confound; unit-tier coverage of the method is preserved. |
+| Integration normal (`pnpm test:integration`) | **Skipped** — main check stays green when the reliable suite passes. |
+| Integration quarantine (`pnpm test:integration:quarantine`) | **Runs**; the script tolerates non-zero exit so a real failure here is informational. Run locally to confirm repairs before promoting a test back to plain `test()`. |
+
+**To graduate a test out of quarantine:**
+
+1. Repair the underlying flake (fix the cold-start latency, sync-timing race, or test-design issue — whatever was identified in the tracking issue).
+2. Run `pnpm test:integration:quarantine` locally and confirm the quarantined test now passes reliably.
+3. Replace `quarantineTest(...)` with plain `test(...)` and drop the explanatory comment. The graduation happens in the same PR as the repair so the test rejoins the gate immediately.
+
 ---
 
 ## CI/CD
