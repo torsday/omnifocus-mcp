@@ -51,6 +51,8 @@
     "dev": "tsx watch src/index.ts",
     "typecheck": "tsc --noEmit",
     "docs:generate": "tsx scripts/generate-tool-docs.ts && tsx scripts/generate-tool-index.ts && tsx scripts/generate-scripts-index.ts",
+    "generate:jxa-types": "tsx scripts/generate-jxa-types.ts",
+    "sync:sdef": "cp /Applications/OmniFocus.app/Contents/Resources/OmniFocus.sdef vendor/OmniFocus.sdef && tsx scripts/generate-jxa-types.ts",
     "docs:generate-index": "tsx scripts/generate-tool-index.ts",
     "docs:generate-scripts": "tsx scripts/generate-scripts-index.ts",
     "docs:check": "tsx scripts/generate-tool-docs.ts --check && tsx scripts/generate-tool-index.ts --check && tsx scripts/generate-scripts-index.ts --check",
