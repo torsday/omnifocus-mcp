@@ -54,6 +54,25 @@ declare function Application(name: string): Application & {
   add: (item: unknown, options: { to: unknown }) => void;
   /** Evaluate an OmniJS expression inside the OmniFocus host (#960 / #962). */
   evaluateJavascript: (source: string) => string;
+  /**
+   * Standard JXA `activate()` — brings the application to the foreground.
+   * Used by `app_launch.js` after spawning OmniFocus. Available on every
+   * JXA Application handle, not just OmniFocus, so it lives in the global
+   * intersection. Returns void at runtime.
+   */
+  activate: () => void;
+  /**
+   * `processes` belongs to System Events, exposed via
+   * `Application("System Events").processes.whose({ name: "OmniFocus" })()`.
+   * Returning it from the generic Application intersection is broad-but-correct:
+   * it never resolves on OmniFocus, so a stray access there would fail at
+   * runtime anyway. The `whose(filter)` query returns a thunk that, when
+   * called, yields the matching specifiers — conservatively typed as
+   * `unknown[]` since the script only checks `.length` (`app_launch.js`).
+   */
+  processes: {
+    whose(filter: Record<string, unknown>): () => unknown[];
+  };
 };
 
 /**
@@ -84,9 +103,15 @@ declare const ObjC: {
 
 /**
  * The JXA `$.NS…` Objective-C bridge entrypoint. Only present after
- * `ObjC.import('Foundation')` runs. Conservatively typed — non-JSDoc'd
- * callers get `any` to avoid forcing every consumer to model the
- * Foundation surface.
+ * `ObjC.import('Foundation')` runs. Typed as plain `any` (rather than
+ * `{ [key: string]: any }`) because the Foundation surface is mostly
+ * used as `$.NSURL(path).fileURLWithPath_(…)` — chained callable proxies.
+ * The keyed-index form lets you read a member but the resulting value's
+ * call-signature isn't preserved by TypeScript, which trips a
+ * `TS2349: This expression is not callable.` on every `$.NSFoo(...)` site.
+ * `any` short-circuits that without forcing every consumer to model
+ * Foundation. We accept the lost intellisense in exchange for letting
+ * `// @ts-check` scripts compile (`attachment_save_to_path.js` etc.).
  */
-// biome-ignore lint/suspicious/noExplicitAny: Foundation bridge is intentionally untyped.
-declare const $: { [key: string]: any };
+// biome-ignore lint/suspicious/noExplicitAny: Foundation bridge is intentionally untyped — see comment above.
+declare const $: any;
