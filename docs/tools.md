@@ -2039,6 +2039,7 @@ Fetch a single OmniFocus project by persistent ID. Do NOT use for queries across
 | `includeTaskTree` | boolean | No | Whether to attach the project's tasks (flat array; clients rebuild the tree via parentId). Default true. Set to false for a fast project-only read. |
 | `verbose` | boolean | No | When true, return the full unelided shape (project + tasks). Default: false — fields equal to their documented default are omitted from both. See docs/token-cost.md for the defaults table. |
 | `fields` | string[] | No | Restrict the returned project to this list of top-level fields (id is always returned). Omit for the full project shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. Note: only the project record is projected — attached tasks keep their full shape. |
+| `includeLinks` | boolean | No | When true, the project (and each attached task, if includeTaskTree=true) carries a `_links` HATEOAS block. Default false — the block is omitted to save payload size. Use the underlying ID fields (`id`, `folderId`, `projectId`, `parentId`, `tagIds`) directly instead. |
 
 ### Example call
 
@@ -2110,6 +2111,7 @@ List projects in OmniFocus with optional filters. Use for queries across project
 | `cursor` | string | No | Opaque cursor from a previous project_list response. Must use the same filters — changing filters mid-sequence returns a ValidationError. |
 | `verbose` | boolean | No | When true, return the full unelided project shape. Default: false — fields equal to their documented default (status: 'active', completionCriterion: 'parallel', flagged: false, tagIds: [], note: null, etc.) are omitted. See docs/token-cost.md for the defaults table. |
 | `fields` | string[] | No | Restrict each returned project to this list of top-level fields (id is always returned). Omit for the full project shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. |
+| `includeLinks` | boolean | No | When true, each project carries a `_links` HATEOAS block (self, folder). Default false — the block is omitted to save payload size. Use the project's `id` and `folderId` fields directly instead. |
 
 ### Example call
 
@@ -2650,6 +2652,7 @@ Full-text search across OmniFocus task names and/or notes. Use for finding tasks
 | `limit` | number | No | Max results per page (1..500). Default 50. |
 | `cursor` | string | No | Opaque cursor from a previous search_query response. Must use identical filters — changing filters returns a ValidationError. |
 | `fields` | string[] | No | Restrict each returned task to this list of top-level fields (id is always returned). Omit for the full task shape. Empty array returns just id. Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. Allowed: name, note, noteHtml, projectId, parentId, tagIds, deferDate, deferDateFloating, dueDate, dueDateFloating, estimatedMinutes, flagged, completed, completedAt, dropped, droppedAt, available, blocked, sequential, completedByChildren, repetition, notifications, createdAt, modifiedAt, _links. |
+| `includeLinks` | boolean | No | When true, each task carries a `_links` HATEOAS block (self, project, parent, tags). Default false — the block is omitted to save payload size. Use the task's `id`, `projectId`, `parentId`, and `tagIds` fields directly instead. |
 
 ### Example call
 
@@ -4349,6 +4352,7 @@ Fetch a single OmniFocus task by persistent ID. Use when you have a known task I
 | `notePreviewChars` | number | No | Maximum characters of the task's note (and each subtask's note) to return. Default 200. When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. Pass -1 to disable truncation and return full notes inline. |
 | `verbose` | boolean | No | When true, return the full unelided task shape (every field present, even at defaults). Default: false — fields equal to their documented default are omitted. See docs/token-cost.md for the defaults table. |
 | `fields` | string[] | No | Restrict the returned task (and each subtask) to this list of top-level fields (id is always returned). Omit for the full task shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. |
+| `includeLinks` | boolean | No | When true, the task (and each subtask, if requested) carries a `_links` HATEOAS block (self, project, parent, tags). Default false — the block is omitted to save payload size. Use `id`, `projectId`, `parentId`, and `tagIds` directly instead. |
 
 ### Example call
 
@@ -4460,6 +4464,7 @@ List tasks in OmniFocus with optional filters (project, tag, inbox, flagged, com
 | `notePreviewChars` | number | No | Maximum characters of each task's note to return. Default 200. When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. Pass -1 to disable truncation and return full notes inline. |
 | `verbose` | boolean | No | When true, return the full unelided task shape (every field present, even at defaults). Default: false — fields equal to their documented default (flagged: false, completed: false, tagIds: [], note: null, dueDate: null, etc.) are omitted from the wire payload. An omitted field means the default applies. See docs/token-cost.md for the full defaults table. |
 | `fields` | string[] | No | Restrict each returned task to this list of top-level fields (id is always returned). Omit for the full task shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. |
+| `includeLinks` | boolean | No | When true, each task carries a `_links` HATEOAS block (self, project, parent, tags). Default false — the block is omitted to save payload size. Use the task's `id`, `projectId`, `parentId`, and `tagIds` fields directly instead. |
 
 ### Example call
 
@@ -4674,6 +4679,7 @@ Search OmniFocus tasks by keyword and/or structured filters, with cursor paginat
 | `completed` | one of: any | only | exclude | No | 'exclude' = active tasks only (default); 'only' = completed tasks only; 'any' = both. |
 | `limit` | number | No | Max results per page (1..500). Default 100. Use cursor to fetch subsequent pages. |
 | `cursor` | string | No | Opaque cursor from a previous task_search response. Must use the same filters — changing filters mid-sequence returns a ValidationError. |
+| `includeLinks` | boolean | No | When true, each task carries a `_links` HATEOAS block (self, project, parent, tags). Default false — the block is omitted to save payload size. Use the task's `id`, `projectId`, `parentId`, and `tagIds` fields directly instead. |
 
 ### Example call
 

@@ -67,6 +67,14 @@ export const taskGetInputSchema = z.object({
         "Omit for the full task shape. Empty array returns just id. " +
         "Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS.",
     ),
+  includeLinks: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, the task (and each subtask, if requested) carries a `_links` HATEOAS block " +
+        "(self, project, parent, tags). Default false — the block is omitted to save payload size. " +
+        "Use `id`, `projectId`, `parentId`, and `tagIds` directly instead.",
+    ),
 });
 
 export type TaskGetToolInput = z.infer<typeof taskGetInputSchema>;

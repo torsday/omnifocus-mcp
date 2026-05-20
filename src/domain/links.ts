@@ -7,6 +7,12 @@
  *
  * URI scheme: `omnifocus://<noun>/<id>`
  *
+ * Opt-in (issue #792): `_links` is omitted from list/get tool responses
+ * unless the caller passes `includeLinks: true`. The block re-encodes IDs
+ * already present on the response (`id`, `projectId`, `parentId`, `tagIds`,
+ * `folderId`), so LLM agents that act on IDs directly pay zero bytes for it
+ * by default. HTTP clients that follow the links opt back in per-call.
+ *
  * @see src/domain/task.ts — TaskLinks field
  * @see src/domain/project.ts — ProjectLinks field
  */

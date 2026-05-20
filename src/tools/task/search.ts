@@ -110,6 +110,14 @@ export const taskSearchInputShape = {
     .describe(
       "Opaque cursor from a previous task_search response. Must use the same filters — changing filters mid-sequence returns a ValidationError.",
     ),
+  includeLinks: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, each task carries a `_links` HATEOAS block (self, project, parent, tags). " +
+        "Default false — the block is omitted to save payload size. " +
+        "Use the task's `id`, `projectId`, `parentId`, and `tagIds` fields directly instead.",
+    ),
 };
 
 /** Full schema with at-least-one-field refinement — use for runtime validation. */
@@ -165,6 +173,7 @@ export async function handleTaskSearch(input: TaskSearchToolInput, ctx: TaskSear
     ...(input.completed !== undefined && { completed: input.completed }),
     ...(input.limit !== undefined && { limit: input.limit }),
     ...(input.cursor !== undefined && { cursor: input.cursor }),
+    ...(input.includeLinks !== undefined && { includeLinks: input.includeLinks }),
   });
   const pagination: Pagination = {
     cursor: result.nextCursor,

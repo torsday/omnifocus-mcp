@@ -63,6 +63,14 @@ export const projectGetInputSchema = z.object({
         "Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. " +
         "Note: only the project record is projected — attached tasks keep their full shape.",
     ),
+  includeLinks: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, the project (and each attached task, if includeTaskTree=true) carries a " +
+        "`_links` HATEOAS block. Default false — the block is omitted to save payload size. " +
+        "Use the underlying ID fields (`id`, `folderId`, `projectId`, `parentId`, `tagIds`) directly instead.",
+    ),
 });
 
 export type ProjectGetToolInput = z.infer<typeof projectGetInputSchema>;
@@ -85,6 +93,7 @@ export async function handleProjectGet(input: ProjectGetToolInput, ctx: ProjectG
   const result = await ctx.projectService.get({
     id: input.id,
     ...(input.includeTaskTree !== undefined ? { includeTaskTree: input.includeTaskTree } : {}),
+    ...(input.includeLinks !== undefined ? { includeLinks: input.includeLinks } : {}),
   });
   // Parse decision against the full note before projection.
   const decision = parseDecision(result.project.note);

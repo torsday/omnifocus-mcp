@@ -94,6 +94,14 @@ export const searchQueryInputSchema = z.object({
         "Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. " +
         `Allowed: ${TASK_FIELD_NAMES.join(", ")}.`,
     ),
+  includeLinks: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, each task carries a `_links` HATEOAS block (self, project, parent, tags). " +
+        "Default false — the block is omitted to save payload size. " +
+        "Use the task's `id`, `projectId`, `parentId`, and `tagIds` fields directly instead.",
+    ),
 });
 
 export type SearchQueryToolInput = z.infer<typeof searchQueryInputSchema>;
@@ -120,6 +128,7 @@ export async function handleSearchQuery(input: SearchQueryToolInput, ctx: Search
     ...(input.completed !== undefined ? { completed: input.completed } : {}),
     ...(input.limit !== undefined ? { limit: input.limit } : {}),
     ...(input.cursor !== undefined ? { cursor: input.cursor } : {}),
+    ...(input.includeLinks !== undefined ? { includeLinks: input.includeLinks } : {}),
   };
 
   const result = await ctx.searchService.search(serviceInput);

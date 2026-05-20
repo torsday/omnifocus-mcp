@@ -288,6 +288,31 @@ describe("TaskService.list — cache", () => {
     await service.list({ flagged: false, limit: 10 });
     expect(spy).toHaveBeenCalledTimes(2);
   });
+
+  it("toggling includeLinks does not fragment the cache", async () => {
+    const { service, adapter } = makeHarness();
+    await adapter.createTask({ name: "a", flagged: true });
+    const spy = vi.spyOn(adapter, "listTasks");
+    await service.list({ flagged: true, limit: 10 });
+    await service.list({ flagged: true, limit: 10, includeLinks: true });
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("TaskService.list — _links opt-in", () => {
+  it("omits _links by default", async () => {
+    const { service, adapter } = makeHarness();
+    await adapter.createTask({ name: "a", flagged: true });
+    const result = await service.list({ flagged: true, limit: 10 });
+    expect(result.tasks[0]?._links).toBeUndefined();
+  });
+
+  it("includes _links when includeLinks=true", async () => {
+    const { service, adapter } = makeHarness();
+    const id = (await adapter.createTask({ name: "a", flagged: true })) as TaskId;
+    const result = await service.list({ flagged: true, limit: 10, includeLinks: true });
+    expect(result.tasks[0]?._links?.self).toBe(`omnifocus://task/${id}`);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -344,11 +369,42 @@ describe("TaskService.get — happy path", () => {
     expect(result.subtasks).toBeUndefined();
   });
 
-  it("includes _links on the returned task", async () => {
+  it("omits _links by default (includeLinks defaults to false)", async () => {
+    const { service, adapter } = makeHarness();
+    const id = (await adapter.createTask({ name: "NoLinks" })) as TaskId;
+    const result = await service.get({ id });
+    expect(result.task._links).toBeUndefined();
+  });
+
+  it("includes _links when includeLinks=true", async () => {
     const { service, adapter } = makeHarness();
     const id = (await adapter.createTask({ name: "Linked" })) as TaskId;
-    const result = await service.get({ id });
+    const result = await service.get({ id, includeLinks: true });
     expect(result.task._links).toBeDefined();
+    expect(result.task._links?.self).toBe(`omnifocus://task/${id}`);
+  });
+
+  it("explicit includeLinks=false also omits _links", async () => {
+    const { service, adapter } = makeHarness();
+    const id = (await adapter.createTask({ name: "ExplicitOff" })) as TaskId;
+    const result = await service.get({ id, includeLinks: false });
+    expect(result.task._links).toBeUndefined();
+  });
+
+  it("propagates includeLinks to subtask bodies", async () => {
+    const { service, adapter } = makeHarness();
+    const parentId = (await adapter.createTask({ name: "Parent" })) as TaskId;
+    await adapter.createTask({ name: "Child", parentId });
+    const result = await service.get({ id: parentId, includeSubtasks: true, includeLinks: true });
+    expect(result.subtasks?.[0]?._links).toBeDefined();
+  });
+
+  it("subtasks omit _links by default", async () => {
+    const { service, adapter } = makeHarness();
+    const parentId = (await adapter.createTask({ name: "Parent" })) as TaskId;
+    await adapter.createTask({ name: "Child", parentId });
+    const result = await service.get({ id: parentId, includeSubtasks: true });
+    expect(result.subtasks?.[0]?._links).toBeUndefined();
   });
 });
 
