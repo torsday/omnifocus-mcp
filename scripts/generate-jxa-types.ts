@@ -285,18 +285,27 @@ function emitClass(cls: ClassDef, knownClasses: Set<string>): string {
     lines.push(`  ${tsAccessor(p.name)}(): ${tsType};`);
   }
 
-  // Elements: child collections. Type is the *element-of* class wrapped in
-  // `JxaCollection<T>` so the JXA element-query API (`byId`, `whose`, `at`)
-  // is exposed to `// @ts-check` consumers — see the JxaCollection comment
-  // at the top of this file. A plain `T[]` would lose those methods even
-  // though they exist at runtime.
+  // Elements: child collections. Emitted as a property-or-callable
+  // intersection — `name: JxaCollection<T> & (() => JxaCollection<T>)` —
+  // because JXA exposes element collections in both forms at runtime:
+  //
+  //   doc.folders()              // evaluates to a snapshot array
+  //   doc.folders.byId(id)       // queries the live element specifier
+  //   doc.folders.push(folder)   // mutates the underlying collection
+  //
+  // Without the intersection, property-access call sites (`doc.folders.byId`)
+  // trip `TS2339: Property 'byId' does not exist on type '() => JxaCollection<Folder>'`.
+  // Both forms are correct at runtime; the type system now accepts both.
+  // Same pattern as `defaultDocument` (jxa-globals.d.ts) and
+  // `fileAttachments` (sdef-overrides.d.ts) — generalized here so every
+  // element accessor inherits it.
   for (const e of cls.elements) {
     const tsType = mapTypeToTs(e.type, knownClasses);
-    // Plural — JXA convention: `flattenedTasks()`, `tags()`, etc.
+    // Plural — JXA convention: `flattenedTasks`, `tags`, etc.
     // The sdef element name is singular; pluralization is mechanical.
     const plural = pluralizeAccessor(e.type);
     lines.push(`  /** child collection of '${e.type}' */`);
-    lines.push(`  ${plural}(): JxaCollection<${tsType}>;`);
+    lines.push(`  ${plural}: JxaCollection<${tsType}> & (() => JxaCollection<${tsType}>);`);
   }
 
   lines.push(`}`);
