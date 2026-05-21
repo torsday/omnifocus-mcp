@@ -25,13 +25,15 @@
 // Ambient (script-mode) — no `export`. Adding one would make the file
 // a module and the declarations would disappear from consumer scope.
 //
-// Signatures are conservatively typed: inputs are the JXA specifiers
-// the helpers actually receive (`unknown` keeps the call site honest),
-// and returns are documented as the projected domain shape but typed
-// as `object` so consumers can JSON.stringify the result without
-// claiming a specific Task / Folder / etc. shape (the projection logic
-// inside each helper is the source of truth for the shape, not this
-// file).
+// Signatures: inputs are the JXA specifiers the helpers actually receive
+// (`unknown` keeps the call site honest). Returns are typed as `any` —
+// each helper produces a domain-shaped projection (Task / Folder / Project
+// / Tag) and consumers routinely read fields off the result (e.g.
+// `built.parentId` in folder_list.js). Modeling the full projection shape
+// here would duplicate the domain types and force every shape tweak to
+// land in two places; the helper's `.js` source remains the single source
+// of truth for the shape, and `any` lets consumers compile without
+// per-script `@type` JSDoc declarations. Trade-off documented inline.
 //
 // @see src/scripts/jxa/_helpers/*.js — runtime sources
 
@@ -41,26 +43,30 @@
  *
  * @see src/scripts/jxa/_helpers/build_task.js
  */
-declare function buildTask(task: unknown, options?: { effectiveAvailability?: boolean }): object;
+// biome-ignore lint/suspicious/noExplicitAny: helper return is the projected domain shape — see file header.
+declare function buildTask(task: unknown, options?: { effectiveAvailability?: boolean }): any;
 
 /**
  * Build the repetition sub-object of a Task (rrule + anchor +
  * scheduleType). Spliced alongside `buildTask` via
  * `// @inline _helpers/build_task.js`.
  */
-declare function buildRepetition(task: unknown): object | null;
+// biome-ignore lint/suspicious/noExplicitAny: see file header.
+declare function buildRepetition(task: unknown): any | null;
 
 /**
  * Build the canonical projected Folder shape from a JXA folder specifier.
  * Spliced via `// @inline _helpers/build_folder.js`.
  */
-declare function buildFolder(folder: unknown, options?: object): object;
+// biome-ignore lint/suspicious/noExplicitAny: see file header.
+declare function buildFolder(folder: unknown, options?: object): any;
 
 /**
  * Build the canonical projected Project shape from a JXA project specifier.
  * Spliced via `// @inline _helpers/build_project.js`.
  */
-declare function buildProject(proj: unknown): object;
+// biome-ignore lint/suspicious/noExplicitAny: see file header.
+declare function buildProject(proj: unknown): any;
 
 /**
  * Build the canonical projected Tag shape from a JXA tag specifier.
@@ -68,7 +74,8 @@ declare function buildProject(proj: unknown): object;
  * top-level tags (container is the document) from nested tags.
  * Spliced via `// @inline _helpers/build_tag.js`.
  */
-declare function buildTag(tag: unknown, docId: string): object;
+// biome-ignore lint/suspicious/noExplicitAny: see file header.
+declare function buildTag(tag: unknown, docId: string): any;
 
 /**
  * Force a JXA `byId(...)` lookup and throw a structured
