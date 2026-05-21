@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: evaluate a built-in OmniFocus perspective and return its task list.
  *
@@ -41,6 +47,7 @@ function run(argv) {
     // whose() pushdown helper — try the predicate, fall back to a full
     // scan on rejection so the post-loop guard still produces correct
     // results.
+    /** @param {Record<string, unknown>} predicate — sdef-attribute predicate object */
     function tasksMatching(predicate) {
       try {
         return ofApp.defaultDocument.flattenedTasks.whose(predicate)();

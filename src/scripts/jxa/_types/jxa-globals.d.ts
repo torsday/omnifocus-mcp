@@ -29,66 +29,74 @@
  * `Application` interface from the sdef doesn't model that side; declare
  * it here as an intersection so consumers can still assign.
  */
-declare function Application(name: string): Application & {
-  includeStandardAdditions: boolean;
-  /**
-   * Sdef `<property>` blocks become parameterless methods in the generated
-   * `Application` interface (`defaultDocument(): Document`). Every script in
-   * this repo accesses it as a property (`ofApp.defaultDocument.flattenedTasks()`)
-   * — both the JXA runtime and the sandbox mock (`src/adapter/jxa/sandbox/`)
-   * model it that way. Add a property override here so `// @ts-check`
-   * consumers can use either form; intersection with the method signature
-   * means callers may still write `ofApp.defaultDocument()` if they prefer.
-   */
-  defaultDocument: Document;
-  /**
-   * Standard JXA constructor proxies — instantiate by class name. JXA
-   * accepts both `ofApp.Tag(props)` and `new ofApp.Tag(props)`; every
-   * script in this repo uses the bare-call form (see `tag_create.js`,
-   * `folder_create.js`, `project_create.js`, `task_create.js`).
-   * Modeled as call-signature-only so both forms typecheck without
-   * forcing the `new` keyword.
-   */
-  Tag: (props: { name: string; [key: string]: unknown }) => unknown;
-  Folder: (props: { name: string; [key: string]: unknown }) => unknown;
-  Project: (props: { name: string; status?: unknown; [key: string]: unknown }) => unknown;
-  InboxTask: (props: { name: string; [key: string]: unknown }) => unknown;
-  Task: (props: { name: string; [key: string]: unknown }) => unknown;
-  /**
-   * FileAttachment constructor proxy — used by `attachment_add.js` to
-   * build an attachment from a local file (`ofApp.FileAttachment({ file: Path(...) })`)
-   * before pushing it onto an owner's `fileAttachments` collection.
-   */
-  FileAttachment: (props: { file: unknown; [key: string]: unknown }) => FileAttachment;
-  /** Send-event wrapper used by some OF commands. */
-  add: (item: unknown, options: { to: unknown }) => void;
-  /**
-   * Standard JXA `delete` verb — removes a specifier from its container.
-   * Used by `attachment_remove.js` (`ofApp.delete(attachment)`).
-   */
-  delete: (item: unknown) => void;
-  /** Evaluate an OmniJS expression inside the OmniFocus host (#960 / #962). */
-  evaluateJavascript: (source: string) => string;
-  /**
-   * Standard JXA `activate()` — brings the application to the foreground.
-   * Used by `app_launch.js` after spawning OmniFocus. Available on every
-   * JXA Application handle, not just OmniFocus, so it lives in the global
-   * intersection. Returns void at runtime.
-   */
-  activate: () => void;
-  /**
-   * `processes` belongs to System Events, exposed via
-   * `Application("System Events").processes.whose({ name: "OmniFocus" })()`.
-   * Returning it from the generic Application intersection is broad-but-correct:
-   * it never resolves on OmniFocus, so a stray access there would fail at
-   * runtime anyway. The `whose(filter)` query returns a thunk that, when
-   * called, yields the matching specifiers — conservatively typed as
-   * `unknown[]` since the script only checks `.length` (`app_launch.js`).
-   */
-  processes: {
-    whose(filter: Record<string, unknown>): () => unknown[];
+// Intersection includes `Document` because the JXA runtime bubbles every
+// Document accessor up onto the Application handle for the default document.
+// Scripts routinely call `ofApp.flattenedTasks()`, `ofApp.inboxTasks()`, etc.
+// directly off the application (`perspective_evaluate.js`, `task_search.js`,
+// and others). The intersection is safe — Application and Document collide
+// only on `name()` (both return `string`), which TypeScript resolves to the
+// shared signature.
+declare function Application(name: string): Application &
+  Document & {
+    includeStandardAdditions: boolean;
+    /**
+     * Sdef `<property>` blocks become parameterless methods in the generated
+     * `Application` interface (`defaultDocument(): Document`). Every script in
+     * this repo accesses it as a property (`ofApp.defaultDocument.flattenedTasks()`)
+     * — both the JXA runtime and the sandbox mock (`src/adapter/jxa/sandbox/`)
+     * model it that way. Add a property override here so `// @ts-check`
+     * consumers can use either form; intersection with the method signature
+     * means callers may still write `ofApp.defaultDocument()` if they prefer.
+     */
+    defaultDocument: Document;
+    /**
+     * Standard JXA constructor proxies — instantiate by class name. JXA
+     * accepts both `ofApp.Tag(props)` and `new ofApp.Tag(props)`; every
+     * script in this repo uses the bare-call form (see `tag_create.js`,
+     * `folder_create.js`, `project_create.js`, `task_create.js`).
+     * Modeled as call-signature-only so both forms typecheck without
+     * forcing the `new` keyword.
+     */
+    Tag: (props: { name: string; [key: string]: unknown }) => unknown;
+    Folder: (props: { name: string; [key: string]: unknown }) => unknown;
+    Project: (props: { name: string; status?: unknown; [key: string]: unknown }) => unknown;
+    InboxTask: (props: { name: string; [key: string]: unknown }) => unknown;
+    Task: (props: { name: string; [key: string]: unknown }) => unknown;
+    /**
+     * FileAttachment constructor proxy — used by `attachment_add.js` to
+     * build an attachment from a local file (`ofApp.FileAttachment({ file: Path(...) })`)
+     * before pushing it onto an owner's `fileAttachments` collection.
+     */
+    FileAttachment: (props: { file: unknown; [key: string]: unknown }) => FileAttachment;
+    /** Send-event wrapper used by some OF commands. */
+    add: (item: unknown, options: { to: unknown }) => void;
+    /**
+     * Standard JXA `delete` verb — removes a specifier from its container.
+     * Used by `attachment_remove.js` (`ofApp.delete(attachment)`).
+     */
+    delete: (item: unknown) => void;
+    /** Evaluate an OmniJS expression inside the OmniFocus host (#960 / #962). */
+    evaluateJavascript: (source: string) => string;
+    /**
+     * Standard JXA `activate()` — brings the application to the foreground.
+     * Used by `app_launch.js` after spawning OmniFocus. Available on every
+     * JXA Application handle, not just OmniFocus, so it lives in the global
+     * intersection. Returns void at runtime.
+     */
+    activate: () => void;
+    /**
+     * `processes` belongs to System Events, exposed via
+     * `Application("System Events").processes.whose({ name: "OmniFocus" })()`.
+     * Returning it from the generic Application intersection is broad-but-correct:
+     * it never resolves on OmniFocus, so a stray access there would fail at
+     * runtime anyway. The `whose(filter)` query returns a thunk that, when
+     * called, yields the matching specifiers — conservatively typed as
+     * `unknown[]` since the script only checks `.length` (`app_launch.js`).
+     */
+    processes: {
+      whose(filter: Record<string, unknown>): () => unknown[];
+    };
   };
-};
 
 /**
  * The JXA `delay(seconds)` global. Blocks the script for the given

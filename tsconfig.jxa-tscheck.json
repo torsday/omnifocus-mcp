@@ -19,6 +19,7 @@
     "src/scripts/jxa/attachment_save_to_path.js",
     "src/scripts/jxa/folder_get.js",
     "src/scripts/jxa/folder_list.js",
+    "src/scripts/jxa/perspective_evaluate.js",
     "src/scripts/jxa/perspective_list.js",
     "src/scripts/jxa/ping.js",
     "src/scripts/jxa/project_get.js",
