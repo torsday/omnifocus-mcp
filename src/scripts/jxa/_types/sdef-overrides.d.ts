@@ -94,3 +94,17 @@ interface FileAttachment {
    */
   file(): { toString(): string };
 }
+
+// ---------------------------------------------------------------------------
+// Review-cycle runtime extras
+//
+// The sdef declares `<property name="review interval" type="repetition interval">`,
+// emitted as `Project.reviewInterval(): RepetitionInterval`. At runtime OF
+// also exposes `reviewIntervalDays()` as a scalar-day convenience — used by
+// `review_list_due.js`.
+// ---------------------------------------------------------------------------
+
+interface Project {
+  /** Review interval expressed as a scalar day count. Runtime convenience. */
+  reviewIntervalDays(): number;
+}
