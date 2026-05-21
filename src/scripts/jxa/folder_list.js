@@ -1,3 +1,8 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+
 /**
  * JXA: list all folders, optionally filtered by parentId.
  *
@@ -22,6 +27,7 @@ function run(argv) {
   // folder's .folders() children instead — that API works correctly. Pass
   // the map into buildFolder via options.parentMap.
   const allFolders = ofApp.defaultDocument.flattenedFolders();
+  /** @type {Record<string, string>} */
   const parentMap = {};
   for (let i = 0; i < allFolders.length; i++) {
     try {

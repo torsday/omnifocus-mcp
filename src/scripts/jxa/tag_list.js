@@ -1,3 +1,8 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+
 /**
  * JXA: list all tags, optionally filtered by parentId or status.
  *
