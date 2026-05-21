@@ -13,7 +13,7 @@
       "!**/node_modules",
       "!**/coverage",
       "!**/*.min.js",
-      "!src/scripts/jxa/_types/**"
+      "!src/scripts/jxa/_types"
     ]
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
