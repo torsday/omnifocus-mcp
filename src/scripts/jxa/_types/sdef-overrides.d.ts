@@ -108,3 +108,17 @@ interface Project {
   /** Review interval expressed as a scalar day count. Runtime convenience. */
   reviewIntervalDays(): number;
 }
+
+// ---------------------------------------------------------------------------
+// Document-level commands
+//
+// The sdef declares `<command name="synchronize">` taking a document specifier
+// as `<direct-parameter>`. The generator only emits `<class>` and `<property>`
+// shapes (not standalone commands), so `doc.synchronize()` shows up as missing.
+// Used by `sync_trigger.js`.
+// ---------------------------------------------------------------------------
+
+interface Document {
+  /** Trigger OmniFocus sync with the configured server. Async — returns immediately. */
+  synchronize(): void;
+}

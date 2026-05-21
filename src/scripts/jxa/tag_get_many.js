@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: fetch multiple tags by IDs.
  *
@@ -17,6 +23,7 @@ function run(argv) {
 
   // @inline _helpers/build_tag.js
 
+  /** @type {Record<string, unknown>} */
   const idSet = {};
   for (let i = 0; i < args.ids.length; i++) {
     idSet[args.ids[i]] = null;
