@@ -155,3 +155,54 @@ interface Window {
   // biome-ignore lint/suspicious/noExplicitAny: see comment — dual property/method, mutable.
   perspective: any;
 }
+
+// ---------------------------------------------------------------------------
+// Sdef-property setter assignments — `@ts-expect-error` pattern
+//
+// Sdef `<property>` blocks emit as parameterless methods
+// (`Project.status(): unknown`, `Tag.allowsNextAction(): boolean`). At
+// runtime JXA accepts assignment too — `proj.status = "dropped"`,
+// `tag.allowsNextAction = true`.
+//
+// Declaration merging *can't* paper over this: the generator-emitted
+// method-typed member wins over a property-typed merge with the same
+// name, so an `interface Project { status: any }` override here would
+// be silently ignored. Consumers that need to assign use a per-call-site
+// `// @ts-expect-error` line above the assignment instead — small,
+// localized, and the comment documents the JXA semantics. Examples
+// in `project_complete.js`, `project_drop.js`, `tag_update.js`. If we
+// ever need to flip many scripts to setter assignment, a generator
+// change (emit `status: unknown` for writable sdef properties) is the
+// real fix.
+//
+// ---------------------------------------------------------------------------
+// Application-level JXA write verbs
+//
+// Standard JXA commands (`markComplete`, `markReviewed`) live on the
+// application surface at runtime — `ofApp.markComplete(specifier)`. The
+// sdef declares them as standalone `<command>` blocks taking a direct
+// parameter; the generator only emits class-attached methods.
+// ---------------------------------------------------------------------------
+
+interface Application {
+  /** Mark a specifier (project/task) complete. JXA verb. */
+  markComplete(item: unknown): void;
+  /** Mark a specifier (project) reviewed — updates the review cycle. JXA verb. */
+  markReviewed(item: unknown): void;
+}
+
+// ---------------------------------------------------------------------------
+// Tag.status — runtime extra
+//
+// The sdef declares `<class name="tag">` without a `status` property —
+// only Project has one. At runtime OF accepts `tag.status = "on hold"` to
+// flip a tag's availability state. Used by `tag_update.js`. Property-form
+// is fine here because there's no method-form conflict (sdef doesn't
+// declare status on Tag), unlike the Project case above.
+// ---------------------------------------------------------------------------
+
+interface Tag {
+  /** Tag availability status (`"active"` / `"on hold"`). Runtime extra. */
+  // biome-ignore lint/suspicious/noExplicitAny: heterogeneous assignment values.
+  status: any;
+}

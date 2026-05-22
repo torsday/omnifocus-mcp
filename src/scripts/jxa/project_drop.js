@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: mark a project dropped.
  *
@@ -25,6 +31,7 @@ function run(argv) {
   }
   if (!target) throw new Error(`Project not found: ${args.id}`);
 
+  // @ts-expect-error JXA accepts property-setter form on sdef properties; see _types/sdef-overrides.d.ts.
   target.status = "dropped";
 
   return JSON.stringify({ id: args.id });
