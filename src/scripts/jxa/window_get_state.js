@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: read the current state of OmniFocus's front window.
  *
@@ -7,7 +13,7 @@
  *                             (empty array when nothing is focused)
  *  or { error: { code: "NO_FRONT_WINDOW", message } } when OF has no front window
  *
- * @see #466
+ * @see GH issue 466
  * @see src/adapter/jxa/JxaTransport.ts — getWindowState() caller
  */
 
