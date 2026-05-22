@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: get forecast-view tasks grouped by category (overdue, dueToday,
  * deferredToday, flagged).
@@ -67,7 +73,9 @@ function run(argv) {
   const toDate = new Date(to);
 
   // ID → built task, populated lazily so each task is constructed once.
+  /** @type {Record<string, unknown>} */
   const builtById = {};
+  /** @param {Task} task — JXA task specifier */
   function builtFor(task) {
     const id = task.id();
     if (builtById[id] !== undefined) return builtById[id];
@@ -76,6 +84,7 @@ function run(argv) {
     return b;
   }
 
+  /** @param {Record<string, unknown>} predicate — sdef-attribute predicate object */
   function runQuery(predicate) {
     try {
       return ofApp.defaultDocument.flattenedTasks.whose(predicate)();

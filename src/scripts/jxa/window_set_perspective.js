@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: switch the front window to a named perspective.
  *
@@ -8,7 +14,7 @@
  * Built-in perspectives (Inbox, Projects, Tags, Forecast, Flagged, Review, etc.)
  * and custom perspectives both work — JXA `Window.perspective` accepts either.
  *
- * @see #466
+ * @see GH issue 466
  * @see src/adapter/jxa/JxaTransport.ts — setWindowPerspective() caller
  */
 

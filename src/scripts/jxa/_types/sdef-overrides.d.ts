@@ -122,3 +122,36 @@ interface Document {
   /** Trigger OmniFocus sync with the configured server. Async — returns immediately. */
   synchronize(): void;
 }
+
+// ---------------------------------------------------------------------------
+// Window accessors bubbled up from DocumentWindow
+//
+// The sdef puts `perspectiveName`, `focus`, and `perspective` on
+// `DocumentWindow` (extends Window). Every OF front window is in practice a
+// DocumentWindow, but `windows[0]()` / `frontWindow()` type-resolves to
+// `Window`. Add the accessors to the parent `Window` interface so window-
+// inspection scripts (`window_get_state`, `window_set_focus`,
+// `window_set_perspective`) typecheck without per-script casts.
+// ---------------------------------------------------------------------------
+
+interface Window {
+  /** Name of the active perspective. DocumentWindow accessor bubbled up. */
+  perspectiveName(): string;
+  /**
+   * Project focus — both gettable (`w.focus()` returns the array of
+   * container specifiers) and settable (`w.focus = [...]` replaces it; an
+   * empty array clears the focus). Typed as `any` because the dual
+   * property/method semantics plus mutability through assignment can't
+   * be expressed as a clean intersection in strict mode. Compile-time
+   * compromise; runtime semantics are documented in the sdef.
+   */
+  // biome-ignore lint/suspicious/noExplicitAny: see comment — dual property/method, mutable.
+  focus: any;
+  /**
+   * Active perspective specifier — gettable (`w.perspective()`) and
+   * settable (`w.perspective = target`). Same dual-shape constraint as
+   * `focus`.
+   */
+  // biome-ignore lint/suspicious/noExplicitAny: see comment — dual property/method, mutable.
+  perspective: any;
+}

@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: set or clear the front window's focus container.
  *
@@ -15,7 +21,7 @@
  * Container resolution: tries projects first, then folders. If the same ID
  * matches both (shouldn't happen but defensive), the project wins.
  *
- * @see #466
+ * @see GH issue 466
  * @see src/adapter/jxa/JxaTransport.ts — setWindowFocus() caller
  */
 
