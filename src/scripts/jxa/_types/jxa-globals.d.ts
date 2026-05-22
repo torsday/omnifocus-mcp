@@ -57,11 +57,11 @@ declare function Application(name: string): Application &
      * Modeled as call-signature-only so both forms typecheck without
      * forcing the `new` keyword.
      */
-    Tag: (props: { name: string; [key: string]: unknown }) => unknown;
-    Folder: (props: { name: string; [key: string]: unknown }) => unknown;
-    Project: (props: { name: string; status?: unknown; [key: string]: unknown }) => unknown;
-    InboxTask: (props: { name: string; [key: string]: unknown }) => unknown;
-    Task: (props: { name: string; [key: string]: unknown }) => unknown;
+    Tag: (props: { name: string; [key: string]: unknown }) => Tag;
+    Folder: (props: { name: string; [key: string]: unknown }) => Folder;
+    Project: (props: { name: string; status?: unknown; [key: string]: unknown }) => Project;
+    InboxTask: (props: { name: string; [key: string]: unknown }) => InboxTask;
+    Task: (props: { name: string; [key: string]: unknown }) => Task;
     /**
      * FileAttachment constructor proxy — used by `attachment_add.js` to
      * build an attachment from a local file (`ofApp.FileAttachment({ file: Path(...) })`)

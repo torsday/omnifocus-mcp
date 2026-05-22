@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: rename a folder.
  *
@@ -21,6 +27,7 @@ function run(argv) {
   // sub-folder parentage correctly under the OF 4.8.8 `folder.parent()` bug
   // (#515). Same scan that locates the target folder.
   const allFolders = ofApp.defaultDocument.flattenedFolders();
+  /** @type {Record<string, string>} */
   const parentMap = {};
   for (let i = 0; i < allFolders.length; i++) {
     try {
