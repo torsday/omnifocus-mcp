@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: batch-complete tasks in a single round-trip.
  *
@@ -31,8 +37,10 @@ function run(argv) {
       try {
         task.markComplete({ completionDate: when });
       } catch (_e) {
+        // @ts-expect-error JXA accepts property-setter form on sdef properties; see _types/sdef-overrides.d.ts.
         task.completed = true;
         try {
+          // @ts-expect-error JXA accepts property-setter form on sdef properties; see _types/sdef-overrides.d.ts.
           task.completionDate = when;
         } catch (_e2) {
           /* OF 4.x: property access may not exist on all object types — default used */
@@ -40,7 +48,7 @@ function run(argv) {
       }
       succeeded.push({ index: i, value: it.id });
     } catch (e) {
-      const msg = e?.message || String(e);
+      const msg = e instanceof Error ? e.message : String(e);
       const m = msg.match(/^(OF_[A-Z_]+):/);
       const errorCode = m ? m[1] : "OF_UNKNOWN";
       failed.push({ index: i, errorCode: errorCode, message: msg });
