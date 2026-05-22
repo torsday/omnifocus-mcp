@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: return task and project IDs modified since a given timestamp.
  *
@@ -49,6 +55,8 @@ function run(argv) {
 
   // Try the whose() pushdown first; fall back to a full scan if OF rejects
   // the predicate for any reason (older OF, unexpected accessor behavior).
+  // biome-ignore lint/suspicious/noExplicitAny: collection is a JXA element specifier with .whose/.length/[i].id() — modeling precisely doesn't add signal here.
+  /** @param {any} collection — JXA element-collection specifier */
   function collectModifiedSince(collection) {
     let raw;
     try {
