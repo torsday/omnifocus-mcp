@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: batch-update tasks in a single round-trip.
  *
@@ -24,7 +30,18 @@ function run(argv) {
   const succeeded = [];
   const failed = [];
 
-  function applyPatch(task, patch) {
+  /**
+   * @param {Task} taskSpec — JXA task specifier
+   * @param {any} patch — partial fields from the wire payload (typed `any` because the patch shape is dynamic per-call and modeling it strictly would just push the cast to every consumer)
+   */
+  // biome-ignore lint/suspicious/noExplicitAny: see param JSDoc above.
+  function applyPatch(taskSpec, patch) {
+    // `task` is widened to `any` so the dozen sdef-property setters below
+    // (`task.name = ...`, `task.dueDate = ...`, etc.) don't each need their
+    // own `@ts-expect-error` — the assignment-vs-method conflict from
+    // declaration merging is structural, not local. See _types/sdef-overrides.d.ts.
+    /** @type {any} */
+    const task = taskSpec;
     if (patch.name != null) task.name = patch.name;
     if (patch.note !== undefined) task.note = patch.note == null ? "" : patch.note;
     if (patch.flagged != null) task.flagged = patch.flagged;
@@ -71,7 +88,7 @@ function run(argv) {
       applyPatch(task, u.patch || {});
       succeeded.push({ index: i, value: u.id });
     } catch (e) {
-      const msg = e?.message || String(e);
+      const msg = e instanceof Error ? e.message : String(e);
       const m = msg.match(/^(OF_[A-Z_]+):/);
       const errorCode = m ? m[1] : "OF_UNKNOWN";
       failed.push({ index: i, errorCode: errorCode, message: msg });

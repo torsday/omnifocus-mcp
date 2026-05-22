@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: update mutable fields on an existing project.
  *
@@ -35,7 +41,9 @@ function run(argv) {
   if (args.flagged !== undefined) target.flagged = args.flagged;
   if (args.estimatedMinutes !== undefined) target.estimatedMinutes = args.estimatedMinutes ?? 0;
   if (args.deferDate !== undefined)
+    // @ts-expect-error JXA accepts property-setter form on sdef properties; see _types/sdef-overrides.d.ts.
     target.deferDate = args.deferDate ? new Date(args.deferDate) : null;
+  // @ts-expect-error JXA accepts property-setter form on sdef properties; see _types/sdef-overrides.d.ts.
   if (args.dueDate !== undefined) target.dueDate = args.dueDate ? new Date(args.dueDate) : null;
   if (args.status !== undefined) {
     // OmniFocus 4.8.8+ silently no-ops `target.status = "on hold"` (without
@@ -46,6 +54,7 @@ function run(argv) {
     // which JXA refuses anyway and which use markComplete / markDropped
     // verbs instead.
     const jxaStatus = args.status === "on-hold" ? "on hold status" : "active status";
+    // @ts-expect-error JXA accepts property-setter form on sdef properties; see _types/sdef-overrides.d.ts.
     target.status = jxaStatus;
   }
   if (args.folderId !== undefined) {
