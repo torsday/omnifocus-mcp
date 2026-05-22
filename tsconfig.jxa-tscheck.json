@@ -31,6 +31,7 @@
     "src/scripts/jxa/project_batch_complete.js",
     "src/scripts/jxa/project_batch_drop.js",
     "src/scripts/jxa/project_complete.js",
+    "src/scripts/jxa/project_create.js",
     "src/scripts/jxa/project_delete.js",
     "src/scripts/jxa/project_drop.js",
     "src/scripts/jxa/project_get.js",

@@ -27,6 +27,7 @@ function run(argv) {
   for (let i = 0; i < args.inputs.length; i++) {
     const input = args.inputs[i];
     try {
+      /** @type {Record<string, unknown>} */
       const props = { name: input.name };
       if (input.note != null) props.note = input.note;
       if (input.flagged != null) props.flagged = input.flagged;

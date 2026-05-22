@@ -30,6 +30,7 @@ function run(argv) {
     throw new Error("ValidationError: projectId and parentId are mutually exclusive");
   }
 
+  /** @type {Record<string, unknown>} */
   const props = { name: args.name };
   if (args.note != null) props.note = args.note;
   if (args.flagged != null) props.flagged = args.flagged;

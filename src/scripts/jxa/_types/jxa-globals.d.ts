@@ -57,11 +57,19 @@ declare function Application(name: string): Application &
      * Modeled as call-signature-only so both forms typecheck without
      * forcing the `new` keyword.
      */
-    Tag: (props: { name: string; [key: string]: unknown }) => Tag;
-    Folder: (props: { name: string; [key: string]: unknown }) => Folder;
-    Project: (props: { name: string; status?: unknown; [key: string]: unknown }) => Project;
-    InboxTask: (props: { name: string; [key: string]: unknown }) => InboxTask;
-    Task: (props: { name: string; [key: string]: unknown }) => Task;
+    // Props typed as `Record<string, unknown>` rather than `{ name: string; ... }`
+    // because consumer scripts (`project_create`, `task_create`,
+    // `task_batch_create`, `task_duplicate`) build the props object
+    // incrementally with conditional assignments, and TypeScript narrows
+    // the literal at declaration. The runtime requires `name` but
+    // enforcing it here forces every consumer to either inline the whole
+    // object (losing the builder pattern) or cast on every call — `name`
+    // is documented in `src/scripts/jxa/CLAUDE.md` as a runtime contract.
+    Tag: (props: Record<string, unknown>) => Tag;
+    Folder: (props: Record<string, unknown>) => Folder;
+    Project: (props: Record<string, unknown>) => Project;
+    InboxTask: (props: Record<string, unknown>) => InboxTask;
+    Task: (props: Record<string, unknown>) => Task;
     /**
      * FileAttachment constructor proxy — used by `attachment_add.js` to
      * build an attachment from a local file (`ofApp.FileAttachment({ file: Path(...) })`)
