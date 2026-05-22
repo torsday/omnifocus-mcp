@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: batch-delete tasks permanently in a single round-trip.
  *
@@ -31,7 +37,7 @@ function run(argv) {
       task.delete();
       succeeded.push({ index: i, value: it.id });
     } catch (e) {
-      const msg = e?.message || String(e);
+      const msg = e instanceof Error ? e.message : String(e);
       const m = msg.match(/^(OF_[A-Z_]+):/);
       const errorCode = m ? m[1] : "OF_UNKNOWN";
       failed.push({ index: i, errorCode: errorCode, message: msg });
