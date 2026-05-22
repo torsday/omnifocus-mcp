@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: set a project's next review date.
  *
@@ -16,7 +22,7 @@
  * Past-dated values are allowed by OmniFocus and surface the project as
  * overdue for review immediately — matches the app UX, no special handling.
  *
- * @see #467
+ * @see GH issue 467
  * @see src/adapter/jxa/JxaTransport.ts — caller
  */
 
@@ -37,6 +43,7 @@ function run(argv) {
   }
   if (!target) throw new Error(`Project not found: ${args.id}`);
 
+  // @ts-expect-error JXA accepts property-setter form on sdef properties; see _types/sdef-overrides.d.ts.
   target.nextReviewDate = args.nextReviewDate === null ? null : new Date(args.nextReviewDate);
 
   return JSON.stringify({ id: args.id });
