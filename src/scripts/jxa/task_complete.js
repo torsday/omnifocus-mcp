@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: mark a task complete.
  *
@@ -28,6 +34,7 @@ function run(argv) {
 
   if (args.completionDate) {
     try {
+      // @ts-expect-error JXA accepts property-setter form on sdef properties; see _types/sdef-overrides.d.ts.
       found.completionDate = new Date(args.completionDate);
     } catch (_e) {
       /* OF 4.x: property access may not exist on all object types — default used */

@@ -206,3 +206,49 @@ interface Tag {
   // biome-ignore lint/suspicious/noExplicitAny: heterogeneous assignment values.
   status: any;
 }
+
+// ---------------------------------------------------------------------------
+// Standard JXA element verbs — `delete()` and `move(opts)`
+//
+// Every JXA element specifier exposes the standard verbs `delete()` and
+// `move({ to: container })`. The sdef declares these as standalone
+// `<command>` blocks rather than methods on each class, so the generator
+// doesn't emit them. Used by `task_delete`, `task_move`, `task_reorder`,
+// and analogous folder/project scripts.
+// ---------------------------------------------------------------------------
+
+interface Task {
+  /** Delete this task from its container. JXA element verb. */
+  delete(): void;
+  /** Move this task to a different container (`{ to: ... }`). JXA element verb. */
+  move(opts: { to: unknown; positioned?: string }): void;
+  /** HTML representation of the note. Runtime extra; sdef declares only `note: rich text`. */
+  noteHtml(): string | null;
+}
+
+interface Project {
+  /** Delete this project. JXA element verb. */
+  delete(): void;
+  /** Move this project to a different container. JXA element verb. */
+  move(opts: { to: unknown; positioned?: string }): void;
+  /** HTML representation of the note. Runtime extra. */
+  noteHtml(): string | null;
+}
+
+interface Folder {
+  /** Delete this folder. JXA element verb. */
+  delete(): void;
+  /** Move this folder to a different container. JXA element verb. */
+  move(opts: { to: unknown; positioned?: string }): void;
+}
+
+// ---------------------------------------------------------------------------
+// Additional Application-level JXA write verbs
+// ---------------------------------------------------------------------------
+
+interface Application {
+  /** Mark a specifier (project/task) dropped. JXA verb. */
+  markDropped(item: unknown): void;
+  /** Mark a specifier incomplete — undoes markComplete. JXA verb. */
+  markIncomplete(item: unknown): void;
+}
