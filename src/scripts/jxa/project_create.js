@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: create a new project.
  *
@@ -23,6 +29,7 @@ function run(argv) {
     throw new Error("ValidationError: name is required and cannot be empty");
   }
 
+  /** @type {Record<string, unknown>} */
   const props = { name: args.name };
   if (args.note != null) props.note = args.note;
   if (args.deferDate != null) props.deferDate = new Date(args.deferDate);
