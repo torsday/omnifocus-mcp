@@ -375,6 +375,8 @@ function main(): void {
     `  whose(filter: Record<string, unknown>): () => T[];`,
     `  /** JXA element-query: random access. */`,
     `  at(idx: number): T;`,
+    `  /** End-of-collection marker — used as a position specifier for \`move({ to: container, positioned: 'beginning' | 'end' })\` and \`push\`-style insertions. */`,
+    `  end: unknown;`,
     `}`,
     "",
   ].join("\n");

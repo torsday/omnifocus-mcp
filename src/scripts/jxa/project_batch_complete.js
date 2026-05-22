@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: batch-complete projects in a single round-trip.
  *
@@ -23,6 +29,7 @@ function run(argv) {
   const doc = ofApp.defaultDocument;
 
   // Build set of wanted IDs for early-exit.
+  /** @type {Record<string, true>} */
   const wantedIds = {};
   for (let k = 0; k < args.items.length; k++) {
     wantedIds[args.items[k].id] = true;
@@ -30,6 +37,7 @@ function run(argv) {
 
   // Single O(n) pass to build id → project map.
   const allProjects = doc.flattenedProjects();
+  /** @type {Record<string, unknown>} */
   const projectMap = {};
   for (let i = 0; i < allProjects.length; i++) {
     const p = allProjects[i];
@@ -50,7 +58,7 @@ function run(argv) {
       ofApp.markComplete(project);
       succeeded.push({ index: i, value: it.id });
     } catch (e) {
-      const msg = e?.message || String(e);
+      const msg = e instanceof Error ? e.message : String(e);
       const m = msg.match(/^(OF_[A-Z_]+):/);
       const errorCode = m ? m[1] : "OF_UNKNOWN";
       failed.push({ index: i, errorCode: errorCode, message: msg });

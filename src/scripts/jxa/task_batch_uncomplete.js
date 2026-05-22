@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: batch-uncomplete (mark incomplete) tasks in a single round-trip.
  *
@@ -25,6 +31,7 @@ function run(argv) {
   const doc = ofApp.defaultDocument;
 
   // Build a set of requested IDs for early-exit if the batch is small.
+  /** @type {Record<string, true>} */
   const wantedIds = {};
   for (let k = 0; k < args.items.length; k++) {
     wantedIds[args.items[k].id] = true;
@@ -32,6 +39,7 @@ function run(argv) {
 
   // Single O(n) pass over all tasks to build id → task map.
   const allTasks = doc.flattenedTasks();
+  /** @type {Record<string, unknown>} */
   const taskMap = {};
   for (let i = 0; i < allTasks.length; i++) {
     const t = allTasks[i];
@@ -52,7 +60,7 @@ function run(argv) {
       ofApp.markIncomplete(task);
       succeeded.push({ index: i, value: it.id });
     } catch (e) {
-      const msg = e?.message || String(e);
+      const msg = e instanceof Error ? e.message : String(e);
       const m = msg.match(/^(OF_[A-Z_]+):/);
       const errorCode = m ? m[1] : "OF_UNKNOWN";
       failed.push({ index: i, errorCode: errorCode, message: msg });

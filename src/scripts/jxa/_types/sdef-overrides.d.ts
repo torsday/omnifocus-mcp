@@ -224,6 +224,12 @@ interface Task {
   move(opts: { to: unknown; positioned?: string }): void;
   /** HTML representation of the note. Runtime extra; sdef declares only `note: rich text`. */
   noteHtml(): string | null;
+  /** Mark this task complete — optional `{ completionDate }` per sdef. JXA accepts both `app.markComplete(task, opts)` and the element-verb form. */
+  markComplete(opts?: { completionDate?: Date }): void;
+  /** Mark this task incomplete — element-verb form. */
+  markIncomplete(): void;
+  /** Mark this task dropped — element-verb form. */
+  markDropped(): void;
 }
 
 interface Project {
