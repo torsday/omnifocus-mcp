@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: duplicate a task. Editable fields copy; completed/dropped state reset.
  * When recursive=true, subtask tree is cloned depth-first, preserving order.
@@ -52,6 +58,8 @@ function run(argv) {
       if (cp) {
         let isDocument = false;
         try {
+          // @ts-expect-error — OF 4.x: `.class()` is a runtime call on Project
+          // that throws on real projects (#673); the typed sdef omits it.
           isDocument = cp.class() === "document";
         } catch (_classErr) {
           /* OF 4.x: real projects throw here */
@@ -63,7 +71,9 @@ function run(argv) {
     }
   }
 
+  /** @param {Task} task */
   function copyProps(task) {
+    /** @type {Record<string, unknown>} */
     const props = { name: task.name() };
     try {
       const n = task.note();
@@ -102,6 +112,10 @@ function run(argv) {
     return props;
   }
 
+  /**
+   * @param {Task | Project | Document} container
+   * @param {Record<string, unknown>} props
+   */
   function makeInto(container, props) {
     if (container === doc) {
       // Inbox creation requires `InboxTask + inboxTasks.push` — OmniFocus 4.x
@@ -110,9 +124,19 @@ function run(argv) {
       doc.inboxTasks.push(task);
       return task;
     }
-    return container.make({ new: "task", withProperties: props });
+    // `container === doc` already returned above, but TS doesn't narrow
+    // identity equality with a non-literal singleton; cast to the post-narrow
+    // union so `.make()` (added in slice 19 to Task and Project) resolves.
+    return /** @type {Task | Project} */ (container).make({
+      new: "task",
+      withProperties: props,
+    });
   }
 
+  /**
+   * @param {Task} from
+   * @param {Task} to
+   */
   function copyTags(from, to) {
     try {
       const tags = from.tags();
@@ -133,7 +157,12 @@ function run(argv) {
 
   let descendantCount = 0;
   if (args.recursive) {
+    /**
+     * @param {Task} srcTask
+     * @param {Task} cloneTask
+     */
     function walk(srcTask, cloneTask) {
+      /** @type {any[]} */
       let children = [];
       try {
         children = srcTask.tasks();
