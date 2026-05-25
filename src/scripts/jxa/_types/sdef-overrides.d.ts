@@ -300,6 +300,13 @@ interface Application {
 interface Project {
   /** Child collection of direct tasks. Runtime extra — sdef omits the element block. */
   tasks: JxaCollection<Task> & (() => JxaCollection<Task>);
+  /**
+   * Flattened collection of all descendant tasks (recursive). Runtime
+   * extra — the sdef declares `flattened task` only on the document
+   * class, but JXA exposes it on real project specifiers too. Used by
+   * `task_search.js` / `task_list.js` for project-scoped searches.
+   */
+  flattenedTasks: JxaCollection<FlattenedTask> & (() => JxaCollection<FlattenedTask>);
 }
 
 interface Task {
