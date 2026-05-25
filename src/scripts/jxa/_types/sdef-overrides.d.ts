@@ -258,3 +258,42 @@ interface Application {
   /** Mark a specifier incomplete — undoes markComplete. JXA verb. */
   markIncomplete(item: unknown): void;
 }
+
+// ---------------------------------------------------------------------------
+// task_create runtime extras
+//
+// `Project.tasks` is a child collection accessible at runtime
+// (`proj.tasks.push(newTask)`), but the sdef declares the project class
+// without any `<element>` block — so the generator emits Project with no
+// `tasks` member. Adding it here also benefits FlattenedProject (which
+// extends Project) so `flattenedProjects.byId(id).tasks.push(...)` checks.
+//
+// `Task.addTag(tag)` is the standard JXA `add` verb targeting the sdef's
+// `<element type="tag">` on the task class. The generator only emits class
+// shapes, not standalone commands, so the verb shows up as missing.
+//
+// `Task.containsSingletonActions` is a runtime extra (the sdef declares
+// "singleton action holder" / "completed by children" / "sequential" but
+// no `containsSingletonActions`). It is both readable as a method
+// (`task.containsSingletonActions()` in `_helpers/build_task.js`) and
+// settable as a property (`newTask.containsSingletonActions = true` in
+// `task_create.js` / `task_update.js`). Typed as `any` per the existing
+// `Tag.status` pattern — there's no generator-emitted member to collide
+// with, so declaration merging is sufficient.
+// ---------------------------------------------------------------------------
+
+interface Project {
+  /** Child collection of direct tasks. Runtime extra — sdef omits the element block. */
+  tasks: JxaCollection<Task> & (() => JxaCollection<Task>);
+}
+
+interface Task {
+  /** Attach a tag to this task. JXA `add` verb against the sdef tag element. */
+  addTag(tag: unknown): void;
+  /**
+   * "Completed when children are completed" flag — readable as a method
+   * and settable as a property. Runtime extra; not in the sdef Task class.
+   */
+  // biome-ignore lint/suspicious/noExplicitAny: dual method/property surface — see comment above.
+  containsSingletonActions: any;
+}
