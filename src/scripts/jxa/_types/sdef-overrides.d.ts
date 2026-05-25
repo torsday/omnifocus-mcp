@@ -230,6 +230,15 @@ interface Task {
   markIncomplete(): void;
   /** Mark this task dropped — element-verb form. */
   markDropped(): void;
+  /**
+   * Standard JXA `make` element verb — constructs a child element of the
+   * given class with the given properties. Used by `task_batch_create.js`
+   * to create subtasks (`parent.make({ new: "task", withProperties })`).
+   * Return type is `any` because the resulting class depends on the `new:`
+   * arg — typing it tighter would force a cast at every call site.
+   */
+  // biome-ignore lint/suspicious/noExplicitAny: return class depends on `new:` arg — see comment.
+  make(opts: { new: string; withProperties: Record<string, unknown> }): any;
 }
 
 interface Project {
@@ -239,6 +248,12 @@ interface Project {
   move(opts: { to: unknown; positioned?: string }): void;
   /** HTML representation of the note. Runtime extra. */
   noteHtml(): string | null;
+  /**
+   * Standard JXA `make` element verb — same shape as `Task.make`. Used by
+   * `task_batch_create.js` to create top-level tasks under a project.
+   */
+  // biome-ignore lint/suspicious/noExplicitAny: return class depends on `new:` arg — see Task.make.
+  make(opts: { new: string; withProperties: Record<string, unknown> }): any;
 }
 
 interface Folder {
