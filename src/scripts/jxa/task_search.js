@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: search tasks by keyword and/or structured filters.
  *
@@ -63,6 +69,7 @@ function run(argv) {
   } else {
     // No source-narrowing — push pushable predicates into whose() so the
     // long tail of non-matching tasks is never iterated.
+    /** @type {Record<string, unknown>} */
     const predicate = {};
     if (args.flagged !== null && args.flagged !== undefined) {
       predicate.flagged = args.flagged;
@@ -74,9 +81,11 @@ function run(argv) {
     }
     // "any" passes through — no completed predicate.
     if (dueBefore !== null || dueAfter !== null) {
-      predicate.dueDate = {};
-      if (dueBefore !== null) predicate.dueDate._lessThan = dueBefore;
-      if (dueAfter !== null) predicate.dueDate._greaterThan = dueAfter;
+      /** @type {Record<string, unknown>} */
+      const dueDate = {};
+      if (dueBefore !== null) dueDate._lessThan = dueBefore;
+      if (dueAfter !== null) dueDate._greaterThan = dueAfter;
+      predicate.dueDate = dueDate;
     }
     const hasPushable = Object.keys(predicate).length > 0;
     if (hasPushable) {
@@ -130,7 +139,7 @@ function run(argv) {
     // O(filterTags × taskTags) nested scan (#803).
     if (args.tagIds && args.tagIds.length > 0) {
       const taskTagSet = new Set(built.tagIds);
-      const allPresent = args.tagIds.every((tid) => taskTagSet.has(tid));
+      const allPresent = args.tagIds.every(/** @param {string} tid */ (tid) => taskTagSet.has(tid));
       if (!allPresent) continue;
     }
 
