@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: update task fields.
  *
@@ -41,9 +47,11 @@ function run(argv) {
   }
   if (args.flagged !== undefined) found.flagged = args.flagged;
   if (Object.hasOwn(args, "deferDate")) {
+    // @ts-expect-error — sdef property setter; JXA accepts assignment, generator emits method signature only.
     found.deferDate = args.deferDate ? new Date(args.deferDate) : null;
   }
   if (Object.hasOwn(args, "dueDate")) {
+    // @ts-expect-error — sdef property setter; JXA accepts assignment, generator emits method signature only.
     found.dueDate = args.dueDate ? new Date(args.dueDate) : null;
   }
   if (Object.hasOwn(args, "estimatedMinutes")) {
@@ -77,6 +85,7 @@ function run(argv) {
         "  t.repetitionRule = null;" +
         "})()";
     } else {
+      /** @type {Record<string, string>} */
       const FREQ_BY_UNIT = {
         minutes: "MINUTELY",
         hours: "HOURLY",
@@ -85,6 +94,7 @@ function run(argv) {
         months: "MONTHLY",
         years: "YEARLY",
       };
+      /** @type {Record<string, string>} */
       const ICAL_DAYS = {
         sunday: "SU",
         monday: "MO",
@@ -94,6 +104,7 @@ function run(argv) {
         friday: "FR",
         saturday: "SA",
       };
+      /** @type {Record<string, string>} */
       const METHOD_BY_NAME = {
         fixed: "Fixed",
         "start-again": "Start",
