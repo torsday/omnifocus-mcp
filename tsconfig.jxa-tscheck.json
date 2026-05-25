@@ -63,6 +63,7 @@
     "src/scripts/jxa/task_delete.js",
     "src/scripts/jxa/task_drop.js",
     "src/scripts/jxa/task_get.js",
+    "src/scripts/jxa/task_duplicate.js",
     "src/scripts/jxa/task_get_many.js",
     "src/scripts/jxa/task_move.js",
     "src/scripts/jxa/task_list.js",
