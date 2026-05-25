@@ -58,6 +58,7 @@
     "src/scripts/jxa/task_batch_update.js",
     "src/scripts/jxa/task_complete.js",
     "src/scripts/jxa/task_create.js",
+    "src/scripts/jxa/task_update.js",
     "src/scripts/jxa/task_delete.js",
     "src/scripts/jxa/task_drop.js",
     "src/scripts/jxa/task_get.js",
