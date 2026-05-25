@@ -65,6 +65,7 @@
     "src/scripts/jxa/task_get.js",
     "src/scripts/jxa/task_get_many.js",
     "src/scripts/jxa/task_move.js",
+    "src/scripts/jxa/task_list.js",
     "src/scripts/jxa/task_search.js",
     "src/scripts/jxa/task_reorder.js",
     "src/scripts/jxa/task_uncomplete.js",

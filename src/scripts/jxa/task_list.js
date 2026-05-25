@@ -1,3 +1,9 @@
+// @ts-check
+/// <reference path="_types/omnifocus.d.ts" />
+/// <reference path="_types/jxa-globals.d.ts" />
+/// <reference path="_types/jxa-helpers.d.ts" />
+/// <reference path="_types/sdef-overrides.d.ts" />
+
 /**
  * JXA: list tasks, optionally filtered.
  *
@@ -81,6 +87,7 @@ function run(argv) {
     // OF's runtime via whose(). Predicates that don't push down (tag /
     // available / blocked / completedSince — all need buildTask's
     // computed values) stay client-side in the loop below.
+    /** @type {Record<string, unknown>} */
     const predicate = {};
     if (args.flagged !== null && args.flagged !== undefined) {
       predicate.flagged = args.flagged;
@@ -89,14 +96,18 @@ function run(argv) {
       predicate.completed = args.completed;
     }
     if (dueBefore !== null || dueAfter !== null) {
-      predicate.dueDate = {};
-      if (dueBefore !== null) predicate.dueDate._lessThan = dueBefore;
-      if (dueAfter !== null) predicate.dueDate._greaterThan = dueAfter;
+      /** @type {Record<string, unknown>} */
+      const dueDate = {};
+      if (dueBefore !== null) dueDate._lessThan = dueBefore;
+      if (dueAfter !== null) dueDate._greaterThan = dueAfter;
+      predicate.dueDate = dueDate;
     }
     if (deferredBefore !== null || deferredAfter !== null) {
-      predicate.deferDate = {};
-      if (deferredBefore !== null) predicate.deferDate._lessThan = deferredBefore;
-      if (deferredAfter !== null) predicate.deferDate._greaterThan = deferredAfter;
+      /** @type {Record<string, unknown>} */
+      const deferDate = {};
+      if (deferredBefore !== null) deferDate._lessThan = deferredBefore;
+      if (deferredAfter !== null) deferDate._greaterThan = deferredAfter;
+      predicate.deferDate = deferDate;
     }
     const hasPushable = Object.keys(predicate).length > 0;
     if (hasPushable) {
