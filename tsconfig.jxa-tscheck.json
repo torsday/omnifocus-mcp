@@ -55,6 +55,7 @@
     "src/scripts/jxa/task_batch_drop.js",
     "src/scripts/jxa/task_batch_uncomplete.js",
     "src/scripts/jxa/task_batch_undrop.js",
+    "src/scripts/jxa/task_batch_create.js",
     "src/scripts/jxa/task_batch_update.js",
     "src/scripts/jxa/task_complete.js",
     "src/scripts/jxa/task_create.js",
