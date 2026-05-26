@@ -32,34 +32,35 @@ byte size, and therefore what kind of regression a workflow can detect.
 calls. `—` = no calls in that workflow against this category. Categories
 that no workflow exercises are listed in the gap section below.
 
-| Category            | inbox-triage | project-planning | weekly-review | end-of-day-review |
-|---------------------|:------------:|:----------------:|:-------------:|:-----------------:|
-| Read by id          | —            | ✓ (`project_get`) | —             | —                 |
-| List filtered       | ✓ (`task_list`) | ✓ (`task_list`) | ✓ (`task_list`) | —              |
-| List paginated      | —            | —                | —             | —                 |
-| Search              | —            | —                | —             | ✓ (`task_search`) |
-| Forecast            | —            | —                | —             | ✓ (`forecast_get`)|
-| Perspective         | —            | —                | —             | ✓ (`perspective_evaluate`) |
-| Batch mutation      | ✓ (`task_batch_*`) | ✓ (`task_batch_*`) | —        | —                 |
-| Single mutation     | ✓ (`tag_create`) | ✓ (`*_create`) | —             | —                 |
-| Review-cycle        | —            | —                | ✓ (`review_*`) | —                 |
+| Category            | inbox-triage | project-planning | weekly-review | end-of-day-review | large-pagination |
+|---------------------|:------------:|:----------------:|:-------------:|:-----------------:|:----------------:|
+| Read by id          | —            | ✓ (`project_get`) | —             | —                 | —                |
+| List filtered       | ✓ (`task_list`) | ✓ (`task_list`) | ✓ (`task_list`) | —              | —                |
+| List paginated      | —            | —                | —             | —                 | ✓ (`task_list`, 3 pages) |
+| Search              | —            | —                | —             | ✓ (`task_search`) | —                |
+| Forecast            | —            | —                | —             | ✓ (`forecast_get`)| —                |
+| Perspective         | —            | —                | —             | ✓ (`perspective_evaluate`) | —       |
+| Batch mutation      | ✓ (`task_batch_*`) | ✓ (`task_batch_*`) | —        | —                 | —                |
+| Single mutation     | ✓ (`tag_create`) | ✓ (`*_create`) | —             | —                 | —                |
+| Review-cycle        | —            | —                | ✓ (`review_*`) | —                 | —                |
 
 ## Status as of this audit
 
-The PR closing [#831](https://github.com/torsday/omnifocus-mcp/issues/831)
-adds an `end-of-day-review` workflow that covers **search**, **forecast**,
-and **perspective** in one coherent narrative — three previously
-uncovered categories close at once.
+After [#831](https://github.com/torsday/omnifocus-mcp/issues/831) and
+[#1029](https://github.com/torsday/omnifocus-mcp/issues/1029), the
+five categorical gaps the audit identified — search, forecast,
+perspective, list-paginated, and the originally-undocumented
+list-paginated cursor walk — are all covered:
 
-Two gaps remain, both tracked as follow-ups:
+- `end-of-day-review` covers **search**, **forecast**, **perspective**.
+- `large-pagination` covers **list paginated** (3-page walk via
+  `task_list { limit: 50, cursor }` against a 120-task fixture).
 
-- **List paginated** ([#1029](https://github.com/torsday/omnifocus-mcp/issues/1029))
-  — the existing `task_list` calls don't exercise `limit` + `cursor`,
-  so the bench gate is blind to pagination-shape regressions.
+One AC item remains tracked as a follow-up:
+
 - **5k+ task fixture smoke** ([#1030](https://github.com/torsday/omnifocus-mcp/issues/1030))
   — depends on the `OMNIFOCUS_E2E_USE_MEMORY` adapter plus a
-  fixture-seeding harness; pulled out of #831 so this PR stays
-  reviewable.
+  fixture-seeding harness.
 
 ## How a new workflow earns its place
 
