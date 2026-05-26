@@ -9,11 +9,21 @@ same commit. CI enforces this via `scripts/verify-migrations-doc.sh`.
 
 ---
 
-## Upcoming (unreleased — target v1.4.0)
+## Upcoming (unreleased — target v2.0.0)
 
-The following breaking changes are implemented or planned for the next minor release as part of the
+The following breaking changes are implemented or planned for the next major release as part of the
 token-efficiency epic (#770). All changes reduce default response payload size; callers who need the
 old shape can opt back in via new flags.
+
+### `content[].text` becomes a fixed placeholder (#883, ADR-0022)
+
+| | |
+|---|---|
+| **What changed** | `toolResponse()` no longer duplicates the envelope JSON into `content[].text`. The text block is now the literal string `"see structuredContent"`. `structuredContent` is unchanged in shape and content. |
+| **Why** | v1 wire format paid the envelope bytes twice — once in `content[].text` (a JSON-stringified copy) and once in `structuredContent` (the typed object). Empirical measurement on canonical workflows showed ≈ 2× byte savings from removing the duplication. Full rationale: [ADR-0022](./adr/0022-envelope-text-content-duplication.md), spike notes in `docs/spikes/2026-05-envelope-text-duplication.md`. |
+| **Migration** | Clients should read `result.structuredContent` (the typed envelope) — they should have been doing this all along; the JSON in `content[].text` was always a duplicate. Detect a v1-vs-v2 server with `if (!result.structuredContent) throw new Error("server doesn't return structured envelope")`. |
+| **Escape hatch** | Set `OMNIFOCUS_LEGACY_TEXT_CONTENT=1` in the server environment to restore v1 behavior (full JSON in `content[].text`). Read once at module load — server restart required to change. Intended as a temporary bridge while clients migrate; no plan to remove the flag. |
+| **Deprecation** | The v1 duplicated-text shape is the *default* removed; the opt-in flag is supported indefinitely. The exact placeholder string `"see structuredContent"` is itself part of the wire contract — renaming it would be another breaking change. |
 
 ### noteHtml removed from default task/project responses (#791)
 

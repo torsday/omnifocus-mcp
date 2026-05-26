@@ -393,10 +393,34 @@ export function isClarificationNeeded<T>(
 }
 
 /**
+ * Placeholder `content[].text` body used by `toolResponse` in v2.0.0+.
+ *
+ * v1.x duplicated the full envelope JSON in both `content[].text` AND
+ * `structuredContent`. Per ADR-0022 (see `docs/adr/0022-envelope-text-content-duplication.md`)
+ * v2 emits this small fixed marker by default — clients should read
+ * `structuredContent`. Setting `OMNIFOCUS_LEGACY_TEXT_CONTENT=1` restores
+ * v1 behavior for callers that can't migrate yet.
+ *
+ * ADR-0022 commits to this exact string; renaming it is itself breaking.
+ */
+export const PLACEHOLDER_CONTENT_TEXT = "see structuredContent";
+
+/**
+ * Read once at module load — matches the OMNIFOCUS_* flag pattern in
+ * `src/config/env.ts`. Server-start-only by design; the env var does not
+ * re-read between calls.
+ */
+const LEGACY_TEXT_CONTENT = process.env.OMNIFOCUS_LEGACY_TEXT_CONTENT === "1";
+
+/**
  * Wrap a `ToolEnvelope` in the `{ content, structuredContent }` shape the MCP
  * SDK expects from a `registerTool` callback. Every tool returns the same pair:
- * a JSON-serialised `text` block for agents that only parse `content`, and the
+ * a small `text` placeholder for agents that only parse `content`, and the
  * raw envelope under `structuredContent` for clients that use the typed shape.
+ *
+ * **v2.0.0 breaking change** (ADR-0022): `content[].text` no longer duplicates
+ * the envelope JSON. Set `OMNIFOCUS_LEGACY_TEXT_CONTENT=1` to restore the v1
+ * shape. `structuredContent` is unchanged.
  *
  * The `as unknown as Record<string, unknown>` cast bridges the SDK's loose
  * structured-content type with our discriminated `ToolSuccess<T> | ToolError`.
@@ -408,7 +432,12 @@ export function isClarificationNeeded<T>(
  */
 export function toolResponse(envelope: ToolEnvelope<unknown>) {
   return {
-    content: [{ type: "text" as const, text: JSON.stringify(envelope) }],
+    content: [
+      {
+        type: "text" as const,
+        text: LEGACY_TEXT_CONTENT ? JSON.stringify(envelope) : PLACEHOLDER_CONTENT_TEXT,
+      },
+    ],
     structuredContent: envelope as unknown as Record<string, unknown>,
   };
 }

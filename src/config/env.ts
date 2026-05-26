@@ -53,6 +53,16 @@ const envSchema = z.object({
     .string()
     .prefault("")
     .transform((v) => v === "1"),
+  // ADR-0022 / #883 — v2 wire-format escape hatch. When set, `toolResponse()`
+  // restores the v1 behavior of duplicating the full envelope JSON into
+  // `content[].text`. Default v2 behavior emits a fixed placeholder so
+  // `structuredContent` (the canonical typed shape) isn't paid for twice.
+  // The flag is read once at module load in `src/envelope/index.ts`; setting
+  // it after startup has no effect.
+  OMNIFOCUS_LEGACY_TEXT_CONTENT: z
+    .string()
+    .prefault("")
+    .transform((v) => v === "1"),
   OMNIFOCUS_WEBHOOKS_ENABLED: z
     .string()
     .prefault("")
@@ -224,6 +234,7 @@ export function redactConfig(config: Config): Record<string, unknown> {
     OMNIFOCUS_E2E: config.OMNIFOCUS_E2E,
     OMNIFOCUS_E2E_USE_MEMORY: config.OMNIFOCUS_E2E_USE_MEMORY,
     OMNIFOCUS_ALLOW_RAW_SCRIPT: config.OMNIFOCUS_ALLOW_RAW_SCRIPT,
+    OMNIFOCUS_LEGACY_TEXT_CONTENT: config.OMNIFOCUS_LEGACY_TEXT_CONTENT,
     OMNIFOCUS_WEBHOOKS_ENABLED: config.OMNIFOCUS_WEBHOOKS_ENABLED,
     OMNIFOCUS_CACHE_TTL_MS: config.OMNIFOCUS_CACHE_TTL_MS,
     OMNIFOCUS_CACHE_CAPACITY: config.OMNIFOCUS_CACHE_CAPACITY,
