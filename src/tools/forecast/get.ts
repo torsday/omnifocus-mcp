@@ -228,7 +228,39 @@ function resolveRange(input: ForecastGetToolInput): { from: string; to: string; 
 }
 
 /**
- * Group tasks by the calendar day (YYYY-MM-DD) of their `dueDate`.
+ * Day-key extractor for `groupByDate`. Returns the local-time calendar
+ * day for the given ISO instant, in the requested timezone (or the host's
+ * default — which is the user's Mac TZ since the server runs locally per
+ * `docs/dates.md`).
+ *
+ * Slicing the UTC ISO string (the prior implementation) drifted the
+ * bucket by one day whenever the user's wall-clock was a different day
+ * from UTC — e.g. a task due 11pm PT renders as `T06:00:00Z` the next
+ * day in UTC, so the old code bucketed it into the wrong calendar day
+ * from the user's perspective. See #1035 and `docs/dates.md` for the
+ * full TZ contract.
+ *
+ * Exported (not exported from the module index) for tests; production
+ * callers use it indirectly via `groupByDate`.
+ *
+ * @internal
+ */
+export function localDayKey(iso: string, tz?: string): string {
+  // `en-CA` yields `YYYY-MM-DD` from numeric/2-digit options — the format
+  // we already commit to on the wire (and that `task.dueDate.slice(0, 10)`
+  // implicitly produced).
+  const opts: Intl.DateTimeFormatOptions = {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  };
+  if (tz !== undefined) opts.timeZone = tz;
+  return new Intl.DateTimeFormat("en-CA", opts).format(new Date(iso));
+}
+
+/**
+ * Group tasks by the calendar day (YYYY-MM-DD) of their `dueDate`,
+ * keyed by the host-local interpretation of each instant (#1035).
  * Returns task IDs only — full Task objects already appear in the top-level
  * `dueToday` / `overdue` arrays, so repeating them here would duplicate bytes.
  * Tasks without a dueDate are omitted from the grouping.
@@ -237,7 +269,7 @@ function groupByDate(tasks: Task[]): { date: string; taskIds: string[] }[] {
   const map = new Map<string, string[]>();
   for (const task of tasks) {
     if (!task.dueDate) continue;
-    const day = task.dueDate.slice(0, 10); // "YYYY-MM-DD"
+    const day = localDayKey(task.dueDate);
     const bucket = map.get(day) ?? [];
     bucket.push(task.id);
     map.set(day, bucket);
