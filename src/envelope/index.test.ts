@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { NotFound, OmniFocusError, ValidationError } from "../errors/index.js";
 import {
   err,
@@ -6,6 +6,7 @@ import {
   isSuccess,
   ok,
   type Pagination,
+  PLACEHOLDER_CONTENT_TEXT,
   type ResponseMeta,
   type ToolEnvelope,
   type ToolError,
@@ -214,6 +215,50 @@ describe("Warning builders", () => {
     expect(w.code).toBe("WARN_DRY_RUN");
     expect(w.details).toBeUndefined();
     expect(w.suggestion).toBeDefined();
+  });
+});
+
+describe("toolResponse — ADR-0022 v2 wire format", () => {
+  // Module-level env-flag read means we must reset modules and re-import
+  // toolResponse with the desired process.env to exercise both branches.
+  it("emits the fixed placeholder in content[].text by default", async () => {
+    vi.resetModules();
+    const prev = process.env.OMNIFOCUS_LEGACY_TEXT_CONTENT;
+    delete process.env.OMNIFOCUS_LEGACY_TEXT_CONTENT;
+    try {
+      const mod = await import("./index.js");
+      const envelope = mod.ok({ value: 42 }, baseMeta);
+      const result = mod.toolResponse(envelope);
+      expect(result.content).toEqual([{ type: "text", text: "see structuredContent" }]);
+      // structuredContent is untouched — clients with the typed shape see no change.
+      expect(result.structuredContent).toBe(envelope);
+    } finally {
+      if (prev === undefined) delete process.env.OMNIFOCUS_LEGACY_TEXT_CONTENT;
+      else process.env.OMNIFOCUS_LEGACY_TEXT_CONTENT = prev;
+      vi.resetModules();
+    }
+  });
+
+  it("restores v1 JSON.stringify behavior when OMNIFOCUS_LEGACY_TEXT_CONTENT=1", async () => {
+    vi.resetModules();
+    const prev = process.env.OMNIFOCUS_LEGACY_TEXT_CONTENT;
+    process.env.OMNIFOCUS_LEGACY_TEXT_CONTENT = "1";
+    try {
+      const mod = await import("./index.js");
+      const envelope = mod.ok({ value: 42 }, baseMeta);
+      const result = mod.toolResponse(envelope);
+      expect(result.content).toEqual([{ type: "text", text: JSON.stringify(envelope) }]);
+      expect(result.structuredContent).toBe(envelope);
+    } finally {
+      if (prev === undefined) delete process.env.OMNIFOCUS_LEGACY_TEXT_CONTENT;
+      else process.env.OMNIFOCUS_LEGACY_TEXT_CONTENT = prev;
+      vi.resetModules();
+    }
+  });
+
+  it("PLACEHOLDER_CONTENT_TEXT is the documented ADR-0022 string", () => {
+    // ADR-0022 commits to this exact value verbatim; renaming is breaking.
+    expect(PLACEHOLDER_CONTENT_TEXT).toBe("see structuredContent");
   });
 });
 

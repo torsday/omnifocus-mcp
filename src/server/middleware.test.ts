@@ -123,12 +123,19 @@ describe("composeToolCallback", () => {
     const snap = responseStats.snapshot();
     expect(snap.tools.tool_stats?.count).toBe(3);
 
-    // Measurement covers the full SDK result (`content[].text` + `structuredContent`),
-    // not just `structuredContent`. Per ADR-0022, both ship on the wire, so the
-    // recorded `max` must be at least the size of `JSON.stringify(structuredContent)` +
-    // the length of the duplicated text payload — i.e. close to ~2× the typed half.
+    // Measurement covers the full SDK result (`content[].text` + `structuredContent`).
+    // Post-ADR-0022 the middleware re-wraps the inner callback's result via
+    // `toolResponse`, which now emits the small fixed placeholder in
+    // `content[].text` rather than duplicating the envelope JSON. The recorded
+    // `max` is therefore approximately structuredBytes (typed half) plus the
+    // placeholder overhead, not ~2× as in v1. Sanity check: at least the size
+    // of `structuredContent` alone — anything smaller would mean responseStats
+    // failed to capture the structured half.
     const structuredBytes = Buffer.byteLength(JSON.stringify(result.structuredContent), "utf-8");
-    expect(snap.tools.tool_stats?.max).toBeGreaterThanOrEqual(structuredBytes * 2);
+    expect(snap.tools.tool_stats?.max).toBeGreaterThanOrEqual(structuredBytes);
+    // And: strictly less than the v1 ~2× expectation, confirming the
+    // duplication is gone.
+    expect(snap.tools.tool_stats?.max).toBeLessThan(structuredBytes * 2);
   });
 
   it("does not record into responseStats on a thrown handler error", async () => {
