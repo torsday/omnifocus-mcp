@@ -150,10 +150,51 @@ export interface ForecastGetContext {
 }
 
 /**
+ * Compute the UTC instant of midnight on `ymd` (YYYY-MM-DD) in `tz`.
+ *
+ * Strategy: take midnight-UTC of `ymd`, ask `Intl.DateTimeFormat` what
+ * the tz's offset is at that instant, and subtract it. DST-safe because
+ * midnight in any IANA TZ is unambiguous (the spring-forward gap is
+ * at 02:00, never at 00:00).
+ *
+ * @internal
+ */
+export function startOfDayInTz(ymd: string, tz: string): Date {
+  const midnightUtc = new Date(`${ymd}T00:00:00.000Z`);
+  const offsetFmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    timeZoneName: "longOffset",
+  });
+  const offsetPart = offsetFmt.formatToParts(midnightUtc).find((p) => p.type === "timeZoneName");
+  const offsetValue = offsetPart?.value ?? "GMT";
+  // "GMT" (UTC), "GMT-07:00", or "GMT+05:30" — parse the optional ±HH:MM tail.
+  const match = /^GMT(?:([+-])(\d{2}):(\d{2}))?$/.exec(offsetValue);
+  if (!match) {
+    // Defensive: unknown format → no shift (host fallback).
+    return midnightUtc;
+  }
+  if (match[1] === undefined) return midnightUtc; // Plain "GMT"
+  const sign = match[1] === "+" ? 1 : -1;
+  const hours = Number(match[2]);
+  const minutes = Number(match[3]);
+  const offsetMs = sign * (hours * 60 + minutes) * 60 * 1000;
+  return new Date(midnightUtc.getTime() - offsetMs);
+}
+
+/**
  * Resolve a date string (ISO-8601 or relative shortcut) to a JS Date at
  * the start of that local calendar day.
+ *
+ * `tz` overrides the host's TZ for the start-of-day computation — used by
+ * tests that pin the cross-TZ behavior without depending on the runner's
+ * process TZ. Production callers pass no `tz` and the function uses the
+ * host's TZ via `setHours` (= the user's Mac TZ per `docs/dates.md`'s
+ * contract). See #1036 for the audit + tests that exercise the
+ * server-in-UTC + user-in-PT scenario.
+ *
+ * @internal — exported for the `tz` parameter test path.
  */
-function resolveAnchorDate(dateStr: string): Date {
+export function resolveAnchorDate(dateStr: string, tz?: string): Date {
   let iso: string;
   if (isRelativeDateShortcut(dateStr)) {
     iso = resolveRelativeDate(dateStr);
@@ -166,6 +207,18 @@ function resolveAnchorDate(dateStr: string): Date {
         details: { field: "date", value: dateStr },
       },
     );
+  }
+  if (tz !== undefined) {
+    // Get the Y-M-D in tz, then construct the UTC instant of midnight-in-tz
+    // of that day. This is DST-safe (midnight is never inside a DST gap).
+    const ymdFmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const ymd = ymdFmt.format(new Date(iso));
+    return startOfDayInTz(ymd, tz);
   }
   const d = new Date(iso);
   d.setHours(0, 0, 0, 0);
