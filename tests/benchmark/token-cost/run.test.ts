@@ -15,7 +15,9 @@
 import { describe, expect, test } from "vitest";
 import { createBenchContext, measureToolsListOnce, type WorkflowResult } from "./runBench.js";
 import { buildSnapshot, diffSnapshots, formatDrift, readSnapshot } from "./snapshot.js";
+import { runEndOfDayReview } from "./workflows/endOfDayReview.js";
 import { runInboxTriage } from "./workflows/inboxTriage.js";
+import { runLargePagination } from "./workflows/largePagination.js";
 import { runProjectPlanning } from "./workflows/projectPlanning.js";
 import { runWeeklyReview } from "./workflows/weeklyReview.js";
 
@@ -31,7 +33,19 @@ if (!ENABLED) {
       const toolListBytes = measureToolsListOnce();
       const results: WorkflowResult[] = [];
 
-      for (const runner of [runInboxTriage, runWeeklyReview, runProjectPlanning]) {
+      // Keep this list in lockstep with `cli.ts`. Drift between the two has
+      // burned us twice (#1031 / #1032 follow-ups): the vitest gate reads
+      // the shared baseline but only built a subset of the workflows, so
+      // the diff reported newer workflows as "removed (driftPct 100)". A
+      // bench-coverage matrix entry that isn't in this list is silently
+      // missing from CI gate enforcement.
+      for (const runner of [
+        runInboxTriage,
+        runWeeklyReview,
+        runProjectPlanning,
+        runEndOfDayReview,
+        runLargePagination,
+      ]) {
         const bench = await runner(createBenchContext());
         results.push(bench.result(toolListBytes));
       }
