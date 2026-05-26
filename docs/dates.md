@@ -75,24 +75,22 @@ canonical workflows assume this.
 
 ## Known drift inventory
 
-Issues filed during the #833 audit:
+Issues from the #833 audit and their resolution:
 
 - **[#1035](https://github.com/torsday/omnifocus-mcp/issues/1035)** —
-  `forecast_get`'s `byDate[].date` keys are derived via
-  `dueDate.slice(0, 10)`, which yields the **UTC** day. A task due
-  11pm PT on 2026-05-26 buckets into 2026-05-27. The intended bucket
-  is the local-day equivalent (typically the server-local
-  interpretation).
+  `forecast_get`'s `byDate[].date` keys were derived via UTC-day
+  slicing; tasks at 11pm PT bucketed into the wrong calendar day.
+  **Fixed** by `localDayKey(iso, tz?)` in `forecast/get.ts` using
+  `Intl.DateTimeFormat`.
 - **[#1036](https://github.com/torsday/omnifocus-mcp/issues/1036)** —
-  `resolveAnchorDate` (`forecast/get.ts`) calls
-  `d.setHours(0, 0, 0, 0)` which uses the **server-local TZ** to
-  define "start of day." A client in a different TZ from the server
-  gets a different anchor.
+  `resolveAnchorDate` used host-local `setHours` for start-of-day.
+  **Fixed** by `startOfDayInTz(ymd, tz)` + an optional `tz`
+  parameter on `resolveAnchorDate`.
 - **[#1037](https://github.com/torsday/omnifocus-mcp/issues/1037)** —
-  the cross-TZ test matrix described in #833's AC (server-UTC +
-  user-PT, server-PT + user-UTC, DST spring-forward, DST
-  fall-back) is not yet implemented. The drift fixes above need
-  these to land regression-proof.
+  cross-TZ + DST test matrix (server-UTC × user-PT, Tokyo, spring-
+  forward, fall-back). **Landed** in `src/tools/forecast/get.tz.test.ts`
+  with 17 assertions. Future drift in the three helpers above gets
+  caught at the unit-test level.
 
 ## What "correct" looks like
 
