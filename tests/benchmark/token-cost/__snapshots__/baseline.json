@@ -52,6 +52,19 @@
         }
       }
     },
+    "large-pagination": {
+      "callCount": 3,
+      "totalRequestBytes": 324,
+      "totalResponseBytes": 31794,
+      "totalRoundTripBytes": 32118,
+      "totalTokens": 52518,
+      "byTool": {
+        "task_list": {
+          "calls": 3,
+          "responseBytes": 31794
+        }
+      }
+    },
     "project-planning": {
       "callCount": 6,
       "totalRequestBytes": 2609,

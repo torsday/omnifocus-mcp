@@ -19,6 +19,7 @@ import {
 import { estimateTokens } from "./tokenizer.js";
 import { runEndOfDayReview } from "./workflows/endOfDayReview.js";
 import { runInboxTriage } from "./workflows/inboxTriage.js";
+import { runLargePagination } from "./workflows/largePagination.js";
 import { runProjectPlanning } from "./workflows/projectPlanning.js";
 import { runWeeklyReview } from "./workflows/weeklyReview.js";
 
@@ -42,6 +43,7 @@ async function main(): Promise<void> {
     ["weekly-review", runWeeklyReview] as const,
     ["project-planning", runProjectPlanning] as const,
     ["end-of-day-review", runEndOfDayReview] as const,
+    ["large-pagination", runLargePagination] as const,
   ]) {
     const bench = await runner(createBenchContext());
     const result = bench.result(toolListBytes);
