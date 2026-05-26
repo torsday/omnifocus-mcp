@@ -4,8 +4,19 @@
  * Runs every fixture workflow, prints a human-readable per-workflow
  * summary, and either compares against the checked-in baseline (default)
  * or rewrites it (`--update`). Exits non-zero on drift ≥ 5%.
+ *
+ * **`--smoke-5k`** (#1030): pre-seed the bench adapter with the large
+ * fixture (≥ 5000 tasks / 50 projects / 20 tags) before running each
+ * workflow. Prints per-workflow wall-time so humans can eyeball
+ * regressions at scale. Does NOT compare against the byte-cost
+ * baseline (the seed dwarfs every workflow's per-call traffic). CI
+ * auto-budget enforcement is intentionally deferred — see #1030's
+ * close-out for the flake-resistance follow-up.
  */
 
+import { performance } from "node:perf_hooks";
+
+import { seedLargeFixture } from "./fixtures/large.js";
 import { createBenchContext, measureToolsListOnce, type WorkflowResult } from "./runBench.js";
 import {
   buildSnapshot,
@@ -34,18 +45,43 @@ function pad(label: string, w: number): string {
 
 async function main(): Promise<void> {
   const update = process.argv.includes("--update");
+  const smoke5k = process.argv.includes("--smoke-5k");
 
   const toolListBytes = measureToolsListOnce();
   const results: WorkflowResult[] = [];
 
-  for (const [label, runner] of [
+  // `large-pagination` makes a hard assertion about exact page count
+  // (= 3) against the workflow's own 120-task seed. The 5k smoke seed
+  // would bust that gate — the workflow tests *pagination invariants*,
+  // not scale behavior, so skip it from smoke mode. The rest of the
+  // workflows degrade gracefully (no per-page-count assertions) and
+  // produce meaningful wall-times under the seeded surface.
+  const workflows = [
     ["inbox-triage", runInboxTriage] as const,
     ["weekly-review", runWeeklyReview] as const,
     ["project-planning", runProjectPlanning] as const,
     ["end-of-day-review", runEndOfDayReview] as const,
     ["large-pagination", runLargePagination] as const,
-  ]) {
-    const bench = await runner(createBenchContext());
+  ];
+  const activeWorkflows = smoke5k
+    ? workflows.filter(([label]) => label !== "large-pagination")
+    : workflows;
+
+  for (const [label, runner] of activeWorkflows) {
+    const ctx = createBenchContext();
+    let seedDurationMs = 0;
+    if (smoke5k) {
+      const t0 = performance.now();
+      const seed = await seedLargeFixture(ctx);
+      seedDurationMs = performance.now() - t0;
+      // biome-ignore lint/suspicious/noConsole: intentional CLI output
+      console.log(
+        `\n[smoke-5k seed] ${seed.tasks} tasks / ${seed.projects} projects / ${seed.tags} tags in ${seedDurationMs.toFixed(0)} ms`,
+      );
+    }
+    const t0 = performance.now();
+    const bench = await runner(ctx);
+    const workflowMs = performance.now() - t0;
     const result = bench.result(toolListBytes);
     results.push(result);
     // biome-ignore lint/suspicious/noConsole: intentional CLI output
@@ -56,7 +92,8 @@ async function main(): Promise<void> {
         `req: ${fmtBytes(result.totalRequestBytes)}  ` +
         `res: ${fmtBytes(result.totalResponseBytes)}  ` +
         `total: ${fmtBytes(result.totalRoundTripBytes)}  ` +
-        `tokens: ${result.totalTokens}`,
+        `tokens: ${result.totalTokens}` +
+        (smoke5k ? `  wall=${workflowMs.toFixed(0)}ms` : ""),
     );
     for (const tool of Object.keys(result.byTool).sort()) {
       const slot = result.byTool[tool]!;
@@ -69,6 +106,17 @@ async function main(): Promise<void> {
   console.log(
     `\ntools/list payload: ${fmtBytes(toolListBytes)} (~${estimateTokens(toolListBytes)} tokens)`,
   );
+
+  if (smoke5k) {
+    // Smoke mode is observational. Don't compare against the byte-cost
+    // baseline (the 5k seed dwarfs each workflow's own per-call traffic
+    // and would always read as drift). The wall-time numbers above are
+    // for human inspection until CI gate design lands (see #1030
+    // close-out follow-up).
+    // biome-ignore lint/suspicious/noConsole: intentional CLI output
+    console.log("\n[smoke-5k] observational mode — no baseline comparison, no CI gate yet.");
+    return;
+  }
 
   const current = buildSnapshot(results);
 
