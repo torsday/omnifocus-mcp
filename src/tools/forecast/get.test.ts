@@ -6,7 +6,12 @@ import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { ForecastService } from "../../services/forecastService.js";
-import { FORECAST_GET_DESCRIPTION, forecastGetInputSchema, handleForecastGet } from "./get.js";
+import {
+  FORECAST_GET_DESCRIPTION,
+  forecastGetInputSchema,
+  handleForecastGet,
+  localDayKey,
+} from "./get.js";
 
 const FROM = "2026-04-23T00:00:00.000Z";
 const TO = "2026-04-23T23:59:59.999Z";
@@ -419,5 +424,42 @@ describe("forecast_get — pagination", () => {
     // biome-ignore lint/style/noNonNullAssertion: days>1 guarantees byDate present
     const byDateIds = envelope.data.byDate!.flatMap((b) => b.taskIds);
     expect(byDateIds.every((id) => pageIds.has(id))).toBe(true);
+  });
+});
+
+describe("forecast_get — byDate local-day bucketing (#1035)", () => {
+  // The bug pre-fix: `dueDate.slice(0, 10)` returned the UTC day, so a
+  // task due 11pm PT (= 06:00 UTC the next day) bucketed into the
+  // following calendar day from the user's perspective. localDayKey
+  // now formats via Intl with an explicit TZ, so tests can pin the
+  // expected bucket without depending on the host runner's TZ.
+
+  it("11pm PT (06:00 UTC next day) buckets into the PT calendar day", () => {
+    // 2026-05-27T06:00:00Z is 2026-05-26T23:00:00-07:00.
+    const iso = "2026-05-27T06:00:00.000Z";
+    expect(localDayKey(iso, "America/Los_Angeles")).toBe("2026-05-26");
+  });
+
+  it("same instant buckets into the UTC calendar day under tz=UTC", () => {
+    const iso = "2026-05-27T06:00:00.000Z";
+    expect(localDayKey(iso, "UTC")).toBe("2026-05-27");
+  });
+
+  it("midnight UTC buckets into the prior day under PT", () => {
+    // 2026-05-27T00:00:00Z is 2026-05-26T17:00:00-07:00.
+    const iso = "2026-05-27T00:00:00.000Z";
+    expect(localDayKey(iso, "America/Los_Angeles")).toBe("2026-05-26");
+  });
+
+  it("emits YYYY-MM-DD with zero-padded month and day", () => {
+    // 2026-01-05 in UTC at noon.
+    expect(localDayKey("2026-01-05T12:00:00.000Z", "UTC")).toBe("2026-01-05");
+  });
+
+  it("crossing DST (US fall-back) still produces a stable local day", () => {
+    // 2026-11-01T07:30:00Z. US DST ends Nov 1, 02:00 local → 01:00 PST.
+    // The instant is 00:30 PDT (or 23:30 PST after the rollback). Either
+    // way the local calendar day is 2026-11-01.
+    expect(localDayKey("2026-11-01T07:30:00.000Z", "America/Los_Angeles")).toBe("2026-11-01");
   });
 });
