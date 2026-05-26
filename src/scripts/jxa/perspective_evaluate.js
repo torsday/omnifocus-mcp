@@ -15,13 +15,16 @@
  * `forecast_get.js` 25× speedup pattern. Try/catch fallback to the
  * full-scan keeps results correct on whose() rejection.
  *
- * The `projects` and `tags` branches still scan `flattenedTasks()` because
- * their predicates ("has a containingProject" / "has at least one tag")
- * don't translate to whose() — OF's whose() rejects `_isnt: null`
- * (documented in `forecast_get.js`'s comment block) and there's no clean
- * cardinality predicate. Source-collection rethink (e.g. iterating
- * `flattenedProjects()` per project, or `flattenedTags().tasks()` per
- * tag) is tracked separately — see #894's follow-up.
+ * The `projects` and `tags` branches use a **source-collection** rethink
+ * (#899) — `containingProject !== null` and `tagCount > 0` aren't
+ * expressible in OF's `whose()` (rejects `_isnt: null` and has no clean
+ * cardinality predicate), but the same semantics fall out of iterating
+ * `flattenedProjects()` (every task in a project has a containing
+ * project by definition) and `flattenedTags()` (every task in a tag's
+ * `.tasks()` collection has at least one tag). Inbox tasks and untagged
+ * tasks are therefore never iterated. Both branches still apply a
+ * post-loop guard for completed/dropped as a safety net mirroring the
+ * `changes_since` / `task_list` slices.
  *
  * @see src/adapter/jxa/JxaTransport.ts — caller
  * @see src/domain/task.ts — Task domain type
@@ -44,15 +47,25 @@ function run(argv) {
 
     // @inline _helpers/build_task.js
 
-    // whose() pushdown helper — try the predicate, fall back to a full
-    // scan on rejection so the post-loop guard still produces correct
-    // results.
-    /** @param {Record<string, unknown>} predicate — sdef-attribute predicate object */
-    function tasksMatching(predicate) {
+    // whose() pushdown helper — apply the predicate to the given source
+    // collection (`ofApp.defaultDocument.flattenedTasks`, a project's
+    // `flattenedTasks`, a tag's `tasks`, etc.). Try whose() first; on
+    // rejection, fall back to the bare source so the post-loop guard
+    // still produces correct results.
+    /**
+     * @param {{ whose?: (p: Record<string, unknown>) => () => unknown[] } & (() => unknown[])} source
+     * @param {Record<string, unknown>} predicate
+     * @returns {unknown[]}
+     */
+    function tasksMatching(source, predicate) {
       try {
-        return ofApp.defaultDocument.flattenedTasks.whose(predicate)();
+        return source.whose(predicate)();
       } catch (_e) {
-        return ofApp.flattenedTasks();
+        try {
+          return source();
+        } catch (_e2) {
+          return [];
+        }
       }
     }
 
@@ -67,7 +80,11 @@ function run(argv) {
     } else if (perspectiveId === "flagged") {
       // Flagged: flagged tasks that are not completed/dropped — pushed into
       // whose() so the long tail of unflagged tasks is never iterated.
-      const matches = tasksMatching({ flagged: true, completed: false, dropped: false });
+      const matches = tasksMatching(ofApp.defaultDocument.flattenedTasks, {
+        flagged: true,
+        completed: false,
+        dropped: false,
+      });
       for (let i = 0; i < matches.length; i++) {
         const t = matches[i];
         const built = buildTask(t);
@@ -82,7 +99,7 @@ function run(argv) {
       // The dueDate predicate naturally excludes tasks with no dueDate.
       const now = new Date();
       const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-      const matches = tasksMatching({
+      const matches = tasksMatching(ofApp.defaultDocument.flattenedTasks, {
         completed: false,
         dropped: false,
         dueDate: { _lessThanEquals: endOfDay },
@@ -98,27 +115,43 @@ function run(argv) {
         }
       }
     } else if (perspectiveId === "projects") {
-      // Projects: top-level tasks of active projects (not completed/dropped).
-      // No clean whose() predicate — `containingProject` is not nullable
-      // through OF's whose() (rejects _isnt: null). Stays a full scan;
-      // see #894's follow-up for source-collection rethink.
-      const allTasks = ofApp.flattenedTasks();
-      for (let i = 0; i < allTasks.length; i++) {
-        const t = allTasks[i];
-        const built = buildTask(t);
-        if (built.projectId !== null && !built.completed && !built.dropped) {
-          result.push(built);
+      // Projects: tasks under any project, not completed/dropped (#899).
+      // Source-narrow to `flattenedProjects()` then iterate each project's
+      // `flattenedTasks` with whose() pushdown. Inbox tasks live on
+      // `doc.inboxTasks` (never on any project's flattenedTasks) so they
+      // are naturally excluded from this branch — the old full-scan
+      // filtered them via `built.projectId !== null`, the new path
+      // achieves the same semantics by source choice. Post-loop guard
+      // keeps `completed`/`dropped` correct when whose() falls back.
+      const projects = ofApp.defaultDocument.flattenedProjects();
+      for (let p = 0; p < projects.length; p++) {
+        const matches = tasksMatching(projects[p].flattenedTasks, {
+          completed: false,
+          dropped: false,
+        });
+        for (let i = 0; i < matches.length; i++) {
+          const built = buildTask(matches[i]);
+          if (!built.completed && !built.dropped) {
+            result.push(built);
+          }
         }
       }
     } else if (perspectiveId === "tags") {
-      // Tags: tasks that have at least one tag and are not completed/dropped.
-      // Same constraint as `projects` — no clean cardinality predicate via
-      // whose(). Stays a full scan; see #894's follow-up.
-      const allTasks = ofApp.flattenedTasks();
-      for (let i = 0; i < allTasks.length; i++) {
-        const t = allTasks[i];
-        const built = buildTask(t);
-        if (built.tagIds.length > 0 && !built.completed && !built.dropped) {
+      // Tags: tasks with ≥ 1 tag, not completed/dropped (#899). Source-narrow
+      // to `flattenedTags()`, then per-tag iterate `tag.tasks` with whose()
+      // pushdown. A task with N tags appears in N tag collections — dedupe
+      // by id via a Set before emitting. Untagged tasks never appear in
+      // any tag's `.tasks()` collection so the old "tagIds.length > 0"
+      // post-filter is now structural.
+      const tags = ofApp.defaultDocument.flattenedTags();
+      const seen = {};
+      for (let g = 0; g < tags.length; g++) {
+        const matches = tasksMatching(tags[g].tasks, { completed: false, dropped: false });
+        for (let i = 0; i < matches.length; i++) {
+          const built = buildTask(matches[i]);
+          if (built.completed || built.dropped) continue;
+          if (seen[built.id]) continue;
+          seen[built.id] = true;
           result.push(built);
         }
       }

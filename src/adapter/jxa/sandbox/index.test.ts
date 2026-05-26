@@ -3043,6 +3043,128 @@ describe("JXA sandbox — perspective_evaluate", () => {
     expect(result.tasks.map((t) => t.id)).toEqual(["task_active"]);
   });
 
+  // -------------------------------------------------------------------------
+  // Source-narrowed projects/tags branches (#899)
+  //
+  // `projects` iterates `flattenedProjects()` then each project's flattened
+  // tasks — inbox tasks (which live on `doc.inboxTasks`, not on any
+  // project's collection) are never iterated. `tags` iterates
+  // `flattenedTags()` then each tag's `.tasks()` — untagged tasks are
+  // never iterated, and a task in multiple tags is deduped by id.
+  // -------------------------------------------------------------------------
+
+  it("'projects' returns tasks under projects; inbox tasks are never iterated", () => {
+    let inboxNameCalls = 0;
+    const inboxTask = fakeTask({
+      id: () => "task_inbox",
+      name: () => {
+        inboxNameCalls++;
+        return "inbox-task";
+      },
+    });
+    const projectTask = fakeTask({
+      id: () => "task_in_project",
+      completed: () => false,
+      dropped: () => false,
+    });
+    const proj = fakeProject({
+      id: () => "proj_a",
+      flattenedTasks: () => [projectTask],
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      perspectiveEvaluateScript,
+      { perspectiveId: "projects" },
+      { projects: [proj], inboxTasks: [inboxTask] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["task_in_project"]);
+    // Inbox task is never reached by the projects branch — buildTask never
+    // read its name. This is the structural source-narrowing guarantee.
+    expect(inboxNameCalls).toBe(0);
+  });
+
+  it("'projects' excludes completed/dropped tasks via the post-loop guard", () => {
+    const active = fakeTask({ id: () => "active", completed: () => false, dropped: () => false });
+    const completed = fakeTask({
+      id: () => "completed",
+      completed: () => true,
+      dropped: () => false,
+    });
+    const dropped = fakeTask({
+      id: () => "dropped",
+      completed: () => false,
+      dropped: () => true,
+    });
+    const proj = fakeProject({
+      id: () => "proj_a",
+      flattenedTasks: () => [active, completed, dropped],
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      perspectiveEvaluateScript,
+      { perspectiveId: "projects" },
+      { projects: [proj] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["active"]);
+  });
+
+  it("'tags' returns tasks under tags; untagged tasks are never iterated", () => {
+    let untaggedNameCalls = 0;
+    const untagged = fakeTask({
+      id: () => "task_untagged",
+      name: () => {
+        untaggedNameCalls++;
+        return "untagged";
+      },
+    });
+    const taggedTask = fakeTask({
+      id: () => "task_tagged",
+      completed: () => false,
+      dropped: () => false,
+    });
+    const tag = fakeTag({
+      id: () => "tag_a",
+      tasks: () => [taggedTask],
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      perspectiveEvaluateScript,
+      { perspectiveId: "tags" },
+      { tags: [tag], tasks: [untagged] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["task_tagged"]);
+    expect(untaggedNameCalls).toBe(0);
+  });
+
+  it("'tags' dedupes a task that appears under multiple tags", () => {
+    const shared = fakeTask({
+      id: () => "task_shared",
+      completed: () => false,
+      dropped: () => false,
+    });
+    const work = fakeTag({ id: () => "tag_work", tasks: () => [shared] });
+    const home = fakeTag({ id: () => "tag_home", tasks: () => [shared] });
+    const result = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      perspectiveEvaluateScript,
+      { perspectiveId: "tags" },
+      { tags: [work, home] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["task_shared"]);
+  });
+
+  it("'tags' excludes completed/dropped tasks via the post-loop guard", () => {
+    const active = fakeTask({ id: () => "active", completed: () => false, dropped: () => false });
+    const completed = fakeTask({
+      id: () => "completed",
+      completed: () => true,
+      dropped: () => false,
+    });
+    const tag = fakeTag({ id: () => "tag_a", tasks: () => [active, completed] });
+    const result = runJxaScriptInSandbox<{ tasks: { id: string }[] }>(
+      perspectiveEvaluateScript,
+      { perspectiveId: "tags" },
+      { tags: [tag] },
+    );
+    expect(result.tasks.map((t) => t.id)).toEqual(["active"]);
+  });
+
   it("'forecast' pushes dueDate <= endOfDay into whose() — future tasks aren't iterated", () => {
     let futureNameCalls = 0;
     const future = fakeTask({
