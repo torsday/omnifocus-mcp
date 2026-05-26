@@ -11,6 +11,8 @@ import {
   forecastGetInputSchema,
   handleForecastGet,
   localDayKey,
+  resolveAnchorDate,
+  startOfDayInTz,
 } from "./get.js";
 
 const FROM = "2026-04-23T00:00:00.000Z";
@@ -461,5 +463,73 @@ describe("forecast_get — byDate local-day bucketing (#1035)", () => {
     // The instant is 00:30 PDT (or 23:30 PST after the rollback). Either
     // way the local calendar day is 2026-11-01.
     expect(localDayKey("2026-11-01T07:30:00.000Z", "America/Los_Angeles")).toBe("2026-11-01");
+  });
+});
+
+describe("forecast_get — resolveAnchorDate TZ-aware start of day (#1036)", () => {
+  // The bug pre-fix: `resolveAnchorDate` used `d.setHours(0,0,0,0)` which
+  // computes midnight in the host runtime's TZ. If the server runs in UTC
+  // but the user is in PT, "today" anchored from a UTC host produces a
+  // start-of-day at 00:00 UTC — which is 5pm the previous afternoon PT.
+  //
+  // The fix introduces an optional `tz` parameter that wires through to a
+  // TZ-aware `startOfDayInTz`. Tests pin the cross-TZ behavior without
+  // depending on the runner's process TZ.
+
+  it("startOfDayInTz: midnight in PT (DST: PDT) is 7am UTC", () => {
+    expect(startOfDayInTz("2026-05-26", "America/Los_Angeles").toISOString()).toBe(
+      "2026-05-26T07:00:00.000Z",
+    );
+  });
+
+  it("startOfDayInTz: midnight in PT (standard: PST) is 8am UTC", () => {
+    // Pre-DST: Jan 5, 2026 — PT is PST (UTC-8).
+    expect(startOfDayInTz("2026-01-05", "America/Los_Angeles").toISOString()).toBe(
+      "2026-01-05T08:00:00.000Z",
+    );
+  });
+
+  it("startOfDayInTz: midnight in UTC is itself", () => {
+    expect(startOfDayInTz("2026-05-26", "UTC").toISOString()).toBe("2026-05-26T00:00:00.000Z");
+  });
+
+  it("startOfDayInTz: positive-offset TZ (Asia/Tokyo, UTC+9) is the prior day at 15:00 UTC", () => {
+    expect(startOfDayInTz("2026-05-26", "Asia/Tokyo").toISOString()).toBe(
+      "2026-05-25T15:00:00.000Z",
+    );
+  });
+
+  it("startOfDayInTz: spring-forward day still anchors at midnight (gap is at 02:00)", () => {
+    // US DST starts 2026-03-08; clocks jump 02:00 → 03:00. Midnight is
+    // unambiguous (still PST that night = UTC-8).
+    expect(startOfDayInTz("2026-03-08", "America/Los_Angeles").toISOString()).toBe(
+      "2026-03-08T08:00:00.000Z",
+    );
+  });
+
+  it("resolveAnchorDate(iso, tz='America/Los_Angeles') anchors to midnight PT, not host", () => {
+    // Regardless of where the host process is, requesting tz=PT for an
+    // instant during 2026-05-26 PT should produce 2026-05-26T00:00 PT =
+    // 07:00 UTC (PDT). Use an ISO with a PT offset so the anchor's
+    // calendar-day input is clearly the 26th in PT.
+    expect(
+      resolveAnchorDate("2026-05-26T12:00:00-07:00", "America/Los_Angeles").toISOString(),
+    ).toBe("2026-05-26T07:00:00.000Z");
+  });
+
+  it("resolveAnchorDate(iso, tz='UTC') anchors to UTC midnight regardless of host", () => {
+    expect(resolveAnchorDate("2026-05-26T12:00:00Z", "UTC").toISOString()).toBe(
+      "2026-05-26T00:00:00.000Z",
+    );
+  });
+
+  it("resolveAnchorDate without tz preserves host-local behavior (back-compat)", () => {
+    // Without `tz`, the function is unchanged from the pre-#1036 shape.
+    // We can't pin a specific UTC instant without knowing the host TZ —
+    // assert structural property: hour 0 in host TZ.
+    const d = resolveAnchorDate("2026-05-26T12:00:00Z");
+    expect(d.getHours()).toBe(0);
+    expect(d.getMinutes()).toBe(0);
+    expect(d.getSeconds()).toBe(0);
   });
 });
