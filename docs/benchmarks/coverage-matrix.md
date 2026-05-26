@@ -46,21 +46,38 @@ that no workflow exercises are listed in the gap section below.
 
 ## Status as of this audit
 
-After [#831](https://github.com/torsday/omnifocus-mcp/issues/831) and
-[#1029](https://github.com/torsday/omnifocus-mcp/issues/1029), the
-five categorical gaps the audit identified — search, forecast,
-perspective, list-paginated, and the originally-undocumented
-list-paginated cursor walk — are all covered:
+After [#831](https://github.com/torsday/omnifocus-mcp/issues/831),
+[#1029](https://github.com/torsday/omnifocus-mcp/issues/1029), and
+[#1030](https://github.com/torsday/omnifocus-mcp/issues/1030):
 
 - `end-of-day-review` covers **search**, **forecast**, **perspective**.
 - `large-pagination` covers **list paginated** (3-page walk via
   `task_list { limit: 50, cursor }` against a 120-task fixture).
+- A **5k-fixture smoke runner** seeds the bench's in-memory adapter
+  with ≥ 5000 tasks / 50 projects / 20 tags, then runs each
+  workflow once and prints per-workflow wall-time. Invoke via
+  `pnpm bench:tokens --smoke-5k`. `large-pagination` is excluded
+  from smoke mode (its 3-page assertion can't survive the seeded
+  surface).
 
-One AC item remains tracked as a follow-up:
+## 5k smoke runner — how to use
 
-- **5k+ task fixture smoke** ([#1030](https://github.com/torsday/omnifocus-mcp/issues/1030))
-  — depends on the `OMNIFOCUS_E2E_USE_MEMORY` adapter plus a
-  fixture-seeding harness.
+```bash
+pnpm bench:tokens --smoke-5k
+```
+
+Output is per-workflow: `wall=<ms>` next to the byte counts. Use to
+eyeball perf regressions at scale before a release. No CI gate yet
+— wall-time noise on shared CI runners needs a stability study
+first; tracked as a follow-up below.
+
+### Deferred from #1030
+
+- **CI auto-budget gate**: AC item 2 from #1030 (fail CI if any
+  workflow exceeds 2× empty-fixture baseline) is intentionally
+  deferred. A wall-time gate that triggers on CI flake would burn
+  more cycles than it saves; the gate design needs a stability
+  dataset before flipping. Tracked separately.
 
 ## How a new workflow earns its place
 
