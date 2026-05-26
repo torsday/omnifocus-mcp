@@ -53,7 +53,12 @@ function run(argv) {
     // rejection, fall back to the bare source so the post-loop guard
     // still produces correct results.
     /**
-     * @param {{ whose?: (p: Record<string, unknown>) => () => unknown[] } & (() => unknown[])} source
+     * @param {any} source — a JXA element collection (callable returning the
+     *   array; also exposes `.whose(predicate)` and other element verbs).
+     *   Typed `any` because the OF runtime shape (callable + property
+     *   accessor + whose() method) doesn't model cleanly as a JSDoc
+     *   intersection without forcing every call site through a guard.
+     *   The try/catch fallback below absorbs any shape mismatch.
      * @param {Record<string, unknown>} predicate
      * @returns {unknown[]}
      */
@@ -144,6 +149,7 @@ function run(argv) {
       // any tag's `.tasks()` collection so the old "tagIds.length > 0"
       // post-filter is now structural.
       const tags = ofApp.defaultDocument.flattenedTags();
+      /** @type {Record<string, boolean>} */
       const seen = {};
       for (let g = 0; g < tags.length; g++) {
         const matches = tasksMatching(tags[g].tasks, { completed: false, dropped: false });
