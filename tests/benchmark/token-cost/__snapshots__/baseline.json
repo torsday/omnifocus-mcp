@@ -2,6 +2,27 @@
   "generatedAt": "2026-05-26",
   "toolListBytes": 177953,
   "workflows": {
+    "end-of-day-review": {
+      "callCount": 3,
+      "totalRequestBytes": 154,
+      "totalResponseBytes": 30076,
+      "totalRoundTripBytes": 30230,
+      "totalTokens": 52046,
+      "byTool": {
+        "forecast_get": {
+          "calls": 1,
+          "responseBytes": 10180
+        },
+        "perspective_evaluate": {
+          "calls": 1,
+          "responseBytes": 7548
+        },
+        "task_search": {
+          "calls": 1,
+          "responseBytes": 12348
+        }
+      }
+    },
     "inbox-triage": {
       "callCount": 6,
       "totalRequestBytes": 29603,

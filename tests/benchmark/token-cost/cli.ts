@@ -17,6 +17,7 @@ import {
   writeSnapshot,
 } from "./snapshot.js";
 import { estimateTokens } from "./tokenizer.js";
+import { runEndOfDayReview } from "./workflows/endOfDayReview.js";
 import { runInboxTriage } from "./workflows/inboxTriage.js";
 import { runProjectPlanning } from "./workflows/projectPlanning.js";
 import { runWeeklyReview } from "./workflows/weeklyReview.js";
@@ -40,6 +41,7 @@ async function main(): Promise<void> {
     ["inbox-triage", runInboxTriage] as const,
     ["weekly-review", runWeeklyReview] as const,
     ["project-planning", runProjectPlanning] as const,
+    ["end-of-day-review", runEndOfDayReview] as const,
   ]) {
     const bench = await runner(createBenchContext());
     const result = bench.result(toolListBytes);
