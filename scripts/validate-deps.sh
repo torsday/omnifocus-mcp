@@ -34,7 +34,7 @@ trap 'rm -f "$TABLE"' EXIT
 
 echo "==> Fetching all issues (open + closed) from $REPO" >&2
 # TSV: number \t state \t space-separated-blockers
-gh issue list --repo "$REPO" --state all --limit 500 \
+gh issue list --repo "$REPO" --state all --limit 2000 \
   --json number,state,body \
   --jq '.[] | [
     (.number|tostring),
