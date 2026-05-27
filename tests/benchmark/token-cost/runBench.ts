@@ -25,6 +25,7 @@
  */
 
 import { InMemoryAdapter } from "../../../src/adapter/inMemory/InMemoryAdapter.js";
+import type { OmniFocusAdapter } from "../../../src/adapter/OmniFocusAdapter.js";
 import { OmniFocusLruCache } from "../../../src/cache/lruCache.js";
 import type { ResponseMeta } from "../../../src/envelope/index.js";
 import { isError, type ToolEnvelope, toolResponse } from "../../../src/envelope/index.js";
@@ -74,7 +75,14 @@ export interface WorkflowResult {
  * specific shape each call needs.
  */
 export interface BenchToolContext {
-  adapter: InMemoryAdapter;
+  /**
+   * The adapter the workflow drives. Token-cost uses {@link InMemoryAdapter};
+   * the latency harness (#941) passes a real {@link TransportRouter} backed
+   * by `JxaTransport` + `OmniJsTransport`. Widened to `OmniFocusAdapter` so
+   * workflow definitions can be imported by both harnesses (transport-
+   * agnostic per the harness contract).
+   */
+  adapter: OmniFocusAdapter;
   cache: OmniFocusLruCache;
   taskService: TaskService;
   projectService: ProjectService;

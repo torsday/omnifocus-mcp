@@ -1,0 +1,78 @@
+name: Latency benchmark
+
+# Per-PR latency scorecard (#941). Runs the latency benchmark suite against
+# the checked-in baseline; fails on ≥ 15% drift in any tracked field.
+#
+# **Non-required** until baseline stability is established. See
+# `tests/benchmark/latency/README.md` § "CI promotion path" for the
+# promotion criteria. Until then this job exits 0 on drift so PRs are not
+# blocked — the drift is recorded in the job summary for reviewer visibility.
+#
+# Unlike token-cost-bench, there is no `bench: regression-allowed` label
+# gate yet: the job is not required, so allowlisting individual PRs has no
+# meaning at this stage. Re-introduce the gate when promoting to required.
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/benchmark/latency/**"
+      - "tests/benchmark/token-cost/workflows/**"
+      - ".github/workflows/latency-bench.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+  push:
+    branches: [main]
+  merge_group:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: latency-bench-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bench:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, macos]
+    timeout-minutes: 20
+    name: latency bench
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run latency benchmark
+        id: bench
+        run: |
+          set +e
+          pnpm test:bench:latency
+          status=$?
+          set -e
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      # Non-required — always exit 0, even on drift. Drift goes to the
+      # job summary so reviewers can eyeball it. Flip this to a hard
+      # fail once the baseline has stabilized; see README § promotion path.
+      - name: Apply non-required gate
+        env:
+          STATUS: ${{ steps.bench.outputs.status }}
+        run: |
+          {
+            echo "## Latency benchmark"
+            echo ""
+            if [ "$STATUS" = "0" ]; then
+              echo "✅ No drift beyond the 15% threshold."
+            else
+              echo "🟡 **Drift detected.** Bench is non-required; PR is not blocked. The drift breakdown is in the step log above."
+              echo ""
+              echo "If this PR is meant to change latency (e.g. #882-class work), re-baseline via \`pnpm bench:latency --update\` and include the diff."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
