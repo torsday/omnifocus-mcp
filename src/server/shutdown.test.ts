@@ -159,3 +159,64 @@ describe("ShutdownController.registerQueue", () => {
     // No assertion needed beyond "doesn't throw"; coverage verifies the branch.
   });
 });
+
+// ---------------------------------------------------------------------------
+// registerCleanup (#839)
+// ---------------------------------------------------------------------------
+
+describe("ShutdownController.registerCleanup", () => {
+  it("runs cleanup hooks before exit", async () => {
+    const ctrl = makeController();
+    const ran: string[] = [];
+    ctrl.registerCleanup("a", () => {
+      ran.push("a");
+    });
+    ctrl.registerCleanup("b", async () => {
+      ran.push("b");
+    });
+    const exitFn = vi.fn();
+    await ctrl.initiate("test", exitFn);
+    expect(ran).toEqual(["a", "b"]); // sequential, in registration order
+    expect(exitFn).toHaveBeenCalledWith(0);
+  });
+
+  it("runs cleanups only after queues have drained", async () => {
+    const ctrl = new ShutdownController({ readGraceMs: 300, writeGraceMs: 300 });
+    const queue = makeQueue("read-pool", 1);
+    ctrl.registerQueue(queue);
+    let pendingWhenCleanupRan = -1;
+    ctrl.registerCleanup("snapshot", () => {
+      pendingWhenCleanupRan = queue.pendingCount();
+    });
+    setTimeout(() => queue.setPending(0), 50);
+    const exitFn = vi.fn();
+    await ctrl.initiate("test", exitFn);
+    expect(pendingWhenCleanupRan).toBe(0); // drain completed first
+    expect(exitFn).toHaveBeenCalledWith(0);
+  });
+
+  it("continues and still exits when a cleanup hook throws", async () => {
+    const ctrl = makeController();
+    const ran: string[] = [];
+    ctrl.registerCleanup("boom", () => {
+      throw new Error("cleanup failed");
+    });
+    ctrl.registerCleanup("after", () => {
+      ran.push("after");
+    });
+    const exitFn = vi.fn();
+    await ctrl.initiate("test", exitFn);
+    expect(ran).toEqual(["after"]); // later hook still ran
+    expect(exitFn).toHaveBeenCalledWith(0); // and we still exit cleanly
+  });
+
+  it("swallows a rejected async cleanup hook", async () => {
+    const ctrl = makeController();
+    ctrl.registerCleanup("reject", async () => {
+      throw new Error("async cleanup failed");
+    });
+    const exitFn = vi.fn();
+    await expect(ctrl.initiate("test", exitFn)).resolves.toBeUndefined();
+    expect(exitFn).toHaveBeenCalledWith(0);
+  });
+});

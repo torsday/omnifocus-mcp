@@ -47,8 +47,36 @@ On first successful JXA call, the adapter caches `{ ofVersion, ofEdition }` via 
   1. Stop accepting new tool calls (MCP server rejects with `ServerShuttingDown`)
   2. Drain in-flight reads (grace window: 5s)
   3. Wait for write queue to drain (grace window: 10s)
-  4. Close logger; flush stderr
-  5. Exit 0
+  4. Run cleanup hooks — kill any `osascript` child still in flight (see below)
+  5. Close logger; flush stderr
+  6. Exit 0
 - Unhandled exception:
   - Log at `fatal`
   - Exit 1 (the client will reconnect on its own; partial state in OF is OF's concern)
+
+Grace windows are configurable via `OMNIFOCUS_READ_GRACE_MS` / `OMNIFOCUS_WRITE_GRACE_MS`.
+The controller is `src/server/shutdown.ts`; signal handlers and hook registration
+are wired in `src/server/mcpServer.ts`.
+
+#### Orphan-process cleanup (#839)
+
+Both script runners spawn `osascript` via `child_process.execFile`. Each child
+holds the OmniFocus database open while it runs, so a child orphaned at exit
+keeps OF locked and the *next* server start can't read or write until the orphan
+finally times out. To prevent that, every spawned child is registered in
+`src/adapter/_shared/childRegistry.ts`; the shutdown controller's
+`osascript-children` cleanup hook runs **after** the drain window and terminates
+any survivor — `SIGTERM` first, then `SIGKILL` after a 2s grace
+(`DEFAULT_CHILD_KILL_GRACE_MS`). A clean drain leaves the registry empty, so the
+hook is a no-op in the common case. The `DatabaseWatcher` Swift child is killed
+separately on `process` `exit` and `stop()`.
+
+#### Audit findings (what is *not* leaked)
+
+- **Idempotency store** (`src/server/idempotencyStore.ts`) and **read cache**
+  (`src/cache/lruCache.ts`) are both purely in-memory (`Map`-backed). There is no
+  on-disk state, so there is nothing to flush and no "half-written" corruption
+  risk on exit — the drain already lets in-flight writes complete before the
+  process ends. No flush step is needed.
+- **Telemetry sink flush** is deferred until the opt-in JSONL sink (#823) exists;
+  when it lands it should register its own cleanup hook via `registerCleanup`.

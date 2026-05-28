@@ -31,6 +31,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 // `resolveJsonModule` in tsconfig and tsup's bundler both inline the JSON,
 // so this stays a compile-time constant — no runtime fs read.
 import packageJson from "../../package.json" with { type: "json" };
+import { killActiveChildren } from "../adapter/_shared/childRegistry.js";
 import { configureRetryPolicy } from "../adapter/_shared/retryPolicy.js";
 import { getSpawnFloorMs } from "../adapter/_shared/spawnFloor.js";
 import { configureTransportCircuits } from "../adapter/_shared/transportCircuit.js";
@@ -367,6 +368,11 @@ export async function startServer(): Promise<void> {
   shutdownController.registerQueue(readPool);
   shutdownController.registerQueue(jxaWriteQueue);
   shutdownController.registerQueue(omniJsQueue);
+  // After the queues drain, kill any osascript child still in flight so it
+  // can't outlive the server and keep OmniFocus locked across a restart (#839).
+  shutdownController.registerCleanup("osascript-children", async () => {
+    await killActiveChildren();
+  });
   const adapter = wrapWithConcurrency(router, { readPool, jxaWriteQueue, omniJsQueue });
   const services = composeServices(adapter, config);
 
