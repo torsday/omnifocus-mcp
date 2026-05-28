@@ -51,6 +51,7 @@ Agents switch on `remediationClass` to decide next action without parsing text.
 | Code | Class | Suggestion |
 |---|---|---|
 | `OF_TRANSPORT_UNAVAILABLE` | `TransportUnavailable` | Verify OmniFocus is running and responsive |
+| `OF_TRANSPORT_RESTARTED` | `OmniFocusTransportRestarted` | Persistent osascript child exited mid-call and was replaced; retry. Inspect `internal_status` transport stats if it recurs |
 | `OF_SCRIPT_ERROR` | `ScriptError` | Inspect `details.transport` and `details.reason` |
 | `OF_STRAY_STDOUT` | `StrayStdout` | Check for console.log or libraries writing to stdout; all logging must go to stderr |
 
