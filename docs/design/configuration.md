@@ -17,6 +17,7 @@ Environment variables only — no config file in v1 (see "out of scope" in SPEC)
 | `OMNIFOCUS_WRITE_QUEUE_CAP`        | Max pending writes before `QueueFull`                                  | 50        |
 | `OMNIFOCUS_JXA_TIMEOUT_MS`         | Per-call JXA timeout (ms)                                              | 30000     |
 | `OMNIFOCUS_OMNIJS_TIMEOUT_MS`      | Per-call OmniJS timeout (ms)                                           | 45000     |
+| `OMNIFOCUS_PERSISTENT_OSASCRIPT`   | Persistent `osascript` child for JXA (#882); `1` enables (opt-in)      | unset     |
 | `OMNIFOCUS_ATTACHMENT_PATHS`       | Colon-separated allowlist of attachment path roots                     | `$HOME`   |
 | `OMNIFOCUS_MAX_ATTACHMENT_MB`      | Max attachment size for `attachment_add`                               | 100       |
 | `OMNIFOCUS_TOOL_RATE_LIMIT`        | Per-tool rate limit: `N/SECONDS` format                                | `120/60`  |

@@ -43,6 +43,7 @@ function makeCtx(
     probeToolDurationStats?: () =>
       | import("../../observability/toolDurationStats.js").ToolDurationSnapshot
       | null;
+    probeTransportStats?: () => import("../../observability/transportStats.js").PersistentTransportStats;
   } = {},
 ) {
   const adapter = {
@@ -80,6 +81,9 @@ function makeCtx(
   }
   if (overrides.probeToolDurationStats !== undefined) {
     ctx.probeToolDurationStats = overrides.probeToolDurationStats;
+  }
+  if (overrides.probeTransportStats !== undefined) {
+    ctx.probeTransportStats = overrides.probeTransportStats;
   }
   return ctx;
 }
@@ -382,5 +386,38 @@ describe("handleInternalStatus — probeCache", () => {
     };
     const envelope = await handleInternalStatus({}, ctx);
     expect(envelope.data.cache).toBeNull();
+  });
+});
+
+describe("internal_status — transport (persistent JXA, #882)", () => {
+  it("is null when the probe is not wired", async () => {
+    const envelope = await handleInternalStatus({}, makeCtx());
+    expect(envelope.data.transport).toBeNull();
+  });
+
+  it("forwards the persistent-transport stats snapshot", async () => {
+    const snapshot = {
+      enabled: true,
+      alive: true,
+      spawns: 2,
+      unexpectedExits: 1,
+      restarts: 1,
+      timeouts: 0,
+      callsServed: 17,
+    };
+    const ctx = makeCtx({ probeTransportStats: () => snapshot });
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.transport).toEqual(snapshot);
+  });
+
+  it("degrades to transport=null when the probe throws", async () => {
+    const ctx = {
+      ...makeCtx(),
+      probeTransportStats: () => {
+        throw new Error("probe failed");
+      },
+    };
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.transport).toBeNull();
   });
 });

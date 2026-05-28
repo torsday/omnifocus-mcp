@@ -40,6 +40,7 @@ export type ErrorCode =
   | "OF_CIRCUIT_OPEN"
   // Infrastructure — usually transient but not the agent's to fix
   | "OF_TRANSPORT_UNAVAILABLE"
+  | "OF_TRANSPORT_RESTARTED"
   | "OF_SCRIPT_ERROR"
   // Lifecycle — stop and reconnect
   | "OF_SHUTTING_DOWN"
@@ -356,6 +357,24 @@ export class WindowUnavailable extends OmniFocusError {
       remediationClass: "environment",
       suggestion:
         "OmniFocus has no front window. Ask the user to open an OmniFocus window (Cmd-N or click the Dock icon) and retry.",
+      ...options,
+    });
+  }
+}
+
+/**
+ * Thrown when the persistent JXA transport child (`osascript`) exited
+ * unexpectedly mid-call and was transparently replaced (#882). The interrupted
+ * in-flight call rejects with this; queued calls proceed against the fresh
+ * child. Read-shaped calls are safe to retry immediately; a write should be
+ * re-issued only if the caller can confirm the prior attempt did not land.
+ */
+export class OmniFocusTransportRestarted extends OmniFocusError {
+  constructor(message: string, options: ErrorOptions = {}) {
+    super("OF_TRANSPORT_RESTARTED", message, {
+      remediationClass: "infrastructure",
+      suggestion:
+        "The OmniFocus transport restarted after an unexpected exit. Retry the call. If it recurs, the osascript child may be crashing repeatedly — inspect internal_status `transport` stats.",
       ...options,
     });
   }

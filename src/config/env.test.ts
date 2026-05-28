@@ -21,6 +21,7 @@ describe("parseConfig", () => {
         OMNIFOCUS_WRITE_QUEUE_CAP: 50,
         OMNIFOCUS_JXA_TIMEOUT_MS: 30000,
         OMNIFOCUS_OMNIJS_TIMEOUT_MS: 45000,
+        OMNIFOCUS_PERSISTENT_OSASCRIPT: false,
         OMNIFOCUS_TRANSIENT_RETRY_ENABLED: true,
         OMNIFOCUS_TRANSIENT_RETRY_DELAY_MS: 100,
         OMNIFOCUS_ATTACHMENT_PATHS: [homedir()],
@@ -48,10 +49,12 @@ describe("parseConfig", () => {
         OMNIFOCUS_INTEGRATION: "1",
         OMNIFOCUS_E2E: "1",
         OMNIFOCUS_ALLOW_RAW_SCRIPT: "1",
+        OMNIFOCUS_PERSISTENT_OSASCRIPT: "1",
       });
       expect(config.OMNIFOCUS_INTEGRATION).toBe(true);
       expect(config.OMNIFOCUS_E2E).toBe(true);
       expect(config.OMNIFOCUS_ALLOW_RAW_SCRIPT).toBe(true);
+      expect(config.OMNIFOCUS_PERSISTENT_OSASCRIPT).toBe(true);
     });
 
     it('treats any non-"1" value as false', () => {

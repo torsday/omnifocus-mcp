@@ -19,6 +19,7 @@ import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import type { LatencyStatsSnapshot } from "../../observability/latencyStats.js";
 import type { ResponseStatsSnapshot } from "../../observability/responseStats.js";
 import type { ToolDurationSnapshot } from "../../observability/toolDurationStats.js";
+import type { PersistentTransportStats } from "../../observability/transportStats.js";
 import type { Capabilities } from "../../resources/capabilities.js";
 import { probeCalendarAccess } from "../../resources/capabilities.js";
 import type { CircuitState } from "../../server/circuitBreaker.js";
@@ -31,17 +32,16 @@ import { type MutationScoreSnapshot, probeMutationScore } from "./mutationScore.
 export const INTERNAL_STATUS_DESCRIPTION =
   "Return a health snapshot of the running omnifocus-mcp server. " +
   "Do NOT use this to read OmniFocus data — prefer task_list, project_list, sync_status, etc. " +
-  "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth, responseStats, latencyStats, toolDurationStats, stores }. " +
+  "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth, responseStats, latencyStats, toolDurationStats, stores, transport }. " +
   "cache.services maps key prefixes (tag, folder, forecast, task, project) to { hits, misses, hitRate }. " +
   "uptimeMs is the milliseconds since the server process started. " +
   "circuits lists each circuit-breaker name and state (closed/open/half_open). " +
   "lastSync mirrors sync_status data; null if getLastSync throws. " +
   "calendarAccess: macOS Calendar bridge state — { available, permission: granted|denied|restricted|not-determined|unknown }. Read-only; does NOT trigger TCC prompt. " +
-  "mutation surfaces Stryker calibration freshness — { score, lastRunAt } where score is the " +
-  "latest mutation-testing score (0–100) per ADR-0017 and lastRunAt is the report's mtime. " +
-  "Returns null when no report file is present (the published npm tarball ships without one). " +
+  "mutation: Stryker mutation-score freshness { score, lastRunAt } (0–100 per ADR-0017); null when no report file is present. " +
   "responseStats / latencyStats / toolDurationStats: opt-in telemetry — bytes per tool, ms per (transport, script) with spawnFloorMs, ms per tool. Null when sample rate is 0. " +
   "stores: { idempotencyEntries, loopDetectorKeys } live retention-store sizes — null when not wired. " +
+  "transport: persistent JXA transport stats { enabled, alive, spawns, unexpectedExits, restarts, timeouts, callsServed }; enabled=false by default. " +
   "Read-only; no side effects. " +
   "Example: internal_status()";
 
@@ -129,6 +129,13 @@ export interface InternalStatusData {
    * probe is not wired (e.g. in unit tests that only supply minimal context).
    */
   stores: StoresSizeSnapshot | null;
+  /**
+   * Persistent JXA transport stats (#882). `null` when the probe is not wired.
+   * `enabled: false` indicates the one-shot default is in use (no persistent
+   * child created this process). Read from in-process counters — never calls
+   * the transport, preserving this tool's no-JXA contract.
+   */
+  transport: PersistentTransportStats | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -180,6 +187,11 @@ export interface InternalStatusContext {
    * bounded in-process stores. Omitting surfaces as `null` in the response.
    */
   probeStores?: () => StoresSizeSnapshot;
+  /**
+   * Optional persistent-transport-stats probe (#882). Returns in-process
+   * counters for the long-lived osascript child. Omitting surfaces as `null`.
+   */
+  probeTransportStats?: () => PersistentTransportStats;
 }
 
 /**
@@ -265,6 +277,15 @@ export async function handleInternalStatus(
     }
   }
 
+  let transport: PersistentTransportStats | null = null;
+  if (ctx.probeTransportStats !== undefined) {
+    try {
+      transport = ctx.probeTransportStats();
+    } catch {
+      transport = null;
+    }
+  }
+
   const data: InternalStatusData = {
     uptimeMs,
     ofRunning: true,
@@ -278,6 +299,7 @@ export async function handleInternalStatus(
     latencyStats,
     toolDurationStats,
     stores,
+    transport,
   };
 
   return ok(data, ctx.makeMeta());

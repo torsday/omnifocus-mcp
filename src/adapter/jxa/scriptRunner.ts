@@ -32,6 +32,7 @@ import {
   NotFound,
   OFBusy,
   OmniFocusNotRunning,
+  OmniFocusTransportRestarted,
   PermissionDenied,
   ScriptError,
   Timeout,
@@ -45,6 +46,7 @@ import { trackChild } from "../_shared/childRegistry.js";
 import { type RetryPolicy, resolveRetryPolicy } from "../_shared/retryPolicy.js";
 import { ensureSpawnFloorCalibration, getSpawnFloorMs } from "../_shared/spawnFloor.js";
 import { getJxaCircuit, isCircuitTransient } from "../_shared/transportCircuit.js";
+import { getPersistentJxaSpawner } from "./persistentScriptRunner.js";
 
 // ---------------------------------------------------------------------------
 // Spawner seam (injectable for tests)
@@ -59,6 +61,13 @@ export interface SpawnResult {
   timedOut: boolean;
   /** Set if the child failed to spawn entirely (e.g. binary missing). */
   spawnError?: NodeJS.ErrnoException;
+  /**
+   * Set by the persistent transport (#882) when the long-lived `osascript`
+   * child exited unexpectedly mid-call and was replaced. The interrupted call
+   * surfaces as {@link OmniFocusTransportRestarted}; the next call runs against
+   * a fresh child. One-shot spawners never set this.
+   */
+  restarted?: boolean;
 }
 
 /**
@@ -114,6 +123,28 @@ export const defaultJxaSpawner: ScriptSpawner = (scriptBody, jsonArg, timeoutMs)
       child.stdin.end(scriptBody, "utf8");
     }
   });
+
+// ---------------------------------------------------------------------------
+// Default-transport selection (#882)
+// ---------------------------------------------------------------------------
+
+let persistentEnabled = false;
+
+/**
+ * Select the persistent osascript transport instead of the one-shot
+ * {@link defaultJxaSpawner}. Called once at server boot from the parsed
+ * `OMNIFOCUS_PERSISTENT_OSASCRIPT` flag; mirrors `configureRetryPolicy` /
+ * `configureTransportCircuits`. Off by default — the one-shot path stays the
+ * default until the persistent path proves out in a field soak.
+ */
+export function configurePersistentJxa(enabled: boolean): void {
+  persistentEnabled = enabled;
+}
+
+/** Resolve the active default spawner: persistent child when enabled, else one-shot. */
+function resolveDefaultJxaSpawner(): ScriptSpawner {
+  return persistentEnabled ? getPersistentJxaSpawner() : defaultJxaSpawner;
+}
 
 // ---------------------------------------------------------------------------
 // Retry-once on known-transient failures (#816)
@@ -238,7 +269,16 @@ async function runJxaScriptInner<T>(
   args: unknown,
   options: RunScriptOptions,
 ): Promise<T> {
-  const spawner = options.spawner ?? defaultJxaSpawner;
+  const injectedSpawner = options.spawner;
+  // The actual call goes through the configured default transport — the
+  // persistent osascript child (#882) when enabled, else the one-shot spawner.
+  const spawner = injectedSpawner ?? resolveDefaultJxaSpawner();
+  // Spawn-floor calibration and the post-timeout busy probe must observe a
+  // *fresh* one-shot osascript, independent of the active transport: the floor
+  // answers "what does a cold spawn cost?" (#939), and the busy probe needs an
+  // independent responsiveness check rather than reusing a possibly-wedged
+  // persistent child. Tests that inject a spawner keep using it for both.
+  const oneShotSpawner = injectedSpawner ?? defaultJxaSpawner;
   const timeoutMs = options.timeoutMs ?? 30_000;
   const jsonArg = JSON.stringify(args ?? {});
   const scriptName = options.scriptName;
@@ -247,7 +287,7 @@ async function runJxaScriptInner<T>(
   // Kick off osascript spawn-floor calibration on first call (#939).
   // Fire-and-forget — the very first transport call may complete before
   // the cache is populated; subsequent calls see the split fields.
-  void ensureSpawnFloorCalibration(spawner);
+  void ensureSpawnFloorCalibration(oneShotSpawner);
 
   const startedAt = performance.now();
   let result = await spawner(scriptBody, jsonArg, timeoutMs);
@@ -295,6 +335,24 @@ async function runJxaScriptInner<T>(
       : "ok";
   emitTransportCall("jxa", scriptName, args, durationMs, outcome, getSpawnFloorMs());
 
+  // 0. Persistent-transport restart (#882): the long-lived child exited mid-call
+  //    and was replaced. Surface as a typed, retry-once error — the next call
+  //    runs against the fresh child. Only the persistent spawner sets this.
+  if (result.restarted === true) {
+    throw new OmniFocusTransportRestarted(
+      `JXA transport child restarted mid-call${scriptName !== undefined ? ` (script: ${scriptName})` : ""}`,
+      {
+        details: {
+          transport: "jxa",
+          ...(scriptName !== undefined ? { scriptName } : {}),
+          ...(result.stderr.trim() !== ""
+            ? { reason: truncateWithEllipsis(result.stderr, 256) }
+            : {}),
+        },
+      },
+    );
+  }
+
   // 1. Spawn failure (binary missing) — the transport itself is unavailable.
   if (result.spawnError !== undefined) {
     throw new TransportUnavailable("Failed to spawn osascript", {
@@ -317,7 +375,7 @@ async function runJxaScriptInner<T>(
   //    circuit (#835) picks it up after N consecutive failures.
   if (result.timedOut) {
     const suffix = scriptName !== undefined ? ` (script: ${scriptName})` : "";
-    const probe = await probeOmniFocusResponsiveness(spawner);
+    const probe = await probeOmniFocusResponsiveness(oneShotSpawner);
     if (probe === "responsive") {
       logger.warn(
         {

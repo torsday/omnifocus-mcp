@@ -82,6 +82,16 @@ const envSchema = z.object({
   OMNIFOCUS_WRITE_QUEUE_CAP: z.coerce.number().int().positive().default(50),
   OMNIFOCUS_JXA_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
   OMNIFOCUS_OMNIJS_TIMEOUT_MS: z.coerce.number().int().positive().default(45000),
+  // Persistent JXA transport (#882). When enabled, the JXA transport keeps one
+  // long-lived `osascript` child alive and frames commands over its stdin/fd-3
+  // instead of paying the ~500ms cold-spawn cost on every call. Default OFF
+  // (opt-in) for the first release: this is load-bearing transport (risk: high),
+  // so the one-shot path stays the default until a field soak proves the
+  // persistent path before the default flips. Set to "1" to enable.
+  OMNIFOCUS_PERSISTENT_OSASCRIPT: z
+    .string()
+    .prefault("")
+    .transform((v) => v === "1"),
   // Retry-once on known-transient JXA failures (#816). Applies only to read-only
   // scripts (see READ_ONLY_JXA_SCRIPTS in scriptRunner). Set ENABLED=0 to
   // disable globally; DELAY_MS=0 keeps the retry but skips the backoff sleep.
@@ -185,6 +195,7 @@ export function parseConfig(
     OMNIFOCUS_WRITE_QUEUE_CAP: processEnv.OMNIFOCUS_WRITE_QUEUE_CAP,
     OMNIFOCUS_JXA_TIMEOUT_MS: processEnv.OMNIFOCUS_JXA_TIMEOUT_MS,
     OMNIFOCUS_OMNIJS_TIMEOUT_MS: processEnv.OMNIFOCUS_OMNIJS_TIMEOUT_MS,
+    OMNIFOCUS_PERSISTENT_OSASCRIPT: processEnv.OMNIFOCUS_PERSISTENT_OSASCRIPT,
     OMNIFOCUS_TRANSIENT_RETRY_ENABLED: processEnv.OMNIFOCUS_TRANSIENT_RETRY_ENABLED,
     OMNIFOCUS_TRANSIENT_RETRY_DELAY_MS: processEnv.OMNIFOCUS_TRANSIENT_RETRY_DELAY_MS,
     OMNIFOCUS_ATTACHMENT_PATHS: processEnv.OMNIFOCUS_ATTACHMENT_PATHS,
@@ -243,6 +254,7 @@ export function redactConfig(config: Config): Record<string, unknown> {
     OMNIFOCUS_WRITE_QUEUE_CAP: config.OMNIFOCUS_WRITE_QUEUE_CAP,
     OMNIFOCUS_JXA_TIMEOUT_MS: config.OMNIFOCUS_JXA_TIMEOUT_MS,
     OMNIFOCUS_OMNIJS_TIMEOUT_MS: config.OMNIFOCUS_OMNIJS_TIMEOUT_MS,
+    OMNIFOCUS_PERSISTENT_OSASCRIPT: config.OMNIFOCUS_PERSISTENT_OSASCRIPT,
     OMNIFOCUS_TRANSIENT_RETRY_ENABLED: config.OMNIFOCUS_TRANSIENT_RETRY_ENABLED,
     OMNIFOCUS_TRANSIENT_RETRY_DELAY_MS: config.OMNIFOCUS_TRANSIENT_RETRY_DELAY_MS,
     // Path-shaped — hash each entry to avoid leaking directory structure

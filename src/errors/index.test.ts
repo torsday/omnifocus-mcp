@@ -8,6 +8,7 @@ import {
   NotFound,
   OmniFocusError,
   OmniFocusNotRunning,
+  OmniFocusTransportRestarted,
   PermissionDenied,
   QueueFull,
   RateLimited,
@@ -107,6 +108,7 @@ describe("instanceof discrimination", () => {
       { instance: new QueueFull("full"), ctor: QueueFull },
       { instance: new CircuitOpen("open"), ctor: CircuitOpen },
       { instance: new TransportUnavailable("offline"), ctor: TransportUnavailable },
+      { instance: new OmniFocusTransportRestarted("restarted"), ctor: OmniFocusTransportRestarted },
       { instance: new ScriptError("script bad"), ctor: ScriptError },
       { instance: new ServerShuttingDown(), ctor: ServerShuttingDown },
     ];
@@ -143,6 +145,7 @@ describe("remediationClass — machine-readable agent action", () => {
 
   it("infrastructure errors tell the agent to retry once then surface to user", () => {
     expect(new TransportUnavailable("").remediationClass).toBe("infrastructure");
+    expect(new OmniFocusTransportRestarted("").remediationClass).toBe("infrastructure");
     expect(new ScriptError("").remediationClass).toBe("infrastructure");
   });
 
@@ -212,6 +215,27 @@ describe("retryAfterMs — structured wait time on transient errors", () => {
   it("retryAfterMs appears in toJSON details", () => {
     const json = new CircuitOpen("").toJSON();
     expect(json.details?.retryAfterMs).toBe(60_000);
+  });
+});
+
+describe("OmniFocusTransportRestarted — persistent transport child replaced", () => {
+  it("has code OF_TRANSPORT_RESTARTED and infrastructure remediation", () => {
+    const err = new OmniFocusTransportRestarted("child restarted mid-call");
+    expect(err.code).toBe("OF_TRANSPORT_RESTARTED");
+    expect(err.remediationClass).toBe("infrastructure");
+    expect(err.name).toBe("OmniFocusTransportRestarted");
+  });
+
+  it("suggestion points the operator at internal_status transport stats", () => {
+    expect(new OmniFocusTransportRestarted("").suggestion).toContain("internal_status");
+  });
+
+  it("carries transport context in details", () => {
+    const err = new OmniFocusTransportRestarted("restarted", {
+      details: { transport: "jxa", scriptName: "task_list", reason: "exit 1" },
+    });
+    expect(err.details?.transport).toBe("jxa");
+    expect(err.details?.scriptName).toBe("task_list");
   });
 });
 

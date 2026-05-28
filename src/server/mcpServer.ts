@@ -36,6 +36,11 @@ import { configureRetryPolicy } from "../adapter/_shared/retryPolicy.js";
 import { getSpawnFloorMs } from "../adapter/_shared/spawnFloor.js";
 import { configureTransportCircuits } from "../adapter/_shared/transportCircuit.js";
 import { wrapWithConcurrency } from "../adapter/concurrent.js";
+import {
+  disposePersistentJxa,
+  getPersistentTransportStats,
+} from "../adapter/jxa/persistentScriptRunner.js";
+import { configurePersistentJxa } from "../adapter/jxa/scriptRunner.js";
 import { ReadPool } from "../concurrency/ReadPool.js";
 import { WriteQueue } from "../concurrency/WriteQueue.js";
 import { parseConfig, redactConfig } from "../config/env.js";
@@ -294,6 +299,10 @@ export async function startServer(): Promise<void> {
     logger,
   });
 
+  // Select the persistent osascript transport when enabled (#882). Off by
+  // default; the one-shot path stays the default until a field soak proves it.
+  configurePersistentJxa(config.OMNIFOCUS_PERSISTENT_OSASCRIPT);
+
   const server = createMcpServer();
 
   // Install per-tool middleware (#291) BEFORE any register* helper runs so
@@ -368,8 +377,16 @@ export async function startServer(): Promise<void> {
   shutdownController.registerQueue(readPool);
   shutdownController.registerQueue(jxaWriteQueue);
   shutdownController.registerQueue(omniJsQueue);
-  // After the queues drain, kill any osascript child still in flight so it
-  // can't outlive the server and keep OmniFocus locked across a restart (#839).
+  // After the queues drain, gracefully close the persistent osascript child
+  // (#882) — stdin EOF, then SIGTERM → 1s grace → SIGKILL. Runs before the
+  // orphan sweep so a clean exit is attempted first; no-op when the persistent
+  // transport was never started (one-shot default).
+  shutdownController.registerCleanup("persistent-osascript", async () => {
+    await disposePersistentJxa();
+  });
+  // Then kill any one-shot osascript child still in flight so it can't outlive
+  // the server and keep OmniFocus locked across a restart (#839). Idempotent —
+  // the persistent child is already gone by here (pruned from the registry).
   shutdownController.registerCleanup("osascript-children", async () => {
     await killActiveChildren();
   });
@@ -396,6 +413,7 @@ export async function startServer(): Promise<void> {
       idempotencyEntries: idempotencyStore.size,
       loopDetectorKeys: loopDetector.size,
     }),
+    probeTransportStats: () => getPersistentTransportStats(),
   });
 
   // Register MCP prompts (DESIGN §29) — four workflow templates.
