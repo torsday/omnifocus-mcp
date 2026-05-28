@@ -19,9 +19,11 @@
  * @see src/server/circuitBreaker.ts — circuit breaker
  */
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { __resetTransportCircuitsForTest } from "../../src/adapter/_shared/transportCircuit.js";
 import { JxaTransport } from "../../src/adapter/jxa/JxaTransport.js";
 import { OmniJsTransport } from "../../src/adapter/omnijs/OmniJsTransport.js";
+import type { TaskId } from "../../src/domain/ids.js";
 import {
   CircuitOpen,
   OmniFocusError,
@@ -32,7 +34,13 @@ import {
   TransportUnavailable,
 } from "../../src/errors/index.js";
 import { CircuitBreaker } from "../../src/server/circuitBreaker.js";
-import { type ChaosMode, chaosSpawner } from "./chaosSpawner.js";
+import {
+  type ChaosMode,
+  chaosSpawner,
+  okResult,
+  sequencedSpawner,
+  TIMEOUT_RESULT,
+} from "./chaosSpawner.js";
 
 // ---------------------------------------------------------------------------
 // Expectation table — one row per failure mode.
@@ -195,4 +203,60 @@ describe("chaos — sustained failures open the circuit breaker", () => {
     expect(tasks).toEqual([]);
     expect(breaker.state).toBe("closed");
   });
+});
+
+// ---------------------------------------------------------------------------
+// Slow-first-call recovery (#887)
+//
+// The integration suite intermittently failed with a JXA Timeout on the
+// first `task_get` of a run — cold-start latency or runner contention, not
+// a logic bug (the failing test was always the suite's first contract read).
+// `task_get` is a read-only script, so `runJxaScript` retries once on a
+// transient timeout (#816). These tests pin that the retry transparently
+// recovers a slow first call, and that a *persistent* timeout still
+// surfaces the typed error rather than hanging.
+//
+// The module-level transport circuit is reset before each test so a prior
+// describe's induced failures can't bleed in.
+// ---------------------------------------------------------------------------
+
+describe("chaos — slow first call recovery (#887)", () => {
+  beforeEach(() => {
+    __resetTransportCircuitsForTest();
+  });
+
+  it("read-only task_get recovers when the first call times out then succeeds", async () => {
+    // First spawn: cold-start timeout. Second spawn (the retry): fast success.
+    const spawner = sequencedSpawner(
+      TIMEOUT_RESULT,
+      okResult(JSON.stringify({ task: { id: "task_warm", name: "warmed up" } })),
+    );
+    // delayMs default is 100ms; keep the transport's own timeout tight so a
+    // genuine hang would fail fast rather than stalling the test budget.
+    const transport = new JxaTransport({ spawner, timeoutMs: 100 });
+
+    const task = await transport.getTask("task_warm" as TaskId);
+
+    // The retry swallowed the cold-start timeout — the caller sees success.
+    expect(task.id).toBe("task_warm");
+    expect(task.name).toBe("warmed up");
+  });
+
+  it("a persistent timeout (both attempts) surfaces a typed Timeout, not a hang", async () => {
+    // Every spawn times out — the retry can't save it. The transport must
+    // surface the typed error so the circuit breaker and caller can react.
+    const spawner = sequencedSpawner(TIMEOUT_RESULT);
+    const transport = new JxaTransport({ spawner, timeoutMs: 100 });
+
+    const err = await transport.getTask("task_cold" as TaskId).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(Timeout);
+    expect((err as Timeout).code).toBe("OF_TIMEOUT");
+  });
+
+  // The complementary invariant — writes never retry a transient failure —
+  // is pinned at the runner level in
+  // `src/adapter/jxa/scriptRunner.test.ts` ("does NOT retry a write-shaped
+  // script even when the failure is transient"). Not re-asserted here: the
+  // spawn-floor calibration call (#939) fires its own spawn on the first
+  // transport call, so a call-count assertion at this layer is unreliable.
 });

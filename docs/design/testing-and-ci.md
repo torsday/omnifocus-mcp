@@ -73,6 +73,25 @@ The helper appends `[quarantine]` to the test name so reviewers scanning a CI lo
 2. Run `pnpm test:integration:quarantine` locally and confirm the quarantined test now passes reliably.
 3. Replace `quarantineTest(...)` with plain `test(...)` and drop the explanatory comment. The graduation happens in the same PR as the repair so the test rejoins the gate immediately.
 
+### Cold-start JXA timeout on the first integration read ([#887](https://github.com/torsday/omnifocus-mcp/issues/887))
+
+**Symptom.** The integration suite intermittently fails with a single JXA `Timeout` on the suite's *first* contract read (`createTask + getTask round-trip`), while the other ~47 tests pass. The failing run's total wall-time runs long (e.g. 806s vs the typical ~696s), consistent with the shared `mac-local` runner being under load rather than a logic bug — the triggering PR is often docs-only, with zero mechanism to slow `task_get`.
+
+**Root cause.** Cold-start latency on the first `osascript` spawn of a run, compounded by runner contention: the first JXA call pays OF's settle time and the macOS Automation handshake. On a contended runner that one-time cost can exceed the 30s `OMNIFOCUS_JXA_TIMEOUT_MS`.
+
+**Mitigation (already in place).** `task_get` is a member of `READ_ONLY_JXA_SCRIPTS`, so `runJxaScript` **retries once** on a transient failure — and a hard timeout (`SpawnResult.timedOut`) is classified transient (#816, `src/adapter/jxa/scriptRunner.ts`). A slow first call that times out is retried transparently; the caller sees success unless *both* attempts exceed the timeout. The retry path is regression-pinned by `tests/chaos/transport.chaos.test.ts` → "chaos — slow first call recovery (#887)":
+
+- a timeout-then-success spawner proves `task_get` recovers transparently;
+- a persistent-timeout spawner proves the typed `Timeout` still surfaces (no hang) when the retry can't save it.
+
+**If the flake recurs** despite the retry (i.e. both attempts time out on a badly contended runner), escalate in this order:
+
+1. **Quarantine** the specific test via `quarantineTest` (see above) so the gate stays honest while the runner issue is addressed.
+2. **Cross-ref serialize** the integration job — the `concurrency:` group in `.github/workflows/integration.yml` is `integration-${{ github.ref }}`, which serializes same-ref runs but lets cross-PR runs share the runner. Widening the group to a constant serializes all integration jobs at the cost of throughput.
+3. **Warm-up** — add an explicit cheap read (e.g. `ping`) in the contract harness `beforeAll` so the cold-start cost is paid before any timed test. Deferred for now: the existing `beforeAll` already does a `createFolder` round-trip that warms the transport, and the retry-once covers the residual risk.
+
+Writes deliberately do **not** retry (a non-idempotent create could duplicate) — pinned at `src/adapter/jxa/scriptRunner.test.ts` ("does NOT retry a write-shaped script even when the failure is transient").
+
 ---
 
 ## CI/CD
