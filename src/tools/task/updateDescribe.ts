@@ -6,6 +6,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
+import { truncateCodePoints } from "../../domain/text.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import { formatDate, resolveTagName } from "../describe/prose.js";
 import type { ChangeRecord } from "../describe/types.js";
@@ -103,7 +104,7 @@ export async function handleTaskUpdateDescribe(
     if (input.note !== undefined) {
       changes.push({
         field: "note",
-        newValue: input.note === null ? null : input.note.slice(0, 50),
+        newValue: input.note === null ? null : truncateCodePoints(input.note, 50),
       });
       parts.push(input.note === null ? "clear note" : "update note");
     }

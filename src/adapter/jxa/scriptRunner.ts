@@ -26,6 +26,7 @@
 
 import { execFile } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { truncateWithEllipsis } from "../../domain/text.js";
 import {
   ConflictError,
   NotFound,
@@ -353,7 +354,7 @@ async function runJxaScriptInner<T>(
       details: {
         transport: "jxa",
         exitCode: result.exitCode,
-        stderr: truncate(result.stderr, 1024),
+        stderr: truncateWithEllipsis(result.stderr, 1024),
         ...(scriptName !== undefined ? { scriptName } : {}),
       },
     });
@@ -383,7 +384,7 @@ async function runJxaScriptInner<T>(
       cause,
       details: {
         transport: "jxa",
-        stdoutPreview: truncate(trimmed, 200),
+        stdoutPreview: truncateWithEllipsis(trimmed, 200),
         ...(scriptName !== undefined ? { scriptName } : {}),
       },
     });
@@ -414,7 +415,7 @@ function classifyJxaStderr(stderr: string, scriptName?: string): Error | null {
     return new OmniFocusNotRunning({
       details: {
         transport: "jxa",
-        stderr: truncate(stderr, 512),
+        stderr: truncateWithEllipsis(stderr, 512),
         ...(scriptName !== undefined ? { scriptName } : {}),
       },
     });
@@ -431,7 +432,7 @@ function classifyJxaStderr(stderr: string, scriptName?: string): Error | null {
     return new PermissionDenied({
       details: {
         transport: "jxa",
-        stderr: truncate(stderr, 512),
+        stderr: truncateWithEllipsis(stderr, 512),
         ...(scriptName !== undefined ? { scriptName } : {}),
       },
     });
@@ -459,7 +460,7 @@ function classifyJxaStderr(stderr: string, scriptName?: string): Error | null {
     return new NotFound(stderr, {
       details: {
         transport: "jxa",
-        stderr: truncate(stderr, 512),
+        stderr: truncateWithEllipsis(stderr, 512),
         ...(scriptName !== undefined ? { scriptName } : {}),
       },
     });
@@ -474,7 +475,7 @@ function classifyJxaStderr(stderr: string, scriptName?: string): Error | null {
     return new ValidationError(stderr, {
       details: {
         transport: "jxa",
-        stderr: truncate(stderr, 512),
+        stderr: truncateWithEllipsis(stderr, 512),
         ...(scriptName !== undefined ? { scriptName } : {}),
       },
     });
@@ -485,16 +486,11 @@ function classifyJxaStderr(stderr: string, scriptName?: string): Error | null {
     return new ConflictError(stderr, {
       details: {
         transport: "jxa",
-        stderr: truncate(stderr, 512),
+        stderr: truncateWithEllipsis(stderr, 512),
         ...(scriptName !== undefined ? { scriptName } : {}),
       },
     });
   }
 
   return null;
-}
-
-/** Cap a string to `n` chars so it never balloons an error payload. */
-function truncate(s: string, n: number): string {
-  return s.length <= n ? s : `${s.slice(0, n)}…`;
 }

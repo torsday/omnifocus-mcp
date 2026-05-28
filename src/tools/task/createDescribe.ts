@@ -6,6 +6,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
+import { truncateCodePoints } from "../../domain/text.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import {
   formatDate,
@@ -72,7 +73,7 @@ export async function handleTaskCreateDescribe(
     parts.push(`tagged ${tagNames.map((n) => `'${n}'`).join(", ")}`);
   }
   if (input.note !== undefined) {
-    changes.push({ field: "note", newValue: input.note.slice(0, 50) });
+    changes.push({ field: "note", newValue: truncateCodePoints(input.note, 50) });
   }
 
   const description = `Would create task ${parts.join(", ")}.`;
