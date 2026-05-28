@@ -14,25 +14,25 @@ function makeCtx(opts: {
   setRejects?: Error;
   tagName?: string;
 }) {
-  const setForecastTag = vi.fn();
+  // Composite write (#849): the adapter returns id+name in one call. The
+  // service delegates straight through, so the mock resolves the paired shape.
+  const setForecastTagWithName = vi.fn();
   if (opts.setRejects) {
-    setForecastTag.mockRejectedValue(opts.setRejects);
+    setForecastTagWithName.mockRejectedValue(opts.setRejects);
   } else {
-    setForecastTag.mockResolvedValue(opts.setResolves);
+    const tagId = opts.setResolves?.tagId ?? null;
+    const name = tagId === null ? null : (opts.tagName ?? "Today");
+    setForecastTagWithName.mockResolvedValue({ tagId, name });
   }
   const adapter = {
-    setForecastTag,
-    getTag: vi.fn().mockImplementation(async (id: ReturnType<typeof TagIdCtor.of>) => ({
-      id,
-      name: opts.tagName ?? "Today",
-    })),
+    setForecastTagWithName,
   } as unknown as ConstructorParameters<typeof ForecastService>[0]["adapter"];
   const cache = { invalidate: vi.fn() };
   return {
     forecastService: new ForecastService({ adapter }),
     cache,
     makeMeta: () => ({}) as never,
-    _setSpy: setForecastTag,
+    _setSpy: setForecastTagWithName,
   };
 }
 

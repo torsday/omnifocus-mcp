@@ -8,8 +8,8 @@
  * Mutation: invalidates the forecast read cache so subsequent forecast_get
  * calls reflect the new agenda surface.
  *
- * @see #465
- * @see src/scripts/omnijs/forecast_set_tag.js
+ * @see #465 / #849
+ * @see src/scripts/omnijs/forecast_tag_set_with_name.js
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";

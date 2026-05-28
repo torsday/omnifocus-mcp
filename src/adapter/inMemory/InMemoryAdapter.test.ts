@@ -291,6 +291,45 @@ describe("InMemoryAdapter — Tags", () => {
   });
 });
 
+describe("InMemoryAdapter — Forecast tag (composite #849)", () => {
+  it("getForecastTagWithName returns null/null when unset", async () => {
+    const a = makeAdapter();
+    expect(await a.getForecastTagWithName()).toEqual({ tagId: null, name: null });
+  });
+
+  it("setForecastTagWithName returns the paired id+name in one call", async () => {
+    const a = makeAdapter();
+    const tag = await a.createTag({ name: "@today" });
+    expect(await a.setForecastTagWithName(tag)).toEqual({ tagId: tag, name: "@today" });
+    expect(await a.getForecastTagWithName()).toEqual({ tagId: tag, name: "@today" });
+  });
+
+  it("setForecastTagWithName(null) clears and returns null/null", async () => {
+    const a = makeAdapter();
+    const tag = await a.createTag({ name: "@today" });
+    await a.setForecastTagWithName(tag);
+    expect(await a.setForecastTagWithName(null)).toEqual({ tagId: null, name: null });
+    expect(await a.getForecastTagWithName()).toEqual({ tagId: null, name: null });
+  });
+
+  it("setForecastTagWithName rejects an unknown tag with NotFound", async () => {
+    const a = makeAdapter();
+    const tag = await a.createTag({ name: "@gone" });
+    await a.deleteTag(tag);
+    await expect(a.setForecastTagWithName(tag)).rejects.toBeInstanceOf(NotFound);
+  });
+
+  it("getForecastTagWithName surfaces an orphan id as name:null (tag deleted after set)", async () => {
+    const a = makeAdapter();
+    const tag = await a.createTag({ name: "@today" });
+    await a.setForecastTagWithName(tag);
+    await a.deleteTag(tag);
+    // The stored preference id remains; the name resolves to null since the
+    // tag is gone — the composite read surfaces the orphan rather than throwing.
+    expect(await a.getForecastTagWithName()).toEqual({ tagId: tag, name: null });
+  });
+});
+
 describe("InMemoryAdapter — Folders", () => {
   it("createFolder maintains parent.subfolderCount", async () => {
     const a = makeAdapter();

@@ -144,7 +144,7 @@ export const defaultOmniJsSpawner: ScriptSpawner = (wrappedJxaBody, _argsJson, t
  * pins this set so silent additions surface in review.
  */
 export const READ_ONLY_OMNIJS_SCRIPTS: ReadonlySet<string> = new Set([
-  "forecast_get_tag",
+  "forecast_tag_with_name",
   "perspective_evaluate",
   "perspective_evaluate_dry_run",
   "perspective_get",

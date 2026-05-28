@@ -60,8 +60,8 @@ import appWindowNewScript from "../../scripts/omnijs/app_window_new.js";
 import appWindowNewTabScript from "../../scripts/omnijs/app_window_new_tab.js";
 import databaseRedoScript from "../../scripts/omnijs/database_redo.js";
 import databaseUndoScript from "../../scripts/omnijs/database_undo.js";
-import forecastGetTagScript from "../../scripts/omnijs/forecast_get_tag.js";
-import forecastSetTagScript from "../../scripts/omnijs/forecast_set_tag.js";
+import forecastTagSetWithNameScript from "../../scripts/omnijs/forecast_tag_set_with_name.js";
+import forecastTagWithNameScript from "../../scripts/omnijs/forecast_tag_with_name.js";
 import perspectiveCreateScript from "../../scripts/omnijs/perspective_create.js";
 import perspectiveDeleteScript from "../../scripts/omnijs/perspective_delete.js";
 import perspectiveEvaluateScript from "../../scripts/omnijs/perspective_evaluate.js";
@@ -567,38 +567,42 @@ export class OmniJsTransport implements OmniFocusAdapter {
     return notYetWired("getForecast");
   }
 
-  async getForecastTag(): Promise<{ tagId: TagId | null }> {
-    const script = forecastGetTagScript;
+  async getForecastTagWithName(): Promise<{ tagId: TagId | null; name: string | null }> {
+    const script = forecastTagWithNameScript;
     const result = await runOmniJsScript<
-      { tagId: string | null } | { error: { code: string; message: string } }
-    >(script, {}, { ...this.runOpts, scriptName: "forecast_get_tag" });
+      { tagId: string | null; name: string | null } | { error: { code: string; message: string } }
+    >(script, {}, { ...this.runOpts, scriptName: "forecast_tag_with_name" });
     if (isScriptError(result)) {
       throw new ScriptError(result.error.message, {
-        details: { transport: "omnijs", scriptName: "forecast_get_tag" },
+        details: { transport: "omnijs", scriptName: "forecast_tag_with_name" },
       });
     }
     return {
       tagId: result.tagId === null ? null : TagIdCtor.of(result.tagId),
+      name: result.name,
     };
   }
 
-  async setForecastTag(tagId: TagId | null): Promise<{ tagId: TagId | null }> {
-    const script = forecastSetTagScript;
+  async setForecastTagWithName(
+    tagId: TagId | null,
+  ): Promise<{ tagId: TagId | null; name: string | null }> {
+    const script = forecastTagSetWithNameScript;
     const result = await runOmniJsScript<
-      { tagId: string | null } | { error: { code: string; message: string } }
-    >(script, { tagId }, { ...this.runOpts, scriptName: "forecast_set_tag" });
+      { tagId: string | null; name: string | null } | { error: { code: string; message: string } }
+    >(script, { tagId }, { ...this.runOpts, scriptName: "forecast_tag_set_with_name" });
     if (isScriptError(result)) {
       if (result.error.code === "NOT_FOUND") {
         throw new NotFound(result.error.message, {
-          details: { transport: "omnijs", scriptName: "forecast_set_tag" },
+          details: { transport: "omnijs", scriptName: "forecast_tag_set_with_name" },
         });
       }
       throw new ValidationError(result.error.message, {
-        details: { transport: "omnijs", scriptName: "forecast_set_tag" },
+        details: { transport: "omnijs", scriptName: "forecast_tag_set_with_name" },
       });
     }
     return {
       tagId: result.tagId === null ? null : TagIdCtor.of(result.tagId),
+      name: result.name,
     };
   }
 

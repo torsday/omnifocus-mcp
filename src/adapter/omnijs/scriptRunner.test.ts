@@ -351,7 +351,7 @@ describe("READ_ONLY_OMNIJS_SCRIPTS — coverage pin", () => {
     // OmniJS scripts need to be added here to benefit from the
     // retry-once policy.
     expect([...READ_ONLY_OMNIJS_SCRIPTS].sort()).toEqual([
-      "forecast_get_tag",
+      "forecast_tag_with_name",
       "perspective_evaluate",
       "perspective_evaluate_dry_run",
       "perspective_get",

@@ -1491,16 +1491,25 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     return { overdue, dueToday, deferredToday, flagged };
   }
 
-  async getForecastTag(): Promise<{ tagId: TagId | null }> {
-    return { tagId: this.forecastTagId };
+  async getForecastTagWithName(): Promise<{ tagId: TagId | null; name: string | null }> {
+    const tagId = this.forecastTagId;
+    if (tagId === null) return { tagId: null, name: null };
+    return { tagId, name: this.tags.get(tagId)?.name ?? null };
   }
 
-  async setForecastTag(tagId: TagId | null): Promise<{ tagId: TagId | null }> {
-    if (tagId !== null && !this.tags.has(tagId)) {
+  async setForecastTagWithName(
+    tagId: TagId | null,
+  ): Promise<{ tagId: TagId | null; name: string | null }> {
+    if (tagId === null) {
+      this.forecastTagId = null;
+      return { tagId: null, name: null };
+    }
+    const tag = this.tags.get(tagId);
+    if (tag === undefined) {
       throw new NotFound(`Tag not found: ${tagId}`);
     }
     this.forecastTagId = tagId;
-    return { tagId };
+    return { tagId, name: tag.name };
   }
 
   // -- Attachments (minimal in-memory store; real semantics in integration tier)

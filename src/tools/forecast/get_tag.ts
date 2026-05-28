@@ -5,8 +5,8 @@
  * Forecast view alongside dated items. Reading it lets an agent answer
  * "what tag does the user use as their daily agenda?" without guessing.
  *
- * @see #465
- * @see src/scripts/omnijs/forecast_get_tag.js
+ * @see #465 / #849
+ * @see src/scripts/omnijs/forecast_tag_with_name.js
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";

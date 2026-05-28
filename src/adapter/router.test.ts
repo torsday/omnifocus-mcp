@@ -90,8 +90,8 @@ function makeStub(name: Receiver): OmniFocusAdapter & { calls: string[] } {
     deleteFolder: record("deleteFolder"),
     searchTasks: record("searchTasks"),
     getForecast: record("getForecast"),
-    getForecastTag: record("getForecastTag"),
-    setForecastTag: record("setForecastTag"),
+    getForecastTagWithName: record("getForecastTagWithName"),
+    setForecastTagWithName: record("setForecastTagWithName"),
     appLaunch: record("appLaunch"),
     getWindowState: record("getWindowState"),
     setWindowPerspective: record("setWindowPerspective"),
@@ -187,8 +187,8 @@ function callsByMethod(r: TransportRouter): Record<AdapterMethod, () => Promise<
     searchTasks: () => r.searchTasks({ q: "x" }),
     getForecast: () =>
       r.getForecast({ from: "2026-04-23T00:00:00.000Z", to: "2026-04-23T23:59:59.999Z" }),
-    getForecastTag: () => r.getForecastTag(),
-    setForecastTag: () => r.setForecastTag(null),
+    getForecastTagWithName: () => r.getForecastTagWithName(),
+    setForecastTagWithName: () => r.setForecastTagWithName(null),
     appLaunch: () => r.appLaunch(),
     getWindowState: () => r.getWindowState(),
     setWindowPerspective: () => r.setWindowPerspective("Forecast"),
@@ -316,14 +316,14 @@ describe("TransportRouter — table integrity", () => {
       "evaluateCustomPerspective",
       "evaluatePerspectiveRules", // OmniJS-only: temp-perspective lifecycle + walk (#659)
       "getCustomPerspective", // archivedFilterRules / iconColor are OmniJS-only reads (#523)
-      "getForecastTag", // Database.forecastTag is OmniJS-only (#465)
+      "getForecastTagWithName", // Database.forecastTag is OmniJS-only (#465 / #849)
       "moveProject", // ADR-0019: JXA target.move() silently fails on OmniJS-created projects (#681 follow-up)
       "moveTask", // JXA task.move() → error 9 in OF 4.x; OmniJS Database.moveTasks() works
       "pluginInvoke",
       "redoLastMutation", // Database.redo() is OmniJS-only (#526)
       "reorderTask", // JXA task.move(positioned:) → same error 9; OmniJS moveTasks + ChildInsertionLocation
       "runOmniJsScript",
-      "setForecastTag", // Database.forecastTag is OmniJS-only (#465)
+      "setForecastTagWithName", // Database.forecastTag is OmniJS-only (#465 / #849)
       "setTaskAlarms", // Task.addNotification is OmniJS-only (#461)
       "undoLastMutation", // Database.undo() is OmniJS-only (#526)
       "updateCustomPerspective", // OmniJS-only: archivedFilterRules / iconColor mutation (#577)

@@ -161,8 +161,8 @@ export const ROUTING_TABLE: Readonly<Record<AdapterMethod, TransportName>> = Obj
   // -- Search ---------------------------------------------------------------
   searchTasks: "jxa",
   getForecast: "jxa",
-  getForecastTag: "omnijs", // Database.forecastTag is OmniJS-only
-  setForecastTag: "omnijs",
+  getForecastTagWithName: "omnijs", // Database.forecastTag is OmniJS-only
+  setForecastTagWithName: "omnijs",
 
   // -- Perspectives ---------------------------------------------------------
   listPerspectives: "jxa",
@@ -478,14 +478,17 @@ export class TransportRouter implements OmniFocusAdapter {
     return this.pick("getForecast").getForecast(input);
   }
 
-  getForecastTag(): Promise<{ tagId: import("../domain/ids.js").TagId | null }> {
-    return this.pick("getForecastTag").getForecastTag();
+  getForecastTagWithName(): Promise<{
+    tagId: import("../domain/ids.js").TagId | null;
+    name: string | null;
+  }> {
+    return this.pick("getForecastTagWithName").getForecastTagWithName();
   }
 
-  setForecastTag(
+  setForecastTagWithName(
     tagId: import("../domain/ids.js").TagId | null,
-  ): Promise<{ tagId: import("../domain/ids.js").TagId | null }> {
-    return this.pick("setForecastTag").setForecastTag(tagId);
+  ): Promise<{ tagId: import("../domain/ids.js").TagId | null; name: string | null }> {
+    return this.pick("setForecastTagWithName").setForecastTagWithName(tagId);
   }
 
   listPerspectives(): Promise<import("../domain/perspective.js").Perspective[]> {
