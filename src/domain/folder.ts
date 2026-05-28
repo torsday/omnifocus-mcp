@@ -33,6 +33,7 @@ export interface Folder {
 // Schema
 // ---------------------------------------------------------------------------
 
+/** @public — canonical Folder validator, retained for adapter/CRUD use (#54). */
 export const FolderSchema: z.ZodType<Folder> = z.object({
   id: FolderIdCtor.schema,
   name: z.string(),

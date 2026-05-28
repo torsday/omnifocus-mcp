@@ -30,6 +30,7 @@ export interface Attachment {
 // Branded ID types carry a phantom `__brand` property that plain `z.string()`
 // can't satisfy directly. We use `transform` to apply the brand at parse time
 // so the schema correctly produces `AttachmentId` values at runtime.
+/** @public — canonical Attachment validator, retained for adapter/CRUD use. */
 export const attachmentSchema: z.ZodType<Attachment> = z.object({
   id: z.string().transform((s) => AttachmentIdCtor.of(s)),
   name: z.string(),

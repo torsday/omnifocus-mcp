@@ -25,6 +25,3 @@ export const FILE_PATH_MAX_CHARS = 4_096; // PATH_MAX on macOS
 
 /** Maximum characters for a substring search pattern (task_reclassify). */
 export const SUBSTRING_MAX_CHARS = 4_096; // "max 4 KB"
-
-/** Maximum characters for a task name similarity candidate (task_find_similar). */
-export const TASK_NAME_CANDIDATE_MAX_CHARS = NAME_MAX_CHARS;

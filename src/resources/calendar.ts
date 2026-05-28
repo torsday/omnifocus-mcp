@@ -189,4 +189,4 @@ export function registerCalendarResource(
 }
 
 // Exported for tests that need to clear the singleton.
-export { CalendarCache as _CalendarCache, defaultCache as _defaultCache };
+export { CalendarCache as _CalendarCache };

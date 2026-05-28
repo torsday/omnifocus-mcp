@@ -59,8 +59,6 @@ export const ACTION_KEYS = [
   "actionWithinFocus",
 ] as const satisfies readonly (keyof PerspectiveRuleAtom)[];
 
-export type ActionKey = (typeof ACTION_KEYS)[number];
-
 /**
  * Returns the count of action-predicate keys actually set on an atom.
  * Used by the disjointness refinement and by tests so the same definition of

@@ -33,14 +33,6 @@ export function isoWeekStart(date: Date): Date {
 }
 
 /**
- * Return the Monday-start ISO-8601 string for the week containing `date`.
- * e.g. `"2026-04-20T00:00:00.000+05:30"` (offset reflects local timezone).
- */
-export function isoWeekStartIso(date: Date): string {
-  return isoWeekStart(date).toISOString();
-}
-
-/**
  * Return the exclusive end of the week starting at `weekStartDate`
  * (i.e. the Monday one week later, at 00:00:00.000 local).
  */

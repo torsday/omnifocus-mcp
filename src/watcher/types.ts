@@ -57,19 +57,3 @@ export interface WatchEvent {
   /** ISO-8601 timestamp from the Swift process */
   ts: string;
 }
-
-// ---------------------------------------------------------------------------
-// ChangedObjects — result of adapter.getChangesSince()
-// ---------------------------------------------------------------------------
-
-/**
- * Objects that changed since a given timestamp, as reported by OmniFocus
- * via a JXA modificationDate scan. Used for targeted cache invalidation
- * and per-object resource notifications.
- */
-export interface ChangedObjects {
-  /** IDs of tasks whose modificationDate is ≥ the query timestamp */
-  taskIds: string[];
-  /** IDs of projects whose modificationDate is ≥ the query timestamp */
-  projectIds: string[];
-}
