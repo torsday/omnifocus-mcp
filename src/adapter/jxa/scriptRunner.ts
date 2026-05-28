@@ -40,7 +40,11 @@ import {
   ValidationError,
 } from "../../errors/index.js";
 import { logger } from "../../logging/logger.js";
-import { emitTransportCall } from "../../logging/transportCall.js";
+import {
+  emitTransportBusy,
+  emitTransportCall,
+  emitTransportRetry,
+} from "../../logging/transportCall.js";
 import { probeOmniFocusResponsiveness } from "../_shared/busyProbe.js";
 import { trackChild } from "../_shared/childRegistry.js";
 import { type RetryPolicy, resolveRetryPolicy } from "../_shared/retryPolicy.js";
@@ -322,6 +326,14 @@ async function runJxaScriptInner<T>(
       },
       "transport.retry",
     );
+    emitTransportRetry({
+      transport: "jxa",
+      scriptName,
+      reason,
+      outcome: retryOutcome,
+      delayMs: retry.delayMs,
+      durationMs: retryDurationMs,
+    });
     result = retryResult;
   }
 
@@ -386,6 +398,7 @@ async function runJxaScriptInner<T>(
         },
         "OmniFocus is responsive but blocked — likely a modal or active sync",
       );
+      emitTransportBusy({ transport: "jxa", scriptName, timeoutMs });
       throw new OFBusy(`OmniFocus is busy (script: ${scriptName ?? "unknown"})`, {
         details: {
           transport: "jxa",

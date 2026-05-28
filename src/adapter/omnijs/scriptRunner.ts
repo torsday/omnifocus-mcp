@@ -50,7 +50,7 @@ import {
   TransportUnavailable,
 } from "../../errors/index.js";
 import { logger } from "../../logging/logger.js";
-import { emitTransportCall } from "../../logging/transportCall.js";
+import { emitTransportCall, emitTransportRetry } from "../../logging/transportCall.js";
 import { probeOmniFocusResponsiveness } from "../_shared/busyProbe.js";
 import { trackChild } from "../_shared/childRegistry.js";
 import { type RetryPolicy, resolveRetryPolicy } from "../_shared/retryPolicy.js";
@@ -267,6 +267,14 @@ async function runOmniJsScriptInner<T>(
       },
       "transport.retry",
     );
+    emitTransportRetry({
+      transport: "omnijs",
+      scriptName,
+      reason,
+      outcome: retryOutcome,
+      delayMs: retry.delayMs,
+      durationMs: retryDurationMs,
+    });
     result = retryResult;
   }
 

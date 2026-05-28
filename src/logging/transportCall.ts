@@ -83,9 +83,11 @@ export function onTransportCall(listener: TransportCallListener): () => void {
   };
 }
 
-/** Test helper — remove all registered listeners. Not used in production. */
+/** Test helper — remove all registered listeners (call, retry, busy). Not used in production. */
 export function __resetTransportCallListeners(): void {
   listeners.length = 0;
+  retryListeners.length = 0;
+  busyListeners.length = 0;
 }
 
 /** Emit a single `transport.call` event at debug level. */
@@ -128,6 +130,83 @@ export function emitTransportCall(
       fn(event);
     } catch {
       // Listener errors are swallowed — emit must never block a transport call.
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Retry / busy observer hooks (#823)
+//
+// `transport.retry` and `of.busy.detected` are already written as structured
+// log lines by the script runners. These thin observer hooks let in-process
+// subscribers (the telemetry sink) see the same events as discrete records
+// without parsing the log stream — mirroring the `onTransportCall` pattern.
+// The runners keep their existing `logger` calls; they additionally call
+// `emitTransportRetry` / `emitTransportBusy` to notify subscribers. Notify is
+// best-effort and never throws into the caller.
+// ---------------------------------------------------------------------------
+
+/** Payload for a retry-once event (#816), surfaced to observers (#823). */
+export interface TransportRetryEvent {
+  transport: "jxa" | "omnijs";
+  scriptName: string | undefined;
+  /** Why the first attempt was retryable (timeout / errno signature). */
+  reason: string;
+  /** Outcome of the retry attempt. */
+  outcome: "ok" | "error";
+  delayMs: number;
+  /** Wall-clock of the retry attempt. */
+  durationMs: number;
+}
+
+/** Payload for an OmniFocus-busy detection event (#835), surfaced to observers (#823). */
+export interface TransportBusyEvent {
+  transport: "jxa" | "omnijs";
+  scriptName: string | undefined;
+  timeoutMs: number;
+}
+
+type TransportRetryListener = (event: TransportRetryEvent) => void;
+type TransportBusyListener = (event: TransportBusyEvent) => void;
+const retryListeners: TransportRetryListener[] = [];
+const busyListeners: TransportBusyListener[] = [];
+
+/** Subscribe to `transport.retry` events. Returns a disposer. */
+export function onTransportRetry(listener: TransportRetryListener): () => void {
+  retryListeners.push(listener);
+  return () => {
+    const idx = retryListeners.indexOf(listener);
+    if (idx >= 0) retryListeners.splice(idx, 1);
+  };
+}
+
+/** Subscribe to `of.busy.detected` events. Returns a disposer. */
+export function onTransportBusy(listener: TransportBusyListener): () => void {
+  busyListeners.push(listener);
+  return () => {
+    const idx = busyListeners.indexOf(listener);
+    if (idx >= 0) busyListeners.splice(idx, 1);
+  };
+}
+
+/** Notify retry subscribers. Best-effort; the runner already logged the event. */
+export function emitTransportRetry(event: TransportRetryEvent): void {
+  for (const fn of retryListeners) {
+    try {
+      fn(event);
+    } catch {
+      // swallowed — instrumentation must never break the transport call
+    }
+  }
+}
+
+/** Notify busy subscribers. Best-effort; the runner already logged the event. */
+export function emitTransportBusy(event: TransportBusyEvent): void {
+  for (const fn of busyListeners) {
+    try {
+      fn(event);
+    } catch {
+      // swallowed — instrumentation must never break the transport call
     }
   }
 }
