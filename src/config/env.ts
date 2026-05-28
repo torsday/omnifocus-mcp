@@ -138,6 +138,22 @@ const envSchema = z.object({
   // Per-tool budgets (cached-read p95 < 50ms, batch-write 20 < 1.2s per
   // SPEC §9) are not encoded here; this is a single global guardrail.
   OMNIFOCUS_DURATION_STATS_THRESHOLD_MS: z.coerce.number().int().positive().default(5000),
+  // Opt-in JSONL telemetry sink (#823). When set to a non-empty path, the
+  // server appends one JSON line per observability event (transport.call,
+  // transport.retry, of.busy.detected, cache.invalidated, and periodic
+  // response-stats samples) to that file for offline trend analysis. Empty
+  // (default) = disabled, zero overhead. The operator owns the path; the
+  // server never creates directories. Events are already PII-redacted at the
+  // source (#9). Per ADR-0006 this is operator-side log shipping, not shared
+  // persistence.
+  OMNIFOCUS_TELEMETRY_SINK_PATH: z.string().default(""),
+  // Rotate the sink file to a single `<path>.1` backup once it would exceed
+  // this many bytes. Default 50 MiB. Keeps the on-disk footprint bounded.
+  OMNIFOCUS_TELEMETRY_SINK_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(50 * 1024 * 1024),
   // Transport-level circuit breaker (#835). Distinct from the per-tool
   // breaker — this one scopes by transport (jxa / omnijs) so a sustained
   // OF wedge (queue of Timeouts) short-circuits the whole transport
@@ -209,6 +225,8 @@ export function parseConfig(
     OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS: processEnv.OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS,
     OMNIFOCUS_DURATION_STATS_SAMPLE_RATE: processEnv.OMNIFOCUS_DURATION_STATS_SAMPLE_RATE,
     OMNIFOCUS_DURATION_STATS_THRESHOLD_MS: processEnv.OMNIFOCUS_DURATION_STATS_THRESHOLD_MS,
+    OMNIFOCUS_TELEMETRY_SINK_PATH: processEnv.OMNIFOCUS_TELEMETRY_SINK_PATH,
+    OMNIFOCUS_TELEMETRY_SINK_MAX_BYTES: processEnv.OMNIFOCUS_TELEMETRY_SINK_MAX_BYTES,
     OMNIFOCUS_CIRCUIT_ENABLED: processEnv.OMNIFOCUS_CIRCUIT_ENABLED,
     OMNIFOCUS_CIRCUIT_THRESHOLD: processEnv.OMNIFOCUS_CIRCUIT_THRESHOLD,
     OMNIFOCUS_CIRCUIT_RECOVERY_MS: processEnv.OMNIFOCUS_CIRCUIT_RECOVERY_MS,
@@ -269,6 +287,12 @@ export function redactConfig(config: Config): Record<string, unknown> {
     OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS: config.OMNIFOCUS_LATENCY_STATS_THRESHOLD_MS,
     OMNIFOCUS_DURATION_STATS_SAMPLE_RATE: config.OMNIFOCUS_DURATION_STATS_SAMPLE_RATE,
     OMNIFOCUS_DURATION_STATS_THRESHOLD_MS: config.OMNIFOCUS_DURATION_STATS_THRESHOLD_MS,
+    // Path-shaped — hash to avoid leaking directory structure (empty stays empty).
+    OMNIFOCUS_TELEMETRY_SINK_PATH:
+      config.OMNIFOCUS_TELEMETRY_SINK_PATH === ""
+        ? ""
+        : hashValue(config.OMNIFOCUS_TELEMETRY_SINK_PATH),
+    OMNIFOCUS_TELEMETRY_SINK_MAX_BYTES: config.OMNIFOCUS_TELEMETRY_SINK_MAX_BYTES,
     OMNIFOCUS_CIRCUIT_ENABLED: config.OMNIFOCUS_CIRCUIT_ENABLED,
     OMNIFOCUS_CIRCUIT_THRESHOLD: config.OMNIFOCUS_CIRCUIT_THRESHOLD,
     OMNIFOCUS_CIRCUIT_RECOVERY_MS: config.OMNIFOCUS_CIRCUIT_RECOVERY_MS,

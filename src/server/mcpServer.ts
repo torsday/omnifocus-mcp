@@ -45,10 +45,11 @@ import { ReadPool } from "../concurrency/ReadPool.js";
 import { WriteQueue } from "../concurrency/WriteQueue.js";
 import { parseConfig, redactConfig } from "../config/env.js";
 import { logger } from "../logging/logger.js";
-import { onTransportCall } from "../logging/transportCall.js";
+import { onTransportBusy, onTransportCall, onTransportRetry } from "../logging/transportCall.js";
 import { LoopDetector } from "../loopDetector/LoopDetector.js";
 import { LatencyStatsRegistry } from "../observability/latencyStats.js";
 import { ResponseStatsRegistry } from "../observability/responseStats.js";
+import { buildTelemetrySink } from "../observability/telemetrySink.js";
 import { ToolDurationStatsRegistry } from "../observability/toolDurationStats.js";
 import {
   CAPTURE_MEETING_PROMPT,
@@ -392,6 +393,49 @@ export async function startServer(): Promise<void> {
   });
   const adapter = wrapWithConcurrency(router, { readPool, jxaWriteQueue, omniJsQueue });
   const services = composeServices(adapter, config);
+
+  // Opt-in JSONL telemetry sink (#823). Constructed only when
+  // OMNIFOCUS_TELEMETRY_SINK_PATH is set; otherwise `buildTelemetrySink`
+  // returns undefined and no subscribers are wired (zero overhead). When
+  // enabled, it durably exports the same observability events the in-process
+  // registries see — transport.call, transport.retry, of.busy.detected,
+  // cache.invalidated — plus a throttled response-stats sample piggybacked on
+  // transport.call (no separate timer). Subscriber callbacks are best-effort
+  // (the sink's record() never throws), so a failing sink can't break a call.
+  const telemetrySink = buildTelemetrySink({
+    path: config.OMNIFOCUS_TELEMETRY_SINK_PATH,
+    maxBytes: config.OMNIFOCUS_TELEMETRY_SINK_MAX_BYTES,
+  });
+  if (telemetrySink !== undefined) {
+    const SAMPLE_INTERVAL_MS = 60_000;
+    let lastResponseSampleAt = 0;
+    onTransportCall((event) => {
+      telemetrySink.record({ event: "transport.call", ...event });
+      // Piggyback a periodic response-stats snapshot (#823 "response stats
+      // sample") off transport.call traffic rather than a dedicated timer.
+      const nowMs = Date.now();
+      if (
+        config.OMNIFOCUS_RESPONSE_STATS_SAMPLE_RATE > 0 &&
+        nowMs - lastResponseSampleAt >= SAMPLE_INTERVAL_MS
+      ) {
+        lastResponseSampleAt = nowMs;
+        telemetrySink.record({ event: "response.stats.sample", ...responseStats.snapshot() });
+      }
+    });
+    onTransportRetry((event) => telemetrySink.record({ event: "transport.retry", ...event }));
+    onTransportBusy((event) => telemetrySink.record({ event: "of.busy.detected", ...event }));
+    services.cache.on("cache.invalidated", (payload: Record<string, unknown>) => {
+      telemetrySink.record({ event: "cache.invalidated", ...payload });
+    });
+    // Flush remaining buffered events on clean shutdown (DESIGN §17).
+    shutdownController.registerCleanup("telemetry-sink", async () => {
+      telemetrySink.close();
+    });
+    logger.info(
+      { event: "telemetry.sink.enabled", maxBytes: config.OMNIFOCUS_TELEMETRY_SINK_MAX_BYTES },
+      "telemetry sink enabled — appending observability events as JSONL",
+    );
+  }
 
   // Register internal_status tool.
   registerInternalStatusTool(server, {
