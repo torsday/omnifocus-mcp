@@ -74,9 +74,16 @@ export interface ShutdownControllerOptions {
  * - `registerQueue(q)` — registers a drainable transport queue
  * - `initiate(reason)` — starts the full drain + exit sequence
  */
+/** A named teardown step run after queues drain, before the logger flush. */
+interface CleanupHook {
+  readonly name: string;
+  readonly fn: () => void | Promise<void>;
+}
+
 export class ShutdownController {
   private _shuttingDown = false;
   private readonly _queues: DrainableQueue[] = [];
+  private readonly _cleanups: CleanupHook[] = [];
   private readonly _readGraceMs: number;
   private readonly _writeGraceMs: number;
 
@@ -114,14 +121,26 @@ export class ShutdownController {
   }
 
   /**
+   * Register a teardown step run after queues have drained but before the
+   * logger flush and exit. Use for resources the drain doesn't cover — e.g.
+   * killing spawned `osascript` children that would otherwise be orphaned and
+   * keep OmniFocus locked (#839). Hooks run sequentially in registration order;
+   * a throwing hook is logged and does not block the rest of the sequence.
+   */
+  registerCleanup(name: string, fn: () => void | Promise<void>): void {
+    this._cleanups.push({ name, fn });
+  }
+
+  /**
    * Begin the graceful shutdown sequence. Idempotent — subsequent calls
    * return immediately without re-running the sequence.
    *
    * Sequence:
    *   1. Set `isShuttingDown = true`
    *   2. Drain all registered queues within their grace window
-   *   3. Flush pino logger
-   *   4. `process.exit(0)`
+   *   3. Run registered cleanup hooks (e.g. kill orphan osascript children)
+   *   4. Flush pino logger
+   *   5. `process.exit(0)`
    *
    * @param reason  Human-readable trigger source (e.g. "SIGINT", "SIGTERM").
    * @param exitFn  Injectable exit function; defaults to `process.exit`. Use
@@ -145,6 +164,11 @@ export class ShutdownController {
     // In M0 there are no queues; this resolves immediately.
     const totalGraceMs = this._readGraceMs + this._writeGraceMs;
     await this._drainAll(totalGraceMs);
+
+    // Run teardown hooks (e.g. kill orphan osascript children) after the
+    // graceful drain — anything still in flight past the grace window gets
+    // force-terminated here rather than leaked.
+    await this._runCleanups();
 
     // Flush the pino logger — pino uses a synchronous write to stderr, so
     // `flush()` ensures the last log line is written before exit.
@@ -180,6 +204,24 @@ export class ShutdownController {
         { event: "server.shutdown.drain_timeout", queue: q.name, pending: q.pendingCount() },
         "queue did not drain within grace window; forcing shutdown",
       );
+    }
+  }
+
+  /**
+   * Run registered cleanup hooks sequentially. A hook that throws (or rejects)
+   * is logged and skipped — one failing teardown step must not strand the
+   * others or prevent exit.
+   */
+  private async _runCleanups(): Promise<void> {
+    for (const { name, fn } of this._cleanups) {
+      try {
+        await fn();
+      } catch (err) {
+        logger.warn(
+          { event: "server.shutdown.cleanup_error", cleanup: name, err },
+          "shutdown cleanup hook failed; continuing",
+        );
+      }
     }
   }
 }

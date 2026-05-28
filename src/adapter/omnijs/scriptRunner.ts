@@ -51,6 +51,7 @@ import {
 import { logger } from "../../logging/logger.js";
 import { emitTransportCall } from "../../logging/transportCall.js";
 import { probeOmniFocusResponsiveness } from "../_shared/busyProbe.js";
+import { trackChild } from "../_shared/childRegistry.js";
 import { type RetryPolicy, resolveRetryPolicy } from "../_shared/retryPolicy.js";
 import { ensureSpawnFloorCalibration, getSpawnFloorMs } from "../_shared/spawnFloor.js";
 import { getOmniJsCircuit, isCircuitTransient } from "../_shared/transportCircuit.js";
@@ -119,6 +120,9 @@ export const defaultOmniJsSpawner: ScriptSpawner = (wrappedJxaBody, _argsJson, t
         });
       },
     );
+    // Track the child so a SIGINT/SIGTERM mid-flight can terminate it rather
+    // than orphan an osascript process that keeps OmniFocus locked (#839).
+    trackChild(child);
     if (child.stdin !== null) {
       child.stdin.end(wrappedJxaBody, "utf8");
     }
