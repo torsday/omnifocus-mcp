@@ -926,17 +926,26 @@ export class JxaTransport implements OmniFocusAdapter {
 
   // The forecast-tag preference (`Database.forecastTag` in OmniJS) is not
   // exposed by JXA cleanly; routed to OmniJsTransport via TransportRouter.
-  async getForecastTag(): Promise<{ tagId: import("../../domain/ids.js").TagId | null }> {
-    throw new ScriptError("getForecastTag routes to OmniJsTransport — JXA transport unavailable", {
-      details: { transport: "jxa", reason: "routes-to-omnijs", method: "getForecastTag" },
-    });
+  async getForecastTagWithName(): Promise<{
+    tagId: import("../../domain/ids.js").TagId | null;
+    name: string | null;
+  }> {
+    throw new ScriptError(
+      "getForecastTagWithName routes to OmniJsTransport — JXA transport unavailable",
+      {
+        details: { transport: "jxa", reason: "routes-to-omnijs", method: "getForecastTagWithName" },
+      },
+    );
   }
-  async setForecastTag(
+  async setForecastTagWithName(
     _tagId: import("../../domain/ids.js").TagId | null,
-  ): Promise<{ tagId: import("../../domain/ids.js").TagId | null }> {
-    throw new ScriptError("setForecastTag routes to OmniJsTransport — JXA transport unavailable", {
-      details: { transport: "jxa", reason: "routes-to-omnijs", method: "setForecastTag" },
-    });
+  ): Promise<{ tagId: import("../../domain/ids.js").TagId | null; name: string | null }> {
+    throw new ScriptError(
+      "setForecastTagWithName routes to OmniJsTransport — JXA transport unavailable",
+      {
+        details: { transport: "jxa", reason: "routes-to-omnijs", method: "setForecastTagWithName" },
+      },
+    );
   }
 
   // -- Database undo/redo (route to OmniJS) ---------------------------------

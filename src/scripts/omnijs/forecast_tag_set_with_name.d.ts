@@ -1,5 +1,5 @@
 /**
- * Type shim for `forecast_get_tag.js`.
+ * Type shim for `forecast_tag_set_with_name.js`.
  * @see src/scripts/jxa/task_list.d.ts — canonical pattern
  */
 declare const source: string;

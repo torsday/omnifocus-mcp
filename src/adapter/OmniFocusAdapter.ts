@@ -677,20 +677,35 @@ export interface OmniFocusAdapter {
   getForecast(input: ForecastInput): Promise<ForecastResult>;
 
   /**
-   * Read the configured forecast-tag preference. Returns `null` when no tag
-   * is set (fresh OF install or explicitly cleared). The forecast tag is the
-   * single tag whose tasks always appear on Forecast alongside dated items.
+   * Read the configured forecast-tag preference together with its display
+   * name in a single transport round-trip. Returns `null` for both fields
+   * when no tag is set (fresh OF install or explicitly cleared). The forecast
+   * tag is the single tag whose tasks always appear on Forecast alongside
+   * dated items.
    *
-   * @see #465
+   * Composite of the former `getForecastTag` + `getTag(id)` fanout (#849):
+   * `Database.forecastTag` is the live tag object, so the name comes free —
+   * no separate `getTag` spawn. The name is always consistent with the id
+   * (the OmniJS property only resolves to a live tag or null), so there is no
+   * orphan case to surface.
+   *
+   * @see #465 / #599 / #849
    */
-  getForecastTag(): Promise<{ tagId: TagId | null }>;
+  getForecastTagWithName(): Promise<{ tagId: TagId | null; name: string | null }>;
 
   /**
-   * Set or clear the forecast-tag preference. Pass `null` to clear.
+   * Set or clear the forecast-tag preference and return the post-set state
+   * with the tag name, in a single transport round-trip. Pass `null` to clear
+   * (both returned fields are then `null`).
+   *
+   * Composite of the former `setForecastTag` + `getTag(id)` fanout (#849).
    *
    * @throws NotFound — when `tagId` is supplied but no tag with that ID exists
+   * @see #465 / #599 / #849
    */
-  setForecastTag(tagId: TagId | null): Promise<{ tagId: TagId | null }>;
+  setForecastTagWithName(
+    tagId: TagId | null,
+  ): Promise<{ tagId: TagId | null; name: string | null }>;
 
   // -- Attachments -----------------------------------------------------------
 

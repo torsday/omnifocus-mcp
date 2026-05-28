@@ -12,12 +12,13 @@ function makeCtx(
   tagId: ReturnType<typeof TagIdCtor.of> | null,
   opts: { tagName?: string | null } = {},
 ) {
+  // Composite read (#849): the adapter returns id+name in one call. The
+  // service delegates straight through, so the mock supplies the paired shape.
+  // `tagName: null` (explicit) models the adapter reporting a stale/orphan id.
+  const resolvedName = "tagName" in opts ? opts.tagName : "Today";
+  const name = tagId === null ? null : (resolvedName ?? null);
   const adapter = {
-    getForecastTag: vi.fn().mockResolvedValue({ tagId }),
-    getTag: vi.fn().mockImplementation(async (id: ReturnType<typeof TagIdCtor.of>) => {
-      if (opts.tagName === null) throw new Error("missing");
-      return { id, name: opts.tagName ?? "Today" };
-    }),
+    getForecastTagWithName: vi.fn().mockResolvedValue({ tagId, name }),
   } as unknown as ConstructorParameters<typeof ForecastService>[0]["adapter"];
   return {
     forecastService: new ForecastService({ adapter }),
@@ -39,9 +40,13 @@ describe("handleForecastGetTag", () => {
     expect(env.data).toEqual({ tagId: null, name: null });
   });
 
-  it("returns name: null when the configured tag was deleted (orphan)", async () => {
+  it("passes through name: null when the adapter reports an orphan tag", async () => {
+    // Post-#849 the composite OmniJS read can't observe a true orphan
+    // (`Database.forecastTag` only resolves to a live tag or null), but the
+    // InMemory adapter can return a stale id with name null; the service must
+    // pass that shape through untouched.
     const tag = TagIdCtor.of("tag-orphan");
-    const ctx = makeCtx(tag, { tagName: null }); // getTag will throw
+    const ctx = makeCtx(tag, { tagName: null });
     const env = await handleForecastGetTag({}, ctx);
     expect(env.data).toEqual({ tagId: tag, name: null });
   });
