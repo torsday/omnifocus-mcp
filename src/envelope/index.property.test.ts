@@ -177,7 +177,8 @@ describe("envelope — property tests (#832)", () => {
       // Unicode literal written as \u escapes so the file stays ASCII on
       // disk (raw multi-plane chars + a ZWJ make git treat it as binary,
       // which hides the diff in review). Decoded value is the same string.
-      unicode: "\u65E5\u672C\u8A9E \u2014 caf\u00E9 \u2014 \u{1F98A} \u2014 \u{1F468}\u200D\u{1F469}\u200D\u{1F467}",
+      unicode:
+        "\u65E5\u672C\u8A9E \u2014 caf\u00E9 \u2014 \u{1F98A} \u2014 \u{1F468}\u200D\u{1F469}\u200D\u{1F467}",
       longString: "x".repeat(50_000),
       nested: { a: { b: { c: [1, null, "深い"] } } },
     };
