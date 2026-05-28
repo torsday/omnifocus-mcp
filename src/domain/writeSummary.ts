@@ -8,6 +8,8 @@
  * - No model calls — purely template-driven
  */
 
+import { truncateWithEllipsis } from "./text.js";
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -16,8 +18,12 @@ function q(name: string): string {
   return `'${name}'`;
 }
 
+/**
+ * Cap a summary at 140 code points (per ADR-0015 §3), code-point-safe so a
+ * multibyte name at the boundary isn't split into a lone surrogate (#834).
+ */
 function cap(s: string): string {
-  return s.length > 140 ? `${s.slice(0, 137)}…` : s;
+  return truncateWithEllipsis(s, 140);
 }
 
 // ---------------------------------------------------------------------------

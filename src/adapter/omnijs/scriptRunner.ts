@@ -40,6 +40,7 @@
 
 import { execFile } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { truncateWithEllipsis } from "../../domain/text.js";
 import {
   OFBusy,
   OmniFocusNotRunning,
@@ -336,7 +337,7 @@ async function runOmniJsScriptInner<T>(
       details: {
         transport: "omnijs",
         exitCode: result.exitCode,
-        stderr: truncate(result.stderr, 1024),
+        stderr: truncateWithEllipsis(result.stderr, 1024),
         ...(scriptName !== undefined ? { scriptName } : {}),
       },
     });
@@ -368,7 +369,7 @@ async function runOmniJsScriptInner<T>(
       cause,
       details: {
         transport: "omnijs",
-        stdoutPreview: truncate(trimmed, 200),
+        stdoutPreview: truncateWithEllipsis(trimmed, 200),
         ...(scriptName !== undefined ? { scriptName } : {}),
       },
     });
@@ -425,7 +426,7 @@ function classifyOmniJsStderr(stderr: string, scriptName?: string): Error | null
     return new OmniFocusNotRunning({
       details: {
         transport: "omnijs",
-        stderr: truncate(stderr, 512),
+        stderr: truncateWithEllipsis(stderr, 512),
         ...(scriptName !== undefined ? { scriptName } : {}),
       },
     });
@@ -440,16 +441,11 @@ function classifyOmniJsStderr(stderr: string, scriptName?: string): Error | null
     return new PermissionDenied({
       details: {
         transport: "omnijs",
-        stderr: truncate(stderr, 512),
+        stderr: truncateWithEllipsis(stderr, 512),
         ...(scriptName !== undefined ? { scriptName } : {}),
       },
     });
   }
 
   return null;
-}
-
-/** Cap a string to `n` chars so it never balloons an error payload. */
-function truncate(s: string, n: number): string {
-  return s.length <= n ? s : `${s.slice(0, n)}…`;
 }
