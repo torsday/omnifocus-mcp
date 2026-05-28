@@ -16,11 +16,24 @@ Five tiers, each with a distinct purpose and gating.
 
 ### Patterns
 
-- **Property tests** for the repetition-rule schema, transport-text parser, and cursor codec (high edge-case density)
+- **Property tests** for the repetition-rule schema, transport-text parser, cursor codec, and response envelope (high edge-case density)
 - **Chaos injection** for the transport layer: a test harness that simulates `OmniFocusNotRunning`, `PermissionDenied`, `Timeout`, and malformed-JSON-from-script
 - **Snapshot tests** for tool descriptions (to catch accidental description drift that might confuse agents)
 - **Seed fixture:** integration tests run against a reproducible OF database populated via `scripts/seed-integration-db.js` before each run
 - **No network mocks** — there's no network to mock
+
+#### Property-based tests for protocol surfaces ([#832](https://github.com/torsday/omnifocus-mcp/issues/832))
+
+Any surface every tool depends on — the cursor codec (`src/pagination/cursor.ts`), the response envelope (`src/envelope/index.ts`), the cross-transport ID shape — earns a `*.property.test.ts` sibling using `fast-check`. Example-based tests check the cases the author thought of; property tests generate randomized inputs and assert *invariants*, which is how schema-drift and edge-case bugs (#760 / #762 / #763 / #783) get caught before they ship.
+
+The recipe (see `src/envelope/index.property.test.ts` and `src/pagination/cursor.property.test.ts`):
+
+1. **Build arbitraries that match the real value space.** For envelope `data`, `fc.dictionary(fc.string(), fc.jsonValue())` covers the JSON-serializable surface (objects, arrays, unicode strings, numbers, null) that crosses the wire. For metadata, an `fc.record` with `requiredKeys` models the optional-field shape.
+2. **Assert round-trip invariants, not specific outputs.** `JSON.parse(JSON.stringify(envelope)).data` ≡ `data`; `decode(encode(x))` ≡ `x`; every supplied `meta` key survives. These hold for *all* inputs, so a generator that wanders into an unhandled shape fails loudly.
+3. **Add explicit edge cases the generators rarely hit** — empty arrays, `null` fields, 50k-char strings, multi-plane unicode (`🦊`, combining marks) — as a fixed test alongside the generated ones.
+4. **Pin `numRuns`** (200–300 for cheap codecs) so CI cost is bounded and reproducible; fast-check shrinks any failure to a minimal counterexample automatically.
+
+When adding a new protocol surface, add its property test in the same PR — the invariant lives next to the code it protects.
 
 ### `InMemoryAdapter` contract scope
 
