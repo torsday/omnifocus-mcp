@@ -103,5 +103,3 @@ export const IdConstructors = {
   FolderId,
   AttachmentId,
 } as const;
-
-export type IdKind = keyof typeof IdConstructors;

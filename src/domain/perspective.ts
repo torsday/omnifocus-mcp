@@ -49,6 +49,7 @@ export interface Perspective {
 // Schema
 // ---------------------------------------------------------------------------
 
+/** @public — canonical Perspective validator, retained for adapter/CRUD use. */
 export const PerspectiveSchema: z.ZodType<Perspective> = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -174,6 +175,7 @@ export const PerspectiveIconColorSchema: z.ZodType<PerspectiveIconColor> = z.obj
   a: z.number().min(0).max(1),
 });
 
+/** @public — canonical PerspectiveDetail validator, retained for adapter/CRUD use. */
 export const PerspectiveDetailSchema: z.ZodType<PerspectiveDetail> = z.object({
   id: z.string().min(1),
   name: z.string().min(1),

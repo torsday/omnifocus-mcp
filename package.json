@@ -77,7 +77,8 @@
     "bench:latency": "tsx tests/benchmark/latency/cli.ts",
     "mutation": "stryker run",
     "prepublishOnly": "pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run build",
-    "prepare": "simple-git-hooks"
+    "prepare": "simple-git-hooks",
+    "knip": "knip"
   },
   "simple-git-hooks": {
     "pre-push": "pnpm typecheck && pnpm lint && pnpm test"
@@ -94,8 +95,7 @@
     "lru-cache": "^11.3.6",
     "pino": "^10.3.1",
     "ulid": "^3.0.2",
-    "zod": "^4.4.3",
-    "zod-to-json-schema": "^3.25.2"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.15",
@@ -106,6 +106,7 @@
     "@vitest/coverage-v8": "^4.1.6",
     "esbuild": "0.28.0",
     "fast-check": "^4.8.0",
+    "knip": "^5",
     "simple-git-hooks": "^2.13.1",
     "tsup": "^8.0.0",
     "tsx": "^4.7.0",

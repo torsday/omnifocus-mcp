@@ -9,8 +9,3 @@ export interface ChangeRecord {
   newValue: string | null;
   oldValue?: string | null;
 }
-
-export interface DescribeResult {
-  description: string;
-  plannedChanges: ChangeRecord[];
-}

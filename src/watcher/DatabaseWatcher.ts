@@ -128,13 +128,6 @@ export function resolveDefaultDbPath(): string {
 }
 
 /**
- * Default DB path resolved once at module load via {@link resolveDefaultDbPath}.
- * Exported for tests and diagnostics; production code paths through
- * {@link DatabaseWatcher} which calls the resolver per-construction.
- */
-export const DEFAULT_DB_PATH = resolveDefaultDbPath();
-
-/**
  * Resolve the default binary path relative to this file's location so it
  * works identically in `src/` (tsx dev) and `dist/` (compiled) layouts:
  *   src/watcher/DatabaseWatcher.ts  →  ../../bin/omnifocus-watcher

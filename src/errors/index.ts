@@ -424,6 +424,9 @@ export class LoopDetected extends OmniFocusError {
  * Thrown when a stray byte is detected on stdout — which is the MCP transport
  * channel and must remain clean. Any write to stdout (from a console.log,
  * third-party library, etc.) corrupts the JSON-RPC framing.
+ *
+ * @public — documented taxonomy member (`OF_STRAY_STDOUT`, docs/errors.md);
+ *   retained on the public error surface even if not currently thrown.
  */
 export class StrayStdout extends OmniFocusError {
   constructor(message: string, options: ErrorOptions = {}) {

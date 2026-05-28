@@ -265,14 +265,6 @@ export function summaryReviewSetNextReviewDate(date: string | null): string {
   return cap(`Set project next review date to ${date}.`);
 }
 
-export function summaryNoteSetById(itemType: "task" | "project"): string {
-  return `Set note on ${itemType}.`;
-}
-
-export function summaryNoteAppendById(itemType: "task" | "project"): string {
-  return `Appended to note on ${itemType}.`;
-}
-
 // ---------------------------------------------------------------------------
 // Misc summaries
 // ---------------------------------------------------------------------------

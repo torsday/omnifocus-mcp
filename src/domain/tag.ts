@@ -73,6 +73,7 @@ export const TAG_FIELD_NAMES = [
 /** Fast-lookup Set form of {@link TAG_FIELD_NAMES}. */
 export const TAG_FIELD_NAMES_SET: ReadonlySet<string> = new Set(TAG_FIELD_NAMES);
 
+/** @public — canonical Tag validator, retained for adapter/CRUD use. */
 export const TagSchema: z.ZodType<Tag> = z.object({
   id: TagIdCtor.schema,
   name: z.string(),
