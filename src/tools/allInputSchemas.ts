@@ -12,6 +12,8 @@
 import { z } from "zod";
 import {
   attachmentAddInputSchema,
+  attachmentCreateInputSchema,
+  attachmentDeleteInputSchema,
   attachmentListInputSchema,
   attachmentRemoveInputSchema,
   attachmentSaveToPathInputSchema,
@@ -91,6 +93,8 @@ import { webhookTestInputSchema } from "./webhook/test.js";
 export const ALL_INPUT_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   attachment_list: attachmentListInputSchema,
   attachment_add: attachmentAddInputSchema,
+  attachment_create: attachmentCreateInputSchema,
+  attachment_delete: attachmentDeleteInputSchema,
   attachment_remove: attachmentRemoveInputSchema,
   attachment_save_to_path: attachmentSaveToPathInputSchema,
   decision_clear: decisionClearInputSchema,

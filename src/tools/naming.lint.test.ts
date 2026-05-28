@@ -51,10 +51,12 @@ const VERB_SYNONYM_EXCEPTIONS: ReadonlyMap<string, string> = new Map([
   // creation of a persisted domain object, so `create` would be misleading.
   ["app_window_new", "UI action: opens a new window (not domain CRUD)"],
   ["app_window_new_tab", "UI action: opens a new tab (not domain CRUD)"],
-  // Legacy outliers: should be attachment_create / attachment_delete. Rename is
-  // a breaking change tracked in a follow-up (deprecation window required).
-  ["attachment_add", "legacy outlier — rename to attachment_create tracked in follow-up"],
-  ["attachment_remove", "legacy outlier — rename to attachment_delete tracked in follow-up"],
+  // Deprecated aliases (#1051): the canonical names attachment_create /
+  // attachment_delete now exist; these aliases delegate to them and emit a
+  // tool.deprecated event. Kept one minor for migration, dropped next major —
+  // remove these entries when the aliases are removed.
+  ["attachment_add", "deprecated alias of attachment_create — removed next major (#1051)"],
+  ["attachment_remove", "deprecated alias of attachment_delete — removed next major (#1051)"],
 ]);
 
 /** Split a tool name into its underscore-delimited tokens. */
