@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 143 tools registered.
+> Auto-generated from source. 145 tools registered.
 
 ## Table of contents
 
@@ -10,6 +10,8 @@
 - [app_window_new](#app_window_new)
 - [app_window_new_tab](#app_window_new_tab)
 - [attachment_add](#attachment_add)
+- [attachment_create](#attachment_create)
+- [attachment_delete](#attachment_delete)
 - [attachment_list](#attachment_list)
 - [attachment_remove](#attachment_remove)
 - [attachment_save_to_path](#attachment_save_to_path)
@@ -246,7 +248,7 @@ _No parameters._
 
 ## attachment_add
 
-Add a file attachment to a task or project from a local file path. The file is embedded into the OmniFocus database. Path must be within the allowed scope (default: $HOME; override via OMNIFOCUS_ATTACHMENT_PATHS). File must not exceed the size cap (default 100 MB; override via OMNIFOCUS_MAX_ATTACHMENT_MB). Returns { id, ownerKind, ownerName } — ownerKind is 'task' or 'project' and ownerName is the parent's display name (null only if the parent was deleted between the add and the lookup) so the agent can describe the new attachment without a follow-up read. Mutations do not propagate until sync_trigger is called. Example: attachment_add({ taskId: "abc123", filePath: "/Users/me/report.pdf" })
+DEPRECATED — use attachment_create instead (renamed for CRUD-verb consistency). Add a file attachment to a task or project from a local file path. The file is embedded into the OmniFocus database. Path must be within the allowed scope (default: $HOME; override via OMNIFOCUS_ATTACHMENT_PATHS). File must not exceed the size cap (default 100 MB; override via OMNIFOCUS_MAX_ATTACHMENT_MB). Returns { id, ownerKind, ownerName } — ownerKind is 'task' or 'project' and ownerName is the parent's display name (null only if the parent was deleted between the add and the lookup) so the agent can describe the new attachment without a follow-up read. Mutations do not propagate until sync_trigger is called. Example: attachment_create({ taskId: "abc123", filePath: "/Users/me/report.pdf" })
 
 ### Input
 
@@ -261,6 +263,76 @@ Add a file attachment to a task or project from a local file path. The file is e
 ```json
 {
   "toolName": "attachment_add",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## attachment_create
+
+Add a file attachment to a task or project from a local file path. The file is embedded into the OmniFocus database. Path must be within the allowed scope (default: $HOME; override via OMNIFOCUS_ATTACHMENT_PATHS). File must not exceed the size cap (default 100 MB; override via OMNIFOCUS_MAX_ATTACHMENT_MB). Returns { id, ownerKind, ownerName } — ownerKind is 'task' or 'project' and ownerName is the parent's display name (null only if the parent was deleted between the add and the lookup) so the agent can describe the new attachment without a follow-up read. Mutations do not propagate until sync_trigger is called. Example: attachment_create({ taskId: "abc123", filePath: "/Users/me/report.pdf" })
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `taskId` | string | No | Persistent ID of the task that owns the attachment. Provide exactly one of taskId or projectId. |
+| `projectId` | string | No | Persistent ID of the project that owns the attachment. Provide exactly one of taskId or projectId. |
+| `filePath` | string | Yes | Absolute path to the source file to attach. Must be within the allowed attachment path scope. |
+
+### Example call
+
+```json
+{
+  "toolName": "attachment_create",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## attachment_delete
+
+Remove an attachment from a task or project by attachment ID. Do not use to retrieve or export attachment content — use attachment_save_to_path instead. Returns { removed: true, attachmentId, ownerKind, ownerName } — ownerKind is 'task' or 'project' and ownerName is captured BEFORE the JXA call so it survives even if the lookup were to fail post-mutation; null only when the parent itself has been deleted. The agent can describe the removal without a follow-up read. Throws NotFound if the attachment or owner does not exist. Permanent — cannot be undone. Mutations do not propagate until sync_trigger is called. Example: attachment_delete({ taskId: "abc123", attachmentId: "att456" })
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `taskId` | string | No | Persistent ID of the task that owns the attachment. Provide exactly one of taskId or projectId. |
+| `projectId` | string | No | Persistent ID of the project that owns the attachment. Provide exactly one of taskId or projectId. |
+| `attachmentId` | string | Yes | Persistent ID of the attachment to remove. Get from attachment_list. |
+
+### Example call
+
+```json
+{
+  "toolName": "attachment_delete",
   "arguments": {}
 }
 ```
@@ -315,7 +387,7 @@ List all file attachments on a task or project. Do not use to retrieve attachmen
 
 ## attachment_remove
 
-Remove an attachment from a task or project by attachment ID. Do not use to retrieve or export attachment content — use attachment_save_to_path instead. Returns { removed: true, attachmentId, ownerKind, ownerName } — ownerKind is 'task' or 'project' and ownerName is captured BEFORE the JXA call so it survives even if the lookup were to fail post-mutation; null only when the parent itself has been deleted. The agent can describe the removal without a follow-up read. Throws NotFound if the attachment or owner does not exist. Permanent — cannot be undone. Mutations do not propagate until sync_trigger is called. Example: attachment_remove({ taskId: "abc123", attachmentId: "att456" })
+DEPRECATED — use attachment_delete instead (renamed for CRUD-verb consistency). Remove an attachment from a task or project by attachment ID. Do not use to retrieve or export attachment content — use attachment_save_to_path instead. Returns { removed: true, attachmentId, ownerKind, ownerName } — ownerKind is 'task' or 'project' and ownerName is captured BEFORE the JXA call so it survives even if the lookup were to fail post-mutation; null only when the parent itself has been deleted. The agent can describe the removal without a follow-up read. Throws NotFound if the attachment or owner does not exist. Permanent — cannot be undone. Mutations do not propagate until sync_trigger is called. Example: attachment_delete({ taskId: "abc123", attachmentId: "att456" })
 
 ### Input
 
@@ -350,7 +422,7 @@ Remove an attachment from a task or project by attachment ID. Do not use to retr
 
 ## attachment_save_to_path
 
-Copy an attachment's content to a local file path. Do not use to list or remove attachments — use attachment_list or attachment_remove instead. Returns { saved: true, path, sizeBytes } on success. Destination path must be within the allowed scope (default: $HOME). Writes the file to destPath (creates or overwrites); no side effects on OmniFocus data. Example: attachment_save_to_path({ taskId: "abc123", attachmentId: "att456", destPath: "/Users/me/report.pdf" })
+Copy an attachment's content to a local file path. Do not use to list or remove attachments — use attachment_list or attachment_delete instead. Returns { saved: true, path, sizeBytes } on success. Destination path must be within the allowed scope (default: $HOME). Writes the file to destPath (creates or overwrites); no side effects on OmniFocus data. Example: attachment_save_to_path({ taskId: "abc123", attachmentId: "att456", destPath: "/Users/me/report.pdf" })
 
 ### Input
 

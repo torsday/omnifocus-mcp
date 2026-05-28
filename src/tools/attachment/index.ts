@@ -1,6 +1,12 @@
 /**
- * Attachment tools — `attachment_list`, `attachment_add`, `attachment_remove`,
+ * Attachment tools — `attachment_list`, `attachment_create`, `attachment_delete`,
  * `attachment_save_to_path`.
+ *
+ * `attachment_create` / `attachment_delete` are the canonical CRUD names (#837
+ * vocabulary). The former names `attachment_add` / `attachment_remove` remain
+ * registered as **deprecated aliases** for one minor version — they delegate to
+ * the same handlers and emit a `tool.deprecated` log event so callers can
+ * migrate. They are slated for removal in the next major (#1051).
  *
  * Attachment content (bytes) is **never** returned over MCP. Use
  * `attachment_save_to_path` to copy an attachment to the local filesystem.
@@ -8,6 +14,7 @@
  * before any filesystem access.
  *
  * @see DESIGN.md §28 — tool surface
+ * @see docs/design/tool-vocabulary.md — canonical verb vocabulary (#837)
  * @see src/services/attachmentService.ts — service layer
  * @see src/attachment/assertAttachmentPath.ts — path-scope guard
  * @see src/attachment/assertAttachmentSize.ts — size-cap guard
@@ -21,6 +28,7 @@ import { AttachmentId, ProjectId, TaskId } from "../../domain/ids.js";
 import { FILE_PATH_MAX_CHARS } from "../../domain/inputLimits.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 import { ValidationError } from "../../errors/index.js";
+import { logger } from "../../logging/logger.js";
 import type { AttachmentService } from "../../services/attachmentService.js";
 
 // ---------------------------------------------------------------------------
@@ -86,19 +94,19 @@ export async function handleAttachmentList(
 }
 
 // ---------------------------------------------------------------------------
-// attachment_add
+// attachment_create  (canonical; formerly attachment_add)
 // ---------------------------------------------------------------------------
 
-export const ATTACHMENT_ADD_DESCRIPTION =
+export const ATTACHMENT_CREATE_DESCRIPTION =
   "Add a file attachment to a task or project from a local file path. " +
   "The file is embedded into the OmniFocus database. " +
   "Path must be within the allowed scope (default: $HOME; override via OMNIFOCUS_ATTACHMENT_PATHS). " +
   "File must not exceed the size cap (default 100 MB; override via OMNIFOCUS_MAX_ATTACHMENT_MB). " +
   "Returns { id, ownerKind, ownerName } — ownerKind is 'task' or 'project' and ownerName is the parent's display name (null only if the parent was deleted between the add and the lookup) so the agent can describe the new attachment without a follow-up read. " +
   "Mutations do not propagate until sync_trigger is called. " +
-  'Example: attachment_add({ taskId: "abc123", filePath: "/Users/me/report.pdf" })';
+  'Example: attachment_create({ taskId: "abc123", filePath: "/Users/me/report.pdf" })';
 
-export const attachmentAddInputSchema = ownerBaseSchema.extend({
+export const attachmentCreateInputSchema = ownerBaseSchema.extend({
   filePath: z
     .string()
     .min(1)
@@ -109,8 +117,8 @@ export const attachmentAddInputSchema = ownerBaseSchema.extend({
     ),
 });
 
-export async function handleAttachmentAdd(
-  input: z.infer<typeof attachmentAddInputSchema>,
+export async function handleAttachmentCreate(
+  input: z.infer<typeof attachmentCreateInputSchema>,
   ctx: AttachmentToolContext,
 ) {
   const owner = resolveOwner(input);
@@ -122,25 +130,25 @@ export async function handleAttachmentAdd(
 }
 
 // ---------------------------------------------------------------------------
-// attachment_remove
+// attachment_delete  (canonical; formerly attachment_remove)
 // ---------------------------------------------------------------------------
 
-export const ATTACHMENT_REMOVE_DESCRIPTION =
+export const ATTACHMENT_DELETE_DESCRIPTION =
   "Remove an attachment from a task or project by attachment ID. " +
   "Do not use to retrieve or export attachment content — use attachment_save_to_path instead. " +
   "Returns { removed: true, attachmentId, ownerKind, ownerName } — ownerKind is 'task' or 'project' and ownerName is captured BEFORE the JXA call so it survives even if the lookup were to fail post-mutation; null only when the parent itself has been deleted. The agent can describe the removal without a follow-up read. " +
   "Throws NotFound if the attachment or owner does not exist. " +
   "Permanent — cannot be undone. Mutations do not propagate until sync_trigger is called. " +
-  'Example: attachment_remove({ taskId: "abc123", attachmentId: "att456" })';
+  'Example: attachment_delete({ taskId: "abc123", attachmentId: "att456" })';
 
-export const attachmentRemoveInputSchema = ownerBaseSchema.extend({
+export const attachmentDeleteInputSchema = ownerBaseSchema.extend({
   attachmentId: AttachmentId.schema.describe(
     "Persistent ID of the attachment to remove. Get from attachment_list.",
   ),
 });
 
-export async function handleAttachmentRemove(
-  input: z.infer<typeof attachmentRemoveInputSchema>,
+export async function handleAttachmentDelete(
+  input: z.infer<typeof attachmentDeleteInputSchema>,
   ctx: AttachmentToolContext,
 ) {
   const owner = resolveOwner(input);
@@ -153,12 +161,30 @@ export async function handleAttachmentRemove(
 }
 
 // ---------------------------------------------------------------------------
+// Deprecated aliases — attachment_add / attachment_remove (#1051)
+// Removed in the next major. Kept one minor for migration; each logs
+// `tool.deprecated` on use and delegates to the canonical handler.
+// ---------------------------------------------------------------------------
+
+export const ATTACHMENT_ADD_DESCRIPTION =
+  "DEPRECATED — use attachment_create instead (renamed for CRUD-verb consistency). " +
+  ATTACHMENT_CREATE_DESCRIPTION;
+
+export const ATTACHMENT_REMOVE_DESCRIPTION =
+  "DEPRECATED — use attachment_delete instead (renamed for CRUD-verb consistency). " +
+  ATTACHMENT_DELETE_DESCRIPTION;
+
+/** Deprecated alias schemas — identical shape to the canonical tools. */
+export const attachmentAddInputSchema = attachmentCreateInputSchema;
+export const attachmentRemoveInputSchema = attachmentDeleteInputSchema;
+
+// ---------------------------------------------------------------------------
 // attachment_save_to_path
 // ---------------------------------------------------------------------------
 
 export const ATTACHMENT_SAVE_TO_PATH_DESCRIPTION =
   "Copy an attachment's content to a local file path. " +
-  "Do not use to list or remove attachments — use attachment_list or attachment_remove instead. " +
+  "Do not use to list or remove attachments — use attachment_list or attachment_delete instead. " +
   "Returns { saved: true, path, sizeBytes } on success. " +
   "Destination path must be within the allowed scope (default: $HOME). " +
   "Writes the file to destPath (creates or overwrites); no side effects on OmniFocus data. " +
@@ -196,7 +222,8 @@ export async function handleAttachmentSaveToPath(
 // ---------------------------------------------------------------------------
 
 /**
- * Register all four attachment tools on `server`.
+ * Register all attachment tools on `server`: the four canonical tools plus the
+ * two deprecated aliases (`attachment_add`, `attachment_remove`).
  *
  * @param server — MCP server instance
  * @param ctx    — shared dependencies (AttachmentService + makeMeta)
@@ -215,11 +242,11 @@ export function registerAttachmentTools(server: McpServer, ctx: AttachmentToolCo
   );
 
   server.registerTool(
-    "attachment_add",
-    { description: ATTACHMENT_ADD_DESCRIPTION, inputSchema: attachmentAddInputSchema.shape },
+    "attachment_create",
+    { description: ATTACHMENT_CREATE_DESCRIPTION, inputSchema: attachmentCreateInputSchema.shape },
     async (args) => {
-      const envelope = await handleAttachmentAdd(
-        args as z.infer<typeof attachmentAddInputSchema>,
+      const envelope = await handleAttachmentCreate(
+        args as z.infer<typeof attachmentCreateInputSchema>,
         ctx,
       );
       return toolResponse(envelope);
@@ -227,11 +254,45 @@ export function registerAttachmentTools(server: McpServer, ctx: AttachmentToolCo
   );
 
   server.registerTool(
-    "attachment_remove",
-    { description: ATTACHMENT_REMOVE_DESCRIPTION, inputSchema: attachmentRemoveInputSchema.shape },
+    "attachment_delete",
+    { description: ATTACHMENT_DELETE_DESCRIPTION, inputSchema: attachmentDeleteInputSchema.shape },
     async (args) => {
-      const envelope = await handleAttachmentRemove(
-        args as z.infer<typeof attachmentRemoveInputSchema>,
+      const envelope = await handleAttachmentDelete(
+        args as z.infer<typeof attachmentDeleteInputSchema>,
+        ctx,
+      );
+      return toolResponse(envelope);
+    },
+  );
+
+  // Deprecated alias: attachment_add → attachment_create (#1051).
+  server.registerTool(
+    "attachment_add",
+    { description: ATTACHMENT_ADD_DESCRIPTION, inputSchema: attachmentCreateInputSchema.shape },
+    async (args) => {
+      logger.warn(
+        { event: "tool.deprecated", tool: "attachment_add", replacement: "attachment_create" },
+        "tool 'attachment_add' is deprecated; use 'attachment_create'",
+      );
+      const envelope = await handleAttachmentCreate(
+        args as z.infer<typeof attachmentCreateInputSchema>,
+        ctx,
+      );
+      return toolResponse(envelope);
+    },
+  );
+
+  // Deprecated alias: attachment_remove → attachment_delete (#1051).
+  server.registerTool(
+    "attachment_remove",
+    { description: ATTACHMENT_REMOVE_DESCRIPTION, inputSchema: attachmentDeleteInputSchema.shape },
+    async (args) => {
+      logger.warn(
+        { event: "tool.deprecated", tool: "attachment_remove", replacement: "attachment_delete" },
+        "tool 'attachment_remove' is deprecated; use 'attachment_delete'",
+      );
+      const envelope = await handleAttachmentDelete(
+        args as z.infer<typeof attachmentDeleteInputSchema>,
         ctx,
       );
       return toolResponse(envelope);

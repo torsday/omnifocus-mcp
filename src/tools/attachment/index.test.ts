@@ -10,16 +10,18 @@ import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { AttachmentService } from "../../services/attachmentService.js";
 import type { AttachmentToolContext } from "./index.js";
 import {
-  handleAttachmentAdd,
+  handleAttachmentCreate as handleAttachmentAdd,
   handleAttachmentList,
-  handleAttachmentRemove,
+  handleAttachmentDelete as handleAttachmentRemove,
   handleAttachmentSaveToPath,
+  registerAttachmentTools,
 } from "./index.js";
 
 // ---------------------------------------------------------------------------
@@ -318,5 +320,71 @@ describe("owner validation via resolveOwner", () => {
     const projectId = await seedProject(adapter);
     const ctx = makeCtx(adapter);
     await expect(handleAttachmentList({ projectId }, ctx)).resolves.toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deprecated aliases — attachment_add / attachment_remove (#1051)
+// ---------------------------------------------------------------------------
+
+describe("registerAttachmentTools — deprecated aliases (#1051)", () => {
+  /** Minimal server stub that captures registered tool handlers by name. */
+  function captureRegistrations(ctx: AttachmentToolContext) {
+    const handlers = new Map<string, (args: unknown) => Promise<unknown>>();
+    const server = {
+      registerTool: (name: string, _cfg: unknown, handler: (args: unknown) => Promise<unknown>) => {
+        handlers.set(name, handler);
+      },
+    } as unknown as McpServer;
+    registerAttachmentTools(server, ctx);
+    return handlers;
+  }
+
+  it("registers canonical names and the deprecated aliases", () => {
+    const handlers = captureRegistrations(makeCtx(new InMemoryAdapter()));
+    for (const name of [
+      "attachment_create",
+      "attachment_delete",
+      "attachment_add",
+      "attachment_remove",
+      "attachment_list",
+      "attachment_save_to_path",
+    ]) {
+      expect(handlers.has(name), `expected ${name} to be registered`).toBe(true);
+    }
+  });
+
+  it("attachment_add alias delegates to the create handler", async () => {
+    const adapter = new InMemoryAdapter();
+    const taskId = await seedTask(adapter);
+    const ctx = makeCtx(adapter);
+    const filePath = await touchFile(tmpFile());
+
+    const handlers = captureRegistrations(ctx);
+    const aliasHandler = handlers.get("attachment_add");
+    expect(aliasHandler).toBeDefined();
+
+    const res = (await aliasHandler?.({ taskId, filePath })) as {
+      structuredContent: { data: { id: string; ownerKind: string } };
+    };
+    expect(res.structuredContent.data.id).toBeTruthy();
+    expect(res.structuredContent.data.ownerKind).toBe("task");
+  });
+
+  it("attachment_remove alias delegates to the delete handler", async () => {
+    const adapter = new InMemoryAdapter();
+    const taskId = await seedTask(adapter);
+    const ctx = makeCtx(adapter);
+    const filePath = await touchFile(tmpFile());
+    const {
+      data: { id: attachmentId },
+    } = await handleAttachmentAdd({ taskId, filePath }, ctx);
+
+    const handlers = captureRegistrations(ctx);
+    const aliasHandler = handlers.get("attachment_remove");
+    const res = (await aliasHandler?.({ taskId, attachmentId })) as {
+      structuredContent: { data: { removed: boolean } };
+    };
+    expect(res.structuredContent.data.removed).toBe(true);
   });
 });

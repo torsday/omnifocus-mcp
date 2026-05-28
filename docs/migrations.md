@@ -25,6 +25,15 @@ old shape can opt back in via new flags.
 | **Escape hatch** | Set `OMNIFOCUS_LEGACY_TEXT_CONTENT=1` in the server environment to restore v1 behavior (full JSON in `content[].text`). Read once at module load — server restart required to change. Intended as a temporary bridge while clients migrate; no plan to remove the flag. |
 | **Deprecation** | The v1 duplicated-text shape is the *default* removed; the opt-in flag is supported indefinitely. The exact placeholder string `"see structuredContent"` is itself part of the wire contract — renaming it would be another breaking change. |
 
+### `attachment_add` / `attachment_remove` renamed to `attachment_create` / `attachment_delete` (#1051)
+
+| | |
+|---|---|
+| **What changed** | The canonical attachment-mutation tools are now `attachment_create` and `attachment_delete`, matching the CRUD verb vocabulary used by every other resource (`docs/design/tool-vocabulary.md`, #837). The old names `attachment_add` / `attachment_remove` are retained as **deprecated aliases**. |
+| **Why** | `add`/`remove` were the only tools deviating from the universal `create`/`delete` CRUD verbs; the inconsistency hurt agent tool-selection. |
+| **Migration** | Call `attachment_create` / `attachment_delete` — identical input and output shapes to the old names. |
+| **Deprecation** | `attachment_add` / `attachment_remove` still work for one minor version and emit a `tool.deprecated` log event (`{ tool, replacement }`) on each call. They will be removed in the next major. |
+
 ### noteHtml removed from default task/project responses (#791)
 
 | | |
