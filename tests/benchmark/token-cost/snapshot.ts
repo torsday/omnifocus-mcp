@@ -59,8 +59,8 @@ export function buildSnapshot(results: WorkflowResult[]): SnapshotPayload {
   const workflows: SnapshotPayload["workflows"] = {};
   for (const r of sorted) {
     const sortedByTool: Record<string, { calls: number; responseBytes: number }> = {};
-    for (const k of Object.keys(r.byTool).sort()) {
-      sortedByTool[k] = r.byTool[k]!;
+    for (const [k, v] of Object.entries(r.byTool).sort(([a], [b]) => a.localeCompare(b))) {
+      sortedByTool[k] = v;
     }
     workflows[r.workflow] = {
       callCount: r.callCount,
