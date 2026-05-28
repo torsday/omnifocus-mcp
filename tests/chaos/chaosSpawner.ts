@@ -25,6 +25,40 @@
 
 import type { ScriptSpawner, SpawnResult } from "../../src/adapter/jxa/scriptRunner.js";
 
+/**
+ * Build a spawner that returns each supplied `SpawnResult` in order, one
+ * per call, then repeats the last entry for any further calls. Models a
+ * transient failure that recovers on retry — e.g. a cold-start timeout on
+ * the first JXA call followed by a fast success (#887).
+ *
+ * @see tests/chaos/transport.chaos.test.ts — "slow first call recovers"
+ */
+export function sequencedSpawner(...results: SpawnResult[]): ScriptSpawner {
+  if (results.length === 0) {
+    throw new Error("sequencedSpawner requires at least one SpawnResult");
+  }
+  let call = 0;
+  return async (): Promise<SpawnResult> => {
+    const idx = Math.min(call, results.length - 1);
+    call += 1;
+    // biome-ignore lint/style/noNonNullAssertion: idx is clamped to a valid index.
+    return results[idx]!;
+  };
+}
+
+/** A `SpawnResult` representing a hard timeout (cold-start / contention). */
+export const TIMEOUT_RESULT: SpawnResult = {
+  stdout: "",
+  stderr: "",
+  exitCode: 1,
+  timedOut: true,
+};
+
+/** Build a success `SpawnResult` carrying the given JSON stdout. */
+export function okResult(stdout: string): SpawnResult {
+  return { stdout, stderr: "", exitCode: 0, timedOut: false };
+}
+
 export type ChaosMode =
   | "of-not-running"
   | "permission-denied"
