@@ -83,11 +83,22 @@ export class SearchService {
    * @returns Matched tasks for the current page plus cursor metadata.
    * @throws {ValidationError} when `cursor` was produced with different filters.
    */
-  async search(input: SearchInput): Promise<SearchResult> {
-    const limit = Math.min(input.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+  /**
+   * Build a continuation cursor anchored at `task`, as though it were the last
+   * item of a page produced for `input`. The response byte-cap (#776/#1059) uses
+   * this to resume at the last *kept* task when the wire-size cap trims a page
+   * before its natural boundary. Reuses {@link buildFilterForHash} so the
+   * filter-hash matches what the next `search({ cursor })` call expects; search
+   * always sorts `createdAt ASC`, so `lastSortValue` is the task's `createdAt`.
+   */
+  cursorForResultItem(task: Task, input: SearchInput): string {
+    const filterHash = hashFilter(this.buildFilterForHash(input));
+    return encodeCursor({ lastId: task.id, lastSortValue: task.createdAt, filterHash });
+  }
 
-    // Build the stable filter (exclude pagination fields from the hash)
-    const filterForHash: Record<string, unknown> = {
+  /** Stable filter object hashed into the cursor (excludes pagination fields). */
+  private buildFilterForHash(input: SearchInput): Record<string, unknown> {
+    return {
       ...(input.q !== undefined ? { q: input.q } : {}),
       scope: input.scope ?? "all",
       ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
@@ -98,7 +109,13 @@ export class SearchService {
       ...(input.flagged !== undefined ? { flagged: input.flagged } : {}),
       ...(input.completed !== undefined ? { completed: input.completed } : {}),
     };
-    const filterHash = hashFilter(filterForHash);
+  }
+
+  async search(input: SearchInput): Promise<SearchResult> {
+    const limit = Math.min(input.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+
+    // Build the stable filter (exclude pagination fields from the hash)
+    const filterHash = hashFilter(this.buildFilterForHash(input));
 
     // Decode cursor if present (validates filterHash)
     let cursorPayload: CursorPayload | null = null;

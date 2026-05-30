@@ -2184,6 +2184,7 @@ List projects in OmniFocus with optional filters. Use for queries across project
 | `verbose` | boolean | No | When true, return the full unelided project shape. Default: false — fields equal to their documented default (status: 'active', completionCriterion: 'parallel', flagged: false, tagIds: [], note: null, etc.) are omitted. See docs/token-cost.md for the defaults table. |
 | `fields` | string[] | No | Restrict each returned project to this list of top-level fields (id is always returned). Omit for the full project shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. |
 | `includeLinks` | boolean | No | When true, each project carries a `_links` HATEOAS block (self, folder). Default false — the block is omitted to save payload size. Use the project's `id` and `folderId` fields directly instead. |
+| `maxOutputBytes` | number | No | Cap the serialized byte size of the returned projects[] array. When the response would exceed this, the server returns as many whole projects as fit, sets meta.truncatedAtCap=true with meta.bytesReturned and meta.itemsReturned, and returns a pagination cursor that resumes at the first dropped project. Omit for no cap. Values above the server's hard ceiling (~1 MiB) are clamped. A single project larger than the cap is still returned whole so pagination always advances. |
 
 ### Example call
 
@@ -2725,6 +2726,7 @@ Full-text search across OmniFocus task names and/or notes. Use for finding tasks
 | `cursor` | string | No | Opaque cursor from a previous search_query response. Must use identical filters — changing filters returns a ValidationError. |
 | `fields` | string[] | No | Restrict each returned task to this list of top-level fields (id is always returned). Omit for the full task shape. Empty array returns just id. Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. Allowed: name, note, noteHtml, projectId, parentId, tagIds, deferDate, deferDateFloating, dueDate, dueDateFloating, estimatedMinutes, flagged, completed, completedAt, dropped, droppedAt, available, blocked, sequential, completedByChildren, repetition, notifications, createdAt, modifiedAt, _links. |
 | `includeLinks` | boolean | No | When true, each task carries a `_links` HATEOAS block (self, project, parent, tags). Default false — the block is omitted to save payload size. Use the task's `id`, `projectId`, `parentId`, and `tagIds` fields directly instead. |
+| `maxOutputBytes` | number | No | Cap the serialized byte size of the returned tasks[] array. When the response would exceed this, the server returns as many whole tasks as fit, sets meta.truncatedAtCap=true with meta.bytesReturned and meta.itemsReturned, and returns a pagination cursor that resumes at the first dropped task. Omit for no cap. Values above the server's hard ceiling (~1 MiB) are clamped. A single task larger than the cap is still returned whole so pagination always advances. |
 
 ### Example call
 
