@@ -1034,7 +1034,19 @@ Get forecast-view tasks from OmniFocus grouped by category: overdue, dueToday, d
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `date` | string | No | Anchor date for the forecast (ISO-8601 or relative shortcut: today, tomorrow, yesterday, this-week, next-week). Mutually exclusive with from/to. Defaults to today. |
+| `days` | number | No | Number of days to cover (1–7). Default 1. When > 1, byDate[] is included in the response. |
+| `from` | string | No | Start of date range (ISO-8601 or relative shortcut like 'today'). Use date/days for the ergonomic interface instead. Defaults to start of today. |
+| `to` | string | No | End of date range (ISO-8601 or relative shortcut like 'today'). Use date/days for the ergonomic interface instead. Defaults to end of today. |
+| `includeOverdue` | boolean | No | Include tasks overdue before the start of the range. Default true. |
+| `includeDeferred` | boolean | No | Include tasks whose defer date falls within the range. Default true. |
+| `includeFlagged` | boolean | No | Include all flagged incomplete tasks. Default true. |
+| `fields` | string[] | No | Restrict each returned task (across overdue/dueToday/deferredToday/flagged/byDate) to this list of top-level fields (id is always returned). Omit for the full task shape. Empty array returns just id. Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. Allowed: name, note, noteHtml, projectId, parentId, tagIds, deferDate, deferDateFloating, dueDate, dueDateFloating, estimatedMinutes, flagged, completed, completedAt, dropped, droppedAt, available, blocked, sequential, completedByChildren, repetition, notifications, createdAt, modifiedAt, _links. |
+| `limit` | number | No | Max unique tasks per page (1..200). Default 50. Pagination spans the union of overdue/dueToday/deferredToday/flagged: a task that appears in multiple buckets counts once. Use `cursor` to fetch subsequent pages. |
+| `cursor` | string | No | Opaque cursor from a previous forecast_get response. Must use the same filters (date/from/to/days/include* /fields) — changing filters mid-sequence returns a ValidationError. |
+| `maxOutputBytes` | number | No | Cap the serialized byte size of the forecast payload (the overdue/dueToday/deferredToday/flagged/byDate buckets together). When the page would exceed this, the server keeps as many whole tasks as fit, sets meta.truncatedAtCap=true with meta.bytesReturned and meta.itemsReturned, and returns a pagination cursor that resumes at the first dropped task. Omit for no cap. Values above the server's hard ceiling (~1 MiB) are clamped. A single task larger than the cap is still returned whole so pagination always advances. |
 
 ### Example call
 

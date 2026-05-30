@@ -28,6 +28,7 @@ import { folderGetInputSchema } from "./folder/get.js";
 import { folderListInputSchema } from "./folder/list.js";
 import { folderMoveInputSchema } from "./folder/move.js";
 import { folderUpdateInputSchema } from "./folder/update.js";
+import { forecastGetInputSchema } from "./forecast/get.js";
 import { noteAppendInputSchema } from "./note/append.js";
 import { noteGetInputSchema } from "./note/get.js";
 import { noteGetHtmlInputSchema } from "./note/get_html.js";
@@ -108,6 +109,7 @@ export const ALL_INPUT_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   folder_list: folderListInputSchema,
   folder_move: folderMoveInputSchema,
   folder_update: folderUpdateInputSchema,
+  forecast_get: forecastGetInputSchema,
   import_opml: importOpmlInputSchema,
   import_taskpaper: importTaskPaperInputSchema,
   note_append: noteAppendInputSchema,

@@ -18,11 +18,14 @@ import {
   resolveRelativeDate,
 } from "../../domain/dates.js";
 import { TASK_FIELD_NAMES, TASK_FIELD_NAMES_SET, type Task } from "../../domain/task.js";
+import { capByMeasuredPrefix } from "../../envelope/cap.js";
 import {
   ok,
   type Pagination,
   type ResponseMeta,
   toolResponse,
+  type Warning,
+  warnResultTruncatedBytes,
   warnUnknownFields,
 } from "../../envelope/index.js";
 import { applyProjection, validateFields } from "../../envelope/projection.js";
@@ -135,6 +138,18 @@ export const forecastGetInputSchema = z.object({
     .describe(
       "Opaque cursor from a previous forecast_get response. " +
         "Must use the same filters (date/from/to/days/include* /fields) — changing filters mid-sequence returns a ValidationError.",
+    ),
+  maxOutputBytes: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe(
+      "Cap the serialized byte size of the forecast payload (the overdue/dueToday/deferredToday/flagged/byDate " +
+        "buckets together). When the page would exceed this, the server keeps as many whole tasks as fit, sets " +
+        "meta.truncatedAtCap=true with meta.bytesReturned and meta.itemsReturned, and returns a pagination cursor " +
+        "that resumes at the first dropped task. Omit for no cap. Values above the server's hard ceiling (~1 MiB) " +
+        "are clamped. A single task larger than the cap is still returned whole so pagination always advances.",
     ),
 });
 
@@ -417,48 +432,74 @@ export async function handleForecastGet(input: ForecastGetToolInput, ctx: Foreca
         isAfterCursor({ id: t.id, sortValue: t.dueDate ?? null }, cursor, "asc"),
       )
     : ordered;
-  const page = after.slice(0, limit);
-  const hasMore = after.length > limit;
+  const naturalPage = after.slice(0, limit);
+
+  type ForecastPayload = {
+    overdue: ProjectedTask[];
+    dueToday: ProjectedTask[];
+    deferredToday: ProjectedTask[];
+    flagged: ProjectedTask[];
+    byDate?: { date: string; taskIds: string[] }[];
+  };
+
+  // Re-bucket a prefix of the paged union into the response shape callers
+  // expect. A task that originated in multiple buckets reappears in each;
+  // `byDate` (ID-only, per A4) is restricted to the prefix so its IDs always
+  // dereference into the returned `dueToday`.
+  const buildPayload = (pageTasks: Task[]): ForecastPayload => {
+    const ids = new Set(pageTasks.map((t) => t.id));
+    const inPage = (tasks: Task[]) => tasks.filter((t) => ids.has(t.id)).map(project);
+    const payload: ForecastPayload = {
+      overdue: inPage(result.overdue),
+      dueToday: inPage(result.dueToday),
+      deferredToday: inPage(result.deferredToday),
+      flagged: inPage(result.flagged),
+    };
+    if (days > 1) {
+      payload.byDate = groupByDate(result.dueToday.filter((t) => ids.has(t.id)));
+    }
+    return payload;
+  };
+
+  // Cap stage (#776/#1065). The wire payload is the *bucketed* shape — bigger
+  // than, and not linear in, the flat union slice — so measure the re-bucketed
+  // payload per prefix length and binary-search the largest fitting prefix.
+  const cap = capByMeasuredPrefix(
+    naturalPage.length,
+    (k) => Buffer.byteLength(JSON.stringify(buildPayload(naturalPage.slice(0, k))), "utf8"),
+    { ...(input.maxOutputBytes !== undefined ? { maxOutputBytes: input.maxOutputBytes } : {}) },
+  );
+
+  const page = cap.truncatedAtCap ? naturalPage.slice(0, cap.keptCount) : naturalPage;
+  const payload = buildPayload(page);
+
+  // More tasks remain if the union extends past what we kept (either the cap
+  // trimmed the page, or the natural page itself was a prefix of `after`).
+  const hasMore = after.length > page.length;
   const last = page[page.length - 1];
   const nextCursor =
     hasMore && last !== undefined
       ? encodeCursor({ lastId: last.id, lastSortValue: last.dueDate ?? null, filterHash })
       : null;
 
-  // Re-bucket the paged tasks into the response shape callers expect. A task
-  // that originated in multiple buckets reappears in each.
-  const pageIds = new Set(page.map((t) => t.id));
-  const inPage = (tasks: Task[]) => tasks.filter((t) => pageIds.has(t.id)).map(project);
-
-  const payload: {
-    overdue: ProjectedTask[];
-    dueToday: ProjectedTask[];
-    deferredToday: ProjectedTask[];
-    flagged: ProjectedTask[];
-    byDate?: { date: string; taskIds: string[] }[];
-  } = {
-    overdue: inPage(result.overdue),
-    dueToday: inPage(result.dueToday),
-    deferredToday: inPage(result.deferredToday),
-    flagged: inPage(result.flagged),
-  };
-
-  if (days > 1) {
-    // groupByDate emits ID-only buckets (per A4) so byDate doesn't duplicate
-    // task objects already inlined under dueToday. Restrict to the page's
-    // dueToday entries so the IDs always dereference into the current page.
-    payload.byDate = groupByDate(result.dueToday.filter((t) => pageIds.has(t.id)));
-  }
-
   const pagination: Pagination = { cursor: nextCursor, hasMore };
 
-  const warnings =
-    projection !== undefined && projection.unknown.length > 0
+  const warnings: Warning[] = [
+    ...(projection !== undefined && projection.unknown.length > 0
       ? [warnUnknownFields([...projection.unknown], TASK_FIELD_NAMES)]
-      : undefined;
+      : []),
+    ...(cap.truncatedAtCap ? [warnResultTruncatedBytes(cap.bytesReturned, cap.keptCount)] : []),
+  ];
   const meta = ctx.makeMeta({
     cacheHit: result.cacheHit,
-    ...(warnings !== undefined ? { warnings } : {}),
+    ...(warnings.length > 0 ? { warnings } : {}),
+    ...(cap.truncatedAtCap
+      ? {
+          truncatedAtCap: true,
+          bytesReturned: cap.bytesReturned,
+          itemsReturned: cap.keptCount,
+        }
+      : {}),
   });
 
   return ok(payload, meta, pagination);

@@ -194,3 +194,66 @@ export function applyByteCapById<T>(
     droppedIds: truncatedAtCap ? items.slice(kept).map(opts.idOf) : [],
   };
 }
+
+/** Outcome of {@link capByMeasuredPrefix}. */
+export interface MeasuredCapResult {
+  /** Number of leading items to keep (always ≥ 1 when `itemCount > 0`). */
+  keptCount: number;
+  /** True when fewer than `itemCount` items were kept to satisfy the cap. */
+  truncatedAtCap: boolean;
+  /** Serialized byte size of the response built from the kept prefix. */
+  bytesReturned: number;
+}
+
+/**
+ * Cap a sequence whose wire size is **not** a simple array-of-items sum, so the
+ * cheap incremental accounting in {@link applyByteCap} doesn't apply. The caller
+ * supplies `measurePrefix(k)` — the serialized byte size of the *whole response
+ * payload* built from the first `k` items — and this binary-searches the largest
+ * `k` whose payload fits within the cap.
+ *
+ * Used by `forecast_get` (#1065): its payload re-buckets each paged task into
+ * `overdue`/`dueToday`/… (a task can appear in several buckets, plus `byDate`),
+ * so the wire size is bigger than, and not linear in, the flat union slice.
+ *
+ * **Requires** `measurePrefix` to be monotonic non-decreasing in `k` (adding an
+ * item never shrinks the payload) — true for an append-only re-bucketing.
+ * Always keeps ≥ 1 item when `itemCount > 0`, so a single oversized item is
+ * emitted whole rather than yielding an empty, non-advancing page.
+ *
+ * @param itemCount - number of items available to keep
+ * @param measurePrefix - byte size of the payload built from the first `k` items
+ * @param opts - cap value + optional ceiling override
+ */
+export function capByMeasuredPrefix(
+  itemCount: number,
+  measurePrefix: (k: number) => number,
+  opts: { maxOutputBytes?: number; hardCeilingBytes?: number },
+): MeasuredCapResult {
+  const cap = resolveCap(opts.maxOutputBytes, opts.hardCeilingBytes);
+  if (itemCount === 0) {
+    return { keptCount: 0, truncatedAtCap: false, bytesReturned: measurePrefix(0) };
+  }
+  const fullBytes = measurePrefix(itemCount);
+  if (fullBytes <= cap) {
+    return { keptCount: itemCount, truncatedAtCap: false, bytesReturned: fullBytes };
+  }
+  // Full payload exceeds the cap — binary-search the largest fitting prefix,
+  // keeping at least the first item for forward progress.
+  let best = 1;
+  let bestBytes = measurePrefix(1);
+  let lo = 2;
+  let hi = itemCount - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const bytes = measurePrefix(mid);
+    if (bytes <= cap) {
+      best = mid;
+      bestBytes = bytes;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return { keptCount: best, truncatedAtCap: true, bytesReturned: bestBytes };
+}

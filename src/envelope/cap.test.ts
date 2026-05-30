@@ -10,6 +10,7 @@ import {
   applyByteCapById,
   type ByteCapByIdOptions,
   type ByteCapOptions,
+  capByMeasuredPrefix,
   DEFAULT_HARD_CEILING_BYTES,
   resolveHardCeilingBytes,
 } from "./cap.js";
@@ -179,5 +180,49 @@ describe("applyByteCapById — truncation", () => {
     expect(r.itemsReturned).toBe(1);
     expect(r.items).toEqual([item("aaaaaaaaaa")]);
     expect(r.droppedIds).toEqual(["b"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// capByMeasuredPrefix — measured (non-array) model (#1065)
+// ---------------------------------------------------------------------------
+
+describe("capByMeasuredPrefix", () => {
+  // Linear measure: 2 framing + 10 bytes per kept item.
+  const measure = (k: number) => 2 + k * 10;
+
+  it("returns 0 kept for an empty sequence", () => {
+    const r = capByMeasuredPrefix(0, measure, { maxOutputBytes: 100 });
+    expect(r).toMatchObject({ keptCount: 0, truncatedAtCap: false, bytesReturned: 2 });
+  });
+
+  it("keeps everything when the full payload fits", () => {
+    const r = capByMeasuredPrefix(4, measure, { maxOutputBytes: 1000 });
+    expect(r).toMatchObject({ keptCount: 4, truncatedAtCap: false, bytesReturned: 42 });
+  });
+
+  it("keeps everything when no cap is set", () => {
+    const r = capByMeasuredPrefix(4, measure, {});
+    expect(r.keptCount).toBe(4);
+    expect(r.truncatedAtCap).toBe(false);
+  });
+
+  it("binary-searches the largest fitting prefix", () => {
+    // cap 22: measure(2)=22 fits, measure(3)=32 doesn't → keep 2.
+    const r = capByMeasuredPrefix(4, measure, { maxOutputBytes: 22 });
+    expect(r).toMatchObject({ keptCount: 2, truncatedAtCap: true, bytesReturned: 22 });
+  });
+
+  it("keeps at least one item even when the first already exceeds the cap", () => {
+    const r = capByMeasuredPrefix(4, measure, { maxOutputBytes: 5 });
+    expect(r).toMatchObject({ keptCount: 1, truncatedAtCap: true, bytesReturned: 12 });
+  });
+
+  it("clamps a pathological cap to the hard ceiling", () => {
+    const r = capByMeasuredPrefix(4, measure, {
+      maxOutputBytes: Number.MAX_SAFE_INTEGER,
+      hardCeilingBytes: 22,
+    });
+    expect(r).toMatchObject({ keptCount: 2, truncatedAtCap: true });
   });
 });

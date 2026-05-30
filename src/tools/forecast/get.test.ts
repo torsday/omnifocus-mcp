@@ -533,3 +533,77 @@ describe("forecast_get — resolveAnchorDate TZ-aware start of day (#1036)", () 
     expect(d.getSeconds()).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// maxOutputBytes cap (#1065) — bucket-aware
+// ---------------------------------------------------------------------------
+
+describe("forecast_get — maxOutputBytes cap (#1065)", () => {
+  async function seedDueToday(adapter: ReturnType<typeof makeCtx>["adapter"], n: number) {
+    const ids: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const mm = String(i).padStart(2, "0");
+      ids.push(
+        await adapter.createTask({
+          name: `Due today ${mm} with a longer name for bytes`,
+          dueDate: `2026-04-23T14:${mm}:00.000Z`,
+        }),
+      );
+    }
+    return ids;
+  }
+
+  it("omits cap meta when maxOutputBytes is unset", async () => {
+    const { ctx, adapter } = makeCtx();
+    await seedDueToday(adapter, 5);
+    const env = await handleForecastGet(parseInput({ from: FROM, to: TO }), ctx);
+    if (!("data" in env)) throw new Error("expected ok");
+    expect(env.data.dueToday).toHaveLength(5);
+    expect(env.meta).not.toHaveProperty("truncatedAtCap");
+  });
+
+  it("truncates the bucketed payload within the cap and exposes a resumable cursor", async () => {
+    const { ctx, adapter } = makeCtx();
+    await seedDueToday(adapter, 20);
+    const full = await handleForecastGet(parseInput({ from: FROM, to: TO }), ctx);
+    if (!("data" in full)) throw new Error("expected ok");
+    const cap = Math.floor(Buffer.byteLength(JSON.stringify(full.data), "utf8") / 3);
+
+    const env = await handleForecastGet(
+      parseInput({ from: FROM, to: TO, maxOutputBytes: cap }),
+      ctx,
+    );
+    if (!("data" in env)) throw new Error("expected ok");
+    expect(env.meta.truncatedAtCap).toBe(true);
+    // Whole bucketed payload (not just one bucket) must be within the cap.
+    expect(Buffer.byteLength(JSON.stringify(env.data), "utf8")).toBeLessThanOrEqual(cap);
+    expect(env.data.dueToday.length).toBeLessThan(full.data.dueToday.length);
+    expect(env.meta.itemsReturned).toBe(env.data.dueToday.length);
+    expect(env.pagination?.hasMore).toBe(true);
+    expect(env.pagination?.cursor).toEqual(expect.any(String));
+    expect(env.meta.warnings?.some((w) => w.code === "WARN_RESULT_TRUNCATED")).toBe(true);
+  });
+
+  it("resumes via the re-anchored cursor with no gaps or overlaps", async () => {
+    const { ctx, adapter } = makeCtx();
+    const created = await seedDueToday(adapter, 20);
+    const full = await handleForecastGet(parseInput({ from: FROM, to: TO }), ctx);
+    if (!("data" in full)) throw new Error("expected ok");
+    const cap = Math.floor(Buffer.byteLength(JSON.stringify(full.data), "utf8") / 3);
+
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let guard = 0; guard < 30; guard++) {
+      const env = await handleForecastGet(
+        parseInput({ from: FROM, to: TO, maxOutputBytes: cap, ...(cursor ? { cursor } : {}) }),
+        ctx,
+      );
+      if (!("data" in env)) throw new Error("expected ok");
+      for (const t of env.data.dueToday) seen.push((t as { id: string }).id);
+      if (!env.pagination?.hasMore) break;
+      cursor = env.pagination.cursor ?? undefined;
+    }
+    expect(new Set(seen)).toEqual(new Set(created));
+    expect(seen.length).toBe(created.length); // no overlaps
+  });
+});
