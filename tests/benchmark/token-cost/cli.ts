@@ -28,6 +28,7 @@ import {
   writeSnapshot,
 } from "./snapshot.js";
 import { estimateTokens } from "./tokenizer.js";
+import { runCapTruncation } from "./workflows/capTruncation.js";
 import { runEndOfDayReview } from "./workflows/endOfDayReview.js";
 import { runInboxTriage } from "./workflows/inboxTriage.js";
 import { runLargePagination } from "./workflows/largePagination.js";
@@ -62,6 +63,7 @@ async function main(): Promise<void> {
     ["project-planning", runProjectPlanning] as const,
     ["end-of-day-review", runEndOfDayReview] as const,
     ["large-pagination", runLargePagination] as const,
+    ["cap-truncation", runCapTruncation] as const,
   ];
   const activeWorkflows = smoke5k
     ? workflows.filter(([label]) => label !== "large-pagination")

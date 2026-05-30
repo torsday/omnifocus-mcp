@@ -15,9 +15,17 @@ import { z } from "zod";
 import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import { TagId } from "../../domain/ids.js";
 import { TAG_FIELD_NAMES, TAG_FIELD_NAMES_SET } from "../../domain/tag.js";
+import { applyByteCapById } from "../../envelope/cap.js";
 import { TAG_DEFAULTS } from "../../envelope/defaultsRegistry.js";
 import { elideDefaultsAll } from "../../envelope/elideDefaults.js";
-import { ok, type ResponseMeta, toolResponse, warnUnknownFields } from "../../envelope/index.js";
+import {
+  ok,
+  type ResponseMeta,
+  toolResponse,
+  type Warning,
+  warnResultTruncatedBytes,
+  warnUnknownFields,
+} from "../../envelope/index.js";
 import { applyProjection, validateFields } from "../../envelope/projection.js";
 import type { TagListInput, TagService } from "../../services/tagService.js";
 
@@ -69,6 +77,19 @@ export const tagListInputSchema = z.object({
         "Omit for the full tag shape. Empty array returns just id. " +
         "Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS.",
     ),
+  maxOutputBytes: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe(
+      "Cap the serialized byte size of the returned tags[] array. When the response would exceed this, " +
+        "the server returns as many whole tags as fit, sets meta.truncatedAtCap=true with meta.bytesReturned " +
+        "and meta.itemsReturned, and lists the trimmed ids in meta.warnings.WARN_RESULT_TRUNCATED " +
+        "details.droppedIds — narrow with parentId/status, fetch those ids via tag_get_many, or raise the cap. " +
+        "Omit for no cap. Values above the server's hard ceiling (~1 MiB) are clamped. A single tag larger than " +
+        "the cap is still returned whole so the response always makes progress.",
+    ),
 });
 
 export type TagListToolInput = z.infer<typeof tagListInputSchema>;
@@ -103,15 +124,36 @@ export async function handleTagList(input: TagListToolInput, ctx: TagListContext
 
   // fields[] = explicit mode → skip elide-defaults.
   const applyElide = input.verbose !== true && projectFields === undefined;
-  const tags = applyElide
+  const wireTags = applyElide
     ? elideDefaultsAll(result.tags, TAG_DEFAULTS)
     : result.tags.map((t) => applyProjection(t, projectFields));
 
+  // Cap stage (#776/#1062) — runs last. tag_list has no cursor, so the trimmed
+  // tail is reported by id (ADR-0024) rather than via a continuation cursor.
+  const cap = applyByteCapById(wireTags, {
+    ...(input.maxOutputBytes !== undefined ? { maxOutputBytes: input.maxOutputBytes } : {}),
+    idOf: (t) => (t as { id: string }).id,
+  });
+
+  const allWarnings: Warning[] = [
+    ...(warnings ?? []),
+    ...(cap.truncatedAtCap
+      ? [warnResultTruncatedBytes(cap.bytesReturned, cap.itemsReturned, cap.droppedIds)]
+      : []),
+  ];
+
   const meta = ctx.makeMeta({
     cacheHit: result.cacheHit,
-    ...(warnings !== undefined ? { warnings } : {}),
+    ...(allWarnings.length > 0 ? { warnings: allWarnings } : {}),
+    ...(cap.truncatedAtCap
+      ? {
+          truncatedAtCap: true,
+          bytesReturned: cap.bytesReturned,
+          itemsReturned: cap.itemsReturned,
+        }
+      : {}),
   });
-  return ok({ tags }, meta);
+  return ok({ tags: cap.items }, meta);
 }
 
 // ---------------------------------------------------------------------------

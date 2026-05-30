@@ -131,3 +131,36 @@ describe("handleTagList — field projection", () => {
     expect(warning?.details).toMatchObject({ unknown: ["phantomTagField"] });
   });
 });
+
+// ---------------------------------------------------------------------------
+// maxOutputBytes cap (#1062)
+// ---------------------------------------------------------------------------
+
+describe("handleTagList — maxOutputBytes cap (#1062)", () => {
+  it("omits cap meta when maxOutputBytes is unset", async () => {
+    const { ctx, adapter } = makeCtx();
+    for (let i = 0; i < 4; i++) await adapter.createTag({ name: `Tag ${i}` });
+    const r = await handleTagList({}, ctx);
+    expect(r.data.tags).toHaveLength(4);
+    expect(r.meta).not.toHaveProperty("truncatedAtCap");
+  });
+
+  it("truncates with dropped ids + warning + bytes within the cap", async () => {
+    const { ctx, adapter } = makeCtx();
+    const created: string[] = [];
+    for (let i = 0; i < 6; i++)
+      created.push(await adapter.createTag({ name: `Tag ${i} with a longer name for bytes` }));
+    const full = await handleTagList({ verbose: true }, ctx);
+    const cap = Math.floor(Buffer.byteLength(JSON.stringify(full.data.tags), "utf8") / 3);
+
+    const r = await handleTagList({ verbose: true, maxOutputBytes: cap }, ctx);
+    expect(r.data.tags.length).toBeGreaterThan(0);
+    expect(r.data.tags.length).toBeLessThan(6);
+    expect(r.meta.truncatedAtCap).toBe(true);
+    expect(r.meta.bytesReturned).toBeLessThanOrEqual(cap);
+    expect(r.meta.itemsReturned).toBe(r.data.tags.length);
+    const keptIds = r.data.tags.map((t) => (t as { id: string }).id);
+    const warn = r.meta.warnings?.find((w) => w.code === "WARN_RESULT_TRUNCATED");
+    expect(warn?.details?.droppedIds).toEqual(created.filter((id) => !keptIds.includes(id)));
+  });
+});

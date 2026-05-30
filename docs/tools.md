@@ -3108,6 +3108,7 @@ List all tags in OmniFocus, optionally filtered by parent tag or status. Do not 
 | `status` | unknown | No |  |
 | `verbose` | boolean | No | When true, return the full unelided tag shape. Default: false — fields equal to their documented default (status: 'active', parentId: null, location: null, allowsNextAction: true) are omitted. See docs/token-cost.md for the defaults table. |
 | `fields` | string[] | No | Restrict each returned tag to this list of top-level fields (id is always returned). Omit for the full tag shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. |
+| `maxOutputBytes` | number | No | Cap the serialized byte size of the returned tags[] array. When the response would exceed this, the server returns as many whole tags as fit, sets meta.truncatedAtCap=true with meta.bytesReturned and meta.itemsReturned, and lists the trimmed ids in meta.warnings.WARN_RESULT_TRUNCATED details.droppedIds — narrow with parentId/status, fetch those ids via tag_get_many, or raise the cap. Omit for no cap. Values above the server's hard ceiling (~1 MiB) are clamped. A single tag larger than the cap is still returned whole so the response always makes progress. |
 
 ### Example call
 
