@@ -1,13 +1,26 @@
 {
-  "generatedAt": "2026-05-26",
-  "toolListBytes": 177953,
+  "generatedAt": "2026-05-30",
+  "toolListBytes": 186810,
   "workflows": {
+    "cap-truncation": {
+      "callCount": 2,
+      "totalRequestBytes": 46,
+      "totalResponseBytes": 17859,
+      "totalRoundTripBytes": 17905,
+      "totalTokens": 51179,
+      "byTool": {
+        "task_list": {
+          "calls": 2,
+          "responseBytes": 17859
+        }
+      }
+    },
     "end-of-day-review": {
       "callCount": 3,
       "totalRequestBytes": 154,
       "totalResponseBytes": 30076,
       "totalRoundTripBytes": 30230,
-      "totalTokens": 52046,
+      "totalTokens": 54260,
       "byTool": {
         "forecast_get": {
           "calls": 1,
@@ -28,7 +41,7 @@
       "totalRequestBytes": 29603,
       "totalResponseBytes": 16778,
       "totalRoundTripBytes": 46381,
-      "totalTokens": 56084,
+      "totalTokens": 58298,
       "byTool": {
         "tag_create": {
           "calls": 1,
@@ -57,7 +70,7 @@
       "totalRequestBytes": 324,
       "totalResponseBytes": 31794,
       "totalRoundTripBytes": 32118,
-      "totalTokens": 52518,
+      "totalTokens": 54732,
       "byTool": {
         "task_list": {
           "calls": 3,
@@ -70,7 +83,7 @@
       "totalRequestBytes": 2609,
       "totalResponseBytes": 9998,
       "totalRoundTripBytes": 12607,
-      "totalTokens": 47640,
+      "totalTokens": 49854,
       "byTool": {
         "project_create": {
           "calls": 1,
@@ -103,7 +116,7 @@
       "totalRequestBytes": 292,
       "totalResponseBytes": 7860,
       "totalRoundTripBytes": 8152,
-      "totalTokens": 46526,
+      "totalTokens": 48741,
       "byTool": {
         "project_mark_reviewed": {
           "calls": 5,

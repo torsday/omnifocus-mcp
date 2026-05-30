@@ -53,6 +53,12 @@ After [#831](https://github.com/torsday/omnifocus-mcp/issues/831),
 - `end-of-day-review` covers **search**, **forecast**, **perspective**.
 - `large-pagination` covers **list paginated** (3-page walk via
   `task_list { limit: 50, cursor }` against a 120-task fixture).
+- `cap-truncation` covers **byte-cap truncation** (#1062): a 60-task
+  fixture called via `task_list` once uncapped and once with a fixed
+  `maxOutputBytes`, so the gate tracks the capped vs. uncapped response
+  bytes for the same query and the workflow's inline asserts fail on any
+  regression that defeats the cap. Not a new table column — it's an
+  orthogonal envelope dimension, not one of the read/mutation categories.
 - A **5k-fixture smoke runner** seeds the bench's in-memory adapter
   with ≥ 5000 tasks / 50 projects / 20 tags, then runs each
   workflow once and prints per-workflow wall-time. Invoke via

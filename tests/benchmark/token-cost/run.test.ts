@@ -15,6 +15,7 @@
 import { describe, expect, test } from "vitest";
 import { createBenchContext, measureToolsListOnce, type WorkflowResult } from "./runBench.js";
 import { buildSnapshot, diffSnapshots, formatDrift, readSnapshot } from "./snapshot.js";
+import { runCapTruncation } from "./workflows/capTruncation.js";
 import { runEndOfDayReview } from "./workflows/endOfDayReview.js";
 import { runInboxTriage } from "./workflows/inboxTriage.js";
 import { runLargePagination } from "./workflows/largePagination.js";
@@ -45,6 +46,7 @@ if (!ENABLED) {
         runProjectPlanning,
         runEndOfDayReview,
         runLargePagination,
+        runCapTruncation,
       ]) {
         const bench = await runner(createBenchContext());
         results.push(bench.result(toolListBytes));
