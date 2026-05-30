@@ -2142,7 +2142,11 @@ Fetch up to 100 projects by persistent ID in a single OmniFocus round-trip. Use 
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `ids` | string[] | Yes | Array of project IDs to fetch (0..100). Get IDs from project_list. Missing IDs are omitted (not errors) and appear in meta.warnings. |
+| `fields` | string[] | No | Restrict each returned project to this list of top-level fields (id is always returned). Omit for the full project shape. Empty array returns just id. Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. Allowed: name, note, noteHtml, folderId, tagIds, status, completionCriterion, deferDate, deferDateFloating, dueDate, dueDateFloating, estimatedMinutes, flagged, reviewIntervalDays, nextReviewDate, lastReviewDate, completed, completedAt, dropped, droppedAt, taskCount, completedTaskCount, createdAt, modifiedAt, _links. |
+| `maxOutputBytes` | number | No | Cap the serialized byte size of the returned projects[] array. When the response would exceed this, the server returns as many whole projects as fit (in input order), sets meta.truncatedAtCap=true with meta.bytesReturned and meta.itemsReturned, and lists the trimmed ids in meta.warnings.WARN_RESULT_TRUNCATED details.droppedIds — re-request those in a smaller batch or with a higher cap. Omit for no cap. Values above the server's hard ceiling (~1 MiB) are clamped. A single project larger than the cap is still returned whole so the batch always makes progress. |
 
 ### Example call
 
@@ -3063,7 +3067,11 @@ Fetch up to 100 tags by persistent ID in a single OmniFocus round-trip. Use when
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `ids` | string[] | Yes | Array of tag IDs to fetch (0..100). Get IDs from tag_list. Missing IDs are omitted (not errors) and appear in meta.warnings. |
+| `fields` | string[] | No | Restrict each returned tag to this list of top-level fields (id is always returned). Omit for the full tag shape. Empty array returns just id. Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. Allowed: name, parentId, status, location, allowsNextAction, taskCount, createdAt, modifiedAt. |
+| `maxOutputBytes` | number | No | Cap the serialized byte size of the returned tags[] array. When the response would exceed this, the server returns as many whole tags as fit (in input order), sets meta.truncatedAtCap=true with meta.bytesReturned and meta.itemsReturned, and lists the trimmed ids in meta.warnings.WARN_RESULT_TRUNCATED details.droppedIds — re-request those in a smaller batch or with a higher cap. Omit for no cap. Values above the server's hard ceiling (~1 MiB) are clamped. A single tag larger than the cap is still returned whole so the batch always makes progress. |
 
 ### Example call
 
@@ -4472,6 +4480,7 @@ Fetch up to 100 tasks by persistent ID in a single OmniFocus round-trip. Use whe
 | `notePreviewChars` | number | No | Maximum characters of each task's note to return. Default 200. When a note exceeds this length, the response replaces `note` with `notePreview` (the truncated text), `noteTruncated: true`, and `noteLength` (full UTF-8 byte length) — fetch the full text with note_get. Pass -1 to disable truncation and return full notes inline. |
 | `verbose` | boolean | No | When true, return the full unelided task shape. Default: false — fields equal to their documented default are omitted. See docs/token-cost.md for the defaults table. |
 | `fields` | string[] | No | Restrict each returned task to this list of top-level fields (id is always returned). Omit for the full task shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. |
+| `maxOutputBytes` | number | No | Cap the serialized byte size of the returned tasks[] array. When the response would exceed this, the server returns as many whole tasks as fit (in input order), sets meta.truncatedAtCap=true with meta.bytesReturned and meta.itemsReturned, and lists the trimmed ids in meta.warnings.WARN_RESULT_TRUNCATED details.droppedIds — re-request those in a smaller batch or with a higher cap. Omit for no cap. Values above the server's hard ceiling (~1 MiB) are clamped. A single task larger than the cap is still returned whole so the batch always makes progress. |
 
 ### Example call
 

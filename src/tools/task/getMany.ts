@@ -28,6 +28,7 @@ import { type Decision, parseDecision } from "../../domain/decisionJournal.js";
 import { TaskId } from "../../domain/ids.js";
 import { TASK_FIELD_NAMES, TASK_FIELD_NAMES_SET } from "../../domain/task.js";
 import { parseWaitingOn, type WaitingOn } from "../../domain/waitingOn.js";
+import { applyByteCapById } from "../../envelope/cap.js";
 import { TASK_DEFAULTS } from "../../envelope/defaultsRegistry.js";
 import { elideDefaultsAll } from "../../envelope/elideDefaults.js";
 import {
@@ -36,6 +37,7 @@ import {
   toolResponse,
   type Warning,
   warnIdsNotFound,
+  warnResultTruncatedBytes,
   warnUnknownFields,
 } from "../../envelope/index.js";
 import { applyProjection, validateFields } from "../../envelope/projection.js";
@@ -98,6 +100,19 @@ export const taskGetManyInputSchema = z.object({
         "Omit for the full task shape. Empty array returns just id. " +
         "Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS.",
     ),
+  maxOutputBytes: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe(
+      "Cap the serialized byte size of the returned tasks[] array. When the response would exceed this, " +
+        "the server returns as many whole tasks as fit (in input order), sets meta.truncatedAtCap=true with " +
+        "meta.bytesReturned and meta.itemsReturned, and lists the trimmed ids in meta.warnings.WARN_RESULT_TRUNCATED " +
+        "details.droppedIds — re-request those in a smaller batch or with a higher cap. Omit for no cap. " +
+        "Values above the server's hard ceiling (~1 MiB) are clamped. A single task larger than the cap is still " +
+        "returned whole so the batch always makes progress.",
+    ),
 });
 
 export type TaskGetManyInput = z.infer<typeof taskGetManyInputSchema>;
@@ -149,9 +164,6 @@ export async function handleTaskGetMany(input: TaskGetManyInput, ctx: TaskGetMan
     const d = parseDecision(t.note);
     if (d !== undefined) decisions[t.id] = d;
   }
-  const hasWaitingOn = Object.keys(waitingOn).length > 0;
-  const hasDecisions = Object.keys(decisions).length > 0;
-
   const previewChars = input.notePreviewChars ?? DEFAULT_NOTE_PREVIEW_CHARS;
 
   const projection =
@@ -165,18 +177,47 @@ export async function handleTaskGetMany(input: TaskGetManyInput, ctx: TaskGetMan
   const applyElide = input.verbose !== true && projectFields === undefined;
   const tasks = applyElide ? elideDefaultsAll(previewed, TASK_DEFAULTS) : previewed;
 
+  // Cap stage (#776/#1060) — runs last. No cursor on bulk-by-id reads, so the
+  // dropped tail is reported by id (ADR-0024) rather than via a continuation cursor.
+  const cap = applyByteCapById(tasks, {
+    ...(input.maxOutputBytes !== undefined ? { maxOutputBytes: input.maxOutputBytes } : {}),
+    idOf: (t) => (t as { id: string }).id,
+  });
+
+  // Drop waitingOn/decisions entries for tasks trimmed by the cap (both are keyed by id).
+  const keptIds = cap.truncatedAtCap
+    ? new Set(cap.items.map((t) => (t as { id: string }).id))
+    : null;
+  const keepById = <V>(m: Record<string, V>): Record<string, V> =>
+    keptIds === null ? m : Object.fromEntries(Object.entries(m).filter(([id]) => keptIds.has(id)));
+  const keptWaitingOn = keepById(waitingOn);
+  const keptDecisions = keepById(decisions);
+
   const warnings: Warning[] = [];
   if (missing.length > 0) warnings.push(warnIdsNotFound(missing));
   if (projection !== undefined && projection.unknown.length > 0) {
     warnings.push(warnUnknownFields([...projection.unknown], TASK_FIELD_NAMES));
   }
-  const meta = ctx.makeMeta({ ...(warnings.length > 0 ? { warnings } : {}) });
+  if (cap.truncatedAtCap) {
+    warnings.push(warnResultTruncatedBytes(cap.bytesReturned, cap.itemsReturned, cap.droppedIds));
+  }
+
+  const meta = ctx.makeMeta({
+    ...(warnings.length > 0 ? { warnings } : {}),
+    ...(cap.truncatedAtCap
+      ? {
+          truncatedAtCap: true,
+          bytesReturned: cap.bytesReturned,
+          itemsReturned: cap.itemsReturned,
+        }
+      : {}),
+  });
 
   return ok(
     {
-      tasks,
-      ...(hasWaitingOn && { waitingOn }),
-      ...(hasDecisions && { decisions }),
+      tasks: cap.items,
+      ...(Object.keys(keptWaitingOn).length > 0 && { waitingOn: keptWaitingOn }),
+      ...(Object.keys(keptDecisions).length > 0 && { decisions: keptDecisions }),
     },
     meta,
   );

@@ -45,6 +45,7 @@ import { projectCreateInputSchema } from "./project/create.js";
 import { projectDeleteInputSchema } from "./project/delete.js";
 import { projectDropInputSchema } from "./project/drop.js";
 import { projectGetInputSchema } from "./project/get.js";
+import { projectGetManyInputSchema } from "./project/getMany.js";
 import { projectListInputSchema } from "./project/list.js";
 import { projectMoveInputSchema } from "./project/move.js";
 import { projectUpdateInputSchema } from "./project/update.js";
@@ -61,6 +62,7 @@ import { tagCreateInputSchema } from "./tag/create.js";
 import { tagDeleteInputSchema } from "./tag/delete.js";
 import { tagGetInputSchema } from "./tag/get.js";
 import { tagGetLocationInputSchema } from "./tag/getLocation.js";
+import { tagGetManyInputSchema } from "./tag/getMany.js";
 import { tagListInputSchema } from "./tag/list.js";
 import { tagMoveInputSchema } from "./tag/move.js";
 import { tagSetAllowsNextActionInputSchema } from "./tag/setAllowsNextAction.js";
@@ -125,6 +127,7 @@ export const ALL_INPUT_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   project_delete: projectDeleteInputSchema,
   project_drop: projectDropInputSchema,
   project_get: projectGetInputSchema,
+  project_get_many: projectGetManyInputSchema,
   project_list: projectListInputSchema,
   project_mark_reviewed: projectMarkReviewedInputSchema,
   project_move: projectMoveInputSchema,
@@ -141,6 +144,7 @@ export const ALL_INPUT_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   tag_delete: tagDeleteInputSchema,
   tag_get: tagGetInputSchema,
   tag_get_location: tagGetLocationInputSchema,
+  tag_get_many: tagGetManyInputSchema,
   tag_list: tagListInputSchema,
   tag_move: tagMoveInputSchema,
   tag_set_allows_next_action: tagSetAllowsNextActionInputSchema,

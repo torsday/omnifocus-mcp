@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
+import type { TagId } from "../../domain/ids.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { handleTagGetMany, tagGetManyInputSchema } from "./getMany.js";
 
@@ -101,5 +102,38 @@ describe("tag_get_many — handler", () => {
     const id = await adapter.createTag({ name: "Present" });
     const result = await handleTagGetMany({ ids: [id] }, ctx);
     expect(result.meta.warnings).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// maxOutputBytes cap (#1060)
+// ---------------------------------------------------------------------------
+
+describe("tag_get_many — maxOutputBytes cap (#1060)", () => {
+  it("omits cap meta when maxOutputBytes is unset", async () => {
+    const { ctx, adapter } = makeCtx();
+    const ids: TagId[] = [];
+    for (let i = 0; i < 3; i++) ids.push(await adapter.createTag({ name: `Tag ${i}` }));
+    const r = await handleTagGetMany({ ids }, ctx);
+    expect(r.data.tags).toHaveLength(3);
+    expect(r.meta).not.toHaveProperty("truncatedAtCap");
+  });
+
+  it("truncates with dropped ids in input order and bytes within the cap", async () => {
+    const { ctx, adapter } = makeCtx();
+    const ids: TagId[] = [];
+    for (let i = 0; i < 5; i++)
+      ids.push(await adapter.createTag({ name: `Tag ${i} with a longer name for bytes` }));
+    const full = await handleTagGetMany({ ids }, ctx);
+    const cap = Math.floor(Buffer.byteLength(JSON.stringify(full.data.tags), "utf8") / 3);
+
+    const r = await handleTagGetMany({ ids, maxOutputBytes: cap }, ctx);
+    expect(r.data.tags.length).toBeGreaterThan(0);
+    expect(r.data.tags.length).toBeLessThan(5);
+    expect(r.meta.truncatedAtCap).toBe(true);
+    expect(r.meta.bytesReturned).toBeLessThanOrEqual(cap);
+    const keptIds = r.data.tags.map((t) => (t as { id: string }).id);
+    const warn = r.meta.warnings?.find((w) => w.code === "WARN_RESULT_TRUNCATED");
+    expect(warn?.details?.droppedIds).toEqual(ids.filter((id) => !keptIds.includes(id)));
   });
 });

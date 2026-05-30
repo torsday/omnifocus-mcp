@@ -7,6 +7,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   applyByteCap,
+  applyByteCapById,
+  type ByteCapByIdOptions,
   type ByteCapOptions,
   DEFAULT_HARD_CEILING_BYTES,
   resolveHardCeilingBytes,
@@ -119,5 +121,63 @@ describe("resolveHardCeilingBytes", () => {
 
   it.each(["0", "-5", "abc", "1.5", ""])("falls back to the default for %j", (raw) => {
     expect(resolveHardCeilingBytes(raw)).toBe(DEFAULT_HARD_CEILING_BYTES);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyByteCapById — no-cursor model (#1060)
+// ---------------------------------------------------------------------------
+
+function capById<T extends { id: string }>(
+  items: readonly T[],
+  opts: Partial<ByteCapByIdOptions<T>> = {},
+) {
+  return applyByteCapById(items, { idOf: (x) => x.id, ...opts });
+}
+
+describe("applyByteCapById — no-op paths", () => {
+  it("returns an empty array with no dropped ids", () => {
+    const r = capById([]);
+    expect(r).toMatchObject({ truncatedAtCap: false, bytesReturned: 2, itemsReturned: 0 });
+    expect(r.droppedIds).toEqual([]);
+  });
+
+  it("does not cap when maxOutputBytes is undefined (same reference)", () => {
+    const items = [item("a"), item("b"), item("c")];
+    const r = capById(items);
+    expect(r.truncatedAtCap).toBe(false);
+    expect(r.items).toBe(items);
+    expect(r.droppedIds).toEqual([]);
+  });
+});
+
+describe("applyByteCapById — truncation", () => {
+  it("reports the dropped tail by id, in input order", () => {
+    const items = [item("a"), item("b"), item("c"), item("d")];
+    // cap 22: keeps only item0 (12 bytes); item1 would be 23 > 22
+    const r = capById(items, { maxOutputBytes: 22 });
+    expect(r.truncatedAtCap).toBe(true);
+    expect(r.itemsReturned).toBe(1);
+    expect(r.bytesReturned).toBe(12);
+    expect(r.items).toEqual([item("a")]);
+    expect(r.droppedIds).toEqual(["b", "c", "d"]);
+  });
+
+  it("uses byte accounting identical to applyByteCap (boundary equal to cap)", () => {
+    const items = [item("a"), item("b"), item("c")];
+    const cursorRes = cap(items, { maxOutputBytes: 23 });
+    const idRes = capById(items, { maxOutputBytes: 23 });
+    expect(idRes.itemsReturned).toBe(cursorRes.itemsReturned);
+    expect(idRes.bytesReturned).toBe(cursorRes.bytesReturned);
+    expect(idRes.droppedIds).toEqual(["c"]);
+  });
+
+  it("emits a single oversized item whole with the rest dropped", () => {
+    const items = [item("aaaaaaaaaa"), item("b")];
+    const r = capById(items, { maxOutputBytes: 1 });
+    expect(r.truncatedAtCap).toBe(true);
+    expect(r.itemsReturned).toBe(1);
+    expect(r.items).toEqual([item("aaaaaaaaaa")]);
+    expect(r.droppedIds).toEqual(["b"]);
   });
 });
