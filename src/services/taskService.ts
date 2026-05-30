@@ -212,6 +212,26 @@ export class TaskService {
   }
 
   /**
+   * Build a continuation cursor anchored at `task`, as though it were the last
+   * item of a page produced for `input`.
+   *
+   * The response byte-cap (#776) uses this to resume at the last *kept* task
+   * when the wire-size cap trims a page before its natural boundary: reusing
+   * `list()`'s exact normalization guarantees the filter-hash and sort value
+   * match what the next `list({ cursor })` call expects. Keep this in lockstep
+   * with {@link encodeNextCursor} — both anchor on the same `taskSortValue`.
+   */
+  cursorForListItem(task: Task, input: TaskListInput): string {
+    const normalized = this.normalize(input);
+    const filterHash = hashFilter(normalized as unknown as Record<string, unknown>);
+    return encodeCursor({
+      lastId: task.id,
+      lastSortValue: taskSortValue(task, normalized.sortBy),
+      filterHash,
+    });
+  }
+
+  /**
    * Fetch a single task by ID.
    *
    * Optionally attaches the task's flat subtask list (all tasks with `parentId === id`).
@@ -283,18 +303,7 @@ export class TaskService {
 
     // Stable sort: (sortValue, id ASC). Null values sort last regardless of direction.
     const { sortBy, sortDirection } = normalized;
-    const getSortValue = (t: Task): string | null => {
-      switch (sortBy) {
-        case "dueDate":
-          return t.dueDate ?? null;
-        case "modifiedAt":
-          return t.modifiedAt;
-        case "name":
-          return t.name;
-        default:
-          return t.createdAt;
-      }
-    };
+    const getSortValue = (t: Task): string | null => taskSortValue(t, sortBy);
 
     const sorted = [...afterUpdatedSince].sort((a, b) => {
       const av = getSortValue(a);
@@ -485,6 +494,27 @@ export class TaskService {
       lastSortValue: getSortValue(last),
       filterHash,
     });
+  }
+}
+
+/**
+ * Sort-field accessor shared by page assembly ({@link TaskService.fetchPage})
+ * and cursor construction ({@link TaskService.cursorForListItem},
+ * {@link TaskService.encodeNextCursor}). They MUST stay in lockstep — a
+ * divergence here silently breaks pagination by emitting a cursor whose
+ * `lastSortValue` doesn't match how the next page is sorted (the #760 / #802
+ * class of bug). Null sort values sort last regardless of direction.
+ */
+function taskSortValue(t: Task, sortBy: TaskSortBy): string | null {
+  switch (sortBy) {
+    case "dueDate":
+      return t.dueDate ?? null;
+    case "modifiedAt":
+      return t.modifiedAt;
+    case "name":
+      return t.name;
+    default:
+      return t.createdAt;
   }
 }
 

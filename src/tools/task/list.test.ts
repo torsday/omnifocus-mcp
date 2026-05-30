@@ -378,3 +378,82 @@ describe("handleTaskList — field projection", () => {
     expect(task.completed).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// maxOutputBytes cap (#776)
+// ---------------------------------------------------------------------------
+
+describe("handleTaskList — maxOutputBytes cap (#776)", () => {
+  it("does not add cap meta when maxOutputBytes is omitted", async () => {
+    const { ctx, adapter } = makeCtx();
+    for (let i = 0; i < 3; i++) await adapter.createTask({ name: `t${i}`, flagged: true });
+
+    const result = await handleTaskList({ flagged: true }, ctx);
+    expect(result.data.tasks).toHaveLength(3);
+    expect(result.meta).not.toHaveProperty("truncatedAtCap");
+    expect(result.meta).not.toHaveProperty("bytesReturned");
+  });
+
+  it("trims the page to the cap and signals truncation in meta + warnings", async () => {
+    const { ctx, adapter } = makeCtx();
+    for (let i = 0; i < 6; i++) await adapter.createTask({ name: `task-${i}`, flagged: true });
+
+    // Measure the uncapped wire size, then cap to roughly a third to force a trim.
+    const full = await handleTaskList({ flagged: true, limit: 50 }, ctx);
+    const fullBytes = Buffer.byteLength(JSON.stringify(full.data.tasks), "utf8");
+    const cap = Math.floor(fullBytes / 3);
+
+    const result = await handleTaskList({ flagged: true, limit: 50, maxOutputBytes: cap }, ctx);
+
+    expect(result.data.tasks.length).toBeGreaterThan(0);
+    expect(result.data.tasks.length).toBeLessThan(6);
+    expect(result.meta.truncatedAtCap).toBe(true);
+    expect(result.meta.itemsReturned).toBe(result.data.tasks.length);
+    // Reported bytes match the actual serialized array and stay within the cap
+    // (more than one task fits, so the forward-progress override doesn't apply).
+    expect(result.meta.bytesReturned).toBe(
+      Buffer.byteLength(JSON.stringify(result.data.tasks), "utf8"),
+    );
+    expect(result.meta.bytesReturned).toBeLessThanOrEqual(cap);
+    expect(result.pagination).toMatchObject({ hasMore: true });
+    expect(result.pagination?.cursor).toEqual(expect.any(String));
+    expect(result.meta.warnings?.some((w) => w.code === "WARN_RESULT_TRUNCATED")).toBe(true);
+  });
+
+  it("resumes correctly from the re-anchored cursor with no gaps or overlaps", async () => {
+    const { ctx, adapter } = makeCtx();
+    const created: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      created.push(await adapter.createTask({ name: `task-${i}`, flagged: true }));
+    }
+
+    const full = await handleTaskList({ flagged: true, limit: 50 }, ctx);
+    const cap = Math.floor(Buffer.byteLength(JSON.stringify(full.data.tasks), "utf8") / 3);
+
+    // Walk every page using the cap-issued cursor; collect ids in order.
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let guard = 0; guard < 20; guard++) {
+      const page = await handleTaskList(
+        { flagged: true, limit: 50, maxOutputBytes: cap, ...(cursor ? { cursor } : {}) },
+        ctx,
+      );
+      for (const t of page.data.tasks) seen.push((t as { id: string }).id);
+      if (!page.pagination?.hasMore) break;
+      cursor = page.pagination.cursor ?? undefined;
+    }
+
+    // Every created task appears exactly once, in creation (createdAt asc) order.
+    expect(seen).toEqual(created);
+    expect(new Set(seen).size).toBe(created.length);
+  });
+
+  it("does not truncate when the cap comfortably exceeds the payload", async () => {
+    const { ctx, adapter } = makeCtx();
+    for (let i = 0; i < 3; i++) await adapter.createTask({ name: `t${i}`, flagged: true });
+
+    const result = await handleTaskList({ flagged: true, maxOutputBytes: 1_000_000 }, ctx);
+    expect(result.data.tasks).toHaveLength(3);
+    expect(result.meta).not.toHaveProperty("truncatedAtCap");
+  });
+});
