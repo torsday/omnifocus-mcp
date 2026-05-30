@@ -21,6 +21,7 @@
  * Coverage matrix lives in `docs/benchmarks/coverage-matrix.md`.
  */
 
+import { handleForecastGet } from "../../../../src/tools/forecast/get.js";
 import { handleTaskList } from "../../../../src/tools/task/list.js";
 import { Bench, type BenchToolContext } from "../runBench.js";
 
@@ -32,6 +33,11 @@ const TASK_NOTE =
  *  50-task page is truncated well before its natural boundary. */
 const CAP_BYTES = 4096;
 
+/** Fixed forecast window (independent of the bench's `now`) covering the dated
+ *  fixtures below, so `forecast_get` is deterministic across runs. */
+const FORECAST_FROM = "2026-04-23T00:00:00.000Z";
+const FORECAST_TO = "2026-04-23T23:59:59.999Z";
+
 async function seedCapDatabase(ctx: BenchToolContext): Promise<void> {
   const projectId = await ctx.adapter.createProject({
     name: "Cap-truncation fixture",
@@ -42,6 +48,15 @@ async function seedCapDatabase(ctx: BenchToolContext): Promise<void> {
       name: `capped item ${String(t + 1).padStart(3, "0")}`,
       projectId,
       note: TASK_NOTE,
+    });
+  }
+  // 40 dated tasks within the forecast window for the bucketed-cap shape.
+  for (let t = 0; t < 40; t += 1) {
+    const mm = String(t).padStart(2, "0");
+    await ctx.adapter.createTask({
+      name: `forecast item ${mm}`,
+      note: TASK_NOTE,
+      dueDate: `2026-04-23T14:${mm}:00.000Z`,
     });
   }
 }
@@ -80,6 +95,25 @@ export async function runCapTruncation(ctx: BenchToolContext): Promise<Bench> {
   const hasWarning = capped.meta.warnings?.some((w) => w.code === "WARN_RESULT_TRUNCATED") ?? false;
   if (!hasWarning) {
     throw new Error("cap-truncation: expected a WARN_RESULT_TRUNCATED warning");
+  }
+
+  // 3. Bucketed read — forecast_get capped. Exercises the measured-prefix cap
+  //    (#1065) whose wire size is the re-bucketed payload, not a flat array.
+  const fcInput = { from: FORECAST_FROM, to: FORECAST_TO, maxOutputBytes: CAP_BYTES };
+  const forecast = await bench.call("forecast_get", fcInput, () =>
+    handleForecastGet(
+      { ...fcInput, days: 1, includeOverdue: true, includeDeferred: true, includeFlagged: true },
+      { forecastService: ctx.forecastService, makeMeta: ctx.makeMeta },
+    ),
+  );
+  if (!("data" in forecast)) throw new Error("capped forecast_get did not succeed");
+  if (forecast.meta.truncatedAtCap !== true) {
+    throw new Error("cap-truncation: expected forecast meta.truncatedAtCap = true");
+  }
+  if ((forecast.meta.bytesReturned ?? Number.POSITIVE_INFINITY) > CAP_BYTES) {
+    throw new Error(
+      `cap-truncation: forecast bytesReturned ${forecast.meta.bytesReturned} exceeds cap ${CAP_BYTES}`,
+    );
   }
 
   return bench;
