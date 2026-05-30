@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import type { TaskId } from "../../domain/ids.js";
+import { writeWaitingOn } from "../../domain/waitingOn.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { handleTaskGetMany, taskGetManyInputSchema } from "./getMany.js";
 
@@ -193,5 +194,64 @@ describe("task_get_many — note preview truncation", () => {
     const task = envelope.data.tasks[0] as unknown as Record<string, unknown>;
     expect(task.note).toBe(longNote);
     expect(task).not.toHaveProperty("notePreview");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// maxOutputBytes cap (#1060)
+// ---------------------------------------------------------------------------
+
+describe("task_get_many — maxOutputBytes cap (#1060)", () => {
+  it("omits cap meta when maxOutputBytes is unset", async () => {
+    const { ctx, adapter } = makeCtx();
+    const ids: TaskId[] = [];
+    for (let i = 0; i < 3; i++) ids.push(await adapter.createTask({ name: `Task number ${i}` }));
+    const r = await handleTaskGetMany({ ids }, ctx);
+    expect(r.data.tasks).toHaveLength(3);
+    expect(r.meta).not.toHaveProperty("truncatedAtCap");
+  });
+
+  it("truncates with dropped ids in input order and bytes within the cap", async () => {
+    const { ctx, adapter } = makeCtx();
+    const ids: TaskId[] = [];
+    for (let i = 0; i < 5; i++)
+      ids.push(await adapter.createTask({ name: `Task number ${i} with a longer name for bytes` }));
+    const full = await handleTaskGetMany({ ids }, ctx);
+    const cap = Math.floor(Buffer.byteLength(JSON.stringify(full.data.tasks), "utf8") / 3);
+
+    const r = await handleTaskGetMany({ ids, maxOutputBytes: cap }, ctx);
+    expect(r.data.tasks.length).toBeGreaterThan(0);
+    expect(r.data.tasks.length).toBeLessThan(5);
+    expect(r.meta.truncatedAtCap).toBe(true);
+    expect(r.meta.bytesReturned).toBeLessThanOrEqual(cap);
+    expect(r.meta.itemsReturned).toBe(r.data.tasks.length);
+    const keptIds = r.data.tasks.map((t) => (t as { id: string }).id);
+    const warn = r.meta.warnings?.find((w) => w.code === "WARN_RESULT_TRUNCATED");
+    expect(warn?.details?.droppedIds).toEqual(ids.filter((id) => !keptIds.includes(id)));
+  });
+
+  it("drops waitingOn entries for tasks trimmed by the cap", async () => {
+    const { ctx, adapter } = makeCtx();
+    const ids: TaskId[] = [];
+    for (let i = 0; i < 5; i++)
+      ids.push(
+        await adapter.createTask({
+          name: `WO task ${i}`,
+          note: writeWaitingOn(null, {
+            whom: `person ${i}`,
+            what: `deliverable ${i} with padding text to grow the note size enough to matter`,
+            since: "2026-01-01T00:00:00Z",
+          }),
+        }),
+      );
+    const full = await handleTaskGetMany({ ids, notePreviewChars: -1 }, ctx);
+    const cap = Math.floor(Buffer.byteLength(JSON.stringify(full.data.tasks), "utf8") / 3);
+
+    const r = await handleTaskGetMany({ ids, notePreviewChars: -1, maxOutputBytes: cap }, ctx);
+    expect(r.meta.truncatedAtCap).toBe(true);
+    const keptIds = new Set(r.data.tasks.map((t) => (t as { id: string }).id));
+    const waitingOn = (r.data as { waitingOn?: Record<string, unknown> }).waitingOn ?? {};
+    for (const id of Object.keys(waitingOn)) expect(keptIds.has(id)).toBe(true);
+    expect(keptIds.size).toBeLessThan(5);
   });
 });

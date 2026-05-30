@@ -99,13 +99,27 @@ export function warnResultTruncated(limit: number): Warning {
  * Build a `WARN_RESULT_TRUNCATED` warning when a `maxOutputBytes` cap trims a
  * list response (#776). Reuses the existing code — `WARN_RESULT_TRUNCATED`
  * covers a hard size *or* count ceiling — with byte-oriented detail.
+ *
+ * `droppedIds` is supplied by **non-cursor** reads (bulk-by-id and other
+ * bounded reads, #1060 / ADR-0024) that have no continuation cursor: the agent
+ * re-requests exactly those ids instead of paging. Cursor-paginated reads omit
+ * it and resume via the pagination cursor.
  */
-export function warnResultTruncatedBytes(bytesReturned: number, itemsReturned: number): Warning {
+export function warnResultTruncatedBytes(
+  bytesReturned: number,
+  itemsReturned: number,
+  droppedIds?: readonly string[],
+): Warning {
+  const byId = droppedIds !== undefined;
   return {
     code: "WARN_RESULT_TRUNCATED",
     message: `Response was truncated at the maxOutputBytes cap; returned ${itemsReturned} item(s) (${bytesReturned} bytes).`,
-    suggestion: "Fetch the next page with the returned pagination cursor, or raise maxOutputBytes.",
-    details: { bytesReturned, itemsReturned },
+    suggestion: byId
+      ? "Re-request the ids in details.droppedIds (in a smaller batch or with a higher maxOutputBytes)."
+      : "Fetch the next page with the returned pagination cursor, or raise maxOutputBytes.",
+    details: byId
+      ? { bytesReturned, itemsReturned, droppedIds: [...droppedIds] }
+      : { bytesReturned, itemsReturned },
   };
 }
 

@@ -11,12 +11,14 @@ import { z } from "zod";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 import { TagId } from "../../domain/ids.js";
 import { TAG_FIELD_NAMES, TAG_FIELD_NAMES_SET } from "../../domain/tag.js";
+import { applyByteCapById } from "../../envelope/cap.js";
 import {
   ok,
   type ResponseMeta,
   toolResponse,
   type Warning,
   warnIdsNotFound,
+  warnResultTruncatedBytes,
   warnUnknownFields,
 } from "../../envelope/index.js";
 import { applyProjection, validateFields } from "../../envelope/projection.js";
@@ -61,6 +63,19 @@ export const tagGetManyInputSchema = z.object({
         "Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. " +
         `Allowed: ${TAG_FIELD_NAMES.join(", ")}.`,
     ),
+  maxOutputBytes: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe(
+      "Cap the serialized byte size of the returned tags[] array. When the response would exceed this, " +
+        "the server returns as many whole tags as fit (in input order), sets meta.truncatedAtCap=true with " +
+        "meta.bytesReturned and meta.itemsReturned, and lists the trimmed ids in meta.warnings.WARN_RESULT_TRUNCATED " +
+        "details.droppedIds — re-request those in a smaller batch or with a higher cap. Omit for no cap. " +
+        "Values above the server's hard ceiling (~1 MiB) are clamped. A single tag larger than the cap is still " +
+        "returned whole so the batch always makes progress.",
+    ),
 });
 
 export type TagGetManyInput = z.infer<typeof tagGetManyInputSchema>;
@@ -97,16 +112,35 @@ export async function handleTagGetMany(input: TagGetManyInput, ctx: TagGetManyCo
   const projection =
     input.fields !== undefined ? validateFields(input.fields, TAG_FIELD_NAMES_SET) : undefined;
   const projectFields = projection?.valid;
-  const tags = fullTags.map((t) => applyProjection(t, projectFields));
+  const projected = fullTags.map((t) => applyProjection(t, projectFields));
+
+  // Cap stage (#776/#1060) — runs last; no cursor on bulk-by-id, so report the
+  // dropped tail by id (ADR-0024).
+  const cap = applyByteCapById(projected, {
+    ...(input.maxOutputBytes !== undefined ? { maxOutputBytes: input.maxOutputBytes } : {}),
+    idOf: (t) => (t as { id: string }).id,
+  });
 
   const warnings: Warning[] = [];
   if (missing.length > 0) warnings.push(warnIdsNotFound(missing));
   if (projection !== undefined && projection.unknown.length > 0) {
     warnings.push(warnUnknownFields([...projection.unknown], TAG_FIELD_NAMES));
   }
-  const meta = ctx.makeMeta({ ...(warnings.length > 0 ? { warnings } : {}) });
+  if (cap.truncatedAtCap) {
+    warnings.push(warnResultTruncatedBytes(cap.bytesReturned, cap.itemsReturned, cap.droppedIds));
+  }
+  const meta = ctx.makeMeta({
+    ...(warnings.length > 0 ? { warnings } : {}),
+    ...(cap.truncatedAtCap
+      ? {
+          truncatedAtCap: true,
+          bytesReturned: cap.bytesReturned,
+          itemsReturned: cap.itemsReturned,
+        }
+      : {}),
+  });
 
-  return ok({ tags }, meta);
+  return ok({ tags: cap.items }, meta);
 }
 
 // ---------------------------------------------------------------------------

@@ -84,9 +84,67 @@ export interface ByteCapOptions {
   hardCeilingBytes?: number;
 }
 
+/** Outcome of {@link applyByteCapById}. */
+export interface ByteCapByIdResult<T> {
+  /** The retained prefix of the input array (the same array reference when not truncated). */
+  items: T[];
+  /** True when at least one item was dropped to satisfy the cap. */
+  truncatedAtCap: boolean;
+  /** Serialized byte size of the returned array (`[]` framing + items + commas). */
+  bytesReturned: number;
+  /** Number of items in {@link items}. */
+  itemsReturned: number;
+  /** IDs of the items dropped to satisfy the cap, in input order; `[]` when not truncated. */
+  droppedIds: string[];
+}
+
+/** Options for {@link applyByteCapById}. */
+export interface ByteCapByIdOptions<T> {
+  /** Caller's requested cap in bytes; `undefined` ⇒ no cap (only framing measured). */
+  maxOutputBytes?: number;
+  /** Extract the stable id of an item — used to report the dropped tail. */
+  idOf: (item: T) => string;
+  /** Override the hard ceiling (testing). Defaults to the env-resolved ceiling. */
+  hardCeilingBytes?: number;
+}
+
 // ---------------------------------------------------------------------------
 // Implementation
 // ---------------------------------------------------------------------------
+
+/** Resolve the effective cap = min(caller request, hard ceiling); `undefined` ⇒ ∞. */
+function resolveCap(
+  maxOutputBytes: number | undefined,
+  hardCeilingBytes: number | undefined,
+): number {
+  const ceiling = hardCeilingBytes ?? HARD_CEILING_BYTES;
+  return maxOutputBytes === undefined
+    ? Number.POSITIVE_INFINITY
+    : Math.min(maxOutputBytes, ceiling);
+}
+
+/**
+ * Count the longest prefix of `items` whose serialized array size stays within
+ * `cap`. Shared by {@link applyByteCap} (cursor model) and
+ * {@link applyByteCapById} (dropped-ids model) so both measure bytes identically.
+ *
+ * Array framing: `[` + `]` (2 bytes). Each item adds its JSON bytes plus a
+ * leading comma for every item after the first. The first item is never dropped,
+ * guaranteeing forward progress past a single oversized row.
+ */
+function countKeptPrefix<T>(items: readonly T[], cap: number): { kept: number; bytes: number } {
+  let bytes = 2;
+  let kept = 0;
+  for (let i = 0; i < items.length; i++) {
+    const itemBytes = Buffer.byteLength(JSON.stringify(items[i]) ?? "null", "utf8");
+    const sep = i === 0 ? 0 : 1; // comma separator
+    const next = bytes + sep + itemBytes;
+    if (i > 0 && next > cap) break;
+    bytes = next;
+    kept = i + 1;
+  }
+  return { kept, bytes };
+}
 
 /**
  * Apply a wire-byte cap to a list-response array.
@@ -97,26 +155,8 @@ export interface ByteCapOptions {
  *   and a re-anchored continuation cursor when truncation occurred
  */
 export function applyByteCap<T>(items: readonly T[], opts: ByteCapOptions): ByteCapResult<T> {
-  const ceiling = opts.hardCeilingBytes ?? HARD_CEILING_BYTES;
-  const cap =
-    opts.maxOutputBytes === undefined
-      ? Number.POSITIVE_INFINITY
-      : Math.min(opts.maxOutputBytes, ceiling);
-
-  // Array framing: `[` + `]`. Each item adds its JSON bytes plus a leading comma
-  // for every item after the first.
-  let bytes = 2;
-  let kept = 0;
-  for (let i = 0; i < items.length; i++) {
-    const itemBytes = Buffer.byteLength(JSON.stringify(items[i]) ?? "null", "utf8");
-    const sep = i === 0 ? 0 : 1; // comma separator
-    const next = bytes + sep + itemBytes;
-    // Never drop the first item — guarantees forward progress past an oversized row.
-    if (i > 0 && next > cap) break;
-    bytes = next;
-    kept = i + 1;
-  }
-
+  const cap = resolveCap(opts.maxOutputBytes, opts.hardCeilingBytes);
+  const { kept, bytes } = countKeptPrefix(items, cap);
   const truncatedAtCap = kept < items.length;
   return {
     items: truncatedAtCap ? items.slice(0, kept) : (items as T[]),
@@ -124,5 +164,33 @@ export function applyByteCap<T>(items: readonly T[], opts: ByteCapOptions): Byte
     bytesReturned: bytes,
     itemsReturned: kept,
     cursor: truncatedAtCap ? opts.cursorFor(kept - 1) : null,
+  };
+}
+
+/**
+ * Apply a wire-byte cap to a list-response array that has **no pagination
+ * cursor** (bulk-by-id and other bounded reads, #1060). Identical byte
+ * accounting to {@link applyByteCap}, but because there is no cursor to resume
+ * from, the dropped tail is reported by id so the caller can re-request exactly
+ * those items (e.g. with a larger cap or in a second batch).
+ *
+ * @param items - the fully-transformed wire items
+ * @param opts - cap value, id extractor, optional ceiling override
+ * @returns the retained prefix plus the truncation signal, byte/item counts,
+ *   and the ids of the dropped tail when truncation occurred
+ */
+export function applyByteCapById<T>(
+  items: readonly T[],
+  opts: ByteCapByIdOptions<T>,
+): ByteCapByIdResult<T> {
+  const cap = resolveCap(opts.maxOutputBytes, opts.hardCeilingBytes);
+  const { kept, bytes } = countKeptPrefix(items, cap);
+  const truncatedAtCap = kept < items.length;
+  return {
+    items: truncatedAtCap ? items.slice(0, kept) : (items as T[]),
+    truncatedAtCap,
+    bytesReturned: bytes,
+    itemsReturned: kept,
+    droppedIds: truncatedAtCap ? items.slice(kept).map(opts.idOf) : [],
   };
 }
