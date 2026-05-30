@@ -174,6 +174,25 @@ export class ProjectService {
     };
   }
 
+  /**
+   * Build a continuation cursor anchored at `project`, as though it were the
+   * last item of a page produced for `input`. The response byte-cap (#776/#1059)
+   * uses this to resume at the last *kept* project when the wire-size cap trims a
+   * page before its natural boundary. Reuses `list()`'s normalization so the
+   * filter-hash matches the next `list({ cursor })` call; project listing sorts
+   * `createdAt ASC`, so `lastSortValue` is the project's `createdAt` — keep in
+   * lockstep with {@link encodeNextCursor}.
+   */
+  cursorForListItem(project: Project, input: ProjectListInput): string {
+    const normalized = this.normalize(input);
+    const filterHash = hashFilter(normalized as unknown as Record<string, unknown>);
+    return encodeCursor({
+      lastId: project.id,
+      lastSortValue: project.createdAt,
+      filterHash,
+    });
+  }
+
   /** Complete a project (sets completionDate, removes from active view). */
   async completeProject(id: ProjectId): Promise<void> {
     await this.adapter.completeProject(id);

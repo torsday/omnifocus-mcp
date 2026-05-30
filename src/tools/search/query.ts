@@ -14,12 +14,15 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ProjectId, TagId } from "../../domain/ids.js";
 import { SEARCH_QUERY_MAX_CHARS } from "../../domain/inputLimits.js";
-import { TASK_FIELD_NAMES, TASK_FIELD_NAMES_SET } from "../../domain/task.js";
+import { TASK_FIELD_NAMES, TASK_FIELD_NAMES_SET, type Task } from "../../domain/task.js";
+import { applyByteCap } from "../../envelope/cap.js";
 import {
   ok,
   type Pagination,
   type ResponseMeta,
   toolResponse,
+  type Warning,
+  warnResultTruncatedBytes,
   warnUnknownFields,
 } from "../../envelope/index.js";
 import { applyProjection, validateFields } from "../../envelope/projection.js";
@@ -102,6 +105,18 @@ export const searchQueryInputSchema = z.object({
         "Default false — the block is omitted to save payload size. " +
         "Use the task's `id`, `projectId`, `parentId`, and `tagIds` fields directly instead.",
     ),
+  maxOutputBytes: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe(
+      "Cap the serialized byte size of the returned tasks[] array. When the response would exceed this, " +
+        "the server returns as many whole tasks as fit, sets meta.truncatedAtCap=true with " +
+        "meta.bytesReturned and meta.itemsReturned, and returns a pagination cursor that resumes at the " +
+        "first dropped task. Omit for no cap. Values above the server's hard ceiling (~1 MiB) are clamped. " +
+        "A single task larger than the cap is still returned whole so pagination always advances.",
+    ),
 });
 
 export type SearchQueryToolInput = z.infer<typeof searchQueryInputSchema>;
@@ -132,25 +147,43 @@ export async function handleSearchQuery(input: SearchQueryToolInput, ctx: Search
   };
 
   const result = await ctx.searchService.search(serviceInput);
-  const pagination: Pagination = {
-    cursor: result.nextCursor,
-    hasMore: result.hasMore,
-  };
 
   const projection =
     input.fields !== undefined ? validateFields(input.fields, TASK_FIELD_NAMES_SET) : undefined;
   const projectFields = projection?.valid;
-  const tasks = result.tasks.map((t) => applyProjection(t, projectFields));
-  const warnings =
+  const fieldWarnings =
     projection !== undefined && projection.unknown.length > 0
       ? [warnUnknownFields([...projection.unknown], TASK_FIELD_NAMES)]
-      : undefined;
+      : [];
+  const wireTasks = result.tasks.map((t) => applyProjection(t, projectFields));
+
+  // Cap stage (#776/#1059) — runs last; re-anchor the cursor at the last kept task.
+  const cap = applyByteCap(wireTasks, {
+    ...(input.maxOutputBytes !== undefined ? { maxOutputBytes: input.maxOutputBytes } : {}),
+    cursorFor: (lastKeptIndex) =>
+      ctx.searchService.cursorForResultItem(result.tasks[lastKeptIndex] as Task, serviceInput),
+  });
+
+  const pagination: Pagination = cap.truncatedAtCap
+    ? { cursor: cap.cursor, hasMore: true }
+    : { cursor: result.nextCursor, hasMore: result.hasMore };
+
+  const warnings: Warning[] = cap.truncatedAtCap
+    ? [...fieldWarnings, warnResultTruncatedBytes(cap.bytesReturned, cap.itemsReturned)]
+    : fieldWarnings;
 
   const meta = ctx.makeMeta({
     cacheHit: result.cacheHit,
-    ...(warnings !== undefined ? { warnings } : {}),
+    ...(warnings.length > 0 ? { warnings } : {}),
+    ...(cap.truncatedAtCap
+      ? {
+          truncatedAtCap: true,
+          bytesReturned: cap.bytesReturned,
+          itemsReturned: cap.itemsReturned,
+        }
+      : {}),
   });
-  return ok({ tasks }, meta, pagination);
+  return ok({ tasks: cap.items }, meta, pagination);
 }
 
 // ---------------------------------------------------------------------------

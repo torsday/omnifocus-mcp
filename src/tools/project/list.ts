@@ -13,7 +13,9 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { aliasedEnum } from "../../domain/aliasedEnum.js";
 import { FolderId } from "../../domain/ids.js";
+import type { Project } from "../../domain/project.js";
 import { PROJECT_FIELD_NAMES, PROJECT_FIELD_NAMES_SET } from "../../domain/project.js";
+import { applyByteCap } from "../../envelope/cap.js";
 import { PROJECT_DEFAULTS } from "../../envelope/defaultsRegistry.js";
 import { elideDefaults } from "../../envelope/elideDefaults.js";
 import {
@@ -21,6 +23,8 @@ import {
   type Pagination,
   type ResponseMeta,
   toolResponse,
+  type Warning,
+  warnResultTruncatedBytes,
   warnUnknownFields,
 } from "../../envelope/index.js";
 import { applyProjection, validateFields } from "../../envelope/projection.js";
@@ -112,6 +116,18 @@ export const projectListInputSchema = z.object({
         "Default false — the block is omitted to save payload size. " +
         "Use the project's `id` and `folderId` fields directly instead.",
     ),
+  maxOutputBytes: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe(
+      "Cap the serialized byte size of the returned projects[] array. When the response would exceed this, " +
+        "the server returns as many whole projects as fit, sets meta.truncatedAtCap=true with " +
+        "meta.bytesReturned and meta.itemsReturned, and returns a pagination cursor that resumes at the " +
+        "first dropped project. Omit for no cap. Values above the server's hard ceiling (~1 MiB) are clamped. " +
+        "A single project larger than the cap is still returned whole so pagination always advances.",
+    ),
 });
 
 export type ProjectListToolInput = z.infer<typeof projectListInputSchema>;
@@ -130,33 +146,52 @@ export interface ProjectListContext {
  * without constructing an `McpServer`.
  */
 export async function handleProjectList(input: ProjectListToolInput, ctx: ProjectListContext) {
-  const { verbose, fields, ...rest } = input;
-  const result = await ctx.projectService.list(rest as ProjectListInput);
-  const pagination: Pagination = {
-    cursor: result.nextCursor,
-    hasMore: result.hasMore,
-  };
+  const { verbose, fields, maxOutputBytes, ...rest } = input;
+  const serviceInput = rest as ProjectListInput;
+  const result = await ctx.projectService.list(serviceInput);
 
   const projection =
     fields !== undefined ? validateFields(fields, PROJECT_FIELD_NAMES_SET) : undefined;
   const projectFields = projection?.valid;
-  const warnings =
+  const fieldWarnings =
     projection !== undefined && projection.unknown.length > 0
       ? [warnUnknownFields([...projection.unknown], PROJECT_FIELD_NAMES)]
-      : undefined;
+      : [];
 
   // fields[] = explicit mode → skip elide-defaults so requested fields aren't silently dropped.
   const applyElide = verbose !== true && projectFields === undefined;
-  const projects = result.projects.map((p) => {
+  const wireProjects = result.projects.map((p) => {
     const projected = applyProjection(p, projectFields);
     return applyElide ? elideDefaults(projected, PROJECT_DEFAULTS) : projected;
   });
 
+  // Cap stage (#776/#1059) — runs last; re-anchor the cursor at the last kept project.
+  const cap = applyByteCap(wireProjects, {
+    ...(maxOutputBytes !== undefined ? { maxOutputBytes } : {}),
+    cursorFor: (lastKeptIndex) =>
+      ctx.projectService.cursorForListItem(result.projects[lastKeptIndex] as Project, serviceInput),
+  });
+
+  const pagination: Pagination = cap.truncatedAtCap
+    ? { cursor: cap.cursor, hasMore: true }
+    : { cursor: result.nextCursor, hasMore: result.hasMore };
+
+  const warnings: Warning[] = cap.truncatedAtCap
+    ? [...fieldWarnings, warnResultTruncatedBytes(cap.bytesReturned, cap.itemsReturned)]
+    : fieldWarnings;
+
   const meta = ctx.makeMeta({
     cacheHit: result.cacheHit,
-    ...(warnings !== undefined ? { warnings } : {}),
+    ...(warnings.length > 0 ? { warnings } : {}),
+    ...(cap.truncatedAtCap
+      ? {
+          truncatedAtCap: true,
+          bytesReturned: cap.bytesReturned,
+          itemsReturned: cap.itemsReturned,
+        }
+      : {}),
   });
-  return ok({ projects }, meta, pagination);
+  return ok({ projects: cap.items }, meta, pagination);
 }
 
 // ---------------------------------------------------------------------------

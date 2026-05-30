@@ -127,3 +127,56 @@ describe("handleProjectList — field projection", () => {
     expect(warning?.details).toMatchObject({ unknown: ["phantomProjectField"] });
   });
 });
+
+// ---------------------------------------------------------------------------
+// maxOutputBytes cap (#1059)
+// ---------------------------------------------------------------------------
+
+describe("handleProjectList — maxOutputBytes cap (#1059)", () => {
+  it("does not add cap meta when maxOutputBytes is omitted", async () => {
+    const { ctx, adapter } = makeCtx();
+    for (let i = 0; i < 3; i++) await adapter.createProject({ name: `p${i}` });
+    const result = await handleProjectList({ status: "active", limit: 50 }, ctx);
+    expect(result.data.projects).toHaveLength(3);
+    expect(result.meta).not.toHaveProperty("truncatedAtCap");
+  });
+
+  it("trims to the cap with truncation meta + warning + resumable cursor", async () => {
+    const { ctx, adapter } = makeCtx();
+    for (let i = 0; i < 6; i++) await adapter.createProject({ name: `project-${i}` });
+    const full = await handleProjectList({ status: "active", limit: 50 }, ctx);
+    const cap = Math.floor(Buffer.byteLength(JSON.stringify(full.data.projects), "utf8") / 3);
+
+    const r = await handleProjectList({ status: "active", limit: 50, maxOutputBytes: cap }, ctx);
+    expect(r.data.projects.length).toBeGreaterThan(0);
+    expect(r.data.projects.length).toBeLessThan(6);
+    expect(r.meta.truncatedAtCap).toBe(true);
+    expect(r.meta.bytesReturned).toBe(Buffer.byteLength(JSON.stringify(r.data.projects), "utf8"));
+    expect(r.meta.bytesReturned).toBeLessThanOrEqual(cap);
+    expect(r.pagination).toMatchObject({ hasMore: true });
+    expect(r.pagination?.cursor).toEqual(expect.any(String));
+    expect(r.meta.warnings?.some((w) => w.code === "WARN_RESULT_TRUNCATED")).toBe(true);
+  });
+
+  it("resumes from the re-anchored cursor with no gaps or overlaps", async () => {
+    const { ctx, adapter } = makeCtx();
+    const created: string[] = [];
+    for (let i = 0; i < 6; i++) created.push(await adapter.createProject({ name: `project-${i}` }));
+    const full = await handleProjectList({ status: "active", limit: 50 }, ctx);
+    const cap = Math.floor(Buffer.byteLength(JSON.stringify(full.data.projects), "utf8") / 3);
+
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let guard = 0; guard < 20; guard++) {
+      const page = await handleProjectList(
+        { status: "active", limit: 50, maxOutputBytes: cap, ...(cursor ? { cursor } : {}) },
+        ctx,
+      );
+      for (const p of page.data.projects) seen.push((p as { id: string }).id);
+      if (!page.pagination?.hasMore) break;
+      cursor = page.pagination.cursor ?? undefined;
+    }
+    expect(new Set(seen)).toEqual(new Set(created));
+    expect(seen.length).toBe(created.length);
+  });
+});

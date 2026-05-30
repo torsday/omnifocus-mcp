@@ -297,3 +297,56 @@ describe("search_query — _links opt-in", () => {
     expect((page2.data.tasks[0] as unknown as { _links?: unknown })._links).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// maxOutputBytes cap (#1059)
+// ---------------------------------------------------------------------------
+
+describe("handleSearchQuery — maxOutputBytes cap (#1059)", () => {
+  it("does not add cap meta when maxOutputBytes is omitted", async () => {
+    const { ctx, adapter } = makeCtx();
+    for (let i = 0; i < 3; i++) await adapter.createTask({ name: `match ${i}` });
+    const result = await handleSearchQuery({ q: "match" }, ctx);
+    expect(result.data.tasks).toHaveLength(3);
+    expect(result.meta).not.toHaveProperty("truncatedAtCap");
+  });
+
+  it("trims to the cap with truncation meta + warning + resumable cursor", async () => {
+    const { ctx, adapter } = makeCtx();
+    for (let i = 0; i < 6; i++) await adapter.createTask({ name: `match ${i}` });
+    const full = await handleSearchQuery({ q: "match", limit: 50 }, ctx);
+    const cap = Math.floor(Buffer.byteLength(JSON.stringify(full.data.tasks), "utf8") / 3);
+
+    const r = await handleSearchQuery({ q: "match", limit: 50, maxOutputBytes: cap }, ctx);
+    expect(r.data.tasks.length).toBeGreaterThan(0);
+    expect(r.data.tasks.length).toBeLessThan(6);
+    expect(r.meta.truncatedAtCap).toBe(true);
+    expect(r.meta.bytesReturned).toBe(Buffer.byteLength(JSON.stringify(r.data.tasks), "utf8"));
+    expect(r.meta.bytesReturned).toBeLessThanOrEqual(cap);
+    expect(r.pagination).toMatchObject({ hasMore: true });
+    expect(r.pagination?.cursor).toEqual(expect.any(String));
+    expect(r.meta.warnings?.some((w) => w.code === "WARN_RESULT_TRUNCATED")).toBe(true);
+  });
+
+  it("resumes from the re-anchored cursor with no gaps or overlaps", async () => {
+    const { ctx, adapter } = makeCtx();
+    const created: string[] = [];
+    for (let i = 0; i < 6; i++) created.push(await adapter.createTask({ name: `match ${i}` }));
+    const full = await handleSearchQuery({ q: "match", limit: 50 }, ctx);
+    const cap = Math.floor(Buffer.byteLength(JSON.stringify(full.data.tasks), "utf8") / 3);
+
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let guard = 0; guard < 20; guard++) {
+      const page = await handleSearchQuery(
+        { q: "match", limit: 50, maxOutputBytes: cap, ...(cursor ? { cursor } : {}) },
+        ctx,
+      );
+      for (const t of page.data.tasks) seen.push((t as { id: string }).id);
+      if (!page.pagination?.hasMore) break;
+      cursor = page.pagination.cursor ?? undefined;
+    }
+    expect(new Set(seen)).toEqual(new Set(created));
+    expect(seen.length).toBe(created.length);
+  });
+});
