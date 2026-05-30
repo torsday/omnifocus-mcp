@@ -355,3 +355,26 @@ describe("task_duplicate — cache invalidation", () => {
     expect(projScopeCount).toBe(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Repetition fidelity on non-recursive clones (#1068)
+// ---------------------------------------------------------------------------
+//
+// Before #1068 the OmniJS non-recursive branch built the clone with a manual
+// prop copy that omitted the repetition rule (and attachments). It now clones
+// via native `duplicateTasks` + child-delete, so every editable field carries
+// over. Attachments aren't modelled by InMemoryAdapter (or the Task domain
+// object), so attachment fidelity is covered by the live osascript spike cited
+// in the PR; repetition IS modelled, so it's asserted here as the contract guard.
+describe("handleTaskDuplicate — repetition fidelity (#1068)", () => {
+  it("preserves the repetition rule on a non-recursive clone", async () => {
+    const { ctx, adapter } = makeCtx();
+    const src = await adapter.createTask({ name: "Repeating" });
+    const rule = { method: "fixed", unit: "weeks", steps: 1 } as const;
+    await adapter.updateTask(src, { repetition: rule });
+
+    const res = await handleTaskDuplicate({ id: src, recursive: false }, ctx);
+    const clone = await adapter.getTask(res.data.newId);
+    expect(clone.repetition).toEqual(rule);
+  });
+});

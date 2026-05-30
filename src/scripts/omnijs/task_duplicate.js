@@ -1,8 +1,10 @@
 /**
- * OmniJS: duplicate a task. Editable fields copy; completed/dropped state
- * reset on every clone. When `recursive: true`, the entire subtree is
- * cloned via `duplicateTasks(...)` (preserves order); otherwise the clone
- * is a single fresh task with copied props (no children).
+ * OmniJS: duplicate a task. All editable fields copy with full fidelity
+ * (name, note, dates, flagged, estimate, sequential, tags, repetition rule,
+ * attachments); completed/dropped state is reset on every clone. Both modes
+ * clone via native `duplicateTasks(...)` (preserves order); when
+ * `recursive: false` the cloned children are deleted afterwards, leaving a
+ * single task that still carries every editable property (#1068).
  *
  * Routes through OmniJS rather than JXA per ADR-0019: JXA's
  * `task.duplicate()` and `container.make({...})` operate on transient
@@ -108,46 +110,38 @@
     }
   }
 
-  let newId;
-  let descendantCount = 0;
-
-  if (args.recursive) {
-    // Subtree clone via OmniJS. `duplicateTasks` returns a TaskArray
-    // whose elements are the new top-level clones (one per input).
-    const result = duplicateTasks([source], position);
-    const clone = result[0];
-    if (!clone) {
-      return JSON.stringify({
-        error: { code: "VALIDATION", message: "duplicateTasks returned no clone" },
-      });
-    }
-    resetSubtree(clone);
-    // descendantCount = total descendants under the clone. On a Task,
-    // `flattenedTasks` returns descendants only (NOT self) — no subtraction.
-    descendantCount = clone.flattenedTasks?.length ?? 0;
-    newId = clone.id.primaryKey;
-  } else {
-    // Non-recursive: build a fresh single task with copied editable props
-    // (no children). Naturally produces an uncompleted clone — no
-    // reset-completion call needed for the root.
-    const clone = new Task(source.name, position);
-    if (source.note) clone.note = source.note;
-    clone.flagged = source.flagged;
-    if (source.deferDate) clone.deferDate = source.deferDate;
-    if (source.dueDate) clone.dueDate = source.dueDate;
-    if (source.estimatedMinutes != null) {
-      clone.estimatedMinutes = source.estimatedMinutes;
-    }
-    clone.sequential = source.sequential;
-    // Tags
-    if (source.tags) {
-      for (const tag of source.tags) {
-        clone.addTag(tag);
-      }
-    }
-    newId = clone.id.primaryKey;
-    descendantCount = 0;
+  // Both modes clone via the native `duplicateTasks`, which copies the source
+  // with full fidelity — name, note, dates, flagged, estimate, sequential,
+  // tags, **repetition rule, and attachments** (#1068) — and returns a
+  // TaskArray of the new top-level clones (one per input). For the
+  // non-recursive case we then drop the cloned children, leaving a single
+  // task that still carries every editable property (the old hand-rolled
+  // `new Task(...)` copy silently lost repetition + attachments).
+  const clone = duplicateTasks([source], position)[0];
+  if (!clone) {
+    return JSON.stringify({
+      error: { code: "VALIDATION", message: "duplicateTasks returned no clone" },
+    });
   }
 
-  return JSON.stringify({ newId, descendantCount });
+  if (!args.recursive) {
+    // Snapshot the children before deleting — mutating the live array mid-loop
+    // would skip elements.
+    const children = clone.children ? clone.children.slice() : [];
+    for (const child of children) {
+      deleteObject(child);
+    }
+  }
+
+  // Reset completion across whatever remains (root always; full subtree when
+  // recursive). `duplicateTasks` preserves the source's completed/dropped
+  // state, but the tool contract is a fresh, active clone.
+  resetSubtree(clone);
+
+  // descendantCount = total descendants under the clone. On a Task,
+  // `flattenedTasks` returns descendants only (NOT self) — no subtraction.
+  // Always 0 in the non-recursive case (children were just removed).
+  const descendantCount = args.recursive ? (clone.flattenedTasks?.length ?? 0) : 0;
+
+  return JSON.stringify({ newId: clone.id.primaryKey, descendantCount });
 })();
