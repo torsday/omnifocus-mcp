@@ -95,6 +95,20 @@ export function warnResultTruncated(limit: number): Warning {
   };
 }
 
+/**
+ * Build a `WARN_RESULT_TRUNCATED` warning when a `maxOutputBytes` cap trims a
+ * list response (#776). Reuses the existing code — `WARN_RESULT_TRUNCATED`
+ * covers a hard size *or* count ceiling — with byte-oriented detail.
+ */
+export function warnResultTruncatedBytes(bytesReturned: number, itemsReturned: number): Warning {
+  return {
+    code: "WARN_RESULT_TRUNCATED",
+    message: `Response was truncated at the maxOutputBytes cap; returned ${itemsReturned} item(s) (${bytesReturned} bytes).`,
+    suggestion: "Fetch the next page with the returned pagination cursor, or raise maxOutputBytes.",
+    details: { bytesReturned, itemsReturned },
+  };
+}
+
 /** Build a `WARN_SYNC_PENDING` warning on mutation responses. */
 export function warnSyncPending(): Warning {
   return {
@@ -171,6 +185,22 @@ export interface ResponseMeta {
    * Each entry has a stable `code` agents can switch on — see `Warning`.
    */
   warnings?: Warning[];
+  /**
+   * True when a `maxOutputBytes` cap trimmed this list response before its
+   * natural page boundary (#776). When set, `pagination.cursor` resumes at the
+   * first dropped item. Absent on uncapped responses.
+   */
+  truncatedAtCap?: boolean;
+  /**
+   * Serialized wire size (bytes) of the returned data array, present only when a
+   * `maxOutputBytes` cap was applied (paired with `truncatedAtCap`). Absent otherwise.
+   */
+  bytesReturned?: number;
+  /**
+   * Number of items returned after a `maxOutputBytes` cap was applied (paired
+   * with `truncatedAtCap`). Absent otherwise.
+   */
+  itemsReturned?: number;
   /**
    * Current rate-limit window state for this tool. Absent on cached responses
    * (no rate check was performed). Present on live calls and on RateLimited errors

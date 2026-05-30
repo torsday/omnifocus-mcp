@@ -4537,6 +4537,7 @@ List tasks in OmniFocus with optional filters (project, tag, inbox, flagged, com
 | `verbose` | boolean | No | When true, return the full unelided task shape (every field present, even at defaults). Default: false — fields equal to their documented default (flagged: false, completed: false, tagIds: [], note: null, dueDate: null, etc.) are omitted from the wire payload. An omitted field means the default applies. See docs/token-cost.md for the full defaults table. |
 | `fields` | string[] | No | Restrict each returned task to this list of top-level fields (id is always returned). Omit for the full task shape. Empty array returns just id. Unknown names surface in meta.warnings.WARN_UNKNOWN_FIELDS. |
 | `includeLinks` | boolean | No | When true, each task carries a `_links` HATEOAS block (self, project, parent, tags). Default false — the block is omitted to save payload size. Use the task's `id`, `projectId`, `parentId`, and `tagIds` fields directly instead. |
+| `maxOutputBytes` | number | No | Cap the serialized byte size of the returned tasks[] array. When the response would exceed this, the server returns as many whole tasks as fit, sets meta.truncatedAtCap=true with meta.bytesReturned and meta.itemsReturned, and returns a pagination cursor that resumes at the first dropped task. Omit for no cap. Values above the server's hard ceiling (~1 MiB) are clamped. A single task larger than the cap is still returned whole so pagination always advances. |
 
 ### Example call
 

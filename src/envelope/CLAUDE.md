@@ -9,7 +9,7 @@ Tool-response envelope contracts. The success-path of every read tool flows thro
 1. **Project** (planned, [#773](https://github.com/torsday/omnifocus-mcp/issues/773)) — keep only the fields the caller asked for via `fields[]`. Done first because the next steps shouldn't waste work on fields about to be dropped.
 2. **Elide** (`elideDefaults.ts` + `defaultsRegistry.ts`) — drop fields equal to their documented default per `docs/token-cost.md`. Tools accept `verbose: true` to bypass.
 3. **Truncate** (`src/tools/task/notePreview.ts`, [#775](https://github.com/torsday/omnifocus-mcp/issues/775)) — replace long `note` with `notePreview` + `noteTruncated` + `noteLength`. `notePreviewChars: -1` opts out.
-4. **Cap** (planned, [#776](https://github.com/torsday/omnifocus-mcp/issues/776)) — hard wire-byte ceiling with truncation envelope. Last so it sees the post-elide post-truncate size.
+4. **Cap** (`cap.ts`, [#776](https://github.com/torsday/omnifocus-mcp/issues/776)) — `applyByteCap` enforces an optional `maxOutputBytes` wire-byte ceiling, trimming whole items and re-anchoring the continuation cursor at the last kept one. Last so it sees the post-elide post-truncate size. Wired into `task_list` as the reference; remaining heavy-read tools tracked as a follow-up. Each tool supplies a `cursorFor` callback that resumes at the first dropped item (see `taskService.cursorForListItem`).
 
 If you add a new transformation, decide which step in the pipeline it belongs to before writing it. Two transformations in the same step should commute; if they don't, they're separate steps.
 

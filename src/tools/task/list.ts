@@ -22,7 +22,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { flexDateString } from "../../domain/dates.js";
 import { ProjectId, TagId, TaskId } from "../../domain/ids.js";
-import { TASK_FIELD_NAMES, TASK_FIELD_NAMES_SET } from "../../domain/task.js";
+import { TASK_FIELD_NAMES, TASK_FIELD_NAMES_SET, type Task } from "../../domain/task.js";
+import { applyByteCap } from "../../envelope/cap.js";
 import { TASK_DEFAULTS } from "../../envelope/defaultsRegistry.js";
 import { elideDefaults } from "../../envelope/elideDefaults.js";
 import {
@@ -30,6 +31,8 @@ import {
   type Pagination,
   type ResponseMeta,
   toolResponse,
+  type Warning,
+  warnResultTruncatedBytes,
   warnUnknownFields,
 } from "../../envelope/index.js";
 import { applyProjection, validateFields } from "../../envelope/projection.js";
@@ -186,6 +189,18 @@ export const taskListInputSchema = z.object({
         "Default false — the block is omitted to save payload size. " +
         "Use the task's `id`, `projectId`, `parentId`, and `tagIds` fields directly instead.",
     ),
+  maxOutputBytes: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe(
+      "Cap the serialized byte size of the returned tasks[] array. When the response would exceed this, " +
+        "the server returns as many whole tasks as fit, sets meta.truncatedAtCap=true with " +
+        "meta.bytesReturned and meta.itemsReturned, and returns a pagination cursor that resumes at the " +
+        "first dropped task. Omit for no cap. Values above the server's hard ceiling (~1 MiB) are clamped. " +
+        "A single task larger than the cap is still returned whole so pagination always advances.",
+    ),
 });
 
 /** TypeScript input type derived from {@link taskListInputSchema}. */
@@ -207,38 +222,58 @@ export interface ToolContext {
  * can invoke it without constructing an McpServer.
  */
 export async function handleTaskList(input: TaskListToolInput, ctx: ToolContext) {
-  const { notePreviewChars: rawPreviewChars, verbose, fields, ...rest } = input;
+  const { notePreviewChars: rawPreviewChars, verbose, fields, maxOutputBytes, ...rest } = input;
   const serviceInput = rest as TaskListInput;
   const result = await ctx.taskService.list(serviceInput);
-  const pagination: Pagination = {
-    cursor: result.nextCursor,
-    hasMore: result.hasMore,
-  };
   const previewChars = rawPreviewChars ?? DEFAULT_NOTE_PREVIEW_CHARS;
 
   const projection =
     fields !== undefined ? validateFields(fields, TASK_FIELD_NAMES_SET) : undefined;
   const projectFields = projection?.valid;
-  const warnings =
+  const fieldWarnings =
     projection !== undefined && projection.unknown.length > 0
       ? [warnUnknownFields([...projection.unknown], TASK_FIELD_NAMES)]
-      : undefined;
+      : [];
 
   // When fields[] is specified the caller is being explicit — skip elide-defaults
   // so requested fields are never silently dropped. verbose=true also bypasses
   // elide-defaults. Default (no fields, no verbose) applies elide-defaults.
   const applyElide = verbose !== true && projectFields === undefined;
-  const tasks = result.tasks.map((t) => {
+  const wireTasks = result.tasks.map((t) => {
     const projected = applyProjection(t, projectFields);
     const previewed = applyNotePreview(projected, previewChars);
     return applyElide ? elideDefaults(previewed, TASK_DEFAULTS) : previewed;
   });
 
+  // Cap stage (#776) — runs last so it measures the true post-elide/post-preview
+  // wire size. Re-anchor the continuation cursor at the last *kept* task so a
+  // trimmed page resumes exactly where it was cut (not at the full page's end).
+  const cap = applyByteCap(wireTasks, {
+    ...(maxOutputBytes !== undefined ? { maxOutputBytes } : {}),
+    cursorFor: (lastKeptIndex) =>
+      ctx.taskService.cursorForListItem(result.tasks[lastKeptIndex] as Task, serviceInput),
+  });
+
+  const pagination: Pagination = cap.truncatedAtCap
+    ? { cursor: cap.cursor, hasMore: true }
+    : { cursor: result.nextCursor, hasMore: result.hasMore };
+
+  const warnings: Warning[] = cap.truncatedAtCap
+    ? [...fieldWarnings, warnResultTruncatedBytes(cap.bytesReturned, cap.itemsReturned)]
+    : fieldWarnings;
+
   const meta = ctx.makeMeta({
     cacheHit: result.cacheHit,
-    ...(warnings !== undefined ? { warnings } : {}),
+    ...(warnings.length > 0 ? { warnings } : {}),
+    ...(cap.truncatedAtCap
+      ? {
+          truncatedAtCap: true,
+          bytesReturned: cap.bytesReturned,
+          itemsReturned: cap.itemsReturned,
+        }
+      : {}),
   });
-  return ok({ tasks }, meta, pagination);
+  return ok({ tasks: cap.items }, meta, pagination);
 }
 
 // ---------------------------------------------------------------------------
