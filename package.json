@@ -98,21 +98,21 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.15",
+    "@biomejs/biome": "^2.4.16",
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/typescript-checker": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
-    "@types/node": "^25.7.0",
-    "@vitest/coverage-v8": "^4.1.6",
+    "@types/node": "^25.9.1",
+    "@vitest/coverage-v8": "^4.1.7",
     "esbuild": "0.28.0",
     "fast-check": "^4.8.0",
     "knip": "^5",
     "simple-git-hooks": "^2.13.1",
     "tsup": "^8.0.0",
-    "tsx": "^4.7.0",
+    "tsx": "^4.22.3",
     "typescript": "^6.0.3",
     "vite": "^8",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.7"
   },
   "packageManager": "pnpm@9.0.0"
 }
