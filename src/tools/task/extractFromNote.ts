@@ -106,7 +106,7 @@ const sourceSchema = z
 // Inner object schema — exposes `.shape` for the MCP tool registration.
 // The exported schema below applies the cross-field refinement; both share
 // the same parsed type.
-const taskExtractFromNoteInputBaseSchema = z.object({
+export const taskExtractFromNoteInputBaseSchema = z.object({
   source: sourceSchema,
   targetProjectId: ProjectId.schema.describe(
     "Project that will receive created tasks on dryRun=false. Read-only on dryRun=true.",

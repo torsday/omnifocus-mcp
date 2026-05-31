@@ -185,7 +185,7 @@ const attachSourceToSchema = z
  * Inner ZodObject — exposes `.shape` for MCP registration. The exported
  * schema below applies the cross-field refinement.
  */
-const taskExtractFromImageInputBaseSchema = z.object({
+export const taskExtractFromImageInputBaseSchema = z.object({
   source: sourceSchema,
   targetProjectId: ProjectId.schema.describe(
     "Project that receives the captured tasks (and the wrapper, if `parent-task` mode).",
