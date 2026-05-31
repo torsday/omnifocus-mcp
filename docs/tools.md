@@ -462,7 +462,9 @@ Re-apply the most recently undone mutation, identical to ⌘⇧Z in OmniFocus. A
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `confirm` | literal: true | Yes | Explicit acknowledgement that redo can re-apply a mutation that may now conflict with intervening edits. Must be exactly true. The call is rejected if this field is absent or false. |
 
 ### Example call
 
@@ -493,7 +495,9 @@ Reverse the most recent document mutation, identical to ⌘Z in OmniFocus. Walks
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `confirm` | literal: true | Yes | Explicit acknowledgement that undo can revert mutations from any source — MCP, manual UI edit, or sync replay. Must be exactly true. The call is rejected if this field is absent or false. |
 
 ### Example call
 
@@ -594,7 +598,10 @@ Export OmniFocus data as OPML XML — a structured outline format OmniFocus can 
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `scope` | one of: project | folder | all | Yes | What to export: 'project' (one project), 'folder' (all projects in a folder), or 'all' (all active projects). |
+| `id` | string | No | Required when scope='project' (project ID from project_list) or scope='folder' (folder ID from folder_list). Omit for scope='all'. |
 
 ### Example call
 
@@ -701,7 +708,10 @@ Preview what folder_create would do without making any changes. Do NOT use to ac
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Folder name. Must be non-empty. |
+| `parentId` | string | No | Parent folder ID. Omit for a root-level folder. Get from folder_list. |
 
 ### Example call
 
@@ -771,7 +781,10 @@ Preview what folder_delete would do without making any changes. Do NOT use to ac
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent folder ID to delete. Get from folder_list. |
+| `cascade` | boolean | No | When true, orphan all direct projects and recursively delete subfolders before deleting. Default false — returns an error if the folder is non-empty. |
 
 ### Example call
 
@@ -929,7 +942,10 @@ Preview what folder_move would do without making any changes. Do NOT use to actu
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the folder to move. Get from folder_list. |
+| `parentId` | string | null | Yes | New parent folder ID, or null to promote the folder to root level. |
 
 ### Example call
 
@@ -1003,7 +1019,10 @@ Preview what folder_update would do without making any changes. Do NOT use to ac
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent folder ID. Get from folder_list. |
+| `name` | string | No | New folder name. Must be non-empty if supplied. |
 
 ### Example call
 
@@ -1108,7 +1127,10 @@ Pack today's forecast tasks into a time budget. Use when the user asks 'I have N
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `budgetMinutes` | number | Yes | Time budget in minutes (1–1440 — i.e. up to 24 hours). Selected tasks' estimatedMinutes will sum to ≤ this value. |
+| `filter` | object | No | Optional filter narrowing the candidate set before packing. |
 
 ### Example call
 
@@ -1139,7 +1161,9 @@ Set or clear the OmniFocus forecast-tag preference. Use when the user wants to d
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tagId` | unknown | Yes | The TagId to designate as the forecast tag, or null to clear the preference. Use null to remove the forecast-tag binding entirely. |
 
 ### Example call
 
@@ -1747,7 +1771,10 @@ Invoke a named Omni Automation plug-in action in OmniFocus. Use this when you ne
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `identifier` | string | Yes | Bundle identifier of the Omni Automation plug-in to invoke (e.g. "com.example.my-plugin"). |
+| `arg` | unknown | No | Optional JSON-serialisable argument forwarded to the plug-in action as Action.args[0]. Defaults to null. |
 
 ### Example call
 
@@ -1778,7 +1805,9 @@ Mark many OmniFocus projects as completed in a single JXA round trip. Completed 
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `items` | object[] | Yes | Array of { id } items. Must contain at least one item. |
 
 ### Example call
 
@@ -1809,7 +1838,9 @@ Cancel (drop) many OmniFocus projects in a single JXA round trip. Dropped projec
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `items` | object[] | Yes | Array of { id } items. Must contain at least one item. |
 
 ### Example call
 
@@ -1873,7 +1904,9 @@ Preview what project_complete would do without making any changes. Do NOT use to
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the project to complete. |
 
 ### Example call
 
@@ -1950,7 +1983,22 @@ Preview what project_create would do without making any changes. Do NOT use to a
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Project name. Required, must be non-empty. |
+| `folderId` | string | No | Folder ID to place the project in. Omit for root. |
+| `note` | string | No | Plain-text note for the project. |
+| `status` | unknown | No |  |
+| `completionCriterion` | unknown | No |  |
+| `deferDate` | string | No | Defer date as ISO-8601 with UTC offset. |
+| `deferDateFloating` | boolean | No | When true, the defer time is floating (follows the user across time zones). |
+| `dueDate` | string | No | Due date as ISO-8601 with UTC offset. |
+| `dueDateFloating` | boolean | No | When true, the due time is floating (follows the user across time zones). |
+| `estimatedMinutes` | number | No | Estimated total duration in minutes. |
+| `flagged` | boolean | No | Flag the project. |
+| `tagIds` | string[] | No | Tag IDs to apply to the project. |
+| `reviewIntervalDays` | number | No | Review interval in days. Omit to use OmniFocus default. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe creates. Identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of creating a duplicate project. |
 
 ### Example call
 
@@ -2022,7 +2070,12 @@ Preview what project_delete would do without making any changes. Do NOT use to a
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the project to delete. Get from project_list. Verify you have the correct ID before calling — this action is irreversible and deletes all contained tasks. |
+| `expectedModifiedAt` | string | No | Optimistic-concurrency guard: ISO-8601 timestamp from a recent project_get. If the project's current modifiedAt differs, the call fails with OF_CONFLICT and no delete is performed. Omit to skip the check. |
+| `dry_run` | boolean | No | When true, validates input and returns a preview envelope with meta.dryRun = true; no adapter call is made and no mutation occurs. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe deletes. Identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of re-deleting (or re-raising NotFound on the second attempt). |
 
 ### Example call
 
@@ -2086,7 +2139,9 @@ Preview what project_drop would do without making any changes. Do NOT use to act
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the project to drop. |
 
 ### Example call
 
@@ -2298,7 +2353,10 @@ Preview what project_move would do without making any changes. Do NOT use to act
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the project to move. |
+| `folderId` | string | null | Yes | Target folder ID, or null to move to root. |
 
 ### Example call
 
@@ -2329,7 +2387,10 @@ Set or clear a project's next review date directly. Use when the user wants to r
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `projectId` | string | Yes | Persistent ID of the project whose next review date should change. |
+| `nextReviewDate` | unknown | Yes | Next review date as ISO-8601 (with offset). Pass null to clear the schedule. Past-dated values are accepted and mark the project as overdue immediately. |
 
 ### Example call
 
@@ -2360,7 +2421,12 @@ Spawn a new project from a saved template under the Templates folder. Substitute
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `templateName` | string | Yes | Saved template to instantiate. |
+| `parameters` | unknown | No | Map of placeholder name → substitution value. |
+| `targetFolderId` | string | No | Folder to create the new project in. Defaults to the library root. |
+| `dueDate` | string | No | Anchor for relative-date shifting. The earliest @due in the template becomes this date; every other @due/@defer shifts by the same delta. |
 
 ### Example call
 
@@ -2422,7 +2488,11 @@ Capture a project as a reusable template under the Templates folder (env OMNIFOC
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `projectId` | string | Yes | Source project to capture. |
+| `templateName` | string | Yes | Display name; must be unique within the Templates folder. |
+| `parameterNames` | string[] | No | Optional placeholder names for future _instantiate substitution. |
 
 ### Example call
 
@@ -2502,7 +2572,25 @@ Preview what project_update would do without making any changes. Do NOT use to a
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent project ID. Get from project_list or project_get. |
+| `name` | string | No | New project name. Must be non-empty if supplied. |
+| `note` | string | null | No | Plain-text note. Pass null to clear. |
+| `noteHtml` | string | null | No | HTML note. Pass null to clear. Prefer note for plain-text edits. |
+| `status` | unknown | No |  |
+| `completionCriterion` | unknown | No |  |
+| `deferDate` | string | null | No | ISO-8601 defer date with UTC offset. Pass null to clear. |
+| `deferDateFloating` | boolean | No | When true, the defer time is floating (follows the user across time zones). |
+| `dueDate` | string | null | No | ISO-8601 due date with UTC offset. Pass null to clear. |
+| `dueDateFloating` | boolean | No | When true, the due time is floating (follows the user across time zones). |
+| `estimatedMinutes` | number | null | No | Estimated total duration in minutes. Pass null to clear. |
+| `flagged` | boolean | No | Flag or unflag the project. |
+| `tagIds` | string[] | No | Full-replacement tag list. Replaces all existing tags. |
+| `reviewIntervalDays` | number | null | No | Review interval in days. Pass null to clear. |
+| `expectedModifiedAt` | string | No | Optimistic-concurrency guard: ISO-8601 timestamp from a recent project_get. If the project's current modifiedAt differs, the call fails with OF_CONFLICT and no update is performed. Omit to skip the check. |
+| `dry_run` | boolean | No | When true, validates input and returns a preview envelope with meta.dryRun = true; no adapter call is made and no mutation occurs. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe updates. Identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of re-applying the patch. |
 
 ### Example call
 
@@ -2533,7 +2621,10 @@ Deterministic prose-to-RepetitionRule helper. Pass a natural-language phrase ('e
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `prose` | string | Yes | Natural-language phrase describing a repetition cadence. Examples: 'every Monday', 'every other Tuesday at 10am', 'first Thursday of every month after I complete it'. |
+| `anchor` | object | No | Optional date anchor — currently informational. The grammar reads time-of-day from prose into normalizedDescription; embedding it into a date is the agent's responsibility once it has anchor context. |
 
 ### Example call
 
@@ -2895,7 +2986,12 @@ Preview what tag_create would do without making any changes. Do NOT use to actua
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Tag name. Must be non-empty. |
+| `parentId` | string | No | Parent tag ID to nest under. Omit for a root tag. Get from tag_list. |
+| `status` | unknown | No |  |
+| `allowsNextAction` | boolean | No | Whether the tag allows next-action selection. Defaults to true. |
 
 ### Example call
 
@@ -2964,7 +3060,9 @@ Preview what tag_delete would do without making any changes. Do NOT use to actua
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent tag ID to delete. Get from tag_list. |
 
 ### Example call
 
@@ -3202,7 +3300,10 @@ Preview what tag_move would do without making any changes. Do NOT use to actuall
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the tag to move. Get from tag_list. |
+| `parentId` | string | null | Yes | New parent tag ID, or null to promote the tag to root level. |
 
 ### Example call
 
@@ -3414,7 +3515,13 @@ Preview what tag_update would do without making any changes. Do NOT use to actua
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent tag ID. Get from tag_list. |
+| `name` | string | No | New tag name. Must be non-empty if supplied. |
+| `parentId` | string | null | No | New parent tag ID. Pass null to promote to root. Get from tag_list. |
+| `status` | unknown | No |  |
+| `allowsNextAction` | boolean | No | Whether the tag allows next-action selection in OmniFocus. |
 
 ### Example call
 
@@ -3445,7 +3552,10 @@ Apply inbox-triage style assignments to many tasks in one batch — move to a pr
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assignments` | object[] | Yes | Triage assignments — one per task. Must contain at least one item. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe batches. Replays within the TTL window return the cached envelope with meta.idempotentReplay = true. See docs/idempotency.md. |
 
 ### Example call
 
@@ -3476,7 +3586,10 @@ Mark many OmniFocus tasks complete in a single JXA round trip. Validation is ato
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `items` | object[] | Yes | Array of { id, at? } items. Must contain at least one item. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe batches. Replays within the TTL window return the cached envelope with meta.idempotentReplay = true. See docs/idempotency.md. |
 
 ### Example call
 
@@ -3507,7 +3620,10 @@ Create many OmniFocus tasks in a single JXA round trip. Validation is atomic: if
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `items` | object[] | Yes | Array of task inputs. Must contain at least one item. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe batches. Replays within the TTL window return the cached envelope with meta.idempotentReplay = true. See docs/idempotency.md. |
 
 ### Example call
 
@@ -3538,7 +3654,10 @@ Preview what task_batch_create would do without making any changes. Do NOT use t
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `items` | object[] | Yes | Array of task inputs. Must contain at least one item. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe batches. Replays within the TTL window return the cached envelope with meta.idempotentReplay = true. See docs/idempotency.md. |
 
 ### Example call
 
@@ -3604,7 +3723,11 @@ Permanently delete many OmniFocus tasks in a single JXA round trip. IRREVERSIBLE
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `confirm` | literal: true | Yes | Explicit acknowledgement that all deletions are permanent and irreversible. Must be exactly true. The entire batch is rejected if this field is absent or false. |
+| `items` | object[] | Yes | Array of { id } items. Must contain at least one item. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe batches. Replays within the TTL window return the cached envelope with meta.idempotentReplay = true. See docs/idempotency.md. |
 
 ### Example call
 
@@ -3635,7 +3758,10 @@ Cancel (drop) many OmniFocus tasks in a single JXA round trip. Dropped tasks rem
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `items` | object[] | Yes | Array of { id } items. Must contain at least one item. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe batches. Replays within the TTL window return the cached envelope with meta.idempotentReplay = true. See docs/idempotency.md. |
 
 ### Example call
 
@@ -3666,7 +3792,10 @@ Move many OmniFocus tasks to new destinations in a single OmniJS round trip. Rou
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `items` | object[] | Yes | Array of { id, destination } items. Must contain at least one item. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe batches. Replays within the TTL window return the cached envelope with meta.idempotentReplay = true. See docs/idempotency.md. |
 
 ### Example call
 
@@ -3697,7 +3826,10 @@ Mark many OmniFocus tasks as incomplete in a single JXA round trip. Reverses a p
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `items` | object[] | Yes | Array of { id } items. Must contain at least one item. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe batches. Replays within the TTL window return the cached envelope with meta.idempotentReplay = true. See docs/idempotency.md. |
 
 ### Example call
 
@@ -3728,7 +3860,10 @@ Restore (undrop) many cancelled OmniFocus tasks in a single JXA round trip. Undr
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `items` | object[] | Yes | Array of { id } items. Must contain at least one item. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe batches. Replays within the TTL window return the cached envelope with meta.idempotentReplay = true. See docs/idempotency.md. |
 
 ### Example call
 
@@ -3759,7 +3894,9 @@ Partially update many OmniFocus tasks in a single JXA round trip. Validation is 
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `items` | object[] | Yes | Array of { id, patch } pairs. Must contain at least one item. |
 
 ### Example call
 
@@ -3790,7 +3927,9 @@ Preview what task_batch_update would do without making any changes. Do NOT use t
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `items` | object[] | Yes | Array of { id, patch } pairs. Must contain at least one item. |
 
 ### Example call
 
@@ -3821,7 +3960,9 @@ Remove all alarms/notifications from an OmniFocus task. After clearing, the task
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | ID of the task to update. Get from task_list or search_query. |
 
 ### Example call
 
@@ -3890,7 +4031,9 @@ Clear waiting-on tracking from an OmniFocus task. Strips the `waiting-on` fenced
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `taskId` | string | Yes | Persistent task ID. |
 
 ### Example call
 
@@ -3955,7 +4098,10 @@ Preview what task_complete would do without making any changes. Do NOT use to ac
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent task ID. |
+| `at` | string | No | ISO-8601 completion time. Defaults to now. |
 
 ### Example call
 
@@ -3986,7 +4132,11 @@ Promote an OmniFocus task to a first-class project via OmniJS Database.convertTa
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the task to promote. |
+| `folderId` | string | No | Place the new project inside this folder. Omit to place at the top of the library. |
+| `position` | one of: beginning | ending | No | Where within the folder or library to insert the new project. Defaults to "ending". |
 
 ### Example call
 
@@ -4063,7 +4213,22 @@ Preview what task_create would do without making any changes. Do NOT use to actu
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Task name. Required, must be non-empty. |
+| `projectId` | string | No | Project to add the task to. Omit for inbox or subtask. |
+| `parentTaskId` | string | No | Parent task ID for a subtask. Omit for inbox or project task. |
+| `note` | string | No | Plain-text note. |
+| `flagged` | boolean | No | Flag the task. |
+| `dueDate` | string | No | Due date as ISO-8601 with offset. |
+| `dueDateFloating` | boolean | No | When true, the due time follows the user across time zones (floating) rather than being pinned to a fixed UTC instant. Use for recurring daily tasks where '9 AM' should mean 9 AM wherever the user is. Default: false (fixed-offset). |
+| `deferDate` | string | No | Defer date as ISO-8601 with offset. |
+| `deferDateFloating` | boolean | No | When true, the defer time is floating (follows the user across time zones). |
+| `estimatedMinutes` | number | No | Estimated duration in minutes. |
+| `tagIds` | string[] | No | Tag IDs to apply. |
+| `sequential` | boolean | No | If true, subtasks must be completed in order. |
+| `completedByChildren` | boolean | No | Complete when all subtasks complete. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe creates. Identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of creating a duplicate task. |
 
 ### Example call
 
@@ -4173,7 +4338,13 @@ Preview what task_delete would do without making any changes. Do NOT use to actu
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `confirm` | literal: true | Yes | Explicit acknowledgement that this deletion is permanent and irreversible. Must be exactly true. The call is rejected if this field is absent or false. |
+| `id` | string | Yes | Persistent ID of the task to delete. Get from task_list or search_query. Verify you have the correct ID before calling — this action is irreversible. |
+| `expectedModifiedAt` | string | No | Optimistic-concurrency guard: ISO-8601 timestamp from a recent task_get. If the task's current modifiedAt differs, the call fails with OF_CONFLICT and no delete is performed. Omit to skip the check. |
+| `dry_run` | boolean | No | When true, validates input and returns a preview envelope with meta.dryRun = true; no adapter call is made and no mutation occurs. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe deletes. Identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of re-deleting (or re-raising NotFound on the second attempt). |
 
 ### Example call
 
@@ -4238,7 +4409,10 @@ Preview what task_drop would do without making any changes. Do NOT use to actual
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent task ID. |
+| `at` | string | No | ISO-8601 drop time. Defaults to now. |
 
 ### Example call
 
@@ -4269,7 +4443,11 @@ Duplicate an OmniFocus task, optionally including its entire subtask subtree whe
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the task to duplicate. |
+| `recursive` | boolean | No | When true, clone the full subtask subtree depth-first. Default: false (clone only the task itself). |
+| `destination` | unknown | No |  |
 
 ### Example call
 
@@ -4300,7 +4478,15 @@ Capture tasks from an image — agent does vision, tool does plumbing. Source is
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `source` | unknown | Yes | Image source. attachment requires exactly one owner. |
+| `targetProjectId` | string | Yes | Project that receives the captured tasks (and the wrapper, if `parent-task` mode). |
+| `proposed` | object[] | Yes | Agent-supplied extraction. |
+| `attachSourceTo` | one of: parent-task | each-task | none | No | Re-attachment mode after task creation. |
+| `parentTaskName` | string | No | Wrapper parent task name; default 'Captured from image'. |
+| `dryRun` | boolean | No | true (default) = preview; false requires confirmation[]. |
+| `confirmation` | object[] | No | Required when dryRun=false. (Possibly-edited) confirmed tasks. |
 
 ### Example call
 
@@ -4331,7 +4517,12 @@ Mechanically split prose into a candidate-task list with source-line provenance.
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `source` | unknown | Yes | Where to read prose from. |
+| `targetProjectId` | string | Yes | Project that will receive created tasks on dryRun=false. Read-only on dryRun=true. |
+| `dryRun` | boolean | No | Default true — return proposals without creating. false requires confirmation[]. |
+| `confirmation` | object[] | No | Required when dryRun is false. The (possibly-edited) ProposedTask[] the agent has confirmed with the user. |
 
 ### Example call
 
@@ -4409,7 +4600,13 @@ Lexical nearest-neighbour search for de-duplicating tasks. Pass a candidate name
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | The candidate task name to compare against existing tasks. |
+| `note` | string | No | Optional note text. When both the candidate and an existing task have a note, note overlap contributes to the score as a tiebreaker. |
+| `scope` | object | No | Narrow the candidate set to one project or one tag. Mutually exclusive — supply at most one. Omit to search all open tasks. |
+| `limit` | number | No | Top-K candidates to return. Default 5, max 50. |
+| `includeCompleted` | boolean | No | When true, include completed and dropped tasks. Default false (open tasks only). |
 
 ### Example call
 
@@ -4608,7 +4805,12 @@ Move an OmniFocus task to a new location — a different project, another task (
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the task to move. |
+| `projectId` | string | No | Move into this project. Mutually exclusive with parentId and toInbox. |
+| `parentId` | string | No | Move under this parent task (as a subtask). Mutually exclusive with projectId and toInbox. |
+| `toInbox` | literal: true | No | Set to true to move the task to the inbox (clear any project or parent). Mutually exclusive with projectId and parentId. |
 
 ### Example call
 
@@ -4639,7 +4841,12 @@ Preview what task_move would do without making any changes. Do NOT use to actual
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the task to move. |
+| `projectId` | string | No | Move into this project. Mutually exclusive with parentId and toInbox. |
+| `parentId` | string | No | Move under this parent task (as a subtask). Mutually exclusive with projectId and toInbox. |
+| `toInbox` | literal: true | No | Set to true to move the task to the inbox (clear any project or parent). Mutually exclusive with projectId and parentId. |
 
 ### Example call
 
@@ -4670,7 +4877,9 @@ Parse OmniFocus transport text DSL into structured task objects — no tasks are
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `text` | string | Yes | Transport text to parse. One task per line; 'Project: Name' prefix sets project context. |
 
 ### Example call
 
@@ -4701,7 +4910,12 @@ Predicate-driven bulk task reclassification with a mandatory two-phase contract.
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `predicate` | unknown | Yes | AST for selecting tasks. Composable via and/or/not. Always evaluated against open (non-completed, non-dropped) tasks. |
+| `changes` | object | Yes | Changes applied uniformly to every matched task. |
+| `dryRun` | boolean | No | Default true — return the diff without mutating. false requires `confirmation` echoing the matched count from a prior dry-run. |
+| `confirmation` | string | No | When dryRun is false, the matched count from the most recent dry-run, as a string (e.g. "42"). Mismatch with the actual current match count fails the call fast. |
 
 ### Example call
 
@@ -4732,7 +4946,13 @@ Reorder an OmniFocus task among its siblings. OmniFocus has no numeric sibling i
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent ID of the task to reorder. |
+| `before` | string | No | Position the task immediately before this sibling. Reference must share the same parent. |
+| `after` | string | No | Position the task immediately after this sibling. Reference must share the same parent. |
+| `at` | one of: start | end | No | Absolute position within a container. Requires `in` to identify the container. |
+| `in` | unknown | No | Required when `at` is set; ignored otherwise. |
 
 ### Example call
 
@@ -4807,7 +5027,10 @@ Replace the alarm/notification set on an OmniFocus task atomically. Pass an arra
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | ID of the task to update. Get from task_list or search_query. |
+| `alarms` | unknown[] | Yes | Full replacement set of alarms. Empty array is permitted and equivalent to task_clear_alarms. |
 
 ### Example call
 
@@ -4886,7 +5109,13 @@ Record that an OmniFocus task is waiting on someone or something. Tags the task 
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `taskId` | string | Yes | Persistent task ID. |
+| `whom` | string | Yes | Person, team, or system being waited on. Required. |
+| `what` | string | No | Optional short description of what is being waited on. |
+| `since` | string | No | ISO-8601 date the wait began. Defaults to now. Use to backfill historical waits. |
+| `followUpAfter` | string | No | ISO-8601 date past which the agent should nudge if still unresolved. Drives daysOverdue in the omnifocus://waiting-on resource. |
 
 ### Example call
 
@@ -5043,7 +5272,26 @@ Preview what task_update would do without making any changes. Do NOT use to actu
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Persistent task ID. Get from task_list or search_query. |
+| `name` | string | No | New task name. Must be non-empty if supplied. |
+| `note` | string | null | No | Plain-text note. Pass null to clear. HTML round-trip available in M3. |
+| `flagged` | boolean | No | Flag or unflag the task. Alias: setFlagged. |
+| `setFlagged` | boolean | No | Convenience alias for flagged. Use when your intent is specifically to set or clear the flag without touching other fields. |
+| `deferDate` | string | null | No | ISO-8601 defer date with UTC offset. Pass null to clear. |
+| `deferDateFloating` | boolean | No | When true, the defer time is floating (follows the user across time zones). |
+| `dueDate` | string | null | No | ISO-8601 due date with UTC offset. Pass null to clear. |
+| `dueDateFloating` | boolean | No | When true, the due time is floating (follows the user across time zones). |
+| `estimatedMinutes` | number | null | No | Estimated duration in minutes. Pass null to clear. |
+| `sequential` | boolean | No | Whether subtasks must be completed in order. |
+| `completedByChildren` | boolean | No | Whether the task completes when all children are complete. |
+| `tagIds` | string[] | No | Full-replacement tag list. Replaces all existing tags. Mutually exclusive with addTags/removeTags. |
+| `addTags` | string[] | No | Tags to add. No-op for tags the task already has. Mutually exclusive with tagIds. |
+| `removeTags` | string[] | No | Tags to remove. No-op for tags the task doesn't have. Mutually exclusive with tagIds. |
+| `expectedModifiedAt` | string | No | Optimistic-concurrency guard: ISO-8601 timestamp from a recent task_get. If the task's current modifiedAt differs, the call fails with OF_CONFLICT and no update is performed. Omit to skip the check. |
+| `dry_run` | boolean | No | When true, validates input, computes the patched task (pre-fetch merged with the supplied fields), and returns a preview envelope with meta.dryRun = true; no adapter call is made and no mutation occurs. |
+| `idempotency_key` | string | No | Idempotency key for retry-safe updates. Identical subsequent calls within the TTL window replay the original envelope with meta.idempotentReplay = true instead of re-applying the patch. |
 
 ### Example call
 
@@ -5238,7 +5486,9 @@ Set or clear the front OmniFocus window's focus container (a project or folder).
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `containerId` | unknown | Yes | ProjectId or FolderId to focus the front window on, or null to clear focus. |
 
 ### Example call
 
@@ -5269,7 +5519,9 @@ Switch the front OmniFocus window to a named perspective (built-in or custom). *
 
 ### Input
 
-_No parameters._
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `perspectiveName` | string | Yes | Name of the perspective to activate. Case-sensitive. Built-in or custom perspectives both work. |
 
 ### Example call
 

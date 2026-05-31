@@ -28,7 +28,7 @@ export const TASK_PARSE_TRANSPORT_TEXT_DESCRIPTION =
 // Input schema
 // ---------------------------------------------------------------------------
 
-const taskParseTransportTextInputSchema = z.object({
+export const taskParseTransportTextInputSchema = z.object({
   text: z
     .string()
     .min(1)

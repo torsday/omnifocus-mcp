@@ -55,7 +55,7 @@ export const REPETITION_FROM_PROSE_DESCRIPTION =
 // Input schema
 // ---------------------------------------------------------------------------
 
-const repetitionFromProseInputSchema = z.object({
+export const repetitionFromProseInputSchema = z.object({
   prose: z
     .string()
     .min(1)
