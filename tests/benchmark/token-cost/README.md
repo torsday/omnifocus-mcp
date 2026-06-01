@@ -9,6 +9,14 @@ workflow without regressing the others.
 The suite is hermetic: it drives `InMemoryAdapter` directly, does not
 touch JXA, and does not require OmniFocus to be running.
 
+> **Known issue ([#1075](https://github.com/torsday/omnifocus-mcp/issues/1075)):**
+> despite being deterministic, `toolListBytes` currently computes ~30% larger
+> on the `mac-local` CI runner than on any local checkout (247910 vs 189728 at
+> the time of writing), so the `token-cost bench` gate can red-flag PRs that
+> never touched the tool surface. Until #1075 is resolved the check is
+> advisory; an unrelated PR caught by the divergence may carry the
+> `bench: regression-allowed` label with a justification in its description.
+
 ## What it measures
 
 For each fixture workflow the suite records:
