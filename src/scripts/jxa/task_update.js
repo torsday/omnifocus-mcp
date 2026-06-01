@@ -104,10 +104,16 @@ function run(argv) {
         friday: "FR",
         saturday: "SA",
       };
+      // #1071: OF 4.x `Task.RepetitionMethod` has only None / Fixed /
+      // DeferUntilDate / DueDate — there is no `Start` member. A prior mapping
+      // of start-again to a `Start` member resolved to undefined, so
+      // `new Task.RepetitionRule(rule, undefined)` silently persisted
+      // start-again rules as Fixed. The correct member for "start again after
+      // completion" (sdef enumerator FRmS) is DeferUntilDate.
       /** @type {Record<string, string>} */
       const METHOD_BY_NAME = {
         fixed: "Fixed",
-        "start-again": "Start",
+        "start-again": "DeferUntilDate",
         "due-again": "DueDate",
       };
       const freq = FREQ_BY_UNIT[rule.unit];
