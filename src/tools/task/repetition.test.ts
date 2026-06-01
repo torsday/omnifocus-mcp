@@ -279,3 +279,50 @@ describe("task_set_repetition / task_clear_repetition — cache invalidation", (
     expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*"]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Read-back gate (#1071) — never report success on a silent transport no-op
+// ---------------------------------------------------------------------------
+
+describe("task_set_repetition / task_clear_repetition — read-back gate (#1071)", () => {
+  const taskId = "task_000001" as import("../../domain/ids.js").TaskId;
+  const makeMeta = (): ResponseMeta => ({
+    correlationId: "test-cid",
+    durationMs: 1,
+    cacheHit: false,
+    transport: "memory",
+    ofVersion: "test",
+  });
+
+  it("set throws when the rule does not persist (write silently no-ops)", async () => {
+    // Stub adapter: updateTask is a no-op and the re-read shows no rule — the
+    // exact #938/#1071 failure mode the gate must catch instead of lying.
+    const adapter = {
+      updateTask: async () => {},
+      getTask: async () => ({ id: taskId, name: "No-op", projectId: null, repetition: null }),
+    } as unknown as InMemoryAdapter;
+
+    await expect(
+      handleTaskSetRepetition(
+        { id: taskId, rule: { method: "fixed", unit: "days", steps: 1 } },
+        { adapter, makeMeta },
+      ),
+    ).rejects.toThrow(/did not persist/);
+  });
+
+  it("clear throws when the rule does not clear (clear silently no-ops)", async () => {
+    const adapter = {
+      updateTask: async () => {},
+      getTask: async () => ({
+        id: taskId,
+        name: "No-op",
+        projectId: null,
+        repetition: { method: "fixed", unit: "days", steps: 1 },
+      }),
+    } as unknown as InMemoryAdapter;
+
+    await expect(handleTaskClearRepetition({ id: taskId }, { adapter, makeMeta })).rejects.toThrow(
+      /did not clear/,
+    );
+  });
+});
