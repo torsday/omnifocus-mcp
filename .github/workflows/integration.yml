@@ -63,7 +63,7 @@ jobs:
       needs_integration: ${{ steps.filter.outputs.integration }}
     steps:
       - name: Check paths
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
