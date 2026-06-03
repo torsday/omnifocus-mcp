@@ -21,15 +21,13 @@ function run(argv) {
   ofApp.includeStandardAdditions = false;
 
   // @inline _helpers/build_tag.js
+  // @inline _helpers/lookup_or_throw.js
 
   const doc = ofApp.defaultDocument;
   const docId = doc.id();
-  const allTags = doc.flattenedTags();
-  for (let i = 0; i < allTags.length; i++) {
-    if (allTags[i].id() === args.id) {
-      return JSON.stringify({ tag: buildTag(allTags[i], docId) });
-    }
-  }
-
-  throw new Error(`Tag not found: ${args.id}`);
+  // byId() instead of a flattenedTags() linear scan (#788/#1081): O(1) bridge
+  // lookup vs O(n) Apple Events. lookupOrThrow forces resolution and throws the
+  // same "Tag not found: <id>" on a missing id.
+  const tag = lookupOrThrow(doc.flattenedTags.byId(args.id), "Tag", args.id);
+  return JSON.stringify({ tag: buildTag(tag, docId) });
 }

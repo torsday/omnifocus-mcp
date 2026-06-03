@@ -21,15 +21,10 @@ function run(argv) {
   const ofApp = Application("OmniFocus");
   ofApp.includeStandardAdditions = false;
 
-  const allTags = ofApp.defaultDocument.flattenedTags();
-  let target = null;
-  for (let i = 0; i < allTags.length; i++) {
-    if (allTags[i].id() === args.id) {
-      target = allTags[i];
-      break;
-    }
-  }
-  if (!target) throw new Error(`Tag not found: ${args.id}`);
+  // @inline _helpers/lookup_or_throw.js
+
+  // byId() instead of a flattenedTags() linear scan (#788/#1081).
+  const target = lookupOrThrow(ofApp.defaultDocument.flattenedTags.byId(args.id), "Tag", args.id);
 
   ofApp.delete(target);
 

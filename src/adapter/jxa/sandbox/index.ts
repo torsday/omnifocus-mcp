@@ -317,6 +317,26 @@ function buildFakeDocument(doc: SandboxDocument) {
     },
   });
 
+  // `flattenedFolders` exposes both the callable (full list) and `.byId(id)`,
+  // mirroring flattenedTasks/flattenedProjects/flattenedTags — folder_delete.js
+  // and other scripts resolve a known folder id via byId (#788/#1081). A missing
+  // id resolves to a -1728 specifier whose `.id()` throws, which lookupOrThrow
+  // maps to "Folder not found: <id>".
+  const flattenedFolders = Object.assign(() => folders, {
+    byId: (id: string) => {
+      const hit = (folders as Array<{ id?: () => string }>).find(
+        (f) => typeof f.id === "function" && f.id() === id,
+      );
+      if (hit) return hit;
+      const msg = "Can't get object. (-1728)";
+      return {
+        id: () => {
+          throw new ScriptError(msg, { details: { stderr: msg } });
+        },
+      };
+    },
+  });
+
   // Top-level project collection. project_create.js pushes new projects
   // here OR into a folder's `.projects`. project_update / project_move use
   // `target.move({ to: ... .projects.end })`; the `.end` accessor is a
@@ -387,7 +407,7 @@ function buildFakeDocument(doc: SandboxDocument) {
     flattenedTasks,
     flattenedProjects,
     projects: docProjects,
-    flattenedFolders: () => folders,
+    flattenedFolders,
     folders: docFolders,
     inboxTasks: docInboxTasks,
     // Some scripts access inbox tasks through `doc.inbox.tasks()` instead
