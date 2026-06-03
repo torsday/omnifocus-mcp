@@ -21,21 +21,20 @@ function run(argv) {
   const ofApp = Application("OmniFocus");
   ofApp.includeStandardAdditions = false;
 
-  const allProjects = ofApp.defaultDocument.flattenedProjects();
-  let target = null;
-  for (let i = 0; i < allProjects.length; i++) {
-    if (allProjects[i].id() === args.id) {
-      target = allProjects[i];
-      break;
-    }
-  }
-  if (!target) throw new Error(`Project not found: ${args.id}`);
+  // @inline _helpers/lookup_or_throw.js
+
+  // byId() instead of a flattenedProjects() linear scan (#788/#1091).
+  const target = lookupOrThrow(
+    ofApp.defaultDocument.flattenedProjects.byId(args.id),
+    "Project",
+    args.id,
+  );
 
   if (args.folderId) {
-    // Resolve via flattenedFolders iteration (top-level `folders` excludes
-    // nested ones; `byId(...)` returns a lazy specifier whose subsequent
-    // `.projects.end` is nil — same JXA quirk as #674's lookupOrThrow).
-    // Mirroring the same iteration the project lookup above uses.
+    // Folder resolution stays a flattenedFolders iteration on purpose: a
+    // `flattenedFolders.byId(...)` specifier has a nil `.projects.end` (the move
+    // target on the next line) — the #674 JXA quirk. byId is correct for the
+    // project above, but not for a folder we then read `.projects.end` off.
     const allFolders = ofApp.defaultDocument.flattenedFolders();
     let folder = null;
     for (let i = 0; i < allFolders.length; i++) {
