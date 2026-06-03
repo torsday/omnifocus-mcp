@@ -160,9 +160,32 @@ Tools that apply elision: `task_list`, `task_get`, `task_get_many`, `project_lis
 
 Inbox-triage benchmark: -27.3% on totalResponseBytes after default elision (on top of #775's note truncation savings).
 
+## Session density negotiation (#818)
+
+A client can negotiate one **density** preference at the MCP `initialize` handshake instead of repeating response-shaping flags on every call. The client signals it as an experimental capability:
+
+```jsonc
+// initialize params
+{
+  "capabilities": {
+    "experimental": { "density": "full" } // "compact" | "default" | "full"
+  }
+}
+```
+
+The negotiated value becomes the session-wide **default** for the read-shaping flags; a per-call argument always overrides it. With stdio as the sole transport ([ADR-0010](adr/0010-stdio-as-sole-transport.md)) the preference lives in a process singleton for the connection's lifetime.
+
+| Density             | `includeLinks` | `includeSubtasks` | `notePreviewChars`     |
+| ------------------- | -------------- | ----------------- | ---------------------- |
+| `compact`/`default` | `false`        | `false`           | `200`                  |
+| `full`              | `true`         | `true`            | `-1` (no truncation)   |
+
+`default` and `compact` coincide: the audit (#774/#775/#791/#792/#796) already made the lean shape the baseline, so the operative lever is `full` for clients that want rich responses without per-call flags. `noteHtml` (no read-path inclusion flag) and page `limit` (already 50) are not density-tunable — see [ADR-0025](adr/0025-session-density-negotiation.md). When no density is signaled the server uses `default`, so the capability is additive and non-breaking. `internal_status` reports the negotiated `density`.
+
 ## Related
 
 - [DESIGN.md §21](../DESIGN.md) — observability contract
 - [`docs/perf-setup.md`](perf-setup.md) — performance posture and configuration
 - [#770](https://github.com/torsday/omnifocus-mcp/issues/770) — token-efficiency epic
 - [#774](https://github.com/torsday/omnifocus-mcp/issues/774) — default-value elision
+- [ADR-0025](adr/0025-session-density-negotiation.md) — session density negotiation

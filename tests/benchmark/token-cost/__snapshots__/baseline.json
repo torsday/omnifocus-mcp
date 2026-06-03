@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-05-30",
-  "toolListBytes": 189728,
+  "generatedAt": "2026-06-03",
+  "toolListBytes": 248066,
   "workflows": {
     "cap-truncation": {
       "callCount": 3,
       "totalRequestBytes": 135,
       "totalResponseBytes": 22543,
       "totalRoundTripBytes": 22678,
-      "totalTokens": 53102,
+      "totalTokens": 67686,
       "byTool": {
         "forecast_get": {
           "calls": 1,
@@ -19,12 +19,33 @@
         }
       }
     },
+    "density-full": {
+      "callCount": 4,
+      "totalRequestBytes": 5681,
+      "totalResponseBytes": 9659,
+      "totalRoundTripBytes": 15340,
+      "totalTokens": 65852,
+      "byTool": {
+        "task_batch_create": {
+          "calls": 2,
+          "responseBytes": 1047
+        },
+        "task_get": {
+          "calls": 1,
+          "responseBytes": 1442
+        },
+        "task_list": {
+          "calls": 1,
+          "responseBytes": 7170
+        }
+      }
+    },
     "end-of-day-review": {
       "callCount": 3,
       "totalRequestBytes": 154,
       "totalResponseBytes": 30076,
       "totalRoundTripBytes": 30230,
-      "totalTokens": 54990,
+      "totalTokens": 69574,
       "byTool": {
         "forecast_get": {
           "calls": 1,
@@ -45,7 +66,7 @@
       "totalRequestBytes": 29603,
       "totalResponseBytes": 16778,
       "totalRoundTripBytes": 46381,
-      "totalTokens": 59027,
+      "totalTokens": 73612,
       "byTool": {
         "tag_create": {
           "calls": 1,
@@ -74,7 +95,7 @@
       "totalRequestBytes": 324,
       "totalResponseBytes": 31794,
       "totalRoundTripBytes": 32118,
-      "totalTokens": 55462,
+      "totalTokens": 70046,
       "byTool": {
         "task_list": {
           "calls": 3,
@@ -87,7 +108,7 @@
       "totalRequestBytes": 2609,
       "totalResponseBytes": 9998,
       "totalRoundTripBytes": 12607,
-      "totalTokens": 50584,
+      "totalTokens": 65168,
       "byTool": {
         "project_create": {
           "calls": 1,
@@ -120,7 +141,7 @@
       "totalRequestBytes": 292,
       "totalResponseBytes": 7860,
       "totalRoundTripBytes": 8152,
-      "totalTokens": 49470,
+      "totalTokens": 64055,
       "byTool": {
         "project_mark_reviewed": {
           "calls": 5,

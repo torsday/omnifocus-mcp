@@ -42,6 +42,7 @@ import {
   hashFilter,
   isAfterCursor,
 } from "../pagination/cursor.js";
+import { resolveIncludeLinks } from "../state/sessionState.js";
 
 // ---------------------------------------------------------------------------
 // Public shapes
@@ -161,10 +162,9 @@ export class ProjectService {
       this.fetchPage(normalized, cursor, limit, filterHash),
     );
 
-    const projects =
-      input.includeLinks === true
-        ? bareProjects.map((p) => ({ ...p, _links: buildProjectLinks(p) }))
-        : bareProjects;
+    const projects = resolveIncludeLinks(input.includeLinks)
+      ? bareProjects.map((p) => ({ ...p, _links: buildProjectLinks(p) }))
+      : bareProjects;
 
     return {
       projects,
@@ -225,7 +225,7 @@ export class ProjectService {
    */
   async get(input: ProjectGetInput): Promise<ProjectGetResult> {
     const includeTaskTree = input.includeTaskTree ?? true;
-    const includeLinks = input.includeLinks ?? false;
+    const includeLinks = resolveIncludeLinks(input.includeLinks);
     const cacheKey = this.getCacheKey(input.id, includeTaskTree);
     const cacheHit = this.cache.has(cacheKey);
 

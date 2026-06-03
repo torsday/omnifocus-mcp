@@ -44,6 +44,7 @@ import {
   hashFilter,
   isAfterCursor,
 } from "../pagination/cursor.js";
+import { resolveIncludeLinks, resolveIncludeSubtasks } from "../state/sessionState.js";
 
 // ---------------------------------------------------------------------------
 // Public shapes
@@ -198,10 +199,9 @@ export class TaskService {
       this.fetchPage(input, normalized, cursor, limit, filterHash),
     );
 
-    const tasks =
-      input.includeLinks === true
-        ? bareTasks.map((t) => ({ ...t, _links: buildTaskLinks(t) }))
-        : bareTasks;
+    const tasks = resolveIncludeLinks(input.includeLinks)
+      ? bareTasks.map((t) => ({ ...t, _links: buildTaskLinks(t) }))
+      : bareTasks;
 
     return {
       tasks,
@@ -242,8 +242,8 @@ export class TaskService {
    * @throws {OmniFocusNotRunning} when OmniFocus is not running
    */
   async get(input: TaskGetInput): Promise<TaskGetResult> {
-    const includeSubtasks = input.includeSubtasks ?? false;
-    const includeLinks = input.includeLinks ?? false;
+    const includeSubtasks = resolveIncludeSubtasks(input.includeSubtasks);
+    const includeLinks = resolveIncludeLinks(input.includeLinks);
     const cacheKey = `task:${input.id}:${includeSubtasks ? "with-subtasks" : "ids-only"}`;
     const cacheHit = this.cache.has(cacheKey);
 
