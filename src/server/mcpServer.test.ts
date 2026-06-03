@@ -20,6 +20,14 @@ describe("createMcpServer", () => {
     expect(inner).toBeDefined();
   });
 
+  it("installs an oninitialized handshake hook for density negotiation (#818)", () => {
+    const server = createMcpServer();
+    // The hook reads the client's `experimental.density` capability at
+    // `initialize`. We assert it is wired; the negotiation logic itself is
+    // unit-tested in src/state/sessionState.test.ts.
+    expect(typeof server.server.oninitialized).toBe("function");
+  });
+
   it("starts with no registered tools (empty registry)", () => {
     const server = createMcpServer();
     // Before any tool registration the server should have no registered tools.

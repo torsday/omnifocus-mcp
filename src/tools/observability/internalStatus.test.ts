@@ -115,6 +115,13 @@ describe("internal_status — handler", () => {
     expect(envelope.data.ofRunning).toBe(true);
   });
 
+  it("reports the negotiated session density (#818)", async () => {
+    const ctx = makeCtx();
+    // No negotiation in this test process → the default profile.
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.density).toBe("default");
+  });
+
   it("returns lastSync from adapter.getLastSync", async () => {
     const ctx = makeCtx({
       getLastSync: vi

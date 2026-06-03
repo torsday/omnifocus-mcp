@@ -78,6 +78,7 @@ import {
   TAG_URI_TEMPLATE,
 } from "../resources/omnifocus.js";
 import { replayStore } from "../state/replayStore.js";
+import { negotiateDensityFromCapabilities } from "../state/sessionState.js";
 import { ALL_TOOL_DESCRIPTIONS } from "../tools/allDescriptions.js";
 import { registerAppLaunchTool } from "../tools/app/launch.js";
 import { registerAttachmentTools } from "../tools/attachment/index.js";
@@ -263,6 +264,19 @@ export function createMcpServer(): McpServer {
     name: SERVER_NAME,
     version: PACKAGE_VERSION,
   });
+
+  // #818: negotiate session-wide response density from the client's
+  // `initialize` capabilities. With stdio as the sole transport (ADR-0010)
+  // there is one connection per process, so the negotiated value lives in a
+  // process singleton. Unknown/absent → "default" (behavior unchanged).
+  server.server.oninitialized = () => {
+    const caps = server.server.getClientCapabilities();
+    const negotiated = negotiateDensityFromCapabilities(
+      caps?.experimental as Record<string, unknown> | undefined,
+    );
+    logger.info({ density: negotiated }, "session density negotiated");
+  };
+
   return server;
 }
 

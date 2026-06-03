@@ -23,6 +23,8 @@ import type { PersistentTransportStats } from "../../observability/transportStat
 import type { Capabilities } from "../../resources/capabilities.js";
 import { probeCalendarAccess } from "../../resources/capabilities.js";
 import type { CircuitState } from "../../server/circuitBreaker.js";
+import type { Density } from "../../state/density.js";
+import { getSessionDensity } from "../../state/sessionState.js";
 import { type MutationScoreSnapshot, probeMutationScore } from "./mutationScore.js";
 
 // ---------------------------------------------------------------------------
@@ -32,9 +34,8 @@ import { type MutationScoreSnapshot, probeMutationScore } from "./mutationScore.
 export const INTERNAL_STATUS_DESCRIPTION =
   "Return a health snapshot of the running omnifocus-mcp server. " +
   "Do NOT use this to read OmniFocus data — prefer task_list, project_list, sync_status, etc. " +
-  "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth, responseStats, latencyStats, toolDurationStats, stores, transport }. " +
+  "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth, responseStats, latencyStats, toolDurationStats, stores, transport, density }. " +
   "cache.services maps key prefixes (tag, folder, forecast, task, project) to { hits, misses, hitRate }. " +
-  "uptimeMs is the milliseconds since the server process started. " +
   "circuits lists each circuit-breaker name and state (closed/open/half_open). " +
   "lastSync mirrors sync_status data; null if getLastSync throws. " +
   "calendarAccess: macOS Calendar bridge state — { available, permission: granted|denied|restricted|not-determined|unknown }. Read-only; does NOT trigger TCC prompt. " +
@@ -42,6 +43,7 @@ export const INTERNAL_STATUS_DESCRIPTION =
   "responseStats / latencyStats / toolDurationStats: opt-in telemetry — bytes per tool, ms per (transport, script) with spawnFloorMs, ms per tool. Null when sample rate is 0. " +
   "stores: { idempotencyEntries, loopDetectorKeys } live retention-store sizes — null when not wired. " +
   "transport: persistent JXA transport stats { enabled, alive, spawns, unexpectedExits, restarts, timeouts, callsServed }; enabled=false by default. " +
+  "density: negotiated response density (compact|default|full). " +
   "Read-only; no side effects. " +
   "Example: internal_status()";
 
@@ -136,6 +138,12 @@ export interface InternalStatusData {
    * the transport, preserving this tool's no-JXA contract.
    */
   transport: PersistentTransportStats | null;
+  /**
+   * Session-wide response density negotiated at the MCP `initialize`
+   * handshake (#818). `"default"` until a client signals a `density`
+   * capability. Reflects the process singleton in `state/sessionState`.
+   */
+  density: Density;
 }
 
 // ---------------------------------------------------------------------------
@@ -300,6 +308,7 @@ export async function handleInternalStatus(
     toolDurationStats,
     stores,
     transport,
+    density: getSessionDensity(),
   };
 
   return ok(data, ctx.makeMeta());

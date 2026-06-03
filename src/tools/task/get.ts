@@ -20,6 +20,7 @@ import { elideDefaults, elideDefaultsAll } from "../../envelope/elideDefaults.js
 import { ok, type ResponseMeta, toolResponse, warnUnknownFields } from "../../envelope/index.js";
 import { applyProjection, validateFields } from "../../envelope/projection.js";
 import type { TaskGetInput, TaskService } from "../../services/taskService.js";
+import { resolveNotePreviewChars } from "../../state/sessionState.js";
 import { applyNotePreview, DEFAULT_NOTE_PREVIEW_CHARS } from "./notePreview.js";
 
 export const TASK_GET_DESCRIPTION =
@@ -95,7 +96,7 @@ export async function handleTaskGet(input: TaskGetToolInput, ctx: TaskGetContext
   // Parse waitingOn / decision against the full note before truncation/projection.
   const waitingOn = parseWaitingOn(result.task.note);
   const decision = parseDecision(result.task.note);
-  const previewChars = rawPreviewChars ?? DEFAULT_NOTE_PREVIEW_CHARS;
+  const previewChars = resolveNotePreviewChars(rawPreviewChars);
 
   const projection =
     fields !== undefined ? validateFields(fields, TASK_FIELD_NAMES_SET) : undefined;
