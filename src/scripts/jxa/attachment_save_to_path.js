@@ -27,20 +27,16 @@ function run(argv) {
   ofApp.includeStandardAdditions = false;
   const doc = ofApp.defaultDocument;
 
+  // @inline _helpers/lookup_or_throw.js
+
   function findOwner() {
+    // byId() instead of flattenedX() linear scans (#788/#1087); lookupOrThrow
+    // throws the same "<Kind> not found: <id>" on a missing id.
     if (args.taskId) {
-      const tasks = doc.flattenedTasks();
-      for (let i = 0; i < tasks.length; i++) {
-        if (tasks[i].id() === args.taskId) return tasks[i];
-      }
-      throw new Error(`Task not found: ${args.taskId}`);
+      return lookupOrThrow(doc.flattenedTasks.byId(args.taskId), "Task", args.taskId);
     }
     if (args.projectId) {
-      const projects = doc.flattenedProjects();
-      for (let i = 0; i < projects.length; i++) {
-        if (projects[i].id() === args.projectId) return projects[i];
-      }
-      throw new Error(`Project not found: ${args.projectId}`);
+      return lookupOrThrow(doc.flattenedProjects.byId(args.projectId), "Project", args.projectId);
     }
     throw new Error("One of taskId or projectId is required");
   }
