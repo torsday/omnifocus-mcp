@@ -21,15 +21,14 @@ function run(argv) {
   const ofApp = Application("OmniFocus");
   ofApp.includeStandardAdditions = false;
 
-  const allFolders = ofApp.defaultDocument.flattenedFolders();
-  let target = null;
-  for (let i = 0; i < allFolders.length; i++) {
-    if (allFolders[i].id() === args.id) {
-      target = allFolders[i];
-      break;
-    }
-  }
-  if (!target) throw new Error(`Folder not found: ${args.id}`);
+  // @inline _helpers/lookup_or_throw.js
+
+  // byId() instead of a flattenedFolders() linear scan (#788/#1081).
+  const target = lookupOrThrow(
+    ofApp.defaultDocument.flattenedFolders.byId(args.id),
+    "Folder",
+    args.id,
+  );
 
   const projectCount = target.projects ? target.projects().length : 0;
   const subfolderCount = target.folders ? target.folders().length : 0;

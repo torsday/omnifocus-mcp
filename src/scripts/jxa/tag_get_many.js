@@ -23,25 +23,24 @@ function run(argv) {
 
   // @inline _helpers/build_tag.js
 
-  /** @type {Record<string, unknown>} */
-  const idSet = {};
-  for (let i = 0; i < args.ids.length; i++) {
-    idSet[args.ids[i]] = null;
-  }
-
   const doc = ofApp.defaultDocument;
   const docId = doc.id();
-  const allTags = doc.flattenedTags();
-  for (let i = 0; i < allTags.length; i++) {
-    const tid = allTags[i].id();
-    if (Object.hasOwn(idSet, tid)) {
-      idSet[tid] = buildTag(allTags[i], docId);
-    }
-  }
 
+  // byId() per requested id instead of one full flattenedTags() linear scan
+  // (#788/#1081). Each byId() is an O(1) bridge lookup; a missing id resolves
+  // to a -1728 specifier whose `.id()` throws — caught here as `null`, which
+  // preserves the (Tag | null)[] contract (get_many never throws on a miss).
   const results = [];
   for (let i = 0; i < args.ids.length; i++) {
-    results.push(idSet[args.ids[i]]);
+    let tag = null;
+    try {
+      const spec = doc.flattenedTags.byId(args.ids[i]);
+      spec.id(); // force resolution; throws on a non-existent id
+      tag = buildTag(spec, docId);
+    } catch (_e) {
+      tag = null;
+    }
+    results.push(tag);
   }
 
   return JSON.stringify({ tags: results });
