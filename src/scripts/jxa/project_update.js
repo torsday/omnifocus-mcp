@@ -25,16 +25,14 @@ function run(argv) {
   ofApp.includeStandardAdditions = false;
 
   // @inline _helpers/build_project.js
+  // @inline _helpers/lookup_or_throw.js
 
-  const allProjects = ofApp.defaultDocument.flattenedProjects();
-  let target = null;
-  for (let i = 0; i < allProjects.length; i++) {
-    if (allProjects[i].id() === args.id) {
-      target = allProjects[i];
-      break;
-    }
-  }
-  if (!target) throw new Error(`Project not found: ${args.id}`);
+  // byId() instead of a flattenedProjects() linear scan (#788/#1091).
+  const target = lookupOrThrow(
+    ofApp.defaultDocument.flattenedProjects.byId(args.id),
+    "Project",
+    args.id,
+  );
 
   if (args.name !== undefined) target.name = args.name;
   if (args.note !== undefined) target.note = args.note ?? "";

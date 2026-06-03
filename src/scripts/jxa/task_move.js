@@ -20,18 +20,10 @@ function run(argv) {
   const ofApp = Application("OmniFocus");
   ofApp.includeStandardAdditions = false;
 
-  const allTasks =
-    ofApp.defaultDocument.flattenedTasks(); /* narrow-scan-ok: must resolve source task by id before knowing its container */
-  let found = null;
-  for (let i = 0; i < allTasks.length; i++) {
-    if (allTasks[i].id() === args.id) {
-      found = allTasks[i];
-      break;
-    }
-  }
-  if (!found) throw new Error(`Task not found: ${args.id}`);
-
   // @inline _helpers/lookup_or_throw.js
+
+  // byId() instead of a flattenedTasks() linear scan (#788/#1091).
+  const found = lookupOrThrow(ofApp.defaultDocument.flattenedTasks.byId(args.id), "Task", args.id);
 
   if (args.parentId) {
     const parent = lookupOrThrow(

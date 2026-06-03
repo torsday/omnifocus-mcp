@@ -29,17 +29,12 @@ function run(argv) {
   ofApp.includeStandardAdditions = false;
 
   // @inline _helpers/build_task.js
+  // @inline _helpers/lookup_or_throw.js
 
-  const allTasks =
-    ofApp.defaultDocument.flattenedTasks(); /* narrow-scan-ok: must resolve task by id; no scope hint available */
-  let found = null;
-  for (let i = 0; i < allTasks.length; i++) {
-    if (allTasks[i].id() === args.id) {
-      found = allTasks[i];
-      break;
-    }
-  }
-  if (!found) throw new Error(`Task not found: ${args.id}`);
+  // byId() instead of a flattenedTasks() linear scan (#788/#1091). The OmniJS
+  // evaluateJavascript blocks below (repetition, tag-set) resolve their own
+  // targets via Task.byIdentifier and are unchanged.
+  const found = lookupOrThrow(ofApp.defaultDocument.flattenedTasks.byId(args.id), "Task", args.id);
 
   if (args.name !== undefined) found.name = args.name;
   if (Object.hasOwn(args, "note")) {
