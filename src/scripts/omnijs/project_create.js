@@ -61,40 +61,65 @@
   // a real persistent id.primaryKey.
   const proj = new Project(args.name, position);
 
-  // Set props post-construction. OmniJS exposes them as plain assignments.
-  if (args.note != null) proj.note = args.note;
-  if (args.deferDate != null) proj.deferDate = new Date(args.deferDate);
-  if (args.dueDate != null) proj.dueDate = new Date(args.dueDate);
-  if (args.estimatedMinutes != null) proj.estimatedMinutes = args.estimatedMinutes;
-  if (args.flagged != null) proj.flagged = args.flagged;
-  if (args.status != null) {
-    // Map the wire-stable status enum to the OmniJS Project.Status constants.
-    // Wire: "active" | "on-hold" | "done" | "dropped"
-    const statusMap = {
-      active: Project.Status.Active,
-      "on-hold": Project.Status.OnHold,
-      done: Project.Status.Done,
-      dropped: Project.Status.Dropped,
-    };
-    const target = statusMap[args.status];
-    if (target !== undefined) proj.status = target;
-  }
-  if (args.completionCriterion != null) {
-    if (args.completionCriterion === "sequential") proj.sequential = true;
-    else if (args.completionCriterion === "singleActions") {
-      // singleActions: containsSingletonActions=true means project completes
-      // when all its singleton actions complete (or via the singleton flag).
-      proj.containsSingletonActions = true;
+  // Apply editable properties post-construction. Wrap in try/catch so a bad
+  // value can't leave a half-created project: on any failure we delete the
+  // just-constructed project and return an error envelope — creation is
+  // atomic (#1073).
+  try {
+    if (args.note != null) proj.note = args.note;
+    if (args.deferDate != null) proj.deferDate = new Date(args.deferDate);
+    if (args.dueDate != null) proj.dueDate = new Date(args.dueDate);
+    if (args.estimatedMinutes != null) proj.estimatedMinutes = args.estimatedMinutes;
+    if (args.flagged != null) proj.flagged = args.flagged;
+    if (args.status != null) {
+      // Map the wire-stable status enum to the OmniJS Project.Status constants.
+      // Wire: "active" | "on-hold" | "done" | "dropped"
+      const statusMap = {
+        active: Project.Status.Active,
+        "on-hold": Project.Status.OnHold,
+        done: Project.Status.Done,
+        dropped: Project.Status.Dropped,
+      };
+      const target = statusMap[args.status];
+      if (target !== undefined) proj.status = target;
     }
-    // "parallel" is the default — sequential=false, containsSingletonActions=false.
-  }
-  if (args.reviewIntervalDays != null) {
-    // OmniJS Project.reviewInterval takes a `Project.ReviewInterval` value
-    // constructed via `{ steps, unit }`. Days is the canonical unit here.
-    proj.reviewInterval = { steps: args.reviewIntervalDays, unit: "day" };
-  }
-  if (args.nextReviewDate != null) {
-    proj.nextReviewDate = new Date(args.nextReviewDate);
+    if (args.completionCriterion != null) {
+      if (args.completionCriterion === "sequential") proj.sequential = true;
+      else if (args.completionCriterion === "singleActions") {
+        // singleActions: containsSingletonActions=true means project completes
+        // when all its singleton actions complete (or via the singleton flag).
+        proj.containsSingletonActions = true;
+      }
+      // "parallel" is the default — sequential=false, containsSingletonActions=false.
+    }
+    if (args.reviewIntervalDays != null) {
+      // `Project.reviewInterval` requires a value of type `Project.ReviewInterval`
+      // — a plain `{ steps, unit }` object is rejected, and OmniJS has no
+      // `reviewIntervalDays` scalar (assigning it is a silent no-op). Mutate the
+      // project's existing ReviewInterval and reassign it; in-place mutation
+      // alone does not persist (verified live, #1073). nextReviewDate then
+      // recomputes as lastReviewDate + N days.
+      const ri = proj.reviewInterval;
+      ri.steps = args.reviewIntervalDays;
+      ri.unit = "days";
+      proj.reviewInterval = ri;
+    }
+    if (args.nextReviewDate != null) {
+      proj.nextReviewDate = new Date(args.nextReviewDate);
+    }
+  } catch (assignErr) {
+    // Roll back so the failed create leaves nothing behind.
+    try {
+      deleteObject(proj);
+    } catch (_e) {
+      /* best-effort rollback; report the original failure below */
+    }
+    return JSON.stringify({
+      error: {
+        code: "VALIDATION",
+        message: `project_create: failed to apply properties (project rolled back): ${String(assignErr)}`,
+      },
+    });
   }
 
   // Build the response Project — mirrors src/scripts/jxa/project_create.js's
