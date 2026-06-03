@@ -173,6 +173,20 @@ describe("project_create — handler", () => {
     expect(project.flagged).toBe(true);
   });
 
+  // #1073: reviewIntervalDays must plumb through create (handler → adapter →
+  // response). The OmniJS-specific behavior — the assignment is atomic and the
+  // interval is honored (nextReviewDate = lastReviewDate + N days) — is verified
+  // live against OmniFocus 4.x in the PR; the OmniJS `Project.reviewInterval`
+  // setter rejects a plain `{ steps, unit }` object and has no scalar fallback.
+  it("plumbs reviewIntervalDays through to the created project (#1073)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const envelope = assertOk(
+      await handleProjectCreate({ name: "Reviewed", reviewIntervalDays: 30 }, ctx),
+    );
+    const project = await adapter.getProject(envelope.data.id);
+    expect(project.reviewIntervalDays).toBe(30);
+  });
+
   it("creates without optional fields (minimal path)", async () => {
     const { ctx } = makeCtx();
     const envelope = assertOk(await handleProjectCreate({ name: "Minimal" }, ctx));
