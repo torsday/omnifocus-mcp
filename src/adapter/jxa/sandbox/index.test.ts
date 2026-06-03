@@ -2666,6 +2666,39 @@ describe("JXA sandbox — task_batch_create", () => {
     expect(result.succeeded).toHaveLength(1);
     expect(result.failed.map((f) => f.errorCode)).toEqual(["OF_NOT_FOUND", "OF_NOT_FOUND"]);
   });
+
+  // Regression for #1074: OF 4.x rejects `container.make({ new: "task" })` with
+  // -10024, but the default fixture `.make()` is a working stub — which is why
+  // the original bug (project/parent branches still using `.make()`) slipped
+  // past the test above. Here we make the containers' `.make()` throw like real
+  // OF 4.x; the script must still succeed by using `.tasks.push` (the pattern
+  // singular task_create.js already uses). Under the old code this produced two
+  // OF_UNKNOWN failures.
+  it("creates into project/parent via .tasks.push, surviving an OF-4.x-throwing .make() (#1074)", () => {
+    const throwMinus10024 = () => {
+      throw new Error("Can't make or move that element into that container.");
+    };
+    const project = fakeProject({ id: () => "project_target" });
+    (project as { make: unknown }).make = throwMinus10024;
+    const parent = fakeTask({ id: () => "task_parent" });
+    (parent as { make: unknown }).make = throwMinus10024;
+
+    const result = runJxaScriptInSandbox<{
+      succeeded: { value: string }[];
+      failed: { errorCode: string }[];
+    }>(
+      taskBatchCreateScript,
+      {
+        inputs: [
+          { name: "Under project", projectId: "project_target" },
+          { name: "Subtask", parentId: "task_parent" },
+        ],
+      },
+      { projects: [project], tasks: [parent] },
+    );
+    expect(result.failed).toEqual([]);
+    expect(result.succeeded).toHaveLength(2);
+  });
 });
 
 // ---------------------------------------------------------------------------
