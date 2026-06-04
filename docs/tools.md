@@ -459,13 +459,14 @@ Copy an attachment's content to a local file path. Do not use to list or remove 
 
 ## changes_since
 
-Incremental sync feed: return what changed since the last call. Call with no args to bootstrap (returns every task/project in `added` plus a `syncToken`); call again passing the previous `syncToken` to get only changes since then. Returns { reset, syncToken, tasks: { added, modified }, projects: { added, modified } }. modified entries are field-level deltas { id, changes } — only the fields that changed, not the whole record. reset=true means a full snapshot (first call, or the token expired/unknown — discard local state). Always use the returned syncToken for the next call; tokens live ~10 min and do not survive a server restart. Deletions are NOT reported (v1) — reconcile periodically with task_list / project_list. Read-only; no side effects. Example: changes_since({ syncToken: 'abc123' })
+Incremental sync feed: return what changed since the last call. Call with no args to bootstrap (returns every task/project in `added` plus a `syncToken`); call again passing the previous `syncToken` to get only changes since then. Returns { reset, syncToken, tasks: { added, modified }, projects: { added, modified } }. modified entries are field-level deltas { id, changes } — only the fields that changed, not the whole record. reset=true means a full snapshot (first call, or the token expired/unknown — discard local state). Always use the returned syncToken for the next call; tokens live ~10 min and do not survive a server restart. Deletions are reported in `removed` only when you pass includeRemoved:true (it needs a full scan); otherwise they are not tracked. Read-only; no side effects. Example: changes_since({ syncToken: 'abc123' })
 
 ### Input
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `syncToken` | string | No | Token from a prior changes_since call. Omit to bootstrap a full snapshot. |
+| `includeRemoved` | boolean | No | Report deleted entity IDs in `removed`. Default false — detecting deletions needs a full enumeration, so this trades the cheap incremental path for completeness. Set true only when you must track deletions; otherwise reconcile periodically with task_list / project_list. |
 
 ### Example call
 

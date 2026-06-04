@@ -191,7 +191,7 @@ changes_since()                        // bootstrap: reset:true, every entity in
 changes_since({ syncToken: "abc123" }) // delta: added + modified field-level deltas, + a fresh token
 ```
 
-The server snapshots returned entities under each token (bounded, ~10-min TTL, in-memory) to diff against — OmniFocus's `modificationDate` says *that* an entity changed, not *what*. An unknown/expired token yields `reset:true` (full re-sync; discard local state). **Deletions are not reported in v1** — reconcile periodically with `task_list`/`project_list`. Design + tradeoffs in [ADR-0026](adr/0026-sync-delta-protocol.md).
+The server snapshots returned entities under each token (bounded, ~10-min TTL, in-memory) to diff against — OmniFocus's `modificationDate` says *that* an entity changed, not *what*. An unknown/expired token yields `reset:true` (full re-sync; discard local state). **Deletions** are reported in `removed` only when you pass `includeRemoved: true` (it needs a full scan, so the cheap default omits them); otherwise reconcile periodically with `task_list`/`project_list`. Design + tradeoffs in [ADR-0026](adr/0026-sync-delta-protocol.md).
 
 ## Related
 

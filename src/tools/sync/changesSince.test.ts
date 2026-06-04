@@ -103,6 +103,51 @@ describe("changes_since — delta", () => {
   });
 });
 
+describe("changes_since — includeRemoved (#1095)", () => {
+  it("omits `removed` by default", async () => {
+    const ctx = makeCtx();
+    await ctx.adapter.createTask({ name: "Task A" });
+    const boot = data(await handleChangesSince({}, ctx));
+    const d = data(await handleChangesSince({ syncToken: boot.syncToken }, ctx));
+    expect(d.removed).toBeUndefined();
+  });
+
+  it("reports a deleted task in `removed` when includeRemoved=true", async () => {
+    const ctx = makeCtx();
+    const idA = await ctx.adapter.createTask({ name: "Task A" });
+    await ctx.adapter.createTask({ name: "Task B" });
+    const boot = data(await handleChangesSince({}, ctx));
+
+    await ctx.adapter.deleteTask(idA);
+    const d = data(
+      await handleChangesSince({ syncToken: boot.syncToken, includeRemoved: true }, ctx),
+    );
+    expect(d.removed?.tasks).toEqual([idA as string]);
+    expect(d.removed?.projects).toEqual([]);
+    expect(d.tasks.added).toEqual([]);
+  });
+
+  it("still reports added and field-level modified alongside removed", async () => {
+    const ctx = makeCtx();
+    const idA = await ctx.adapter.createTask({ name: "Task A" });
+    const idB = await ctx.adapter.createTask({ name: "Task B" });
+    const boot = data(await handleChangesSince({}, ctx));
+
+    await ctx.adapter.deleteTask(idA);
+    await ctx.adapter.updateTask(idB, { flagged: true });
+    const idC = await ctx.adapter.createTask({ name: "Task C" });
+
+    const d = data(
+      await handleChangesSince({ syncToken: boot.syncToken, includeRemoved: true }, ctx),
+    );
+    expect(d.removed?.tasks).toEqual([idA as string]);
+    expect(d.tasks.added.map((t) => t.id as string)).toEqual([idC as string]);
+    expect(d.tasks.modified).toHaveLength(1);
+    expect(d.tasks.modified[0]?.id).toBe(idB as string);
+    expect(d.tasks.modified[0]?.changes).toMatchObject({ flagged: true });
+  });
+});
+
 describe("changes_since — token expiry / unknown", () => {
   it("falls back to a full resync (reset=true) for an unknown token", async () => {
     const ctx = makeCtx();
