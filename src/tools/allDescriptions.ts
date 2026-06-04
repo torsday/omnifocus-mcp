@@ -72,6 +72,7 @@ import { PROJECT_MARK_REVIEWED_DESCRIPTION } from "./review/projectMarkReviewed.
 import { REVIEW_SET_INTERVAL_DESCRIPTION } from "./review/setInterval.js";
 import { PROJECT_SET_NEXT_REVIEW_DATE_DESCRIPTION } from "./review/setNextReviewDate.js";
 import { SEARCH_QUERY_DESCRIPTION } from "./search/query.js";
+import { CHANGES_SINCE_DESCRIPTION } from "./sync/changesSince.js";
 import { SYNC_STATUS_DESCRIPTION } from "./sync/status.js";
 import { SYNC_TRIGGER_DESCRIPTION } from "./sync/trigger.js";
 import { TAG_CREATE_DESCRIPTION } from "./tag/create.js";
@@ -222,6 +223,7 @@ export const ALL_TOOL_DESCRIPTIONS: Record<string, string> = {
   review_set_interval: REVIEW_SET_INTERVAL_DESCRIPTION,
   run_jxa_script: RUN_JXA_SCRIPT_DESCRIPTION,
   run_omnijs_script: RUN_OMNIJS_SCRIPT_DESCRIPTION,
+  changes_since: CHANGES_SINCE_DESCRIPTION,
   search_query: SEARCH_QUERY_DESCRIPTION,
   sync_status: SYNC_STATUS_DESCRIPTION,
   sync_trigger: SYNC_TRIGGER_DESCRIPTION,

@@ -34,6 +34,7 @@ import { runEndOfDayReview } from "./workflows/endOfDayReview.js";
 import { runInboxTriage } from "./workflows/inboxTriage.js";
 import { runLargePagination } from "./workflows/largePagination.js";
 import { runProjectPlanning } from "./workflows/projectPlanning.js";
+import { runSyncDelta } from "./workflows/syncDelta.js";
 import { runWeeklyReview } from "./workflows/weeklyReview.js";
 
 function fmtBytes(n: number): string {
@@ -66,6 +67,7 @@ async function main(): Promise<void> {
     ["large-pagination", runLargePagination] as const,
     ["cap-truncation", runCapTruncation] as const,
     ["density-full", runDensityFull] as const,
+    ["sync-delta", runSyncDelta] as const,
   ];
   const activeWorkflows = smoke5k
     ? workflows.filter(([label]) => label !== "large-pagination")
