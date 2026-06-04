@@ -21,6 +21,7 @@ import { runEndOfDayReview } from "./workflows/endOfDayReview.js";
 import { runInboxTriage } from "./workflows/inboxTriage.js";
 import { runLargePagination } from "./workflows/largePagination.js";
 import { runProjectPlanning } from "./workflows/projectPlanning.js";
+import { runSyncDelta } from "./workflows/syncDelta.js";
 import { runWeeklyReview } from "./workflows/weeklyReview.js";
 
 const ENABLED = process.env.OMNIFOCUS_BENCH === "1";
@@ -49,6 +50,7 @@ if (!ENABLED) {
         runLargePagination,
         runCapTruncation,
         runDensityFull,
+        runSyncDelta,
       ]) {
         const bench = await runner(createBenchContext());
         results.push(bench.result(toolListBytes));

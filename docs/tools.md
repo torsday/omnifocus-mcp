@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 145 tools registered.
+> Auto-generated from source. 146 tools registered.
 
 ## Table of contents
 
@@ -15,6 +15,7 @@
 - [attachment_list](#attachment_list)
 - [attachment_remove](#attachment_remove)
 - [attachment_save_to_path](#attachment_save_to_path)
+- [changes_since](#changes_since)
 - [database_redo](#database_redo)
 - [database_undo](#database_undo)
 - [decision_clear](#decision_clear)
@@ -438,6 +439,39 @@ Copy an attachment's content to a local file path. Do not use to list or remove 
 ```json
 {
   "toolName": "attachment_save_to_path",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## changes_since
+
+Incremental sync feed: return what changed since the last call. Call with no args to bootstrap (returns every task/project in `added` plus a `syncToken`); call again passing the previous `syncToken` to get only changes since then. Returns { reset, syncToken, tasks: { added, modified }, projects: { added, modified } }. modified entries are field-level deltas { id, changes } — only the fields that changed, not the whole record. reset=true means a full snapshot (first call, or the token expired/unknown — discard local state). Always use the returned syncToken for the next call; tokens live ~10 min and do not survive a server restart. Deletions are NOT reported (v1) — reconcile periodically with task_list / project_list. Read-only; no side effects. Example: changes_since({ syncToken: 'abc123' })
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `syncToken` | string | No | Token from a prior changes_since call. Omit to bootstrap a full snapshot. |
+
+### Example call
+
+```json
+{
+  "toolName": "changes_since",
   "arguments": {}
 }
 ```

@@ -1,0 +1,132 @@
+/**
+ * Tests for the changes_since sync tool (#819).
+ *
+ * Covers: schema, bootstrap (reset + all-as-added), delta (field-level
+ * modified, unchanged omitted), new-entity-as-added, expired/unknown-token
+ * resync, and the byte-savings property (delta ≪ bootstrap).
+ */
+
+import { describe, expect, it } from "vitest";
+import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
+import { TaskId } from "../../domain/ids.js";
+import type { ResponseMeta } from "../../envelope/index.js";
+import { SyncSnapshotStore } from "../../state/syncSnapshotStore.js";
+import {
+  type ChangesSinceData,
+  changesSinceInputSchema,
+  handleChangesSince,
+} from "./changesSince.js";
+
+// One monotonic clock shared by the adapter (modifiedAt) and the tool
+// (snapshot issuedAt) so getChangesSince comparisons are deterministic.
+function makeCtx() {
+  let tick = 0;
+  const clock = () => new Date(Date.UTC(2026, 0, 1, 0, 0, 0, tick++));
+  const adapter = new InMemoryAdapter({ now: clock });
+  const makeMeta = (partial: Partial<ResponseMeta> = {}): ResponseMeta => ({
+    correlationId: "test-cid",
+    durationMs: 1,
+    cacheHit: false,
+    transport: "memory",
+    ofVersion: "test",
+    ...partial,
+  });
+  const store = new SyncSnapshotStore();
+  return { adapter, makeMeta, store, now: clock };
+}
+
+function data(envelope: Awaited<ReturnType<typeof handleChangesSince>>): ChangesSinceData {
+  if (!("data" in envelope)) throw new Error("expected ok envelope");
+  return envelope.data as ChangesSinceData;
+}
+
+describe("changes_since — input schema", () => {
+  it("accepts empty and a syncToken", () => {
+    expect(changesSinceInputSchema.parse({})).toEqual({});
+    expect(changesSinceInputSchema.parse({ syncToken: "abc" })).toEqual({ syncToken: "abc" });
+  });
+});
+
+describe("changes_since — bootstrap", () => {
+  it("returns reset=true with every entity in added and a token", async () => {
+    const ctx = makeCtx();
+    await ctx.adapter.createTask({ name: "Task A" });
+    await ctx.adapter.createTask({ name: "Task B" });
+
+    const d = data(await handleChangesSince({}, ctx));
+    expect(d.reset).toBe(true);
+    expect(d.syncToken).toMatch(/^[0-9a-f]{32}$/);
+    expect(d.tasks.added).toHaveLength(2);
+    expect(d.tasks.modified).toEqual([]);
+  });
+});
+
+describe("changes_since — delta", () => {
+  it("returns only the changed fields of a modified task; unchanged omitted", async () => {
+    const ctx = makeCtx();
+    const idA = await ctx.adapter.createTask({ name: "Task A" });
+    await ctx.adapter.createTask({ name: "Task B" });
+
+    const boot = data(await handleChangesSince({}, ctx));
+    await ctx.adapter.updateTask(idA, { flagged: true });
+
+    const d = data(await handleChangesSince({ syncToken: boot.syncToken }, ctx));
+    expect(d.reset).toBe(false);
+    expect(d.tasks.added).toEqual([]);
+    expect(d.tasks.modified).toHaveLength(1);
+    expect(d.tasks.modified[0]?.id).toBe(idA as string);
+    expect(d.tasks.modified[0]?.changes).toMatchObject({ flagged: true });
+    // The delta carries the changed field, not the whole record.
+    expect(d.tasks.modified[0]?.changes.name).toBeUndefined();
+  });
+
+  it("reports a task created after the token as added", async () => {
+    const ctx = makeCtx();
+    await ctx.adapter.createTask({ name: "Task A" });
+    const boot = data(await handleChangesSince({}, ctx));
+
+    const idNew = await ctx.adapter.createTask({ name: "Task C" });
+    const d = data(await handleChangesSince({ syncToken: boot.syncToken }, ctx));
+    expect(d.tasks.modified).toEqual([]);
+    expect(d.tasks.added.map((t) => t.id as string)).toEqual([idNew as string]);
+  });
+
+  it("returns an empty delta when nothing changed", async () => {
+    const ctx = makeCtx();
+    await ctx.adapter.createTask({ name: "Task A" });
+    const boot = data(await handleChangesSince({}, ctx));
+
+    const d = data(await handleChangesSince({ syncToken: boot.syncToken }, ctx));
+    expect(d.reset).toBe(false);
+    expect(d.tasks.added).toEqual([]);
+    expect(d.tasks.modified).toEqual([]);
+  });
+});
+
+describe("changes_since — token expiry / unknown", () => {
+  it("falls back to a full resync (reset=true) for an unknown token", async () => {
+    const ctx = makeCtx();
+    await ctx.adapter.createTask({ name: "Task A" });
+    const d = data(await handleChangesSince({ syncToken: "deadbeef" }, ctx));
+    expect(d.reset).toBe(true);
+    expect(d.tasks.added).toHaveLength(1);
+  });
+});
+
+describe("changes_since — byte savings", () => {
+  it("a single-field delta is far smaller than the bootstrap snapshot", async () => {
+    const ctx = makeCtx();
+    for (let i = 0; i < 25; i += 1) {
+      await ctx.adapter.createTask({ name: `Task ${i}`, note: "a".repeat(400) });
+    }
+    const boot = await handleChangesSince({}, ctx);
+    const bootBytes = Buffer.byteLength(JSON.stringify(boot));
+
+    const someId = data(boot).tasks.added[0]?.id as string;
+    await ctx.adapter.updateTask(TaskId.of(someId), { flagged: true });
+    const delta = await handleChangesSince({ syncToken: data(boot).syncToken }, ctx);
+    const deltaBytes = Buffer.byteLength(JSON.stringify(delta));
+
+    expect(deltaBytes).toBeLessThan(bootBytes / 5);
+  });
+});

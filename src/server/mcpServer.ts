@@ -149,6 +149,7 @@ import { registerProjectMarkReviewedTool } from "../tools/review/projectMarkRevi
 import { registerReviewSetIntervalTool } from "../tools/review/setInterval.js";
 import { registerProjectSetNextReviewDateTool } from "../tools/review/setNextReviewDate.js";
 import { registerSearchQueryTool } from "../tools/search/query.js";
+import { registerChangesSinceTool } from "../tools/sync/changesSince.js";
 import { registerSyncStatusTool } from "../tools/sync/status.js";
 import { registerSyncTriggerTool } from "../tools/sync/trigger.js";
 import { registerTagCreateTool } from "../tools/tag/create.js";
@@ -607,6 +608,7 @@ export async function startServer(): Promise<void> {
   // every cached read after a sync is kicked off (docs/cache-invalidation.md).
   registerSyncStatusTool(server, { adapter, makeMeta });
   registerSyncTriggerTool(server, { adapter, makeMeta, cache: services.cache });
+  registerChangesSinceTool(server, { adapter, makeMeta });
 
   // Database undo/redo — full cache flush on success since OmniFocus's
   // undo stack is opaque (we don't know what was reverted).
