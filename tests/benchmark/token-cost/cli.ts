@@ -24,7 +24,9 @@ import {
   diffSnapshots,
   formatDrift,
   readSnapshot,
+  resolveVersions,
   SNAPSHOT_PATH,
+  toolListBytesDrift,
   writeSnapshot,
 } from "./snapshot.js";
 import { estimateTokens } from "./tokenizer.js";
@@ -108,9 +110,11 @@ async function main(): Promise<void> {
     }
   }
 
+  const versions = resolveVersions();
   // biome-ignore lint/suspicious/noConsole: intentional CLI output
   console.log(
-    `\ntools/list payload: ${fmtBytes(toolListBytes)} (~${estimateTokens(toolListBytes)} tokens)`,
+    `\ntools/list payload: ${fmtBytes(toolListBytes)} (~${estimateTokens(toolListBytes)} tokens) ` +
+      `[advisory, env-sensitive — node ${versions.node}, zod ${versions.zod}; #1075]`,
   );
 
   if (smoke5k) {
@@ -141,6 +145,16 @@ async function main(): Promise<void> {
     );
     process.exit(1);
   }
+  // Advisory: surface toolListBytes drift without failing the gate (#1075).
+  const advisory = toolListBytesDrift(baseline, current);
+  if (advisory !== null) {
+    // biome-ignore lint/suspicious/noConsole: intentional CLI output
+    console.log(
+      `\nadvisory (not gated): ${formatDrift([advisory])}\n` +
+        `  toolListBytes is environment-sensitive (#1075); description size is gated by the 350-token/tool budget lint.`,
+    );
+  }
+
   const drift = diffSnapshots(baseline, current);
   if (drift.length > 0) {
     // biome-ignore lint/suspicious/noConsole: intentional CLI output
