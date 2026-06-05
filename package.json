@@ -1,6 +1,6 @@
 {
   "name": "@torsday/omnifocus-mcp",
-  "version": "1.5.3",
+  "version": "2.0.0",
   "description": "MCP server exposing the full OmniFocus surface to LLM agents — 80 typed tools spanning tasks, projects, tags, folders, perspectives, forecast, review, notes, attachments, and sync, with a strict typed-error taxonomy and per-tool circuit breakers, rate limiter, and idempotency-key support. macOS-only; talks to OmniFocus 4 via JXA + OmniJS.",
   "keywords": [
     "mcp",
