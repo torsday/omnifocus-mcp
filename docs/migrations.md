@@ -9,9 +9,9 @@ same commit. CI enforces this via `scripts/verify-migrations-doc.sh`.
 
 ---
 
-## Upcoming (unreleased — target v2.0.0)
+## v2.0.0 (released 2026-06-05)
 
-The following breaking changes are implemented or planned for the next major release as part of the
+The following breaking changes shipped in v2.0.0 as part of the
 token-efficiency epic (#770). All changes reduce default response payload size; callers who need the
 old shape can opt back in via new flags.
 
