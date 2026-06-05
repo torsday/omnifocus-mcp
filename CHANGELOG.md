@@ -5,6 +5,138 @@ All notable changes to `@torsday/omnifocus-mcp` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [ADR-0011](./docs/adr/0011-versioning-and-stability.md) for the explicit definition of breaking vs additive changes in this project.
 
 
+## [2.0.0](https://github.com/torsday/omnifocus-mcp/compare/v1.5.3...v2.0.0) (2026-06-05)
+
+**Summary** — A major release dominated by **token-efficiency** and **OmniFocus 4.x correctness**. The one breaking change is a wire-format slimming: tool responses no longer duplicate the full envelope JSON into `content[].text` (it's now a fixed `"see structuredContent"` placeholder), which roughly halves per-response bytes for clients already reading the typed `structuredContent` — i.e. nearly all of them. On top of that, `maxOutputBytes` caps with a truncation envelope now bound every heavy read, an init-handshake negotiates response density per session, and a `flattenedX.byId()` migration across ~20 JXA scripts turns linear per-call Apple-event scans into direct lookups (50–500× on large databases). Correctness-wise, this release finally makes **repetition rules round-trip end-to-end** on OmniFocus 4.x (both the write and the read-back were broken), fixes `task_batch_create` (every item failed with -10024), makes `project_create` atomic, and corrects timezone bucketing in `forecast_get`. New operational surface: an `omnifocus_doctor` self-diagnostic, per-tool/per-transport latency aggregators, a transport circuit breaker, modal/sync-locked detection (`OF_BUSY`), and an opt-in persistent `osascript` transport (default off, soaking before it becomes default in a later release).
+
+**Compatibility** — Node 24+ • macOS 12+ • OmniFocus 4.x • MCP protocol 2024-11-05. **One breaking change** (`content[].text`); see the Migration note below and [`docs/migrations.md`](./docs/migrations.md).
+
+**Migration (v1 → v2)** — If your client reads `result.structuredContent` (the typed envelope), **no action is needed** — that field is unchanged in shape and content. If your client parses the JSON string in `result.content[].text`, switch to `structuredContent`, or set `OMNIFOCUS_LEGACY_TEXT_CONTENT=1` in the server environment as a temporary bridge that restores the v1 duplicated-text behavior (read once at startup; the flag is supported indefinitely). Full rationale in [ADR-0022](./docs/adr/0022-envelope-text-content-duplication.md); step-by-step guide in [`docs/migrations.md`](./docs/migrations.md).
+
+### Highlights
+
+- **Token efficiency** — `content[].text` deduplication (≈2× smaller responses), `maxOutputBytes` truncation caps on `task_list` / `search_query` / `project_list` / `get_many` / `tag_list` / `forecast_get`, init-handshake response-density negotiation, and `_links` made opt-in (default off) so the HATEOAS block no longer rides along uninvited.
+- **Repetition CRUD fixed end-to-end** — writes now persist via OmniJS `Task.RepetitionRule` and reads parse the OF 4.x `recurrence` RRULE correctly (previously every repetition read returned `null`); `start-again` now maps to the real `DeferUntilDate` method instead of silently degrading to `fixed`. Closes [#938](https://github.com/torsday/omnifocus-mcp/issues/938), [#1071](https://github.com/torsday/omnifocus-mcp/issues/1071).
+- **OmniFocus 4.x write correctness** — `task_batch_create` no longer fails every item with -10024 ([#1074](https://github.com/torsday/omnifocus-mcp/issues/1074)); `project_create` with a review interval is now atomic and honors the interval ([#1073](https://github.com/torsday/omnifocus-mcp/issues/1073)); `forecast_get` buckets by local day rather than UTC ([#1035](https://github.com/torsday/omnifocus-mcp/issues/1035), [#1036](https://github.com/torsday/omnifocus-mcp/issues/1036)).
+- **Performance** — `flattenedX.byId()` migration across the JXA read/write surface ([#788](https://github.com/torsday/omnifocus-mcp/issues/788)) replaces O(n) Apple-event scans with direct id lookups; an opt-in persistent `osascript` transport (behind `OMNIFOCUS_PERSISTENT_OSASCRIPT`, default off) showed a 73% cold-p95 drop in micro-benchmarks and is soaking before the default flips.
+- **Operability** — new `omnifocus_doctor` self-diagnostic tool, per-tool and per-transport latency/duration aggregators in `internal_status`, an opt-in JSONL telemetry sink, a transport-level circuit breaker, and modal/sync-locked detection surfaced as `OF_BUSY`.
+
+The categorized commit-level detail follows.
+
+### ⚠ BREAKING CHANGES
+
+* **envelope:** `content[].text` no longer contains the full envelope JSON in default mode. Clients that read the typed `structuredContent` are unaffected. Clients that parse `content[].text` should either migrate to `structuredContent` or set `OMNIFOCUS_LEGACY_TEXT_CONTENT=1` server-side as a temporary bridge. Per ADR-0011, this lands as v2.0.0.
+
+### Added
+
+* **envelope:** add maxOutputBytes cap with truncation envelope ([#776](https://github.com/torsday/omnifocus-mcp/issues/776)) ([f41d488](https://github.com/torsday/omnifocus-mcp/commit/f41d4885fa7be5dd68443d1669e0dda1029ddc1a))
+* **envelope:** implement adr-0022 placeholder content[].text + OMNIFOCUS_LEGACY_TEXT_CONTENT ([2c0c28b](https://github.com/torsday/omnifocus-mcp/commit/2c0c28ba6f4b0b8020bf93b10fa4ae50bbe3d040))
+* **forecast:** single-call composite for forecast-tag get/set ([d6f60e4](https://github.com/torsday/omnifocus-mcp/commit/d6f60e434cc78e9e7f10ecd0c7f49468907bf786))
+* **lifecycle:** add omnifocus_doctor self-diagnostic tool ([#970](https://github.com/torsday/omnifocus-mcp/issues/970)) ([db06a9f](https://github.com/torsday/omnifocus-mcp/commit/db06a9f4901f85ab59d7435f1447ab80dad3d8b1))
+* **observability:** add per-tool duration aggregator (toolDurationStats) ([#965](https://github.com/torsday/omnifocus-mcp/issues/965)) ([8c6e9ed](https://github.com/torsday/omnifocus-mcp/commit/8c6e9edc7440d0b0b5745d45e0859b31b534a94e))
+* **observability:** add per-transport latency aggregator (latencyStats) ([#964](https://github.com/torsday/omnifocus-mcp/issues/964)) ([68988b4](https://github.com/torsday/omnifocus-mcp/commit/68988b4436ec596f1122d7bfb7f873257f8fb491))
+* **observability:** opt-in jsonl telemetry sink for offline trend analysis ([2ac94fb](https://github.com/torsday/omnifocus-mcp/commit/2ac94fbb43e1bb368affd11e8a539e066b31653b))
+* **scripts:** [@ts-check](https://github.com/ts-check) beachhead on task_get.js ([#987](https://github.com/torsday/omnifocus-mcp/issues/987)) ([#991](https://github.com/torsday/omnifocus-mcp/issues/991)) ([eb91322](https://github.com/torsday/omnifocus-mcp/commit/eb9132223a79b9ca0f2f2304d76be34d860b2fee))
+* **scripts:** add argv jsdoc to every jxa script ([#994](https://github.com/torsday/omnifocus-mcp/issues/994) part 2) ([acb98b4](https://github.com/torsday/omnifocus-mcp/commit/acb98b400aee7d35ef40405e4fb898c5db8d3983))
+* **scripts:** add verify-view-grouping.sh to catch silent project board view drift ([31761e8](https://github.com/torsday/omnifocus-mcp/commit/31761e80b0665f66cefd9026347a7c4459eda224)), closes [#947](https://github.com/torsday/omnifocus-mcp/issues/947)
+* **scripts:** ambient _types/jxa-helpers.d.ts for inlined helpers ([#994](https://github.com/torsday/omnifocus-mcp/issues/994) part 3) ([d4207dc](https://github.com/torsday/omnifocus-mcp/commit/d4207dc700f09b2eb2993601836def516a5a6543))
+* **scripts:** document-bubbled application intersection + perspective_evaluate ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 8) ([7982d37](https://github.com/torsday/omnifocus-mcp/commit/7982d37f235b55fe3e7bf667b8cc3f669f5dd919))
+* **scripts:** fill jxa-globals + foundation typing gaps ([#994](https://github.com/torsday/omnifocus-mcp/issues/994) part 1) ([6c192a6](https://github.com/torsday/omnifocus-mcp/commit/6c192a6f3a3a12ee092ea1650e1e4010932797d4))
+* **scripts:** generalize element-accessor type + 3 more opt-ins ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 6) ([7defabe](https://github.com/torsday/omnifocus-mcp/commit/7defabe2c604818f46d2e0f48ef4bd37a35faaa2))
+* **scripts:** generate jxa type declarations from omnifocus.sdef ([#990](https://github.com/torsday/omnifocus-mcp/issues/990)) ([a7c83b5](https://github.com/torsday/omnifocus-mcp/commit/a7c83b536e338ad9eb76414296ed8624cac646c1))
+* **scripts:** hand-maintained sdef-overrides .d.ts for runtime extras ([#999](https://github.com/torsday/omnifocus-mcp/issues/999)) ([7a7fb31](https://github.com/torsday/omnifocus-mcp/commit/7a7fb31a351c8cd293d94b6c39890411e86276b2))
+* **scripts:** jxa-collection&lt;t&gt; for element-query api ([#994](https://github.com/torsday/omnifocus-mcp/issues/994) part 4) ([b9e44d5](https://github.com/torsday/omnifocus-mcp/commit/b9e44d5dab5269576a2586464338bfabeeb79f22))
+* **scripts:** opt 10 task writers into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 12) ([49038b5](https://github.com/torsday/omnifocus-mcp/commit/49038b511fba08d4f0a2e5f22de645e9c44f9654))
+* **scripts:** opt 3 attachment scripts into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 3) ([47ea732](https://github.com/torsday/omnifocus-mcp/commit/47ea732cd8d7b7a90dd0eedb7797d1e232edd8a5))
+* **scripts:** opt 3 task batch scripts into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 13) ([9038f4f](https://github.com/torsday/omnifocus-mcp/commit/9038f4ff53922bb3319a10c53110f242addebdd1))
+* **scripts:** opt 4 project/task setter scripts into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 15) ([871c67b](https://github.com/torsday/omnifocus-mcp/commit/871c67b078caa95bafb5a81e7e8f24336f368f00))
+* **scripts:** opt 4 write-verb scripts into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 11) ([e2b86db](https://github.com/torsday/omnifocus-mcp/commit/e2b86dbd10b4d2d1c9ff51f08a0ef581a067493d))
+* **scripts:** opt 5 batch+move scripts into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 14) ([e21856f](https://github.com/torsday/omnifocus-mcp/commit/e21856fc4cc886459569b531b684dca6d86d2151))
+* **scripts:** opt 6 crud writers into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 10) ([11c5e3e](https://github.com/torsday/omnifocus-mcp/commit/11c5e3e34ded26cfa01d20c56351df090c847f15))
+* **scripts:** opt folder/tag readers into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 4) ([a0ecb92](https://github.com/torsday/omnifocus-mcp/commit/a0ecb929663ed3104fc5ebd831f6734c4e2b3b80))
+* **scripts:** opt forecast + 3 window scripts into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 9) ([265bd5c](https://github.com/torsday/omnifocus-mcp/commit/265bd5c18ea19efc7c6c497ab9bbca7cba68687d))
+* **scripts:** opt ping.js into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 1) ([e24d27d](https://github.com/torsday/omnifocus-mcp/commit/e24d27d08199bab1a4762c44985270568f38ac4e))
+* **scripts:** opt project_create + record-typed constructor proxies ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 16) ([0da885b](https://github.com/torsday/omnifocus-mcp/commit/0da885b2da4301eaee046b40e47de71587d37998))
+* **scripts:** opt project_get + perspective_list into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 5) ([e6427f8](https://github.com/torsday/omnifocus-mcp/commit/e6427f8184cc55e516aef32548f097d01fd06687))
+* **scripts:** opt sync_trigger + tag_get_many into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 7) ([a73aab0](https://github.com/torsday/omnifocus-mcp/commit/a73aab0c06208267d90e81bdfdc92098fb386fce))
+* **scripts:** opt task_batch_create into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 19) ([df1bdf1](https://github.com/torsday/omnifocus-mcp/commit/df1bdf102f868bf4b1c29741e21de7bca2b69c13))
+* **scripts:** opt task_create into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 17) ([02d5cb1](https://github.com/torsday/omnifocus-mcp/commit/02d5cb1d847f4799a14a4c796fced80468131459))
+* **scripts:** opt task_duplicate into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 22 — final) ([9cf89e6](https://github.com/torsday/omnifocus-mcp/commit/9cf89e677ff5ff87ef629978c7709c92d8580b5d))
+* **scripts:** opt task_list into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 21) ([a283189](https://github.com/torsday/omnifocus-mcp/commit/a28318943b8a067996721afd3e68ab3faee18c6a))
+* **scripts:** opt task_search into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 20) ([8a99a6e](https://github.com/torsday/omnifocus-mcp/commit/8a99a6e308671154466a23ac348a67bfe12c8ddc))
+* **scripts:** opt task_update into ts-check ([#989](https://github.com/torsday/omnifocus-mcp/issues/989) slice 18) ([c243634](https://github.com/torsday/omnifocus-mcp/commit/c243634b4822db35ae8860849146d68b5e71a91e))
+* **scripts:** wire Model Queue project field through file-issue.sh and verify-constants.sh ([26e1c85](https://github.com/torsday/omnifocus-mcp/commit/26e1c85319fc24f3c29d8b4063476a6286e425e2))
+* **sync:** add changes_since tool with field-level sync deltas ([cc02f9e](https://github.com/torsday/omnifocus-mcp/commit/cc02f9ef3f850368aac046a3ebd572518677158c))
+* **sync:** report deletions in changes_since via opt-in includeRemoved ([faa834c](https://github.com/torsday/omnifocus-mcp/commit/faa834cef74f0100452bdca7d263719dda0bdbc0))
+* **tools:** add idempotency_key to decision_record and note_append ([#984](https://github.com/torsday/omnifocus-mcp/issues/984)) ([58b746e](https://github.com/torsday/omnifocus-mcp/commit/58b746eddea1f0b3e3977117a42934cfbb274534))
+* **tools:** add idempotency_key to remaining task batch tools ([#986](https://github.com/torsday/omnifocus-mcp/issues/986)) ([1cb1368](https://github.com/torsday/omnifocus-mcp/commit/1cb1368645c805ad8bd923a4d51ed9641e5d9a8a))
+* **tools:** add limit + cursor pagination to perspective_evaluate ([#967](https://github.com/torsday/omnifocus-mcp/issues/967)) ([c24bac1](https://github.com/torsday/omnifocus-mcp/commit/c24bac1b044a5528cda8b5a00447c7a6e5ce23e7))
+* **tools:** add limit and cursor pagination to forecast_get ([#966](https://github.com/torsday/omnifocus-mcp/issues/966)) ([5fe752f](https://github.com/torsday/omnifocus-mcp/commit/5fe752f37559985d5ccd7a85a36e5e334fc8803e))
+* **tools:** byte-cap forecast_get with bucket-aware trimming ([#1065](https://github.com/torsday/omnifocus-mcp/issues/1065)) ([734dc46](https://github.com/torsday/omnifocus-mcp/commit/734dc46b1f7034b95a42a55534d95a57e8e1807b))
+* **tools:** byte-cap tag_list + add cap-truncation token-cost benchmark ([#1062](https://github.com/torsday/omnifocus-mcp/issues/1062)) ([2047b95](https://github.com/torsday/omnifocus-mcp/commit/2047b95dd1029424eb1b89bf5d2a8b7aef84d633))
+* **tools:** byte-cap the get_many reads with a dropped-id contract ([#1060](https://github.com/torsday/omnifocus-mcp/issues/1060)) ([8860242](https://github.com/torsday/omnifocus-mcp/commit/88602425d746028e5500a626301da7f82d904b5d))
+* **tools:** extend maxOutputBytes cap to search_query and project_list ([#1059](https://github.com/torsday/omnifocus-mcp/issues/1059)) ([5155585](https://github.com/torsday/omnifocus-mcp/commit/5155585a089a948a5c71460d85423f589dc6579a))
+* **transport:** add transport-level circuit breaker for sustained omnifocus failures ([#968](https://github.com/torsday/omnifocus-mcp/issues/968)) ([923776b](https://github.com/torsday/omnifocus-mcp/commit/923776b1fbb5b3579f535c14ea7aec0d2a0f6987))
+* **transport:** detect omnifocus modal/sync-locked state and surface as ofbusy ([#969](https://github.com/torsday/omnifocus-mcp/issues/969)) ([f51b2d7](https://github.com/torsday/omnifocus-mcp/commit/f51b2d7eaca206762b4339bb8ebc138164e049af))
+* **transport:** negotiate response density at the MCP init handshake ([223c036](https://github.com/torsday/omnifocus-mcp/commit/223c036d656c6bf40d3e533f521e690edc43dfd6))
+
+
+### Fixed
+
+* **bench:** align run.test.ts workflow list with cli.ts ([864bca8](https://github.com/torsday/omnifocus-mcp/commit/864bca81461de4581f44916cb183272b8505e0c3))
+* **bench:** make the token-cost gate environment-robust ([30e42c4](https://github.com/torsday/omnifocus-mcp/commit/30e42c4fe735820ab9b384fd8e9291628aec4deb))
+* **benchmark:** drop non-null assertion in snapshot byTool sort ([9f58f4d](https://github.com/torsday/omnifocus-mcp/commit/9f58f4d651a109a28bb3f48ee80b390108fb98e2))
+* **ci:** add allow-hosted marker and timeout-minutes to paths-changed job ([1196f30](https://github.com/torsday/omnifocus-mcp/commit/1196f30cbdce2f30fb316d94599aa6fab1962ac8))
+* **ci:** reset omnifocus process state before integration seed ([#959](https://github.com/torsday/omnifocus-mcp/issues/959)) ([44ca870](https://github.com/torsday/omnifocus-mcp/commit/44ca870610da6e71e3e6d954edbaa63035aa1cb9))
+* **deps:** dedupe broken pnpm-lock.yaml after knip + dev-deps merges ([#1098](https://github.com/torsday/omnifocus-mcp/issues/1098)) ([63ba4d7](https://github.com/torsday/omnifocus-mcp/commit/63ba4d7dfa949862a2db921a1f31c17a1ebac3cf))
+* **forecast:** bucket byDate keys by local day, not UTC day ([#1035](https://github.com/torsday/omnifocus-mcp/issues/1035)) ([adc3f3e](https://github.com/torsday/omnifocus-mcp/commit/adc3f3e90d6fd289f84a1501a175c0ff227c6664))
+* **forecast:** TZ-aware start-of-day in resolveAnchorDate ([#1036](https://github.com/torsday/omnifocus-mcp/issues/1036)) ([3a99df8](https://github.com/torsday/omnifocus-mcp/commit/3a99df8baf9056144dd45dd92cb6454fb615dd65))
+* **jxa:** close jxa-tsc errors from [#899](https://github.com/torsday/omnifocus-mcp/issues/899) in perspective_evaluate ([1694d85](https://github.com/torsday/omnifocus-mcp/commit/1694d8531006bb12bb0454ce7766272cabc83c6a))
+* **lifecycle:** kill orphan osascript children on shutdown ([babd043](https://github.com/torsday/omnifocus-mcp/commit/babd043852cca3e38fa3ada35b9b11996f3514e4))
+* **omnijs:** non-recursive task_duplicate copies repetition rules and attachments ([#1068](https://github.com/torsday/omnifocus-mcp/issues/1068)) ([bf1bb71](https://github.com/torsday/omnifocus-mcp/commit/bf1bb711753737ee0832137f802640ba95ba328d))
+* **project:** project_create with reviewIntervalDays is atomic and honors the interval ([#1073](https://github.com/torsday/omnifocus-mcp/issues/1073)) ([9c40ad2](https://github.com/torsday/omnifocus-mcp/commit/9c40ad2d7a593086355f895d34346ba51dd1de47))
+* **repetition:** read OF 4.x recurrence and use DeferUntilDate for start-again ([97caf70](https://github.com/torsday/omnifocus-mcp/commit/97caf70fee4913c1aa51cb1294e9dec866da7ef9)), closes [#1071](https://github.com/torsday/omnifocus-mcp/issues/1071) [#938](https://github.com/torsday/omnifocus-mcp/issues/938)
+* **scripts:** raise validate-deps issue fetch limit to 2000 ([589fb28](https://github.com/torsday/omnifocus-mcp/commit/589fb28fca3f613fb0e833e4a23458012d5a6e60))
+* **scripts:** seed-integration-db --clean tolerates zombie folder refs ([#977](https://github.com/torsday/omnifocus-mcp/issues/977)) ([50ca0a5](https://github.com/torsday/omnifocus-mcp/commit/50ca0a56423ce23fa30d986d438d2ac180f4692b))
+* **strings:** code-point-safe truncation across display sites ([5caf68a](https://github.com/torsday/omnifocus-mcp/commit/5caf68ae76468514f7bed1cfa2a8ebde9fa30a3e))
+* **task:** persist repetition rule via OmniJS in task_update ([1b12f59](https://github.com/torsday/omnifocus-mcp/commit/1b12f5961eda2c2c65d31e34c1003b50496e1f30)), closes [#938](https://github.com/torsday/omnifocus-mcp/issues/938)
+* **task:** split large notes off into phase-2 single-field write ([a5d3af8](https://github.com/torsday/omnifocus-mcp/commit/a5d3af80aa796f48a252d57dbb2274d662a43f27))
+* **task:** task_batch_create uses Task(props)+tasks.push instead of broken .make() ([#1074](https://github.com/torsday/omnifocus-mcp/issues/1074)) ([888d2b5](https://github.com/torsday/omnifocus-mcp/commit/888d2b50f01df4bd7f420030035ca8713489fb29))
+
+
+### Performance
+
+* **jxa:** migrate attachment + window_set_focus by-id lookups to byId() ([#1087](https://github.com/torsday/omnifocus-mcp/issues/1087)) ([76d2db3](https://github.com/torsday/omnifocus-mcp/commit/76d2db33d2aa9c4906e0d461e08cd9b6bd5505e6))
+* **jxa:** migrate project get/get_many/complete/drop/delete to byId() ([#1085](https://github.com/torsday/omnifocus-mcp/issues/1085)) ([b11aa11](https://github.com/torsday/omnifocus-mcp/commit/b11aa119791463727274f5ac846afebc02e7513e))
+* **jxa:** migrate project review-setters to byId() ([#1089](https://github.com/torsday/omnifocus-mcp/issues/1089)) ([2bbdae6](https://github.com/torsday/omnifocus-mcp/commit/2bbdae6407b90192e8ab5a972e654dade4c15392))
+* **jxa:** migrate tag + folder by-id lookups to flattenedX.byId() ([#1081](https://github.com/torsday/omnifocus-mcp/issues/1081)) ([3d9ade4](https://github.com/torsday/omnifocus-mcp/commit/3d9ade4eabe122497330f1ee70a34f162c2fe726))
+* **jxa:** migrate task get/get_many/complete/uncomplete/delete to byId() ([#1083](https://github.com/torsday/omnifocus-mcp/issues/1083)) ([9d9f526](https://github.com/torsday/omnifocus-mcp/commit/9d9f5262991e0fe30c089826ed265d0193c17311))
+* **jxa:** migrate task/project update+move source lookups to byId() — completes [#788](https://github.com/torsday/omnifocus-mcp/issues/788) ([#1091](https://github.com/torsday/omnifocus-mcp/issues/1091)) ([013af7b](https://github.com/torsday/omnifocus-mcp/commit/013af7b9aae8e3fc2e3e6bcfa3fbaac41d74aae4))
+* **jxa:** source-narrow perspective_evaluate projects+tags branches ([#899](https://github.com/torsday/omnifocus-mcp/issues/899)) ([1def7c5](https://github.com/torsday/omnifocus-mcp/commit/1def7c5d9ad6dde18d7c8c22fe2bdd91738610e7))
+* **observability:** split osascript spawn time from script execution time ([3a299d8](https://github.com/torsday/omnifocus-mcp/commit/3a299d8f06a7fed9ab43bbe8c3fa9d74ce52afa4))
+* **scripts:** seed-integration-db --clean uses omnijs bulk delete + unified prefix ([#961](https://github.com/torsday/omnifocus-mcp/issues/961)) ([b1a60f1](https://github.com/torsday/omnifocus-mcp/commit/b1a60f126345130fecfa04d0fbdef28705f328c0))
+* **scripts:** seed-integration-db create phase migrated to omnijs ([#963](https://github.com/torsday/omnifocus-mcp/issues/963)) ([a9c6886](https://github.com/torsday/omnifocus-mcp/commit/a9c688648f11ea8c8780c1d716dcaefa6568cf63))
+* **tools:** make _links opt-in via includeLinks flag, default off ([b9647b8](https://github.com/torsday/omnifocus-mcp/commit/b9647b8f2488d71b1bbdb3d9813ea86222fe502e))
+* **tools:** trim task_reclassify description below the 350-token budget ([dbb4a71](https://github.com/torsday/omnifocus-mcp/commit/dbb4a71e85899fa551c75c549931c16765cbd8db))
+* **transport:** add persistent osascript transport behind a kill-switch ([e44e605](https://github.com/torsday/omnifocus-mcp/commit/e44e6055ea1396bf221559e978f1bb63445b7001))
+
+
+### Changed
+
+* **attachment:** add create/delete tools; deprecate add/remove ([86d95b6](https://github.com/torsday/omnifocus-mcp/commit/86d95b6a85da04137e8915320ee99f559a4bff1c))
+
+
+### Documentation
+
+* **adr:** add ADR-0023 — runner-host JXA bridge contention ([342a4e1](https://github.com/torsday/omnifocus-mcp/commit/342a4e14fdaa146febe9a8b3e5b243282ddd4d1c))
+* **bench:** note the CI toolListBytes divergence ([#1075](https://github.com/torsday/omnifocus-mcp/issues/1075)) ([b2f56af](https://github.com/torsday/omnifocus-mcp/commit/b2f56af01bdb8921dce0da0aa8adef76d15d2868))
+* **idempotency:** inventory mutation-tool coverage + contract ([#983](https://github.com/torsday/omnifocus-mcp/issues/983)) ([90dbb32](https://github.com/torsday/omnifocus-mcp/commit/90dbb32c42527366b0b8249ad2a9f79cf71baed0))
+* **issue-templates:** apply Dependencies tightening to perf and refactor templates too ([2738bbe](https://github.com/torsday/omnifocus-mcp/commit/2738bbea359bd70fc754ba714919d3d13a88be2b)), closes [#947](https://github.com/torsday/omnifocus-mcp/issues/947)
+* **issue-templates:** reflect bidirectional /groom support and add Dependencies to remaining templates ([6cfe461](https://github.com/torsday/omnifocus-mcp/commit/6cfe46151a6778ace09ec10e25f0c3a871763e0c)), closes [#947](https://github.com/torsday/omnifocus-mcp/issues/947)
+* **issue-templates:** tighten Dependencies field to encourage Blocked by: convention ([9f0511c](https://github.com/torsday/omnifocus-mcp/commit/9f0511cc4d87ee0b0302dc7983b997699274c9f3)), closes [#947](https://github.com/torsday/omnifocus-mcp/issues/947)
+* reconcile living docs against current code ([#850](https://github.com/torsday/omnifocus-mcp/issues/850)) ([07620f1](https://github.com/torsday/omnifocus-mcp/commit/07620f1ad8ecd99cbcb249df21084e86a39f073f))
+* **runner:** document job-started and job-completed hooks for runner-omnifocus-mcp ([9128000](https://github.com/torsday/omnifocus-mcp/commit/912800039c58f3454943816dfa5383c7fc8d1ba7))
+
 ## [1.5.3](https://github.com/torsday/omnifocus-mcp/compare/v1.5.2...v1.5.3) (2026-05-11)
 
 **Summary** — Third release-pipeline recovery in the 2026-05-10 / 2026-05-11 cycle. **This is the version that actually publishes to npm and Homebrew** after v1.4.0, v1.5.0, v1.5.1, and v1.5.2 all tagged-but-dangled. Ships the **same user-facing payload as v1.5.0 / v1.5.1 / v1.5.2** — the JXA `whose()` pushdowns, field projection (`fields[]`) on every heavy read, `forecast_get` / `review_list_due` projection wins, retry-once on transient transport failures, input-validation hardening, the DESIGN.md split, the AGENTS.md recipes, and so on. If you've been pinned to `v1.3.0` for the entire release cascade, **`npm install @torsday/omnifocus-mcp@latest`** (or `brew upgrade torsday/tap/omnifocus-mcp`) will finally move you forward. Treat the `[1.4.0]` and `[1.5.0]` sections below as the substantive changelog for what's in v1.5.3 from a runtime standpoint; the new entry in this section is the release-pipeline carve-out that let v1.5.3 land.
