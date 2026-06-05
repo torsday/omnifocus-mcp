@@ -2,7 +2,7 @@
 
 # OmniFocus MCP Tool Reference
 
-> Auto-generated from source. 145 tools registered.
+> Auto-generated from source. 146 tools registered.
 
 ## Table of contents
 
@@ -15,6 +15,7 @@
 - [attachment_list](#attachment_list)
 - [attachment_remove](#attachment_remove)
 - [attachment_save_to_path](#attachment_save_to_path)
+- [changes_since](#changes_since)
 - [database_redo](#database_redo)
 - [database_undo](#database_undo)
 - [decision_clear](#decision_clear)
@@ -438,6 +439,40 @@ Copy an attachment's content to a local file path. Do not use to list or remove 
 ```json
 {
   "toolName": "attachment_save_to_path",
+  "arguments": {}
+}
+```
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "requestId": "req_01ABC",
+    "durationMs": 5
+  }
+}
+```
+---
+
+## changes_since
+
+Incremental sync feed: return what changed since the last call. Call with no args to bootstrap (returns every task/project in `added` plus a `syncToken`); call again passing the previous `syncToken` to get only changes since then. Returns { reset, syncToken, tasks: { added, modified }, projects: { added, modified } }. modified entries are field-level deltas { id, changes } — only the fields that changed, not the whole record. reset=true means a full snapshot (first call, or the token expired/unknown — discard local state). Always use the returned syncToken for the next call; tokens live ~10 min and do not survive a server restart. Deletions are reported in `removed` only when you pass includeRemoved:true (it needs a full scan); otherwise they are not tracked. Read-only; no side effects. Example: changes_since({ syncToken: 'abc123' })
+
+### Input
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `syncToken` | string | No | Token from a prior changes_since call. Omit to bootstrap a full snapshot. |
+| `includeRemoved` | boolean | No | Report deleted entity IDs in `removed`. Default false — detecting deletions needs a full enumeration, so this trades the cheap incremental path for completeness. Set true only when you must track deletions; otherwise reconcile periodically with task_list / project_list. |
+
+### Example call
+
+```json
+{
+  "toolName": "changes_since",
   "arguments": {}
 }
 ```
@@ -1258,7 +1293,7 @@ Import tasks from TaskPaper text into OmniFocus. Parses '- Task name @tag @due(2
 
 ## internal_status
 
-Return a health snapshot of the running omnifocus-mcp server. Do NOT use this to read OmniFocus data — prefer task_list, project_list, sync_status, etc. Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth, responseStats, latencyStats, toolDurationStats, stores, transport }. cache.services maps key prefixes (tag, folder, forecast, task, project) to { hits, misses, hitRate }. uptimeMs is the milliseconds since the server process started. circuits lists each circuit-breaker name and state (closed/open/half_open). lastSync mirrors sync_status data; null if getLastSync throws. calendarAccess: macOS Calendar bridge state — { available, permission: granted|denied|restricted|not-determined|unknown }. Read-only; does NOT trigger TCC prompt. mutation: Stryker mutation-score freshness { score, lastRunAt } (0–100 per ADR-0017); null when no report file is present. responseStats / latencyStats / toolDurationStats: opt-in telemetry — bytes per tool, ms per (transport, script) with spawnFloorMs, ms per tool. Null when sample rate is 0. stores: { idempotencyEntries, loopDetectorKeys } live retention-store sizes — null when not wired. transport: persistent JXA transport stats { enabled, alive, spawns, unexpectedExits, restarts, timeouts, callsServed }; enabled=false by default. Read-only; no side effects. Example: internal_status()
+Return a health snapshot of the running omnifocus-mcp server. Do NOT use this to read OmniFocus data — prefer task_list, project_list, sync_status, etc. Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth, responseStats, latencyStats, toolDurationStats, stores, transport, density }. cache.services maps key prefixes (tag, folder, forecast, task, project) to { hits, misses, hitRate }. circuits lists each circuit-breaker name and state (closed/open/half_open). lastSync mirrors sync_status data; null if getLastSync throws. calendarAccess: macOS Calendar bridge state — { available, permission: granted|denied|restricted|not-determined|unknown }. Read-only; does NOT trigger TCC prompt. mutation: Stryker mutation-score freshness { score, lastRunAt } (0–100 per ADR-0017); null when no report file is present. responseStats / latencyStats / toolDurationStats: opt-in telemetry — bytes per tool, ms per (transport, script) with spawnFloorMs, ms per tool. Null when sample rate is 0. stores: { idempotencyEntries, loopDetectorKeys } live retention-store sizes — null when not wired. transport: persistent JXA transport stats { enabled, alive, spawns, unexpectedExits, restarts, timeouts, callsServed }; enabled=false by default. density: negotiated response density (compact|default|full). Read-only; no side effects. Example: internal_status()
 
 ### Input
 

@@ -1,13 +1,17 @@
 {
-  "generatedAt": "2026-05-30",
-  "toolListBytes": 189728,
+  "generatedAt": "2026-06-04",
+  "versions": {
+    "node": "24.3.0",
+    "zod": "4.4.3"
+  },
+  "toolListBytes": 249357,
   "workflows": {
     "cap-truncation": {
       "callCount": 3,
       "totalRequestBytes": 135,
       "totalResponseBytes": 22543,
       "totalRoundTripBytes": 22678,
-      "totalTokens": 53102,
+      "totalTokens": 5670,
       "byTool": {
         "forecast_get": {
           "calls": 1,
@@ -19,12 +23,33 @@
         }
       }
     },
+    "density-full": {
+      "callCount": 4,
+      "totalRequestBytes": 5681,
+      "totalResponseBytes": 9659,
+      "totalRoundTripBytes": 15340,
+      "totalTokens": 3835,
+      "byTool": {
+        "task_batch_create": {
+          "calls": 2,
+          "responseBytes": 1047
+        },
+        "task_get": {
+          "calls": 1,
+          "responseBytes": 1442
+        },
+        "task_list": {
+          "calls": 1,
+          "responseBytes": 7170
+        }
+      }
+    },
     "end-of-day-review": {
       "callCount": 3,
       "totalRequestBytes": 154,
       "totalResponseBytes": 30076,
       "totalRoundTripBytes": 30230,
-      "totalTokens": 54990,
+      "totalTokens": 7558,
       "byTool": {
         "forecast_get": {
           "calls": 1,
@@ -45,7 +70,7 @@
       "totalRequestBytes": 29603,
       "totalResponseBytes": 16778,
       "totalRoundTripBytes": 46381,
-      "totalTokens": 59027,
+      "totalTokens": 11595,
       "byTool": {
         "tag_create": {
           "calls": 1,
@@ -74,7 +99,7 @@
       "totalRequestBytes": 324,
       "totalResponseBytes": 31794,
       "totalRoundTripBytes": 32118,
-      "totalTokens": 55462,
+      "totalTokens": 8030,
       "byTool": {
         "task_list": {
           "calls": 3,
@@ -87,7 +112,7 @@
       "totalRequestBytes": 2609,
       "totalResponseBytes": 9998,
       "totalRoundTripBytes": 12607,
-      "totalTokens": 50584,
+      "totalTokens": 3152,
       "byTool": {
         "project_create": {
           "calls": 1,
@@ -115,12 +140,33 @@
         }
       }
     },
+    "sync-delta": {
+      "callCount": 4,
+      "totalRequestBytes": 10623,
+      "totalResponseBytes": 23527,
+      "totalRoundTripBytes": 34150,
+      "totalTokens": 8538,
+      "byTool": {
+        "changes_since": {
+          "calls": 2,
+          "responseBytes": 21100
+        },
+        "task_batch_assign": {
+          "calls": 1,
+          "responseBytes": 459
+        },
+        "task_batch_create": {
+          "calls": 1,
+          "responseBytes": 1968
+        }
+      }
+    },
     "weekly-review": {
       "callCount": 11,
       "totalRequestBytes": 292,
       "totalResponseBytes": 7860,
       "totalRoundTripBytes": 8152,
-      "totalTokens": 49470,
+      "totalTokens": 2038,
       "byTool": {
         "project_mark_reviewed": {
           "calls": 5,

@@ -15,6 +15,7 @@ import { type InvalidatingCache, invalidateTaskMutation } from "../../cache/inva
 import { TaskId } from "../../domain/ids.js";
 import { summaryTaskClearRepetition } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { ScriptError } from "../../errors/index.js";
 
 // ---------------------------------------------------------------------------
 // Tool description
@@ -62,6 +63,13 @@ export async function handleTaskClearRepetition(
 ) {
   await ctx.adapter.updateTask(input.id, { repetition: null });
   const task = await ctx.adapter.getTask(input.id);
+  // Round-trip verification (#1071): never report a successful clear on a
+  // no-op. If the re-read still shows a rule, the clear did not land.
+  if (task.repetition !== null) {
+    throw new ScriptError(
+      `Repetition rule did not clear for task ${input.id}: a follow-up read still returned a rule. This indicates a transport-level no-op (see #938, #1071).`,
+    );
+  }
   if (ctx.cache !== undefined) {
     invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
   }

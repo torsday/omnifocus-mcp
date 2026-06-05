@@ -16,10 +16,12 @@ import { describe, expect, test } from "vitest";
 import { createBenchContext, measureToolsListOnce, type WorkflowResult } from "./runBench.js";
 import { buildSnapshot, diffSnapshots, formatDrift, readSnapshot } from "./snapshot.js";
 import { runCapTruncation } from "./workflows/capTruncation.js";
+import { runDensityFull } from "./workflows/densityFull.js";
 import { runEndOfDayReview } from "./workflows/endOfDayReview.js";
 import { runInboxTriage } from "./workflows/inboxTriage.js";
 import { runLargePagination } from "./workflows/largePagination.js";
 import { runProjectPlanning } from "./workflows/projectPlanning.js";
+import { runSyncDelta } from "./workflows/syncDelta.js";
 import { runWeeklyReview } from "./workflows/weeklyReview.js";
 
 const ENABLED = process.env.OMNIFOCUS_BENCH === "1";
@@ -47,6 +49,8 @@ if (!ENABLED) {
         runEndOfDayReview,
         runLargePagination,
         runCapTruncation,
+        runDensityFull,
+        runSyncDelta,
       ]) {
         const bench = await runner(createBenchContext());
         results.push(bench.result(toolListBytes));

@@ -78,6 +78,7 @@ import {
   TAG_URI_TEMPLATE,
 } from "../resources/omnifocus.js";
 import { replayStore } from "../state/replayStore.js";
+import { negotiateDensityFromCapabilities } from "../state/sessionState.js";
 import { ALL_TOOL_DESCRIPTIONS } from "../tools/allDescriptions.js";
 import { registerAppLaunchTool } from "../tools/app/launch.js";
 import { registerAttachmentTools } from "../tools/attachment/index.js";
@@ -148,6 +149,7 @@ import { registerProjectMarkReviewedTool } from "../tools/review/projectMarkRevi
 import { registerReviewSetIntervalTool } from "../tools/review/setInterval.js";
 import { registerProjectSetNextReviewDateTool } from "../tools/review/setNextReviewDate.js";
 import { registerSearchQueryTool } from "../tools/search/query.js";
+import { registerChangesSinceTool } from "../tools/sync/changesSince.js";
 import { registerSyncStatusTool } from "../tools/sync/status.js";
 import { registerSyncTriggerTool } from "../tools/sync/trigger.js";
 import { registerTagCreateTool } from "../tools/tag/create.js";
@@ -263,6 +265,19 @@ export function createMcpServer(): McpServer {
     name: SERVER_NAME,
     version: PACKAGE_VERSION,
   });
+
+  // #818: negotiate session-wide response density from the client's
+  // `initialize` capabilities. With stdio as the sole transport (ADR-0010)
+  // there is one connection per process, so the negotiated value lives in a
+  // process singleton. Unknown/absent → "default" (behavior unchanged).
+  server.server.oninitialized = () => {
+    const caps = server.server.getClientCapabilities();
+    const negotiated = negotiateDensityFromCapabilities(
+      caps?.experimental as Record<string, unknown> | undefined,
+    );
+    logger.info({ density: negotiated }, "session density negotiated");
+  };
+
   return server;
 }
 
@@ -593,6 +608,7 @@ export async function startServer(): Promise<void> {
   // every cached read after a sync is kicked off (docs/cache-invalidation.md).
   registerSyncStatusTool(server, { adapter, makeMeta });
   registerSyncTriggerTool(server, { adapter, makeMeta, cache: services.cache });
+  registerChangesSinceTool(server, { adapter, makeMeta });
 
   // Database undo/redo — full cache flush on success since OmniFocus's
   // undo stack is opaque (we don't know what was reverted).

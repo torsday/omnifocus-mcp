@@ -24,15 +24,19 @@ import {
   diffSnapshots,
   formatDrift,
   readSnapshot,
+  resolveVersions,
   SNAPSHOT_PATH,
+  toolListBytesDrift,
   writeSnapshot,
 } from "./snapshot.js";
 import { estimateTokens } from "./tokenizer.js";
 import { runCapTruncation } from "./workflows/capTruncation.js";
+import { runDensityFull } from "./workflows/densityFull.js";
 import { runEndOfDayReview } from "./workflows/endOfDayReview.js";
 import { runInboxTriage } from "./workflows/inboxTriage.js";
 import { runLargePagination } from "./workflows/largePagination.js";
 import { runProjectPlanning } from "./workflows/projectPlanning.js";
+import { runSyncDelta } from "./workflows/syncDelta.js";
 import { runWeeklyReview } from "./workflows/weeklyReview.js";
 
 function fmtBytes(n: number): string {
@@ -64,6 +68,8 @@ async function main(): Promise<void> {
     ["end-of-day-review", runEndOfDayReview] as const,
     ["large-pagination", runLargePagination] as const,
     ["cap-truncation", runCapTruncation] as const,
+    ["density-full", runDensityFull] as const,
+    ["sync-delta", runSyncDelta] as const,
   ];
   const activeWorkflows = smoke5k
     ? workflows.filter(([label]) => label !== "large-pagination")
@@ -104,9 +110,11 @@ async function main(): Promise<void> {
     }
   }
 
+  const versions = resolveVersions();
   // biome-ignore lint/suspicious/noConsole: intentional CLI output
   console.log(
-    `\ntools/list payload: ${fmtBytes(toolListBytes)} (~${estimateTokens(toolListBytes)} tokens)`,
+    `\ntools/list payload: ${fmtBytes(toolListBytes)} (~${estimateTokens(toolListBytes)} tokens) ` +
+      `[advisory, env-sensitive — node ${versions.node}, zod ${versions.zod}; #1075]`,
   );
 
   if (smoke5k) {
@@ -137,6 +145,16 @@ async function main(): Promise<void> {
     );
     process.exit(1);
   }
+  // Advisory: surface toolListBytes drift without failing the gate (#1075).
+  const advisory = toolListBytesDrift(baseline, current);
+  if (advisory !== null) {
+    // biome-ignore lint/suspicious/noConsole: intentional CLI output
+    console.log(
+      `\nadvisory (not gated): ${formatDrift([advisory])}\n` +
+        `  toolListBytes is environment-sensitive (#1075); description size is gated by the 350-token/tool budget lint.`,
+    );
+  }
+
   const drift = diffSnapshots(baseline, current);
   if (drift.length > 0) {
     // biome-ignore lint/suspicious/noConsole: intentional CLI output

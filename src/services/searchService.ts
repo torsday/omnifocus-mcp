@@ -25,6 +25,7 @@ import {
   hashFilter,
   isAfterCursor,
 } from "../pagination/cursor.js";
+import { resolveIncludeLinks } from "../state/sessionState.js";
 
 // ---------------------------------------------------------------------------
 // Public shapes
@@ -158,10 +159,9 @@ export class SearchService {
     const page = afterCursor.slice(0, limit + 1);
     const hasMore = page.length > limit;
     const bareTasks = page.slice(0, limit);
-    const tasks =
-      input.includeLinks === true
-        ? bareTasks.map((t) => ({ ...t, _links: buildTaskLinks(t) }))
-        : bareTasks;
+    const tasks = resolveIncludeLinks(input.includeLinks)
+      ? bareTasks.map((t) => ({ ...t, _links: buildTaskLinks(t) }))
+      : bareTasks;
 
     // Encode next cursor
     const last = tasks.at(-1);

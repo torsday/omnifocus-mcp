@@ -22,24 +22,24 @@ function run(argv) {
   ofApp.includeStandardAdditions = false;
 
   // @inline _helpers/build_project.js
+  // @inline _helpers/lookup_or_throw.js
 
-  /** @type {Record<string, unknown>} */
-  const idSet = {};
-  for (let i = 0; i < args.ids.length; i++) {
-    idSet[args.ids[i]] = null;
-  }
+  const doc = ofApp.defaultDocument;
 
-  const allProjects = ofApp.defaultDocument.flattenedProjects();
-  for (let i = 0; i < allProjects.length; i++) {
-    const pid = allProjects[i].id();
-    if (Object.hasOwn(idSet, pid)) {
-      idSet[pid] = buildProject(allProjects[i]);
-    }
-  }
-
+  // byId() per requested id instead of one full flattenedProjects() linear scan
+  // (#788/#1085). lookupOrThrow forces resolution and throws on a missing id;
+  // we catch that and emit `null`, preserving the (Project | null)[] contract.
   const results = [];
   for (let i = 0; i < args.ids.length; i++) {
-    results.push(idSet[args.ids[i]]);
+    let project = null;
+    try {
+      project = buildProject(
+        lookupOrThrow(doc.flattenedProjects.byId(args.ids[i]), "Project", args.ids[i]),
+      );
+    } catch (_e) {
+      project = null;
+    }
+    results.push(project);
   }
 
   return JSON.stringify({ projects: results });

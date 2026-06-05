@@ -42,6 +42,11 @@ function run(argv) {
       if (input.estimatedMinutes != null) props.estimatedMinutes = input.estimatedMinutes;
       if (input.sequential != null) props.sequential = input.sequential;
 
+      // OmniFocus 4.x rejects `container.make({ new: "task", withProperties })`
+      // with -10024 ("Can't make or move that element into that container").
+      // Mirror the working pattern singular task_create.js uses (#275/#319):
+      // construct a `Task`/`InboxTask` specifier and push it onto the target
+      // collection. `.id()` is safe immediately after push (see #1074).
       let newTask;
       if (input.parentId) {
         const parent = lookupOrThrow(
@@ -49,14 +54,16 @@ function run(argv) {
           "OF_NOT_FOUND: parent task",
           input.parentId,
         );
-        newTask = parent.make({ new: "task", withProperties: props });
+        newTask = ofApp.Task(props);
+        parent.tasks.push(newTask);
       } else if (input.projectId) {
         const proj = lookupOrThrow(
           doc.flattenedProjects.byId(input.projectId),
           "OF_NOT_FOUND: project",
           input.projectId,
         );
-        newTask = proj.make({ new: "task", withProperties: props });
+        newTask = ofApp.Task(props);
+        proj.tasks.push(newTask);
       } else {
         // Inbox creation: `doc.make({ new: "inboxTask" })` fails with -10024
         // on OmniFocus 4.x. See issue #275.
