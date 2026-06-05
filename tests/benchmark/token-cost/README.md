@@ -9,17 +9,29 @@ workflow without regressing the others.
 The suite is hermetic: it drives `InMemoryAdapter` directly, does not
 touch JXA, and does not require OmniFocus to be running.
 
+> **Gate scope ([#1075](https://github.com/torsday/omnifocus-mcp/issues/1075)):**
+> `toolListBytes` computes ~30% larger on the `mac-local` CI runner than on a
+> clean checkout (247910 vs 189728), same code/zod — a `z.toJSONSchema`
+> environment difference. To stop that env noise from red-flagging unrelated
+> PRs, **`toolListBytes` is no longer gated**: the drift gate now compares only
+> the environment-independent per-workflow round-trip bytes (`totalTokens`
+> excludes `toolListBytes`). `toolListBytes` is still reported, advisorily, with
+> the resolved node + zod versions so a future divergence is self-diagnosing.
+> Tool-description size — what actually drives tool-list token cost — stays
+> gated deterministically by the 350-token/tool budget in
+> `src/tools/descriptions.lint.test.ts`.
+
 ## What it measures
 
 For each fixture workflow the suite records:
 
 | Field | What it captures |
 | --- | --- |
-| `toolListBytes` | UTF-8 length of the simulated `tools/list` payload (every tool's `{name, description, inputSchema}`). Workflow-independent. |
+| `toolListBytes` | UTF-8 length of the simulated `tools/list` payload (every tool's `{name, description, inputSchema}`). Workflow-independent. **Advisory only — not gated** (environment-sensitive, #1075). |
 | `totalRequestBytes` | Sum of UTF-8 lengths of every JSON-stringified tool input the workflow sends. |
 | `totalResponseBytes` | Sum of UTF-8 lengths of every `toolResponse(envelope)` the workflow receives. Captures both `content[0].text` and `structuredContent` — what the wire delivers. |
 | `totalRoundTripBytes` | `totalRequestBytes + totalResponseBytes`. |
-| `totalTokens` | `(toolListBytes + totalRoundTripBytes) / TOKEN_DIVISOR`, rounded. |
+| `totalTokens` | `totalRoundTripBytes / TOKEN_DIVISOR`, rounded — the workflow's own round-trip cost. Excludes `toolListBytes` (seen once per session, not per workflow; and env-sensitive, #1075). |
 | `byTool[<name>]` | Per-tool aggregate `{ calls, responseBytes }` — surfaces hotspots so an optimization PR can scope its change. |
 
 ### Why measure at the handler boundary, not the JSON-RPC wire?

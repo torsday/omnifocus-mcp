@@ -222,15 +222,104 @@ function buildTask(task, options) {
   };
 }
 
+// OmniFocus 4.x note (#1071): the JXA RepetitionRule specifier does NOT expose
+// `method()` / `unit()` / `steps()` — those are undefined and throw
+// "rr.method is not a function". The previous body called them and the
+// try/catch swallowed the throw, so EVERY repetition read returned null even
+// when a rule was set (the write was fixed separately in #938). The members
+// that actually exist on OF 4.x are two string properties:
+//   - `rr.recurrence`        — the RFC 5545 RRULE, e.g. "FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH"
+//   - `rr.repetitionMethod`  — a human-readable method name (see METHOD_BY_LABEL)
+// So we parse the RRULE back into the canonical domain shape. This is the
+// inverse of the FREQ_BY_UNIT / ICAL_DAYS / method maps in task_update.js;
+// keep the two in sync.
 function buildRepetition(task) {
   try {
     const rr = task.repetitionRule();
     if (!rr) return null;
-    return {
-      method: rr.method(),
-      unit: rr.unit(),
-      steps: rr.steps(),
+
+    // recurrence is the canonical signal; without it there is no rule to report.
+    const recurrence = rr.recurrence;
+    if (!recurrence || typeof recurrence !== "string") return null;
+
+    // Parse the RRULE "KEY=VALUE;KEY=VALUE" into a lookup.
+    const parts = {};
+    const segments = recurrence.split(";");
+    for (let i = 0; i < segments.length; i++) {
+      const eq = segments[i].indexOf("=");
+      if (eq > 0) parts[segments[i].slice(0, eq)] = segments[i].slice(eq + 1);
+    }
+
+    const UNIT_BY_FREQ = {
+      MINUTELY: "minutes",
+      HOURLY: "hours",
+      DAILY: "days",
+      WEEKLY: "weeks",
+      MONTHLY: "months",
+      YEARLY: "years",
     };
+    const unit = UNIT_BY_FREQ[parts.FREQ];
+    if (!unit) return null; // unknown/absent FREQ — can't represent it faithfully
+
+    const steps = parts.INTERVAL ? parseInt(parts.INTERVAL, 10) : 1;
+
+    // repetitionMethod is a human string on OF 4.x — map it back to the enum.
+    // "fixed repetition" -> fixed; "due after completion" -> due-again;
+    // "start after completion" -> start-again. Default to fixed if unrecognized.
+    const METHOD_BY_LABEL = {
+      "fixed repetition": "fixed",
+      "due after completion": "due-again",
+      "start after completion": "start-again",
+    };
+    let method = "fixed";
+    try {
+      const label = rr.repetitionMethod;
+      if (label && METHOD_BY_LABEL[label]) method = METHOD_BY_LABEL[label];
+    } catch (_methodErr) {
+      /* repetitionMethod absent — keep the fixed default */
+    }
+
+    const result = { method: method, unit: unit, steps: steps };
+
+    // Weekly weekday list: BYDAY=MO,WE,FR (plain day codes, no position prefix).
+    const WEEKDAY_BY_ICAL = {
+      SU: "sunday",
+      MO: "monday",
+      TU: "tuesday",
+      WE: "wednesday",
+      TH: "thursday",
+      FR: "friday",
+      SA: "saturday",
+    };
+    if (unit === "weeks" && parts.BYDAY) {
+      const codes = parts.BYDAY.split(",");
+      const weekdays = [];
+      for (let i = 0; i < codes.length; i++) {
+        const name = WEEKDAY_BY_ICAL[codes[i]];
+        if (name) weekdays.push(name);
+      }
+      if (weekdays.length > 0) result.weekdays = weekdays;
+    }
+
+    // Monthly anchor: either BYMONTHDAY=15 (day) or BYDAY=2TU / BYDAY=-1FR (position).
+    if (unit === "months") {
+      if (parts.BYMONTHDAY) {
+        const day = parseInt(parts.BYMONTHDAY, 10);
+        if (!Number.isNaN(day)) result.monthlyAnchor = { day: day };
+      } else if (parts.BYDAY) {
+        // Positional form: optional leading signed integer then the 2-letter day.
+        const m = parts.BYDAY.match(/^(-?\d+)([A-Z]{2})$/);
+        if (m) {
+          const pos = parseInt(m[1], 10);
+          const weekday = WEEKDAY_BY_ICAL[m[2]];
+          if (weekday) {
+            result.monthlyAnchor = { weekday: weekday, position: pos === -1 ? "last" : pos };
+          }
+        }
+      }
+    }
+
+    return result;
   } catch (_e) {
     return null;
   }

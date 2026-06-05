@@ -38,6 +38,7 @@ import {
 import { applyProjection, validateFields } from "../../envelope/projection.js";
 import type { TaskListInput, TaskService } from "../../services/taskService.js";
 import { TaskSortBySchema } from "../../services/taskService.js";
+import { resolveNotePreviewChars } from "../../state/sessionState.js";
 import { applyNotePreview, DEFAULT_NOTE_PREVIEW_CHARS } from "./notePreview.js";
 
 // ---------------------------------------------------------------------------
@@ -225,7 +226,7 @@ export async function handleTaskList(input: TaskListToolInput, ctx: ToolContext)
   const { notePreviewChars: rawPreviewChars, verbose, fields, maxOutputBytes, ...rest } = input;
   const serviceInput = rest as TaskListInput;
   const result = await ctx.taskService.list(serviceInput);
-  const previewChars = rawPreviewChars ?? DEFAULT_NOTE_PREVIEW_CHARS;
+  const previewChars = resolveNotePreviewChars(rawPreviewChars);
 
   const projection =
     fields !== undefined ? validateFields(fields, TASK_FIELD_NAMES_SET) : undefined;

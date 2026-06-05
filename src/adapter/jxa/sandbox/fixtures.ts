@@ -234,6 +234,22 @@ export function fakeTask(
   return task;
 }
 
+/**
+ * Build a fake JXA RepetitionRule specifier as OmniFocus 4.x actually exposes
+ * it (#1071): `recurrence` and `repetitionMethod` are STRING PROPERTIES, not
+ * the `method()` / `unit()` / `steps()` methods the old buildRepetition wrongly
+ * called. Pass the return value as a task's `repetitionRule` override:
+ *
+ *   fakeTask({ repetitionRule: () => fakeRepetitionRule(
+ *     "FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH", "due after completion") })
+ *
+ * `repetitionMethod` accepts the three OF 4.x human labels:
+ *   "fixed repetition" | "start after completion" | "due after completion".
+ */
+export function fakeRepetitionRule(recurrence: string, repetitionMethod: string) {
+  return { recurrence, repetitionMethod };
+}
+
 export interface FakeProjectOverrides {
   id?: () => string;
   name?: () => string;

@@ -22,18 +22,12 @@ function run(argv) {
   ofApp.includeStandardAdditions = false;
 
   // @inline _helpers/build_tag.js
+  // @inline _helpers/lookup_or_throw.js
 
   const doc = ofApp.defaultDocument;
   const docId = doc.id();
-  const allTags = doc.flattenedTags();
-  let target = null;
-  for (let i = 0; i < allTags.length; i++) {
-    if (allTags[i].id() === args.id) {
-      target = allTags[i];
-      break;
-    }
-  }
-  if (!target) throw new Error(`Tag not found: ${args.id}`);
+  // byId() instead of a flattenedTags() linear scan (#788/#1081).
+  const target = lookupOrThrow(doc.flattenedTags.byId(args.id), "Tag", args.id);
 
   if (args.name !== undefined) target.name = args.name;
   if (args.status !== undefined) {

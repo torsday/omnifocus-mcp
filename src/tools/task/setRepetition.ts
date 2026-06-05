@@ -22,6 +22,7 @@ import { TaskId } from "../../domain/ids.js";
 import { RepetitionRuleSchema } from "../../domain/task.js";
 import { summaryTaskSetRepetition } from "../../domain/writeSummary.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { ScriptError } from "../../errors/index.js";
 
 // ---------------------------------------------------------------------------
 // Tool description
@@ -77,6 +78,15 @@ export async function handleTaskSetRepetition(
 ) {
   await ctx.adapter.updateTask(input.id, { repetition: input.rule });
   const task = await ctx.adapter.getTask(input.id);
+  // Round-trip verification (#1071): the JXA repetition write can silently
+  // no-op (it did across #938 and again via the broken read-back / wrong enum
+  // member). Never report success on a no-op — if the re-read shows no rule,
+  // the write did not land. "The round-trip is the only proof."
+  if (task.repetition === null) {
+    throw new ScriptError(
+      `Repetition rule did not persist for task ${input.id}: the write reported success but a follow-up read returned no rule. This indicates a transport-level no-op (see #938, #1071).`,
+    );
+  }
   if (ctx.cache !== undefined) {
     invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
   }

@@ -38,14 +38,10 @@ function run(argv) {
   ofApp.includeStandardAdditions = false;
 
   // @inline _helpers/build_task.js
+  // @inline _helpers/lookup_or_throw.js
 
-  const allTasks = ofApp.defaultDocument.flattenedTasks();
-  for (let i = 0; i < allTasks.length; i++) {
-    const t = allTasks[i];
-    if (t.id() === args.id) {
-      return JSON.stringify({ task: buildTask(t) });
-    }
-  }
-
-  throw new Error(`Task not found: ${args.id}`);
+  // byId() instead of a flattenedTasks() linear scan (#788/#1083). lookupOrThrow
+  // throws the same "Task not found: <id>" on a missing id.
+  const t = lookupOrThrow(ofApp.defaultDocument.flattenedTasks.byId(args.id), "Task", args.id);
+  return JSON.stringify({ task: buildTask(t) });
 }

@@ -49,23 +49,31 @@ function run(argv) {
 
   // Resolve to a project or folder.
   const doc = ofApp.defaultDocument;
+
+  // @inline _helpers/lookup_or_throw.js
+
+  // byId() instead of flattenedX() linear scans (#788/#1087). The container may
+  // be a project OR a folder, so try project first and fall back to folder
+  // before reporting NOT_FOUND.
   let target = null;
-
-  const projects = doc.flattenedProjects();
-  for (let i = 0; i < projects.length; i++) {
-    if (projects[i].id() === args.containerId) {
-      target = projects[i];
-      break;
-    }
+  try {
+    target = lookupOrThrow(
+      doc.flattenedProjects.byId(args.containerId),
+      "Project",
+      args.containerId,
+    );
+  } catch (_e) {
+    /* not a project — try folder next */
   }
-
   if (!target) {
-    const folders = doc.flattenedFolders();
-    for (let i = 0; i < folders.length; i++) {
-      if (folders[i].id() === args.containerId) {
-        target = folders[i];
-        break;
-      }
+    try {
+      target = lookupOrThrow(
+        doc.flattenedFolders.byId(args.containerId),
+        "Folder",
+        args.containerId,
+      );
+    } catch (_e) {
+      /* not a folder either — NOT_FOUND below */
     }
   }
 

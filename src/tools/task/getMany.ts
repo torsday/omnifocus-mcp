@@ -42,6 +42,7 @@ import {
 } from "../../envelope/index.js";
 import { applyProjection, validateFields } from "../../envelope/projection.js";
 import { ValidationError } from "../../errors/index.js";
+import { resolveNotePreviewChars } from "../../state/sessionState.js";
 import { applyNotePreview, DEFAULT_NOTE_PREVIEW_CHARS } from "./notePreview.js";
 
 // ---------------------------------------------------------------------------
@@ -164,7 +165,7 @@ export async function handleTaskGetMany(input: TaskGetManyInput, ctx: TaskGetMan
     const d = parseDecision(t.note);
     if (d !== undefined) decisions[t.id] = d;
   }
-  const previewChars = input.notePreviewChars ?? DEFAULT_NOTE_PREVIEW_CHARS;
+  const previewChars = resolveNotePreviewChars(input.notePreviewChars);
 
   const projection =
     input.fields !== undefined ? validateFields(input.fields, TASK_FIELD_NAMES_SET) : undefined;

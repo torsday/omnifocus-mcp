@@ -160,9 +160,44 @@ Tools that apply elision: `task_list`, `task_get`, `task_get_many`, `project_lis
 
 Inbox-triage benchmark: -27.3% on totalResponseBytes after default elision (on top of #775's note truncation savings).
 
+## Session density negotiation (#818)
+
+A client can negotiate one **density** preference at the MCP `initialize` handshake instead of repeating response-shaping flags on every call. The client signals it as an experimental capability:
+
+```jsonc
+// initialize params
+{
+  "capabilities": {
+    "experimental": { "density": "full" } // "compact" | "default" | "full"
+  }
+}
+```
+
+The negotiated value becomes the session-wide **default** for the read-shaping flags; a per-call argument always overrides it. With stdio as the sole transport ([ADR-0010](adr/0010-stdio-as-sole-transport.md)) the preference lives in a process singleton for the connection's lifetime.
+
+| Density             | `includeLinks` | `includeSubtasks` | `notePreviewChars`     |
+| ------------------- | -------------- | ----------------- | ---------------------- |
+| `compact`/`default` | `false`        | `false`           | `200`                  |
+| `full`              | `true`         | `true`            | `-1` (no truncation)   |
+
+`default` and `compact` coincide: the audit (#774/#775/#791/#792/#796) already made the lean shape the baseline, so the operative lever is `full` for clients that want rich responses without per-call flags. `noteHtml` (no read-path inclusion flag) and page `limit` (already 50) are not density-tunable — see [ADR-0025](adr/0025-session-density-negotiation.md). When no density is signaled the server uses `default`, so the capability is additive and non-breaking. `internal_status` reports the negotiated `density`.
+
+## Incremental sync — `changes_since` (#819)
+
+Sync-style consumers that track OmniFocus state should poll `changes_since` instead of re-listing everything. It returns a `syncToken`; the next call with that token returns only what changed — and for modified entities, only the **changed fields** (`{ id, changes }`), a 5–10× cut vs. whole records.
+
+```jsonc
+changes_since()                        // bootstrap: reset:true, every entity in `added`, + syncToken
+changes_since({ syncToken: "abc123" }) // delta: added + modified field-level deltas, + a fresh token
+```
+
+The server snapshots returned entities under each token (bounded, ~10-min TTL, in-memory) to diff against — OmniFocus's `modificationDate` says *that* an entity changed, not *what*. An unknown/expired token yields `reset:true` (full re-sync; discard local state). **Deletions** are reported in `removed` only when you pass `includeRemoved: true` (it needs a full scan, so the cheap default omits them); otherwise reconcile periodically with `task_list`/`project_list`. Design + tradeoffs in [ADR-0026](adr/0026-sync-delta-protocol.md).
+
 ## Related
 
 - [DESIGN.md §21](../DESIGN.md) — observability contract
 - [`docs/perf-setup.md`](perf-setup.md) — performance posture and configuration
 - [#770](https://github.com/torsday/omnifocus-mcp/issues/770) — token-efficiency epic
 - [#774](https://github.com/torsday/omnifocus-mcp/issues/774) — default-value elision
+- [ADR-0025](adr/0025-session-density-negotiation.md) — session density negotiation
+- [ADR-0026](adr/0026-sync-delta-protocol.md) — `changes_since` sync-delta protocol

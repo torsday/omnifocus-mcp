@@ -29,17 +29,12 @@ function run(argv) {
   ofApp.includeStandardAdditions = false;
 
   // @inline _helpers/build_task.js
+  // @inline _helpers/lookup_or_throw.js
 
-  const allTasks =
-    ofApp.defaultDocument.flattenedTasks(); /* narrow-scan-ok: must resolve task by id; no scope hint available */
-  let found = null;
-  for (let i = 0; i < allTasks.length; i++) {
-    if (allTasks[i].id() === args.id) {
-      found = allTasks[i];
-      break;
-    }
-  }
-  if (!found) throw new Error(`Task not found: ${args.id}`);
+  // byId() instead of a flattenedTasks() linear scan (#788/#1091). The OmniJS
+  // evaluateJavascript blocks below (repetition, tag-set) resolve their own
+  // targets via Task.byIdentifier and are unchanged.
+  const found = lookupOrThrow(ofApp.defaultDocument.flattenedTasks.byId(args.id), "Task", args.id);
 
   if (args.name !== undefined) found.name = args.name;
   if (Object.hasOwn(args, "note")) {
@@ -104,10 +99,16 @@ function run(argv) {
         friday: "FR",
         saturday: "SA",
       };
+      // #1071: OF 4.x `Task.RepetitionMethod` has only None / Fixed /
+      // DeferUntilDate / DueDate — there is no `Start` member. A prior mapping
+      // of start-again to a `Start` member resolved to undefined, so
+      // `new Task.RepetitionRule(rule, undefined)` silently persisted
+      // start-again rules as Fixed. The correct member for "start again after
+      // completion" (sdef enumerator FRmS) is DeferUntilDate.
       /** @type {Record<string, string>} */
       const METHOD_BY_NAME = {
         fixed: "Fixed",
-        "start-again": "Start",
+        "start-again": "DeferUntilDate",
         "due-again": "DueDate",
       };
       const freq = FREQ_BY_UNIT[rule.unit];

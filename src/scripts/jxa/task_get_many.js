@@ -22,24 +22,23 @@ function run(argv) {
   ofApp.includeStandardAdditions = false;
 
   // @inline _helpers/build_task.js
+  // @inline _helpers/lookup_or_throw.js
 
-  /** @type {Record<string, unknown>} */
-  const idSet = {};
-  for (let i = 0; i < args.ids.length; i++) {
-    idSet[args.ids[i]] = null;
-  }
+  const doc = ofApp.defaultDocument;
 
-  const allTasks = ofApp.defaultDocument.flattenedTasks();
-  for (let i = 0; i < allTasks.length; i++) {
-    const tid = allTasks[i].id();
-    if (Object.hasOwn(idSet, tid)) {
-      idSet[tid] = buildTask(allTasks[i]);
-    }
-  }
-
+  // byId() per requested id instead of one full flattenedTasks() linear scan
+  // (#788/#1083). lookupOrThrow forces resolution and throws on a missing id
+  // (-1728); we catch that and emit `null`, preserving the (Task | null)[]
+  // contract (get_many never throws on a miss).
   const results = [];
   for (let i = 0; i < args.ids.length; i++) {
-    results.push(idSet[args.ids[i]]);
+    let task = null;
+    try {
+      task = buildTask(lookupOrThrow(doc.flattenedTasks.byId(args.ids[i]), "Task", args.ids[i]));
+    } catch (_e) {
+      task = null;
+    }
+    results.push(task);
   }
 
   return JSON.stringify({ tasks: results });

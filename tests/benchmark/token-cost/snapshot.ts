@@ -24,11 +24,30 @@
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { WorkflowResult } from "./runBench.js";
 
 export const DRIFT_FAIL_PCT = 5;
+
+/**
+ * Resolve the runtime versions that influence `toolListBytes` (#1075). The
+ * `toolListBytes` env-discrepancy is most likely a `z.toJSONSchema` output
+ * difference, so recording the resolved `zod` + `node` versions in the
+ * snapshot makes a future divergence self-diagnosing instead of a multi-hour
+ * hunt — exactly what the issue asked for.
+ */
+export function resolveVersions(): { node: string; zod: string } {
+  let zod = "unknown";
+  try {
+    const req = createRequire(import.meta.url);
+    zod = (req("zod/package.json") as { version: string }).version;
+  } catch {
+    // leave "unknown" — recording is best-effort
+  }
+  return { node: process.versions.node, zod };
+}
 
 const SNAPSHOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "__snapshots__");
 const BASELINE_PATH = resolve(SNAPSHOT_DIR, "baseline.json");
@@ -37,7 +56,9 @@ const BASELINE_PATH = resolve(SNAPSHOT_DIR, "baseline.json");
 export interface SnapshotPayload {
   /** ISO date the snapshot was last regenerated; advisory. */
   generatedAt: string;
-  /** Tools/list payload bytes — workflow-independent. */
+  /** Resolved runtime versions at generation time (#1075); advisory, not gated. */
+  versions?: { node: string; zod: string };
+  /** Tools/list payload bytes — workflow-independent, advisory (env-sensitive, #1075). */
   toolListBytes: number;
   /** Per-workflow totals, keyed by workflow name. */
   workflows: Record<
@@ -71,7 +92,27 @@ export function buildSnapshot(results: WorkflowResult[]): SnapshotPayload {
       byTool: sortedByTool,
     };
   }
-  return { generatedAt: new Date().toISOString().slice(0, 10), toolListBytes, workflows };
+  return {
+    generatedAt: new Date().toISOString().slice(0, 10),
+    versions: resolveVersions(),
+    toolListBytes,
+    workflows,
+  };
+}
+
+/**
+ * Advisory (non-gating) drift of the env-sensitive `toolListBytes` (#1075).
+ * Returns a finding when it drifts ≥ threshold so humans/CI can SEE it, but
+ * it is never added to the failing set in {@link diffSnapshots}. `null` when
+ * within threshold or the baseline predates version recording.
+ */
+export function toolListBytesDrift(
+  baseline: SnapshotPayload,
+  current: SnapshotPayload,
+): DriftFinding | null {
+  const out: DriftFinding[] = [];
+  pushIfDrifted(out, "toolListBytes (advisory)", baseline.toolListBytes, current.toolListBytes);
+  return out[0] ?? null;
 }
 
 export function readSnapshot(): SnapshotPayload | undefined {
@@ -97,7 +138,13 @@ export interface DriftFinding {
 /** Compare two snapshots, reporting any field whose drift exceeds the threshold. */
 export function diffSnapshots(baseline: SnapshotPayload, current: SnapshotPayload): DriftFinding[] {
   const findings: DriftFinding[] = [];
-  pushIfDrifted(findings, "toolListBytes", baseline.toolListBytes, current.toolListBytes);
+  // #1075: `toolListBytes` is intentionally NOT gated. Its `z.toJSONSchema`
+  // byte count is environment-sensitive (~30% larger on the self-hosted runner
+  // than a clean checkout, same code/zod), which made the gate red-flag PRs
+  // that never touched the tool surface. Description size — what actually
+  // drives tool-list token cost — is gated deterministically by the
+  // 350-token/tool budget in descriptions.lint.test.ts. toolListBytes drift is
+  // surfaced advisorily via `toolListBytesDrift()` for humans, not failed (#1075).
 
   const wfNames = new Set([...Object.keys(baseline.workflows), ...Object.keys(current.workflows)]);
   for (const wf of [...wfNames].sort()) {

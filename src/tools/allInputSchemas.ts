@@ -75,6 +75,7 @@ import { projectMarkReviewedInputSchema } from "./review/projectMarkReviewed.js"
 import { reviewSetIntervalInputSchema } from "./review/setInterval.js";
 import { projectSetNextReviewDateInputSchema } from "./review/setNextReviewDate.js";
 import { searchQueryInputSchema } from "./search/query.js";
+import { changesSinceInputSchema } from "./sync/changesSince.js";
 import { syncStatusInputSchema } from "./sync/status.js";
 import { syncTriggerInputSchema } from "./sync/trigger.js";
 import { tagCreateInputSchema } from "./tag/create.js";
@@ -218,6 +219,7 @@ export const ALL_INPUT_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   review_mark_reviewed: reviewMarkReviewedInputSchema,
   review_set_interval: reviewSetIntervalInputSchema,
   run_jxa_script: runJxaScriptInputSchema,
+  changes_since: changesSinceInputSchema,
   run_omnijs_script: runOmniJsScriptInputSchema,
   search_query: searchQueryInputSchema,
   sync_status: syncStatusInputSchema,

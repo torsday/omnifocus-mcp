@@ -212,7 +212,15 @@ export class Bench {
       totalRequestBytes: totalRequest,
       totalResponseBytes: totalResponse,
       totalRoundTripBytes: totalRoundTrip,
-      totalTokens: estimateTokens(toolListBytes + totalRoundTrip),
+      // #1075: `totalTokens` is the workflow's OWN round-trip cost only. It
+      // deliberately excludes `toolListBytes` — the LLM sees tools/list once
+      // per session, not per workflow, and `toolListBytes` is environment-
+      // sensitive (its `z.toJSONSchema` byte count differs ~30% on the
+      // self-hosted runner). Folding it in made one env-only inflation drift
+      // every workflow's gated total at once. It's now reported separately
+      // and advisory (see snapshot.ts); description size stays gated
+      // deterministically by the 350-token/tool budget in descriptions.lint.
+      totalTokens: estimateTokens(totalRoundTrip),
       byTool,
     };
   }

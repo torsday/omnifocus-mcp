@@ -80,6 +80,7 @@ import {
   fakeFolder,
   fakePerspective,
   fakeProject,
+  fakeRepetitionRule,
   fakeTag,
   fakeTask,
   fakeWindow,
@@ -744,6 +745,104 @@ describe("JXA sandbox — task_get", () => {
       { tasks: [t] },
     );
     expect(result.task.projectId).toBeNull();
+  });
+
+  // #1071: buildRepetition must parse the OF 4.x `recurrence` RRULE +
+  // `repetitionMethod` string. The old code called rr.method()/unit()/steps()
+  // (undefined on OF 4.x) and the swallowing try/catch returned null for EVERY
+  // repetition read. These cases exercise the parse via the real inlined
+  // build_task.js, mirroring the live osascript round-trip.
+  it("reads a daily fixed repetition rule — regression #1071", () => {
+    const t = fakeTask({
+      id: () => "task_rep",
+      repetitionRule: () => fakeRepetitionRule("FREQ=DAILY;INTERVAL=1", "fixed repetition"),
+    });
+    const result = runJxaScriptInSandbox<{ task: { repetition: unknown } }>(
+      taskGetScript,
+      { id: "task_rep" },
+      { tasks: [t] },
+    );
+    expect(result.task.repetition).toEqual({ method: "fixed", unit: "days", steps: 1 });
+  });
+
+  it("maps 'due after completion' to due-again with interval — regression #1071", () => {
+    const t = fakeTask({
+      id: () => "task_rep",
+      repetitionRule: () => fakeRepetitionRule("FREQ=DAILY;INTERVAL=3", "due after completion"),
+    });
+    const result = runJxaScriptInSandbox<{ task: { repetition: unknown } }>(
+      taskGetScript,
+      { id: "task_rep" },
+      { tasks: [t] },
+    );
+    expect(result.task.repetition).toEqual({ method: "due-again", unit: "days", steps: 3 });
+  });
+
+  it("maps 'start after completion' to start-again with weekday list — regression #1071", () => {
+    const t = fakeTask({
+      id: () => "task_rep",
+      repetitionRule: () =>
+        fakeRepetitionRule("FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH", "start after completion"),
+    });
+    const result = runJxaScriptInSandbox<{ task: { repetition: unknown } }>(
+      taskGetScript,
+      { id: "task_rep" },
+      { tasks: [t] },
+    );
+    expect(result.task.repetition).toEqual({
+      method: "start-again",
+      unit: "weeks",
+      steps: 2,
+      weekdays: ["tuesday", "thursday"],
+    });
+  });
+
+  it("parses a monthly day-of-month anchor — regression #1071", () => {
+    const t = fakeTask({
+      id: () => "task_rep",
+      repetitionRule: () =>
+        fakeRepetitionRule("FREQ=MONTHLY;INTERVAL=1;BYMONTHDAY=15", "fixed repetition"),
+    });
+    const result = runJxaScriptInSandbox<{ task: { repetition: unknown } }>(
+      taskGetScript,
+      { id: "task_rep" },
+      { tasks: [t] },
+    );
+    expect(result.task.repetition).toEqual({
+      method: "fixed",
+      unit: "months",
+      steps: 1,
+      monthlyAnchor: { day: 15 },
+    });
+  });
+
+  it("parses a monthly positional weekday anchor (last Friday) — regression #1071", () => {
+    const t = fakeTask({
+      id: () => "task_rep",
+      repetitionRule: () =>
+        fakeRepetitionRule("FREQ=MONTHLY;INTERVAL=1;BYDAY=-1FR", "due after completion"),
+    });
+    const result = runJxaScriptInSandbox<{ task: { repetition: unknown } }>(
+      taskGetScript,
+      { id: "task_rep" },
+      { tasks: [t] },
+    );
+    expect(result.task.repetition).toEqual({
+      method: "due-again",
+      unit: "months",
+      steps: 1,
+      monthlyAnchor: { weekday: "friday", position: "last" },
+    });
+  });
+
+  it("returns null repetition when no rule is set — regression #1071", () => {
+    const t = fakeTask({ id: () => "task_norep" });
+    const result = runJxaScriptInSandbox<{ task: { repetition: unknown } }>(
+      taskGetScript,
+      { id: "task_norep" },
+      { tasks: [t] },
+    );
+    expect(result.task.repetition).toBeNull();
   });
 });
 
@@ -2566,6 +2665,39 @@ describe("JXA sandbox — task_batch_create", () => {
     );
     expect(result.succeeded).toHaveLength(1);
     expect(result.failed.map((f) => f.errorCode)).toEqual(["OF_NOT_FOUND", "OF_NOT_FOUND"]);
+  });
+
+  // Regression for #1074: OF 4.x rejects `container.make({ new: "task" })` with
+  // -10024, but the default fixture `.make()` is a working stub — which is why
+  // the original bug (project/parent branches still using `.make()`) slipped
+  // past the test above. Here we make the containers' `.make()` throw like real
+  // OF 4.x; the script must still succeed by using `.tasks.push` (the pattern
+  // singular task_create.js already uses). Under the old code this produced two
+  // OF_UNKNOWN failures.
+  it("creates into project/parent via .tasks.push, surviving an OF-4.x-throwing .make() (#1074)", () => {
+    const throwMinus10024 = () => {
+      throw new Error("Can't make or move that element into that container.");
+    };
+    const project = fakeProject({ id: () => "project_target" });
+    (project as { make: unknown }).make = throwMinus10024;
+    const parent = fakeTask({ id: () => "task_parent" });
+    (parent as { make: unknown }).make = throwMinus10024;
+
+    const result = runJxaScriptInSandbox<{
+      succeeded: { value: string }[];
+      failed: { errorCode: string }[];
+    }>(
+      taskBatchCreateScript,
+      {
+        inputs: [
+          { name: "Under project", projectId: "project_target" },
+          { name: "Subtask", parentId: "task_parent" },
+        ],
+      },
+      { projects: [project], tasks: [parent] },
+    );
+    expect(result.failed).toEqual([]);
+    expect(result.succeeded).toHaveLength(2);
   });
 });
 

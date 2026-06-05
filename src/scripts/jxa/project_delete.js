@@ -21,15 +21,14 @@ function run(argv) {
   const ofApp = Application("OmniFocus");
   ofApp.includeStandardAdditions = false;
 
-  const allProjects = ofApp.defaultDocument.flattenedProjects();
-  let target = null;
-  for (let i = 0; i < allProjects.length; i++) {
-    if (allProjects[i].id() === args.id) {
-      target = allProjects[i];
-      break;
-    }
-  }
-  if (!target) throw new Error(`Project not found: ${args.id}`);
+  // @inline _helpers/lookup_or_throw.js
+
+  // byId() instead of a flattenedProjects() linear scan (#788/#1085).
+  const target = lookupOrThrow(
+    ofApp.defaultDocument.flattenedProjects.byId(args.id),
+    "Project",
+    args.id,
+  );
 
   ofApp.delete(target);
 
