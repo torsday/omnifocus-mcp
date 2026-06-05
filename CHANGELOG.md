@@ -7,6 +7,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [2.0.0](https://github.com/torsday/omnifocus-mcp/compare/v1.5.3...v2.0.0) (2026-06-05)
 
+**Summary** — A major release dominated by **token-efficiency** and **OmniFocus 4.x correctness**. The one breaking change is a wire-format slimming: tool responses no longer duplicate the full envelope JSON into `content[].text` (it's now a fixed `"see structuredContent"` placeholder), which roughly halves per-response bytes for clients already reading the typed `structuredContent` — i.e. nearly all of them. On top of that, `maxOutputBytes` caps with a truncation envelope now bound every heavy read, an init-handshake negotiates response density per session, and a `flattenedX.byId()` migration across ~20 JXA scripts turns linear per-call Apple-event scans into direct lookups (50–500× on large databases). Correctness-wise, this release finally makes **repetition rules round-trip end-to-end** on OmniFocus 4.x (both the write and the read-back were broken), fixes `task_batch_create` (every item failed with -10024), makes `project_create` atomic, and corrects timezone bucketing in `forecast_get`. New operational surface: an `omnifocus_doctor` self-diagnostic, per-tool/per-transport latency aggregators, a transport circuit breaker, modal/sync-locked detection (`OF_BUSY`), and an opt-in persistent `osascript` transport (default off, soaking before it becomes default in a later release).
+
+**Compatibility** — Node 24+ • macOS 12+ • OmniFocus 4.x • MCP protocol 2024-11-05. **One breaking change** (`content[].text`); see the Migration note below and [`docs/migrations.md`](./docs/migrations.md).
+
+**Migration (v1 → v2)** — If your client reads `result.structuredContent` (the typed envelope), **no action is needed** — that field is unchanged in shape and content. If your client parses the JSON string in `result.content[].text`, switch to `structuredContent`, or set `OMNIFOCUS_LEGACY_TEXT_CONTENT=1` in the server environment as a temporary bridge that restores the v1 duplicated-text behavior (read once at startup; the flag is supported indefinitely). Full rationale in [ADR-0022](./docs/adr/0022-envelope-text-content-duplication.md); step-by-step guide in [`docs/migrations.md`](./docs/migrations.md).
+
+### Highlights
+
+- **Token efficiency** — `content[].text` deduplication (≈2× smaller responses), `maxOutputBytes` truncation caps on `task_list` / `search_query` / `project_list` / `get_many` / `tag_list` / `forecast_get`, init-handshake response-density negotiation, and `_links` made opt-in (default off) so the HATEOAS block no longer rides along uninvited.
+- **Repetition CRUD fixed end-to-end** — writes now persist via OmniJS `Task.RepetitionRule` and reads parse the OF 4.x `recurrence` RRULE correctly (previously every repetition read returned `null`); `start-again` now maps to the real `DeferUntilDate` method instead of silently degrading to `fixed`. Closes [#938](https://github.com/torsday/omnifocus-mcp/issues/938), [#1071](https://github.com/torsday/omnifocus-mcp/issues/1071).
+- **OmniFocus 4.x write correctness** — `task_batch_create` no longer fails every item with -10024 ([#1074](https://github.com/torsday/omnifocus-mcp/issues/1074)); `project_create` with a review interval is now atomic and honors the interval ([#1073](https://github.com/torsday/omnifocus-mcp/issues/1073)); `forecast_get` buckets by local day rather than UTC ([#1035](https://github.com/torsday/omnifocus-mcp/issues/1035), [#1036](https://github.com/torsday/omnifocus-mcp/issues/1036)).
+- **Performance** — `flattenedX.byId()` migration across the JXA read/write surface ([#788](https://github.com/torsday/omnifocus-mcp/issues/788)) replaces O(n) Apple-event scans with direct id lookups; an opt-in persistent `osascript` transport (behind `OMNIFOCUS_PERSISTENT_OSASCRIPT`, default off) showed a 73% cold-p95 drop in micro-benchmarks and is soaking before the default flips.
+- **Operability** — new `omnifocus_doctor` self-diagnostic tool, per-tool and per-transport latency/duration aggregators in `internal_status`, an opt-in JSONL telemetry sink, a transport-level circuit breaker, and modal/sync-locked detection surfaced as `OF_BUSY`.
+
+The categorized commit-level detail follows.
 
 ### ⚠ BREAKING CHANGES
 
