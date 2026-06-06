@@ -159,3 +159,11 @@ Seed mcp-fixture: prefixed items into a live OmniFocus for integration tests.
 ```bash
 node scripts/seed-integration-db.js [--clean]
 ```
+
+### clean-integration-db.js
+
+Delete every mcp-fixture* item from a live OmniFocus (no re-seed). Safety net for killed suites that skip afterAll teardown; runs as test:integration's posttest hook and the CI if:always() cleanup step.
+
+```bash
+node scripts/clean-integration-db.js [--dry-run]
+```
