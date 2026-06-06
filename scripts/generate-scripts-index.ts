@@ -148,6 +148,13 @@ const SCRIPTS: ScriptEntry[] = [
     usage: "node scripts/seed-integration-db.js [--clean]",
     group: "integration",
   },
+  {
+    file: "clean-integration-db.js",
+    description:
+      "Delete every mcp-fixture* item from a live OmniFocus (no re-seed). Safety net for killed suites that skip afterAll teardown; runs as test:integration's posttest hook and the CI if:always() cleanup step.",
+    usage: "node scripts/clean-integration-db.js [--dry-run]",
+    group: "integration",
+  },
 ];
 
 // Group display order and labels

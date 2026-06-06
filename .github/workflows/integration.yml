@@ -242,6 +242,18 @@ jobs:
           OMNIFOCUS_LOG_LEVEL: warn     # Suppress noise; failures are still visible
         run: pnpm test:integration
 
+      - name: Clean up fixtures
+        # `if: always()` is the whole point (#1101). The sandbox harness
+        # bulk-deletes its own `mcp-fixture-<runId>` folder in `afterAll`,
+        # but a killed suite (timeout, job cancel, crash) skips that teardown
+        # and leaves the fixture tree in the live database — which is how a
+        # ~60-object sandbox tree survived a cancelled release-pipeline run.
+        # The pre-suite seed `--clean` only sweeps on the *next* run, which
+        # may be days away; this step sweeps now, every time, pass or fail.
+        # Clean-only (no re-seed) so it's a pure teardown.
+        if: always()
+        run: node scripts/clean-integration-db.js
+
       - name: Upload test results on failure
         if: failure()
         uses: actions/upload-artifact@v7
