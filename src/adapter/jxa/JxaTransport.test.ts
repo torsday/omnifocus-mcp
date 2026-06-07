@@ -64,10 +64,46 @@ describe("JxaTransport — syncTrigger (wired)", () => {
   });
 });
 
-describe("JxaTransport — getLastSync (interim)", () => {
-  it("returns a null status until the lifecycle layer (#25) lands", async () => {
+describe("JxaTransport — getLastSync (#1110 read-back cache)", () => {
+  it("returns a null status before the first syncTrigger of the process", async () => {
     const t = new JxaTransport({ spawner: spawnerReturning("{}") });
     expect(await t.getLastSync()).toEqual({ lastSyncAt: null, inFlight: false });
+  });
+
+  it("returns the timestamp cached from a prior syncTrigger", async () => {
+    const t = new JxaTransport({
+      spawner: spawnerReturning('{"lastSyncAt":"2026-04-21T12:00:00.000Z","inFlight":false}'),
+    });
+    await t.syncTrigger();
+    expect(await t.getLastSync()).toEqual({
+      lastSyncAt: "2026-04-21T12:00:00.000Z",
+      inFlight: false,
+    });
+  });
+
+  it("a null-timestamp syncTrigger does not clobber a previously cached value", async () => {
+    // First sync returns a concrete timestamp; the second reports in-flight
+    // with no timestamp — the cache must keep the known-good value.
+    const stdouts = [
+      '{"lastSyncAt":"2026-04-21T12:00:00.000Z","inFlight":false}',
+      '{"lastSyncAt":null,"inFlight":true}',
+    ];
+    let call = 0;
+    const spawner: ScriptSpawner = vi.fn(
+      async (): Promise<SpawnResult> => ({
+        stdout: stdouts[Math.min(call++, stdouts.length - 1)] ?? "{}",
+        stderr: "",
+        exitCode: 0,
+        timedOut: false,
+      }),
+    );
+    const t = new JxaTransport({ spawner });
+    await t.syncTrigger();
+    await t.syncTrigger();
+    expect(await t.getLastSync()).toEqual({
+      lastSyncAt: "2026-04-21T12:00:00.000Z",
+      inFlight: false,
+    });
   });
 });
 
