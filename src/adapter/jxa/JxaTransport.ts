@@ -189,6 +189,17 @@ function isWindowError<T>(
 export class JxaTransport implements OmniFocusAdapter {
   private readonly runOpts: RunScriptOptions;
 
+  /**
+   * Process-local cache of the most recent successful sync (#1110). OmniFocus
+   * exposes no "last sync timestamp" property to read back, so `getLastSync`
+   * surfaces this — populated by `syncTrigger` whenever it returns a concrete
+   * timestamp. `null` until the first `syncTrigger` of the process. This is
+   * the read-back cache the lifecycle layer (#25) anticipated; scoped to the
+   * transport instance (syncTrigger + getLastSync both route to this same
+   * jxa instance per the router).
+   */
+  private lastSync: SyncStatus | null = null;
+
   constructor(options: JxaTransportOptions = {}) {
     this.runOpts = {
       ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
@@ -1125,16 +1136,20 @@ export class JxaTransport implements OmniFocusAdapter {
       {},
       { ...this.runOpts, scriptName: "sync_trigger" },
     );
+    // Populate the read-back cache (#1110) when sync produced a timestamp, so
+    // getLastSync / internal_status agree with this result. A null result
+    // (sync in flight, never synced) doesn't overwrite a known-good value.
+    if (result.lastSyncAt !== null) {
+      this.lastSync = result;
+    }
     return result;
   }
 
   async getLastSync(): Promise<SyncStatus> {
-    // `getLastSync` is a pure read with no JXA equivalent — OmniFocus does
-    // not expose a "last sync timestamp" property on the document. The real
-    // implementation will surface this from a process-local cache populated
-    // by `syncTrigger`. The lifecycle layer (#25) owns that cache; until
-    // it lands, signal "unknown" rather than a misleading timestamp.
-    return { lastSyncAt: null, inFlight: false };
+    // OmniFocus exposes no "last sync timestamp" property to read directly, so
+    // surface the process-local cache populated by syncTrigger (#1110). `null`
+    // before the first syncTrigger of this process — correct, not misleading.
+    return this.lastSync ?? { lastSyncAt: null, inFlight: false };
   }
 
   // -- Change detection ------------------------------------------------------
