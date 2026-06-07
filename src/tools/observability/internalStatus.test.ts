@@ -44,6 +44,7 @@ function makeCtx(
       | import("../../observability/toolDurationStats.js").ToolDurationSnapshot
       | null;
     probeTransportStats?: () => import("../../observability/transportStats.js").PersistentTransportStats;
+    probeQueueDepth?: () => number;
   } = {},
 ) {
   const adapter = {
@@ -84,6 +85,9 @@ function makeCtx(
   }
   if (overrides.probeTransportStats !== undefined) {
     ctx.probeTransportStats = overrides.probeTransportStats;
+  }
+  if (overrides.probeQueueDepth !== undefined) {
+    ctx.probeQueueDepth = overrides.probeQueueDepth;
   }
   return ctx;
 }
@@ -143,10 +147,26 @@ describe("internal_status — handler", () => {
     expect(envelope.data.circuits).toEqual([{ name: "task_list", state: "closed" }]);
   });
 
-  it("returns cache=null and queueDepth=null (not yet tracked)", async () => {
+  it("returns cache=null and queueDepth=null when no probes are wired", async () => {
     const ctx = makeCtx();
     const envelope = await handleInternalStatus({}, ctx);
     expect(envelope.data.cache).toBeNull();
+    expect(envelope.data.queueDepth).toBeNull();
+  });
+
+  it("returns queueDepth from probeQueueDepth when wired (#1108)", async () => {
+    const ctx = makeCtx({ probeQueueDepth: () => 4 });
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.queueDepth).toBe(4);
+  });
+
+  it("surfaces queueDepth=null when the probe throws (#1108)", async () => {
+    const ctx = makeCtx({
+      probeQueueDepth: () => {
+        throw new Error("probe boom");
+      },
+    });
+    const envelope = await handleInternalStatus({}, ctx);
     expect(envelope.data.queueDepth).toBeNull();
   });
 
