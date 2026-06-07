@@ -7,22 +7,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [2.0.1](https://github.com/torsday/omnifocus-mcp/compare/v2.0.0...v2.0.1) (2026-06-07)
 
+**Summary** — A maintenance patch that makes three server-health and transport reads tell the truth. `internal_status.queueDepth` now reflects real pending work instead of a constant `null`; `getLastSync` agrees with `sync_trigger` instead of returning a stale stub; and slow-database read timeouts are now classified as `Timeout` — so the transport circuit breaker can engage — rather than masquerading as a transient `OF_BUSY`. Rounding out the release: an internal JXA refactor that de-duplicates the batch-dispatch path, and a migration-doc touch-up. No API, schema, or wire-format changes — a safe drop-in upgrade from v2.0.0.
 
 ### Fixed
 
-* **observability:** wire internal_status.queueDepth to live pool depth ([0be8a39](https://github.com/torsday/omnifocus-mcp/commit/0be8a3966f243d5263f571c0c75cf49a56467961)), closes [#1108](https://github.com/torsday/omnifocus-mcp/issues/1108)
-* **sync:** cache last-sync timestamp so getLastSync matches sync_trigger ([d532e25](https://github.com/torsday/omnifocus-mcp/commit/d532e25e94ddaf864abcc5d4e1c8213ecad150c1)), closes [#1110](https://github.com/torsday/omnifocus-mcp/issues/1110)
-* **transport:** make busy-probe representative so slow-DB timeouts stay Timeout ([4166794](https://github.com/torsday/omnifocus-mcp/commit/41667944d93e67922ee79d68ede735a30b400ac6)), closes [#1109](https://github.com/torsday/omnifocus-mcp/issues/1109)
-
+* **observability: report live queue depth in `internal_status`** ([#1108](https://github.com/torsday/omnifocus-mcp/issues/1108)) —
+  `internal_status.queueDepth` was hardcoded to `null`, silently hiding read-pool and
+  write-queue saturation from anyone inspecting server health. It now reports live pending
+  work (in-flight + waiting) summed across the read pool and both write queues, so contention
+  is visible at a glance. The value is read from in-process counters only — `internal_status`
+  never calls OmniFocus, so its no-JXA / no-side-effects contract is preserved.
+  ([0be8a39](https://github.com/torsday/omnifocus-mcp/commit/0be8a3966f243d5263f571c0c75cf49a56467961))
+* **sync: make `getLastSync` agree with `sync_trigger`** ([#1110](https://github.com/torsday/omnifocus-mcp/issues/1110)) —
+  `getLastSync` returned a `null` stub that contradicted the live timestamp reported by
+  `sync_trigger`, so `sync_status` and `internal_status.lastSync` could disagree about whether
+  a sync had ever happened. The transport now caches the last-sync timestamp on each successful
+  sync and returns it consistently across both surfaces.
+  ([d532e25](https://github.com/torsday/omnifocus-mcp/commit/d532e25e94ddaf864abcc5d4e1c8213ecad150c1))
+* **transport: classify slow-database timeouts as `Timeout`, not `OF_BUSY`** ([#1109](https://github.com/torsday/omnifocus-mcp/issues/1109)) —
+  After a call timed out, the responsiveness probe read only `defaultDocument.name()` — a
+  static property that answers even when the task database is too slow to query — so a slow-DB
+  read timeout (for example, a full scan contending with an in-flight sync) was misclassified
+  as a transient `OF_BUSY` instead of `Timeout`. That also kept the transport circuit breaker
+  from ever engaging on a genuinely slow database. The probe now also reads
+  `flattenedTasks.length` (an O(1) count that actually exercises the database layer), so a slow
+  DB classifies as `Timeout` while a healthy-but-modal-blocked call still reads as `OF_BUSY`.
+  ([4166794](https://github.com/torsday/omnifocus-mcp/commit/41667944d93e67922ee79d68ede735a30b400ac6))
 
 ### Changed
 
-* **jxa:** extract shared runBatchScript dispatch helper ([49a2505](https://github.com/torsday/omnifocus-mcp/commit/49a2505250ef51449c39ca2327b4ba01a1ba22bf)), closes [#1106](https://github.com/torsday/omnifocus-mcp/issues/1106)
-
+* **jxa: extract a shared `runBatchScript` dispatch helper** ([#1106](https://github.com/torsday/omnifocus-mcp/issues/1106)) —
+  The nine JXA batch methods each repeated the same spawn / lift-id / error-mapping boilerplate.
+  They now delegate to a single shared `runBatchScript<T>` helper. Internal refactor only —
+  no behavior change and no change to any tool's inputs or outputs.
+  ([49a2505](https://github.com/torsday/omnifocus-mcp/commit/49a2505250ef51449c39ca2327b4ba01a1ba22bf))
 
 ### Documentation
 
-* **migrations:** mark v2.0.0 section as released ([#1100](https://github.com/torsday/omnifocus-mcp/issues/1100)) ([556cd2a](https://github.com/torsday/omnifocus-mcp/commit/556cd2a114aa7789249792365fb338bc57f47086))
+* **migrations: mark the v2.0.0 section as released** ([#1100](https://github.com/torsday/omnifocus-mcp/issues/1100)) —
+  Flipped the v2.0.0 entry in `docs/migrations.md` from "unreleased" to released now that
+  v2.0.0 is published, so the migration guide reflects the live release state.
+  ([556cd2a](https://github.com/torsday/omnifocus-mcp/commit/556cd2a114aa7789249792365fb338bc57f47086))
 
 ## [2.0.0](https://github.com/torsday/omnifocus-mcp/compare/v1.5.3...v2.0.0) (2026-06-05)
 
