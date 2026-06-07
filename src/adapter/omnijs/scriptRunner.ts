@@ -301,11 +301,11 @@ async function runOmniJsScriptInner<T>(
   }
 
   // 2. Hard timeout. Post-hoc classification (see #817 / JXA twin): if OF
-  //    answers a cheap responsiveness probe immediately, the timed-out
-  //    call was Busy (modal / sync) rather than wedged. The probe runs on
-  //    the JXA bridge regardless of which transport hit the timeout —
-  //    `defaultDocument.name()` is a vanilla JXA call and a single source
-  //    of truth for "is OmniFocus reachable at all?".
+  //    answers a bounded responsiveness probe immediately, the timed-out
+  //    call was Busy (modal / sync) rather than wedged or DB-slow. The probe
+  //    runs on the JXA bridge regardless of which transport hit the timeout;
+  //    it reads the doc name + a flattenedTasks count (#1109) so a slow/locked
+  //    database reads as unresponsive (→ Timeout) rather than Busy.
   if (result.timedOut) {
     const suffix = scriptName !== undefined ? ` (script: ${scriptName})` : "";
     const probe = await probeOmniFocusResponsiveness(spawner);

@@ -34,16 +34,35 @@ import type { ScriptSpawner, SpawnResult } from "../jxa/scriptRunner.js";
 export const DEFAULT_PROBE_TIMEOUT_MS = 500;
 
 /**
- * The cheapest non-permission-triggering JXA call we can issue. Reading
- * `defaultDocument.name` requires no Automation permission against
- * OmniFocus (it's `application object > document > name` — a static
- * property), and the call returns whether or not a modal is open as
- * long as OF's AppleEvent queue is actually moving.
+ * A bounded, representative probe of OmniFocus responsiveness (#1109).
+ *
+ * The original probe read only `defaultDocument.name()` — a static property
+ * that answers even when the *database* is too slow to query. That
+ * misclassified slow-DB read timeouts (e.g. a full `task_search` scan
+ * contending with an in-flight sync) as transient `OFBusy` instead of
+ * `Timeout`, which (a) gave a misleading "modal/sync" message and (b) kept
+ * the transport circuit breaker from ever engaging on a genuinely slow DB.
+ *
+ * This version also touches the task collection: reading
+ * `flattenedTasks.length` exercises the database layer the real read scripts
+ * depend on, but stays O(1) (a count, not an iteration) so a *healthy* DB —
+ * even a large one — still answers within the short probe budget. The
+ * distinction we want:
+ *   - DB fast, original call blocked by a modal sheet → probe returns quickly
+ *     → `responsive` → `OFBusy` (correct: user-actionable).
+ *   - DB itself slow/locked → probe also exceeds the budget → `unresponsive`
+ *     → `Timeout` (correct: the circuit breaker can now back off / surface a
+ *     wedge).
+ *
+ * Requires no Automation permission beyond what a normal read already needs;
+ * `flattenedTasks` is reachable on `defaultDocument` the same way the read
+ * scripts reach it.
  */
 export const RESPONSIVENESS_PROBE_SCRIPT = `
 (function() {
   const of = Application("OmniFocus");
-  return JSON.stringify({ name: of.defaultDocument.name() });
+  const doc = of.defaultDocument;
+  return JSON.stringify({ name: doc.name(), taskCount: doc.flattenedTasks.length });
 })()
 `;
 

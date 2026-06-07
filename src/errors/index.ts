@@ -264,10 +264,11 @@ export class ConflictError extends OmniFocusError {
  * transport circuit, #835) and {@link OmniFocusNotRunning} (app exited).
  *
  * Detected post-hoc: after a JXA `Timeout` fires, the runner sends a
- * cheap responsiveness probe (`defaultDocument.name()`) with a short
- * timeout. If the probe succeeds, OmniFocus itself is up and answering
- * AppleEvents — so the timed-out call was specifically blocked, almost
- * always by a UI-level modal or in-flight sync. Surface as user-action.
+ * bounded responsiveness probe (doc name + a `flattenedTasks` count, #1109)
+ * with a short timeout. If the probe succeeds, OmniFocus is up AND its
+ * database answers quickly — so the timed-out call was specifically blocked,
+ * almost always by a UI-level modal or in-flight sync. A slow/locked DB
+ * fails the probe and stays a `Timeout`. Surface as user-action.
  */
 export class OFBusy extends OmniFocusError {
   constructor(message: string, options: ErrorOptions = {}) {

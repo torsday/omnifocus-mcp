@@ -6,7 +6,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { ScriptSpawner, SpawnResult } from "../jxa/scriptRunner.js";
-import { probeOmniFocusResponsiveness } from "./busyProbe.js";
+import { probeOmniFocusResponsiveness, RESPONSIVENESS_PROBE_SCRIPT } from "./busyProbe.js";
 
 function spawnerReturning(
   result: Partial<SpawnResult> & Pick<SpawnResult, "stdout" | "stderr" | "exitCode" | "timedOut">,
@@ -73,12 +73,19 @@ describe("probeOmniFocusResponsiveness", () => {
 
   it("passes the supplied timeoutMs through to the spawner", async () => {
     const spawner = vi.fn().mockResolvedValue({
-      stdout: '{"name":"OmniFocus"}',
+      stdout: '{"name":"OmniFocus","taskCount":0}',
       stderr: "",
       exitCode: 0,
       timedOut: false,
     } as SpawnResult);
     await probeOmniFocusResponsiveness(spawner, 250);
     expect(spawner).toHaveBeenCalledWith(expect.any(String), "{}", 250);
+  });
+
+  it("probe script touches the task tree, not just a static property (#1109)", () => {
+    // The representativeness guarantee: a slow/locked DB must fail the probe.
+    // Reading flattenedTasks exercises the database layer; reading only the
+    // doc name would answer even when the task tree is unqueryable.
+    expect(RESPONSIVENESS_PROBE_SCRIPT).toContain("flattenedTasks");
   });
 });
