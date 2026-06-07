@@ -196,6 +196,25 @@ export class JxaTransport implements OmniFocusAdapter {
     };
   }
 
+  /**
+   * Run a batch JXA script and lift its raw `{succeeded, failed}` result to
+   * branded domain ids. Every `batch*` method shares this dispatch shape — the
+   * only per-method variation is the script, its payload, the scriptName tag,
+   * and the id constructor — so it lives here once.
+   */
+  private async runBatchScript<T>(
+    script: string,
+    payload: unknown,
+    scriptName: string,
+    liftId: (value: string) => T,
+  ): Promise<import("../../domain/batch.js").BatchOutcome<T>> {
+    const raw = await runJxaScript<RawBatchScriptResult>(script, payload, {
+      ...this.runOpts,
+      scriptName,
+    });
+    return mapBatchScriptResult(raw, liftId);
+  }
+
   // -- Tasks (wired) --------------------------------------------------------
 
   async listTasks(filter: TaskFilter): Promise<Task[]> {
@@ -437,7 +456,7 @@ export class JxaTransport implements OmniFocusAdapter {
   async batchCreateTasks(
     inputs: CreateTaskInput[],
   ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
-    const raw = await runJxaScript<RawBatchScriptResult>(
+    return this.runBatchScript(
       taskBatchCreateScript,
       {
         inputs: inputs.map((i) => ({
@@ -454,75 +473,75 @@ export class JxaTransport implements OmniFocusAdapter {
           completedByChildren: i.completedByChildren ?? false,
         })),
       },
-      { ...this.runOpts, scriptName: "task_batch_create" },
+      "task_batch_create",
+      TaskIdCtor.of,
     );
-    return mapBatchScriptResult(raw, TaskIdCtor.of);
   }
 
   async batchUpdateTasks(
     updates: Array<{ id: TaskId; patch: UpdateTaskInput }>,
   ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
-    const raw = await runJxaScript<RawBatchScriptResult>(
+    return this.runBatchScript(
       taskBatchUpdateScript,
       { updates },
-      { ...this.runOpts, scriptName: "task_batch_update" },
+      "task_batch_update",
+      TaskIdCtor.of,
     );
-    return mapBatchScriptResult(raw, TaskIdCtor.of);
   }
 
   async batchCompleteTasks(
     items: Array<{ id: TaskId; at?: Date }>,
   ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
-    const raw = await runJxaScript<RawBatchScriptResult>(
+    return this.runBatchScript(
       taskBatchCompleteScript,
       { items: items.map((it) => ({ id: it.id, at: it.at?.toISOString() ?? null })) },
-      { ...this.runOpts, scriptName: "task_batch_complete" },
+      "task_batch_complete",
+      TaskIdCtor.of,
     );
-    return mapBatchScriptResult(raw, TaskIdCtor.of);
   }
 
   async batchUncompleteTasks(
     items: Array<{ id: TaskId }>,
   ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
-    const raw = await runJxaScript<RawBatchScriptResult>(
+    return this.runBatchScript(
       taskBatchUncompleteScript,
       { items: items.map((it) => ({ id: it.id })) },
-      { ...this.runOpts, scriptName: "task_batch_uncomplete" },
+      "task_batch_uncomplete",
+      TaskIdCtor.of,
     );
-    return mapBatchScriptResult(raw, TaskIdCtor.of);
   }
 
   async batchDeleteTasks(
     items: Array<{ id: TaskId }>,
   ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
-    const raw = await runJxaScript<RawBatchScriptResult>(
+    return this.runBatchScript(
       taskBatchDeleteScript,
       { items: items.map((it) => ({ id: it.id })) },
-      { ...this.runOpts, scriptName: "task_batch_delete" },
+      "task_batch_delete",
+      TaskIdCtor.of,
     );
-    return mapBatchScriptResult(raw, TaskIdCtor.of);
   }
 
   async batchDropTasks(
     items: Array<{ id: TaskId }>,
   ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
-    const raw = await runJxaScript<RawBatchScriptResult>(
+    return this.runBatchScript(
       taskBatchDropScript,
       { items: items.map((it) => ({ id: it.id })) },
-      { ...this.runOpts, scriptName: "task_batch_drop" },
+      "task_batch_drop",
+      TaskIdCtor.of,
     );
-    return mapBatchScriptResult(raw, TaskIdCtor.of);
   }
 
   async batchUndropTasks(
     items: Array<{ id: TaskId }>,
   ): Promise<import("../../domain/batch.js").BatchOutcome<TaskId>> {
-    const raw = await runJxaScript<RawBatchScriptResult>(
+    return this.runBatchScript(
       taskBatchUndropScript,
       { items: items.map((it) => ({ id: it.id })) },
-      { ...this.runOpts, scriptName: "task_batch_undrop" },
+      "task_batch_undrop",
+      TaskIdCtor.of,
     );
-    return mapBatchScriptResult(raw, TaskIdCtor.of);
   }
 
   // -- Projects (wired) -----------------------------------------------------
@@ -613,23 +632,23 @@ export class JxaTransport implements OmniFocusAdapter {
   async batchCompleteProjects(
     items: Array<{ id: ProjectId }>,
   ): Promise<import("../../domain/batch.js").BatchOutcome<ProjectId>> {
-    const raw = await runJxaScript<RawBatchScriptResult>(
+    return this.runBatchScript(
       projectBatchCompleteScript,
       { items: items.map((it) => ({ id: it.id })) },
-      { ...this.runOpts, scriptName: "project_batch_complete" },
+      "project_batch_complete",
+      ProjectIdCtor.of,
     );
-    return mapBatchScriptResult(raw, ProjectIdCtor.of);
   }
 
   async batchDropProjects(
     items: Array<{ id: ProjectId }>,
   ): Promise<import("../../domain/batch.js").BatchOutcome<ProjectId>> {
-    const raw = await runJxaScript<RawBatchScriptResult>(
+    return this.runBatchScript(
       projectBatchDropScript,
       { items: items.map((it) => ({ id: it.id })) },
-      { ...this.runOpts, scriptName: "project_batch_drop" },
+      "project_batch_drop",
+      ProjectIdCtor.of,
     );
-    return mapBatchScriptResult(raw, ProjectIdCtor.of);
   }
 
   async moveProject(id: ProjectId, destination: { folderId: FolderId | null }): Promise<void> {
