@@ -200,6 +200,15 @@ export interface InternalStatusContext {
    * counters for the long-lived osascript child. Omitting surfaces as `null`.
    */
   probeTransportStats?: () => PersistentTransportStats;
+  /**
+   * Optional queue-depth probe (#1108). Returns total pending work
+   * (in-flight + waiting) across the read pool and write queues, so read-pool
+   * saturation is visible in status — the field that was previously a constant
+   * `null`, hiding contention. Reads in-process counters only; never calls the
+   * transport, preserving this tool's no-JXA contract. Omitting surfaces as
+   * `null`.
+   */
+  probeQueueDepth?: () => number;
 }
 
 /**
@@ -294,6 +303,15 @@ export async function handleInternalStatus(
     }
   }
 
+  let queueDepth: number | null = null;
+  if (ctx.probeQueueDepth !== undefined) {
+    try {
+      queueDepth = ctx.probeQueueDepth();
+    } catch {
+      queueDepth = null;
+    }
+  }
+
   const data: InternalStatusData = {
     uptimeMs,
     ofRunning: true,
@@ -302,7 +320,7 @@ export async function handleInternalStatus(
     mutation,
     cache,
     circuits,
-    queueDepth: null,
+    queueDepth,
     responseStats,
     latencyStats,
     toolDurationStats,

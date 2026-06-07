@@ -473,6 +473,10 @@ export async function startServer(): Promise<void> {
       loopDetectorKeys: loopDetector.size,
     }),
     probeTransportStats: () => getPersistentTransportStats(),
+    // Total pending work across the read pool + both write queues (#1108).
+    // In-process counters only — preserves internal_status's no-JXA contract.
+    probeQueueDepth: () =>
+      readPool.pendingCount() + jxaWriteQueue.pendingCount() + omniJsQueue.pendingCount(),
   });
 
   // Register MCP prompts (DESIGN §29) — four workflow templates.
