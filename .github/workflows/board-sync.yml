@@ -24,7 +24,9 @@ on:
     # makes the status-checks gate honest. (#905)
     types: [opened, reopened, ready_for_review, closed, synchronize]
   issues:
-    types: [closed, reopened]
+    # `opened` → add the new issue to the board in Backlog so externally-filed
+    # reports enter the tracked queue (tier / priority stay a human/groom call).
+    types: [opened, closed, reopened]
 
 permissions:
   contents: read
@@ -129,6 +131,60 @@ jobs:
             fi
             gh issue edit "$n" --remove-label "status: in-progress" 2>/dev/null || true
           done
+
+  issue-opened:
+    # New issue (any author, including external bug/feature reports) → add to
+    # the board in Backlog so it enters the tracked queue. Tier (`model: *`)
+    # and Priority are deliberately left for human / `/groom` triage.
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check token
+        id: token
+        run: |
+          if [ -n "$GH_TOKEN" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::PROJECT_TOKEN not set — skipping board sync."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v6
+        if: steps.token.outputs.ok == 'true'
+
+      - name: Load project constants
+        if: steps.token.outputs.ok == 'true'
+        run: |
+          if [ ! -f scripts/_project-constants.sh ]; then
+            echo "::warning::scripts/_project-constants.sh not found (gitignored; must be present on the runner). Skipping board sync."
+            exit 0
+          fi
+          # shellcheck source=../../scripts/_project-constants.sh
+          source scripts/_project-constants.sh
+          {
+            echo "PROJECT_ID=$PROJECT_ID"
+            echo "STATUS_FIELD=$F_STATUS"
+            echo "OPT_BACKLOG=$STATUS_BACKLOG"
+          } >> "$GITHUB_ENV"
+
+      - name: Add issue to board → Backlog
+        if: steps.token.outputs.ok == 'true'
+        env:
+          CONTENT_ID: ${{ github.event.issue.node_id }}
+        run: |
+          # addProjectV2ItemById is idempotent — re-adding an issue already on
+          # the project returns its existing item id, so this never duplicates.
+          item=$(gh api graphql \
+            -f query='mutation($p:ID!,$c:ID!){addProjectV2ItemById(input:{projectId:$p,contentId:$c}){item{id}}}' \
+            -F p="$PROJECT_ID" -F c="$CONTENT_ID" \
+            --jq '.data.addProjectV2ItemById.item.id' || true)
+          if [ -z "$item" ]; then
+            echo "::warning::failed to add issue to project — skipping Status flip"
+            exit 0
+          fi
+          gh api graphql -f query="mutation{updateProjectV2ItemFieldValue(input:{projectId:\"$PROJECT_ID\",itemId:\"$item\",fieldId:\"$STATUS_FIELD\",value:{singleSelectOptionId:\"$OPT_BACKLOG\"}}){projectV2Item{id}}}" >/dev/null
+          echo "#${{ github.event.issue.number }} added to board → Backlog"
 
   issue-closed:
     if: github.event_name == 'issues' && github.event.action == 'closed'
