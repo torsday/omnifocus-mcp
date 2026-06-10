@@ -289,6 +289,19 @@ describe("TaskService.list — cache", () => {
     expect(spy).toHaveBeenCalledTimes(2);
   });
 
+  it("same filters with a different limit do not share a cache entry", async () => {
+    const { service, adapter } = makeHarness();
+    for (let i = 0; i < 4; i++) await adapter.createTask({ name: `t${i}`, flagged: true });
+    const first = await service.list({ flagged: true, limit: 2 });
+    expect(first.tasks).toHaveLength(2);
+    expect(first.hasMore).toBe(true);
+    // Re-issuing with a larger limit must not serve the stale limit-2 page.
+    const second = await service.list({ flagged: true, limit: 4 });
+    expect(second.cacheHit).toBe(false);
+    expect(second.tasks).toHaveLength(4);
+    expect(second.hasMore).toBe(false);
+  });
+
   it("toggling includeLinks does not fragment the cache", async () => {
     const { service, adapter } = makeHarness();
     await adapter.createTask({ name: "a", flagged: true });

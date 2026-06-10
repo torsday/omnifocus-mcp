@@ -17,7 +17,7 @@
  *    ASC, id ASC)` so inserts mid-pagination don't re-shuffle emitted
  *    pages. Cursors carry a `filterHash` so swapping filters mid-sequence
  *    fails loud rather than silently skipping pages (ADR-0013 contract).
- * 4. **Cache key** — `tasks:list:<filterHash>:<cursor|'first'>`. Every
+ * 4. **Cache key** — `search:tasks:<filterHash>:<limit>:<cursor|'first'>`. Every
  *    task mutation in the cache's scope (`task:<id>`) invalidates
  *    these entries; the service never needs to think about it.
  *
@@ -189,7 +189,7 @@ export class TaskService {
 
     const cursor = input.cursor !== undefined ? decodeCursor(input.cursor, filterHash) : undefined;
 
-    const cacheKey = this.cacheKeyFor(filterHash, input.cursor);
+    const cacheKey = this.cacheKeyFor(filterHash, limit, input.cursor);
     const cacheHit = this.cache.has(cacheKey);
 
     // The cached payload is the final page slice — not the adapter's raw list —
@@ -477,11 +477,14 @@ export class TaskService {
 
   // -- Internal: cache key + cursor --------------------------------------
 
-  private cacheKeyFor(filterHash: string, cursor: string | undefined): string {
+  private cacheKeyFor(filterHash: string, limit: number, cursor: string | undefined): string {
     // Prefix chosen to align with the `search:*` invalidation scope if we
     // decide to widen it later; for now, treat task list results as
     // task-scoped (every task:* invalidation also wipes them).
-    return `search:tasks:${filterHash}:${cursor ?? "first"}`;
+    // `limit` is part of the key (the cached value is the limit-sized page
+    // slice) but deliberately NOT part of the filterHash, so cursors survive
+    // limit changes mid-sequence.
+    return `search:tasks:${filterHash}:${limit}:${cursor ?? "first"}`;
   }
 
   private encodeNextCursor(
