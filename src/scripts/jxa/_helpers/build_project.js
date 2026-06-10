@@ -122,8 +122,18 @@ function buildProject(proj) {
 
   let reviewIntervalDays = null;
   try {
+    // OF 4.x JXA bridges the sdef record-type `review interval` as a plain
+    // object — `{ unit, steps, fixed }` with value fields, not accessors.
+    // Calling `ri.steps()` throws (same bug class as #1071's repetition
+    // read), and the runtime convenience `reviewIntervalDays()` does not
+    // exist on OF 4.8.x ("Can't convert types"), so convert the record by
+    // unit. Month/year are calendar-approximate; minute/hour can't be set
+    // as review cadences in the OF UI and stay null.
     const ri = proj.reviewInterval();
-    if (ri?.steps) reviewIntervalDays = ri.steps();
+    if (ri && typeof ri.steps === "number" && ri.steps > 0) {
+      const unitDays = { day: 1, week: 7, month: 30, year: 365 }[ri.unit];
+      if (unitDays) reviewIntervalDays = ri.steps * unitDays;
+    }
   } catch (_e) {
     /* OF 4.x: property access may not exist on all object types — default used */
   }

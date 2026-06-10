@@ -768,6 +768,46 @@ describe("JXA sandbox — project_get", () => {
     );
     expect(result.project.status).toBe("on-hold");
   });
+
+  // The sdef record-type `review interval` bridges as a plain object — its
+  // fields are values, not accessors. The old code called `ri.steps()`, which
+  // throws on OF 4.x, and the swallowing catch reported null for EVERY
+  // project with a review cadence (same bug class as #1071).
+  it("reads reviewIntervalDays from the bridged review interval record", () => {
+    const p = fakeProject({
+      id: () => "project_only",
+      reviewInterval: () => ({ unit: "day", steps: 14, fixed: false }),
+    });
+    const result = runJxaScriptInSandbox<{ project: { reviewIntervalDays: number | null } }>(
+      projectGetScript,
+      { id: "project_only" },
+      { projects: [p] },
+    );
+    expect(result.project.reviewIntervalDays).toBe(14);
+  });
+
+  it("converts non-day review interval units to days", () => {
+    const p = fakeProject({
+      id: () => "project_only",
+      reviewInterval: () => ({ unit: "week", steps: 9, fixed: true }),
+    });
+    const result = runJxaScriptInSandbox<{ project: { reviewIntervalDays: number | null } }>(
+      projectGetScript,
+      { id: "project_only" },
+      { projects: [p] },
+    );
+    expect(result.project.reviewIntervalDays).toBe(63);
+  });
+
+  it("keeps reviewIntervalDays null when no interval is set", () => {
+    const p = fakeProject({ id: () => "project_only" });
+    const result = runJxaScriptInSandbox<{ project: { reviewIntervalDays: number | null } }>(
+      projectGetScript,
+      { id: "project_only" },
+      { projects: [p] },
+    );
+    expect(result.project.reviewIntervalDays).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1197,12 +1237,17 @@ describe("JXA sandbox — review_list_due", () => {
     expect(result.projects[0]?.id).toBe("project_broken");
   });
 
-  it("returns reviewIntervalDays and lastReviewDate when available", () => {
+  // reviewIntervalDays must come from the bridged `review interval` record
+  // ({ unit, steps, fixed } — plain values), unit-converted to days. The
+  // `reviewIntervalDays()` accessor does not exist on live OF 4.8.x (it
+  // throws "Can't convert types"), so the script must never depend on it.
+  it("returns reviewIntervalDays (unit-converted) and lastReviewDate when available", () => {
     const last = new Date("2026-04-01T00:00:00Z");
     const p = fakeProject({
       id: () => "project_full",
       nextReviewDate: () => null,
-      reviewIntervalDays: () => 14,
+      reviewInterval: () => ({ unit: "week", steps: 2, fixed: false }),
+      reviewIntervalDays: throwing(),
       lastReviewDate: () => last,
     });
     const result = runJxaScriptInSandbox<{
@@ -1212,11 +1257,11 @@ describe("JXA sandbox — review_list_due", () => {
     expect(result.projects[0]?.lastReviewDate).toBe(last.toISOString());
   });
 
-  it("falls back to null when reviewIntervalDays() throws", () => {
+  it("falls back to null when reviewInterval() throws", () => {
     const p = fakeProject({
       id: () => "project_throw_interval",
       nextReviewDate: () => null,
-      reviewIntervalDays: throwing(),
+      reviewInterval: throwing(),
     });
     const result = runJxaScriptInSandbox<{
       projects: { reviewIntervalDays: number | null }[];

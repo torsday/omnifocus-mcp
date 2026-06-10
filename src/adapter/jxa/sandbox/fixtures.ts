@@ -280,10 +280,13 @@ export interface FakeProjectOverrides {
   noteHtml?: () => string | null;
   creationDate?: () => Date;
   modificationDate?: () => Date;
+  // The sdef record-type `review interval` — JXA bridges it as a plain
+  // `{ unit, steps, fixed }` object. build_project.js and review_list_due.js
+  // convert it to a day count.
   reviewInterval?: () => unknown;
-  // OF 4.x exposes the review interval expressed in days as a separate
-  // computed property — review_list_due.js reads it directly via
-  // `p.reviewIntervalDays()`.
+  // Kept only for project_set_review_interval.js's setter assignment
+  // (`target.reviewIntervalDays = days`). The getter form does NOT exist on
+  // live OF 4.8.x — `p.reviewIntervalDays()` throws "Can't convert types".
   reviewIntervalDays?: () => number | null;
   nextReviewDate?: () => Date | null;
   effectiveStatus?: () => string;

@@ -46,9 +46,20 @@ function run(argv) {
       lastReviewDate = null;
     }
 
+    /** @type {number | null} */
     let reviewIntervalDays = null;
     try {
-      reviewIntervalDays = p.reviewIntervalDays();
+      // OF 4.8.x has no working `reviewIntervalDays()` accessor (it throws
+      // "Can't convert types"); read the sdef record-type `review interval`
+      // — bridged as a plain `{ unit, steps, fixed }` object — and convert
+      // by unit, mirroring `_helpers/build_project.js`.
+      const ri = /** @type {{ unit?: unknown, steps?: unknown } | null} */ (p.reviewInterval());
+      if (ri && typeof ri.steps === "number" && ri.steps > 0 && typeof ri.unit === "string") {
+        /** @type {Record<string, number | undefined>} */
+        const unitDaysByUnit = { day: 1, week: 7, month: 30, year: 365 };
+        const unitDays = unitDaysByUnit[ri.unit];
+        if (unitDays) reviewIntervalDays = ri.steps * unitDays;
+      }
     } catch (_e) {
       reviewIntervalDays = null;
     }
