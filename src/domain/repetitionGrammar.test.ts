@@ -94,6 +94,39 @@ const OK_FIXTURES: readonly OkFixture[] = [
     description: "every 2 weeks",
   },
 
+  // Bare every-{unit} — implicit count of 1 (the grammar's own canonical
+  // steps=1 description, so these must parse for round-trips to hold)
+  {
+    prose: "every day",
+    rule: { method: "fixed", unit: "days", steps: 1 },
+    description: "every day",
+  },
+  {
+    prose: "every week",
+    rule: { method: "fixed", unit: "weeks", steps: 1 },
+    description: "every week",
+  },
+  {
+    prose: "every month",
+    rule: { method: "fixed", unit: "months", steps: 1 },
+    description: "every month",
+  },
+  {
+    prose: "every year",
+    rule: { method: "fixed", unit: "years", steps: 1 },
+    description: "every year",
+  },
+  {
+    prose: "every hour",
+    rule: { method: "fixed", unit: "hours", steps: 1 },
+    description: "every hour",
+  },
+  {
+    prose: "every day at 9am",
+    rule: { method: "fixed", unit: "days", steps: 1 },
+    description: "every day, at 9am",
+  },
+
   // Weekday selection
   {
     prose: "every Monday",

@@ -267,6 +267,7 @@ interface FrequencyMatch {
  *   - "the {N} of (every|each) month"
  *   - "daily" / "weekly" / "monthly" / "yearly" / "annually"
  *   - "biweekly" / "fortnightly" / "bimonthly"
+ *   - "every {unit}" (bare — implicit count of 1)
  */
 function detectFrequency(text: string): FrequencyMatch | null {
   // Single-word frequencies
@@ -369,6 +370,16 @@ function detectFrequency(text: string): FrequencyMatch | null {
       const unique = Array.from(new Set(weekdays));
       return { rule: { unit: "weeks", steps: 1, weekdays: unique } };
     }
+  }
+
+  // Bare "every {unit}" — implicit count of 1. This is the grammar's own
+  // canonical steps=1 description (describeRule emits "every day" etc.), so
+  // it must round-trip. Placed last so "every Monday" / "every weekday" /
+  // "every other week" keep winning their dedicated branches above.
+  const everyBareUnit = text.match(/\bevery (minute|hour|day|week|month|year)s?\b/);
+  if (everyBareUnit) {
+    const unit = `${everyBareUnit[1]}s` as RepetitionRule["unit"];
+    return { rule: { unit, steps: 1 } };
   }
 
   return null;
