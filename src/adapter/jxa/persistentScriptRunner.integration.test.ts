@@ -52,6 +52,18 @@ describe.skipIf(!RUN)("persistent JXA transport — real osascript", () => {
     expect(JSON.parse(result.stdout)).toEqual({ event: "pong" });
   });
 
+  it("executes an expression-form script exactly once (no doubled side effects)", async () => {
+    transport = createPersistentJxaTransport();
+    // The child is long-lived, so a global counter observes every execution
+    // of the body — a probe-and-re-eval dispatch would report count: 2.
+    const result = await transport.spawner(
+      "(() => { globalThis.__execCount = (globalThis.__execCount || 0) + 1; return JSON.stringify({ count: globalThis.__execCount }); })()",
+      "{}",
+      5000,
+    );
+    expect(JSON.parse(result.stdout)).toEqual({ count: 1 });
+  });
+
   it("captures a script throw as a non-zero exit and keeps serving", async () => {
     transport = createPersistentJxaTransport();
     const thrown = await transport.spawner(

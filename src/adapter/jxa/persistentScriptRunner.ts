@@ -61,14 +61,23 @@ import type { ScriptSpawner, SpawnResult } from "./scriptRunner.js";
 // ---------------------------------------------------------------------------
 
 /**
- * Dispatch replicates one-shot osascript semantics for both script shapes:
+ * Dispatch replicates one-shot osascript semantics for both script shapes,
+ * executing the script exactly once:
  *
- *   - **run-form** (`function run(argv){…}`, 61/62 scripts): concatenated into
- *     an IIFE so `run` stays function-local. (A `run` introduced via a *nested*
- *     `eval` leaks to global, where osascript's run-handler machinery injects
- *     an empty `argv` — the spike proved IIFE-local capture avoids that.)
+ *   - **run-form** (`function run(argv){…}`, 61/62 scripts): detected by a
+ *     probe IIFE whose *leading* `return typeof run === 'function'` observes
+ *     the hoisted declaration before any body statement executes — so the
+ *     probe runs nothing. (The `var run;` shadows a stale global `run`, which
+ *     a pathological nested-`eval` script can leak, so the probe can't
+ *     false-positive.) The script is then concatenated into an IIFE so `run`
+ *     stays function-local. (A `run` introduced via a *nested* `eval` leaks
+ *     to global, where osascript's run-handler machinery injects an empty
+ *     `argv` — the spike proved IIFE-local capture avoids that.)
  *   - **expr-form** (`(() => …)()`, e.g. `ping.js`): no `run`, so the
- *     completion value of a plain `eval` is the result.
+ *     completion value of a plain `eval` is the result. The probe's early
+ *     return means that `eval` is the script's only execution — a combined
+ *     probe-and-execute would run the body during the probe and again for the
+ *     completion value, doubling side effects.
  */
 const PERSISTENT_RUNTIME_SRC = [
   'ObjC.import("Foundation");',
@@ -83,8 +92,11 @@ const PERSISTENT_RUNTIME_SRC = [
   "    out.writeData($.NSString.alloc.initWithUTF8String(j).dataUsingEncoding($.NSUTF8StringEncoding));",
   "  }",
   "  function dispatch(script, arg) {",
-  '    var fn = eval("(function(){ " + script + "\\n;return (typeof run === \'function\') ? run : null; })()");',
-  "    if (fn) return fn([arg]);",
+  '    var isRunForm = eval("(function(){ var run; return typeof run === \'function\'; " + script + "\\n })()");',
+  "    if (isRunForm) {",
+  '      var fn = eval("(function(){ " + script + "\\n;return run; })()");',
+  "      return fn([arg]);",
+  "    }",
   "    return eval(script);",
   "  }",
   "  while (true) {",
@@ -112,6 +124,13 @@ const PERSISTENT_RUNTIME_SRC = [
   "  }",
   "})();",
 ].join("\n");
+
+/**
+ * Test-only: the runtime source, so unit tests can pin the dispatch semantics
+ * (single execution per script shape) by evaluating it in Node. Mirrors the
+ * `__*ForTest` convention used elsewhere in the adapter layer.
+ */
+export const __PERSISTENT_RUNTIME_SRC_FOR_TEST = PERSISTENT_RUNTIME_SRC;
 
 // ---------------------------------------------------------------------------
 // Telemetry — {@link PersistentTransportStats} is defined in

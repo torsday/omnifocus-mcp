@@ -13,7 +13,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { launchFakePersistentChild } from "../../../tests/lib/fakePersistentChild.js";
 import { OmniFocusTransportRestarted } from "../../errors/index.js";
 import { __resetTransportCircuitsForTest } from "../_shared/transportCircuit.js";
-import { createPersistentJxaTransport } from "./persistentScriptRunner.js";
+import {
+  __PERSISTENT_RUNTIME_SRC_FOR_TEST,
+  createPersistentJxaTransport,
+} from "./persistentScriptRunner.js";
 import { runJxaScript } from "./scriptRunner.js";
 
 type Transport = ReturnType<typeof createPersistentJxaTransport>;
@@ -129,6 +132,64 @@ describe("persistent JXA transport — dispose", () => {
     expect(t.stats().alive).toBe(true);
     await t.dispose();
     expect(t.stats().alive).toBe(false);
+  });
+});
+
+describe("persistent runtime dispatch — single execution per script shape", () => {
+  // The runtime is a source string evaluated by osascript, but its `dispatch`
+  // is plain JS — so its semantics (one execution per call, both shapes) are
+  // pinned here by evaluating it in Node. The osascript-specific behavior
+  // (run-leak to global, fd-3 framing) is covered against the real binary in
+  // persistentScriptRunner.integration.test.ts.
+  type Dispatch = (script: string, arg: string) => unknown;
+
+  function extractDispatch(): Dispatch {
+    const match = __PERSISTENT_RUNTIME_SRC_FOR_TEST.match(
+      /function dispatch\(script, arg\) \{[\s\S]*?\n {2}\}/,
+    );
+    if (match === null) throw new Error("dispatch not found in runtime source");
+    // Indirect eval compiles dispatch in sloppy mode, matching the osascript
+    // runtime (this ESM test file is strict; the runtime program is not).
+    // biome-ignore lint/security/noGlobalEval: pinning the runtime's eval-based dispatch requires evaluating its source
+    return globalThis.eval(`(${match[0]})`) as Dispatch;
+  }
+
+  const G = globalThis as Record<string, unknown>;
+
+  afterEach(() => {
+    delete G.__exprCount;
+    delete G.__topLevelCount;
+    delete G.run;
+  });
+
+  it("executes an expression-form script exactly once and returns its completion value", () => {
+    const dispatch = extractDispatch();
+    G.__exprCount = 0;
+    const value = dispatch(
+      "(() => { globalThis.__exprCount = Number(globalThis.__exprCount) + 1; return 'v'; })()",
+      "{}",
+    );
+    expect(G.__exprCount).toBe(1); // old combined probe-and-execute ran it twice
+    expect(value).toBe("v");
+  });
+
+  it("runs a run-form script's top-level statements once, then calls run([arg])", () => {
+    const dispatch = extractDispatch();
+    G.__topLevelCount = 0;
+    const value = dispatch(
+      "globalThis.__topLevelCount = Number(globalThis.__topLevelCount) + 1;\n" +
+        "function run(argv){ return `${argv[0]}:${globalThis.__topLevelCount}`; }",
+      '{"a":1}',
+    );
+    expect(G.__topLevelCount).toBe(1);
+    expect(value).toBe('{"a":1}:1');
+  });
+
+  it("is not hijacked by a stale global `run` leaked by a previous call", () => {
+    const dispatch = extractDispatch();
+    G.run = () => "stale";
+    const value = dispatch("(() => 'fresh')()", "{}");
+    expect(value).toBe("fresh");
   });
 });
 
