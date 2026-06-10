@@ -891,6 +891,34 @@ describe("JXA sandbox — task_get", () => {
     });
   });
 
+  it("omits monthlyAnchor when the RRULE position is above the MonthlyAnchor domain (BYDAY=5TU)", () => {
+    const t = fakeTask({
+      id: () => "task_rep",
+      repetitionRule: () =>
+        fakeRepetitionRule("FREQ=MONTHLY;INTERVAL=1;BYDAY=5TU", "fixed repetition"),
+    });
+    const result = runJxaScriptInSandbox<{ task: { repetition: unknown } }>(
+      taskGetScript,
+      { id: "task_rep" },
+      { tasks: [t] },
+    );
+    expect(result.task.repetition).toEqual({ method: "fixed", unit: "months", steps: 1 });
+  });
+
+  it("omits monthlyAnchor for negative RRULE positions other than -1 (BYDAY=-2TU)", () => {
+    const t = fakeTask({
+      id: () => "task_rep",
+      repetitionRule: () =>
+        fakeRepetitionRule("FREQ=MONTHLY;INTERVAL=1;BYDAY=-2TU", "fixed repetition"),
+    });
+    const result = runJxaScriptInSandbox<{ task: { repetition: unknown } }>(
+      taskGetScript,
+      { id: "task_rep" },
+      { tasks: [t] },
+    );
+    expect(result.task.repetition).toEqual({ method: "fixed", unit: "months", steps: 1 });
+  });
+
   it("returns null repetition when no rule is set — regression #1071", () => {
     const t = fakeTask({ id: () => "task_norep" });
     const result = runJxaScriptInSandbox<{ task: { repetition: unknown } }>(

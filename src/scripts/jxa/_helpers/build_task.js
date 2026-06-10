@@ -313,7 +313,15 @@ function buildRepetition(task) {
           const pos = parseInt(m[1], 10);
           const weekday = WEEKDAY_BY_ICAL[m[2]];
           if (weekday) {
-            result.monthlyAnchor = { weekday: weekday, position: pos === -1 ? "last" : pos };
+            // MonthlyAnchor (src/domain/task.ts) only admits positions
+            // 1..4 or "last" (-1). RRULE permits others (BYDAY=5TU, -2TU);
+            // omit the anchor for those rather than emit a position the
+            // RepetitionRuleSchema rejects when the rule is written back.
+            if (pos === -1) {
+              result.monthlyAnchor = { weekday: weekday, position: "last" };
+            } else if (pos >= 1 && pos <= 4) {
+              result.monthlyAnchor = { weekday: weekday, position: pos };
+            }
           }
         }
       }
