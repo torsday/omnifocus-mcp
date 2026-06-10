@@ -2339,7 +2339,11 @@ describe("JXA sandbox — project_set_next_review_date", () => {
     expect(result.id).toBe("project_target");
   });
 
-  it("clears the next review date when the value is null", () => {
+  it("accepts null — OF treats the assignment as reset-to-schedule", () => {
+    // Live OF recomputes nextReviewDate from lastReviewDate + review
+    // interval on null assignment (it cannot leave a project unscheduled);
+    // the script's job is just to forward the null. The sandbox mock has no
+    // recompute semantics, so only the assignment path is asserted here.
     const target = fakeProject({ id: () => "project_target" });
     const result = runJxaScriptInSandbox<{ id: string }>(
       projectSetNextReviewDateScript,

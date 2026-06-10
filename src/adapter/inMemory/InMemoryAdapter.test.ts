@@ -355,6 +355,27 @@ describe("InMemoryAdapter — review", () => {
     expect(due.map((p) => p.id)).toEqual([past]);
   });
 
+  it("setProjectNextReviewDate(null) resets to the interval-derived schedule", async () => {
+    // OmniFocus cannot leave a project unscheduled: assigning missing value
+    // recomputes nextReviewDate from lastReviewDate + review interval
+    // (verified live on OF 4.8.8). The twin mirrors that instead of storing
+    // a null OmniFocus would never report back.
+    const a = makeAdapter();
+    const p = await a.createProject({ name: "p", reviewIntervalDays: 7 });
+    await a.markProjectReviewed(p); // lastReviewDate = FIXED_NOW
+    await a.setProjectNextReviewDate(p, "2026-09-01T00:00:00.000Z");
+    await a.setProjectNextReviewDate(p, null);
+    expect((await a.getProject(p)).nextReviewDate).toBe("2026-04-28T12:00:00.000Z");
+  });
+
+  it("setProjectNextReviewDate(null) stays null when there is no cadence to recompute from", async () => {
+    const a = makeAdapter();
+    const p = await a.createProject({ name: "p" });
+    await a.setProjectNextReviewDate(p, "2026-09-01T00:00:00.000Z");
+    await a.setProjectNextReviewDate(p, null);
+    expect((await a.getProject(p)).nextReviewDate).toBeNull();
+  });
+
   it("listProjectsDueForReview excludes done and dropped projects", async () => {
     // Done/dropped projects keep a frozen (or null) nextReviewDate, so
     // without a status gate they'd be "due" forever. Mirrors the JXA

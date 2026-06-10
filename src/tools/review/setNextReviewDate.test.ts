@@ -1,6 +1,7 @@
 /**
- * Unit tests for project_set_next_review_date — covers happy path, clear,
- * past-dated values, and cache-invalidation behavior on success/failure.
+ * Unit tests for project_set_next_review_date — covers happy path, the
+ * null reset-to-schedule path, past-dated values, and cache-invalidation
+ * behavior on success/failure.
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -13,7 +14,9 @@ import {
   projectSetNextReviewDateInputSchema,
 } from "./setNextReviewDate.js";
 
-function makeCtx(opts: { setRejects?: Error; projectName?: string } = {}) {
+function makeCtx(
+  opts: { setRejects?: Error; projectName?: string; postNextReviewDate?: string | null } = {},
+) {
   const setProjectNextReviewDate = vi.fn();
   if (opts.setRejects) {
     setProjectNextReviewDate.mockRejectedValue(opts.setRejects);
@@ -21,11 +24,11 @@ function makeCtx(opts: { setRejects?: Error; projectName?: string } = {}) {
     setProjectNextReviewDate.mockResolvedValue(undefined);
   }
   // The post-mutation getProject lookup powers the lever-4 name pairing (#607).
-  // Tests inject the desired post-state via opts.projectName.
+  // Tests inject the desired post-state via opts.projectName / postNextReviewDate.
   const getProject = vi.fn().mockResolvedValue({
     id: PROJECT,
     name: opts.projectName ?? "Quarterly review",
-    nextReviewDate: null,
+    nextReviewDate: opts.postNextReviewDate ?? null,
   });
   const adapter = {
     setProjectNextReviewDate,
@@ -57,13 +60,21 @@ describe("handleProjectSetNextReviewDate", () => {
     expect(ctx.cache.invalidate).toHaveBeenCalled();
   });
 
-  it("clears the review schedule when nextReviewDate is null", async () => {
-    const ctx = makeCtx();
+  it("resets to the interval-derived schedule when nextReviewDate is null", async () => {
+    // OmniFocus cannot clear a next review date — null assignment makes it
+    // recompute lastReviewDate + review interval. The response must surface
+    // the recomputed date from the post-mutation read, not pretend the
+    // schedule was cleared.
+    const ctx = makeCtx({ postNextReviewDate: "2026-08-12T00:00:00.000Z" });
     const env = await handleProjectSetNextReviewDate(
       { projectId: PROJECT, nextReviewDate: null },
       ctx,
     );
-    expect(env.data).toMatchObject({ id: PROJECT, name: "Quarterly review" });
+    expect(env.data).toMatchObject({
+      id: PROJECT,
+      name: "Quarterly review",
+      nextReviewDate: "2026-08-12T00:00:00.000Z",
+    });
     expect(ctx._setSpy).toHaveBeenCalledWith(PROJECT, null);
     expect(ctx.cache.invalidate).toHaveBeenCalled();
   });

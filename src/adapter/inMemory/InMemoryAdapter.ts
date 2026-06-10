@@ -991,7 +991,21 @@ export class InMemoryAdapter implements OmniFocusAdapter {
 
   async setProjectNextReviewDate(id: ProjectId, nextReviewDate: string | null): Promise<void> {
     const project = await this.getProject(id);
-    this.projects.set(id, { ...project, nextReviewDate });
+    let next = nextReviewDate as Project["nextReviewDate"];
+    if (nextReviewDate === null) {
+      // OmniFocus cannot leave a project unscheduled: assigning missing
+      // value to `next review date` makes the app recompute it from
+      // lastReviewDate + review interval (sdef "next review date"; verified
+      // live on OF 4.8.8). Mirror that, falling back to null only when the
+      // twin has no cadence to recompute from.
+      next = null;
+      if (project.reviewIntervalDays !== null && project.lastReviewDate !== null) {
+        const recomputed = new Date(project.lastReviewDate);
+        recomputed.setUTCDate(recomputed.getUTCDate() + project.reviewIntervalDays);
+        next = isoOf(recomputed) as Project["nextReviewDate"];
+      }
+    }
+    this.projects.set(id, { ...project, nextReviewDate: next });
   }
 
   // -- Tags -----------------------------------------------------------------

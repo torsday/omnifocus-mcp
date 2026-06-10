@@ -15,7 +15,12 @@
  * Args (argv[0] JSON):
  *   { id: string, nextReviewDate: string | null }
  *   - `nextReviewDate` ISO-8601 → set to that date
- *   - `nextReviewDate` null     → clear (Project shows up as not scheduled)
+ *   - `nextReviewDate` null     → reset to the interval-derived schedule.
+ *     The sdef documents null assignment as "set the review date based off
+ *     the last review date and review interval", and a project's review
+ *     interval itself cannot be removed (assigning null throws "Invalid
+ *     review interval") — OmniFocus has no unscheduled state, so a true
+ *     clear is unrepresentable. Verified live on OF 4.8.8.
  *
  * Returns JSON: { id: string }
  *

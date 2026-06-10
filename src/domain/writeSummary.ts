@@ -261,7 +261,9 @@ export function summaryReviewSetInterval(days: number | null): string {
 }
 
 export function summaryReviewSetNextReviewDate(date: string | null): string {
-  if (date === null) return "Cleared project next review date.";
+  // null does not clear: OmniFocus recomputes the date from the last review
+  // date + review interval (projects cannot be left unscheduled).
+  if (date === null) return "Reset project next review date to the interval-derived schedule.";
   return cap(`Set project next review date to ${date}.`);
 }
 

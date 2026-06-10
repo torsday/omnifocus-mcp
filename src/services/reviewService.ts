@@ -77,7 +77,10 @@ export class ReviewService {
   }
 
   /**
-   * Set the project's next review date directly. Pass `null` to clear.
+   * Set the project's next review date directly. Pass `null` to reset to the
+   * interval-derived schedule (OmniFocus recomputes from lastReviewDate +
+   * review interval; projects cannot be left unscheduled). The post-mutation
+   * read surfaces the recomputed date.
    * Past-dated values surface the project as overdue immediately — matches OF UX.
    *
    * @throws NotFound — when no project with this ID exists
