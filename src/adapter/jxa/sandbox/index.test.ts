@@ -1983,6 +1983,19 @@ describe("JXA sandbox — project_update", () => {
     expect((target.noteHtml as () => string | null)()).toBe("");
   });
 
+  it("clears estimatedMinutes to null, not 0", () => {
+    // OF stores null (not 0) for a cleared estimate; writing 0 would read
+    // back as a real zero-minute estimate via build_project.js.
+    const target = fakeProject({ id: () => "project_target", estimatedMinutes: () => 30 });
+    const result = runJxaScriptInSandbox<{ project: { estimatedMinutes: number | null } }>(
+      projectUpdateScript,
+      { id: "project_target", estimatedMinutes: null },
+      { projects: [target] },
+    );
+    expect(result.project.estimatedMinutes).toBeNull();
+    expect((target.estimatedMinutes as () => number | null)()).toBeNull();
+  });
+
   it("throws when the id does not exist", () => {
     expect(() =>
       runJxaScriptInSandbox(

@@ -43,7 +43,9 @@ function run(argv) {
     target.noteHtml = args.noteHtml ?? "";
   }
   if (args.flagged !== undefined) target.flagged = args.flagged;
-  if (args.estimatedMinutes !== undefined) target.estimatedMinutes = args.estimatedMinutes ?? 0;
+  // Null clears the estimate (OF stores null, not 0, for "no estimate") —
+  // mirrors task_update.js, which assigns null directly.
+  if (args.estimatedMinutes !== undefined) target.estimatedMinutes = args.estimatedMinutes;
   if (args.deferDate !== undefined)
     // @ts-expect-error JXA accepts property-setter form on sdef properties; see _types/sdef-overrides.d.ts.
     target.deferDate = args.deferDate ? new Date(args.deferDate) : null;
