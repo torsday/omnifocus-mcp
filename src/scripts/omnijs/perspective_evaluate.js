@@ -43,11 +43,90 @@
     return d ? d.toISOString() : null;
   }
 
+  // OmniJS Task.RepetitionRule exposes only `ruleString` (the RFC 5545 RRULE,
+  // e.g. "FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH") and `method` (a
+  // Task.RepetitionMethod enum value) — there are no `unit`/`steps` members.
+  // Parse the RRULE into the canonical domain shape; keep in sync with the
+  // JXA twin (src/scripts/jxa/_helpers/build_task.js buildRepetition).
   function buildRepetition(task) {
     try {
       const rr = task.repetitionRule;
       if (!rr) return null;
-      return { method: String(rr.method), unit: String(rr.unit), steps: rr.steps };
+
+      // ruleString is the canonical signal; without it there is no rule to report.
+      const recurrence = rr.ruleString;
+      if (!recurrence || typeof recurrence !== "string") return null;
+
+      // Method None means "does not repeat" — report no rule.
+      if (rr.method === Task.RepetitionMethod.None) return null;
+
+      // Parse the RRULE "KEY=VALUE;KEY=VALUE" into a lookup.
+      const parts = {};
+      const segments = recurrence.split(";");
+      for (let i = 0; i < segments.length; i++) {
+        const eq = segments[i].indexOf("=");
+        if (eq > 0) parts[segments[i].slice(0, eq)] = segments[i].slice(eq + 1);
+      }
+
+      const UNIT_BY_FREQ = {
+        MINUTELY: "minutes",
+        HOURLY: "hours",
+        DAILY: "days",
+        WEEKLY: "weeks",
+        MONTHLY: "months",
+        YEARLY: "years",
+      };
+      const unit = UNIT_BY_FREQ[parts.FREQ];
+      if (!unit) return null; // unknown/absent FREQ — can't represent it faithfully
+
+      const steps = parts.INTERVAL ? parseInt(parts.INTERVAL, 10) : 1;
+
+      // Map the enum to the domain method strings; default to fixed.
+      let method = "fixed";
+      if (rr.method === Task.RepetitionMethod.DueDate) method = "due-again";
+      else if (rr.method === Task.RepetitionMethod.DeferUntilDate) method = "start-again";
+
+      const result = { method: method, unit: unit, steps: steps };
+
+      // Weekly weekday list: BYDAY=MO,WE,FR (plain day codes, no position prefix).
+      const WEEKDAY_BY_ICAL = {
+        SU: "sunday",
+        MO: "monday",
+        TU: "tuesday",
+        WE: "wednesday",
+        TH: "thursday",
+        FR: "friday",
+        SA: "saturday",
+      };
+      if (unit === "weeks" && parts.BYDAY) {
+        const codes = parts.BYDAY.split(",");
+        const weekdays = [];
+        for (let i = 0; i < codes.length; i++) {
+          const name = WEEKDAY_BY_ICAL[codes[i]];
+          if (name) weekdays.push(name);
+        }
+        if (weekdays.length > 0) result.weekdays = weekdays;
+      }
+
+      // Monthly anchor: either BYMONTHDAY=15 (day) or BYDAY=2TU / BYDAY=-1FR (position).
+      if (unit === "months") {
+        if (parts.BYMONTHDAY) {
+          const day = parseInt(parts.BYMONTHDAY, 10);
+          if (!Number.isNaN(day)) result.monthlyAnchor = { day: day };
+        } else if (parts.BYDAY) {
+          // Positional form: optional leading signed integer then the 2-letter day.
+          const m = parts.BYDAY.match(/^(-?\d+)([A-Z]{2})$/);
+          if (m) {
+            const pos = parseInt(m[1], 10);
+            const weekday = WEEKDAY_BY_ICAL[m[2]];
+            if (weekday) {
+              result.monthlyAnchor = { weekday: weekday, position: pos === -1 ? "last" : pos };
+            }
+          }
+        }
+      }
+
+      return result;
     } catch (_e) {
       return null;
     }

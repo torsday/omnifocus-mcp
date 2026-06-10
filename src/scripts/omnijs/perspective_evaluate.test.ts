@@ -227,3 +227,79 @@ describe("perspective_evaluate_dry_run.js — taskStatus mapping", () => {
     expectStatusMapping(result.tasks ?? []);
   });
 });
+
+// ---------------------------------------------------------------------------
+// repetition — parsed from ruleString + RepetitionMethod enum
+// ---------------------------------------------------------------------------
+
+const REPETITION_TASKS = [
+  makeTask({ name: "none", repetitionRule: null }),
+  makeTask({
+    name: "yearly-defer",
+    repetitionRule: { ruleString: "FREQ=YEARLY", method: RepetitionMethod.DeferUntilDate },
+  }),
+  makeTask({
+    name: "biweekly-due",
+    repetitionRule: {
+      ruleString: "FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH",
+      method: RepetitionMethod.DueDate,
+    },
+  }),
+  makeTask({
+    name: "monthly-fixed",
+    repetitionRule: { ruleString: "FREQ=MONTHLY;BYMONTHDAY=15", method: RepetitionMethod.Fixed },
+  }),
+  makeTask({
+    name: "monthly-positional",
+    repetitionRule: { ruleString: "FREQ=MONTHLY;BYDAY=-1FR", method: RepetitionMethod.Fixed },
+  }),
+  makeTask({
+    name: "method-none",
+    repetitionRule: { ruleString: "FREQ=DAILY", method: RepetitionMethod.None },
+  }),
+];
+
+function expectRepetitionMapping(tasks: ScriptTask[]): void {
+  const repetitionByName = Object.fromEntries(tasks.map((t) => [t.name, t.repetition]));
+  expect(repetitionByName.none).toBeNull();
+  expect(repetitionByName["yearly-defer"]).toEqual({
+    method: "start-again",
+    unit: "years",
+    steps: 1,
+  });
+  expect(repetitionByName["biweekly-due"]).toEqual({
+    method: "due-again",
+    unit: "weeks",
+    steps: 2,
+    weekdays: ["tuesday", "thursday"],
+  });
+  expect(repetitionByName["monthly-fixed"]).toEqual({
+    method: "fixed",
+    unit: "months",
+    steps: 1,
+    monthlyAnchor: { day: 15 },
+  });
+  expect(repetitionByName["monthly-positional"]).toEqual({
+    method: "fixed",
+    unit: "months",
+    steps: 1,
+    monthlyAnchor: { weekday: "friday", position: "last" },
+  });
+  // RepetitionMethod.None means "does not repeat" — no rule reported.
+  expect(repetitionByName["method-none"]).toBeNull();
+}
+
+describe("perspective_evaluate.js — repetition", () => {
+  it("parses ruleString + RepetitionMethod enum into the domain RepetitionRule shape", () => {
+    const { result } = runEvaluate({ tasks: REPETITION_TASKS });
+    expectRepetitionMapping(result.tasks);
+  });
+});
+
+describe("perspective_evaluate_dry_run.js — repetition", () => {
+  it("parses ruleString + RepetitionMethod enum into the domain RepetitionRule shape", () => {
+    const { result } = runDryRun({ tasks: REPETITION_TASKS });
+    expect(result.error).toBeUndefined();
+    expectRepetitionMapping(result.tasks ?? []);
+  });
+});
