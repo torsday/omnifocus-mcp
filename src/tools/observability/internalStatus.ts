@@ -37,12 +37,13 @@ export const INTERNAL_STATUS_DESCRIPTION =
   "Returns { uptimeMs, ofRunning, lastSync, calendarAccess, mutation, cache, circuits, queueDepth, responseStats, latencyStats, toolDurationStats, stores, transport, density }. " +
   "cache.services maps key prefixes (tag, folder, forecast, task, project) to { hits, misses, hitRate }. " +
   "circuits lists each circuit-breaker name and state (closed/open/half_open). " +
+  "ofRunning: null = not probed; use omnifocus_doctor for a live check. " +
   "lastSync mirrors sync_status data; null if getLastSync throws. " +
   "calendarAccess: macOS Calendar bridge state — { available, permission: granted|denied|restricted|not-determined|unknown }. Read-only; does NOT trigger TCC prompt. " +
   "mutation: Stryker mutation-score freshness { score, lastRunAt } (0–100 per ADR-0017); null when no report file is present. " +
   "responseStats / latencyStats / toolDurationStats: opt-in telemetry — bytes per tool, ms per (transport, script) with spawnFloorMs, ms per tool. Null when sample rate is 0. " +
   "stores: { idempotencyEntries, loopDetectorKeys } live retention-store sizes — null when not wired. " +
-  "transport: persistent JXA transport stats { enabled, alive, spawns, unexpectedExits, restarts, timeouts, callsServed }; enabled=false by default. " +
+  "transport: persistent JXA transport stats; enabled=false by default. " +
   "density: negotiated response density (compact|default|full). " +
   "Read-only; no side effects. " +
   "Example: internal_status()";
@@ -73,7 +74,15 @@ export interface StoresSizeSnapshot {
 
 export interface InternalStatusData {
   uptimeMs: number;
-  ofRunning: boolean;
+  /**
+   * OmniFocus liveness, from in-process signals only. `null` means "not
+   * probed" — this tool's contract forbids calling out to OmniFocus (no
+   * JXA, no side effects), so without a wired {@link InternalStatusContext.probeOfRunning}
+   * the server has no liveness signal to report. Previously a hard-coded
+   * `true`, which reported OmniFocus as running even when it was quit;
+   * `omnifocus_doctor` is the live connectivity check.
+   */
+  ofRunning: boolean | null;
   lastSync: { lastSyncAt: string | null; inFlight: boolean } | null;
   /**
    * macOS Calendar bridge state (per ADR-0018). `null` when the probe throws
@@ -209,6 +218,13 @@ export interface InternalStatusContext {
    * `null`.
    */
   probeQueueDepth?: () => number;
+  /**
+   * Optional OmniFocus-liveness probe. Must read in-process state only
+   * (never JXA — that's `omnifocus_doctor`'s job); return `null` when no
+   * signal is available. Omitting surfaces as `null` ("not probed") —
+   * never an affirmative `true` the server cannot back up.
+   */
+  probeOfRunning?: () => boolean | null;
 }
 
 /**
@@ -312,9 +328,18 @@ export async function handleInternalStatus(
     }
   }
 
+  let ofRunning: boolean | null = null;
+  if (ctx.probeOfRunning !== undefined) {
+    try {
+      ofRunning = ctx.probeOfRunning();
+    } catch {
+      ofRunning = null;
+    }
+  }
+
   const data: InternalStatusData = {
     uptimeMs,
-    ofRunning: true,
+    ofRunning,
     lastSync,
     calendarAccess,
     mutation,

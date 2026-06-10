@@ -45,6 +45,7 @@ function makeCtx(
       | null;
     probeTransportStats?: () => import("../../observability/transportStats.js").PersistentTransportStats;
     probeQueueDepth?: () => number;
+    probeOfRunning?: () => boolean | null;
   } = {},
 ) {
   const adapter = {
@@ -89,6 +90,9 @@ function makeCtx(
   if (overrides.probeQueueDepth !== undefined) {
     ctx.probeQueueDepth = overrides.probeQueueDepth;
   }
+  if (overrides.probeOfRunning !== undefined) {
+    ctx.probeOfRunning = overrides.probeOfRunning;
+  }
   return ctx;
 }
 
@@ -113,10 +117,26 @@ describe("internal_status — handler", () => {
     expect(envelope.data.uptimeMs).toBeGreaterThan(0);
   });
 
-  it("returns ofRunning=true", async () => {
+  it("returns ofRunning=null when no liveness probe is wired (never a fabricated true)", async () => {
     const ctx = makeCtx();
     const envelope = await handleInternalStatus({}, ctx);
-    expect(envelope.data.ofRunning).toBe(true);
+    expect(envelope.data.ofRunning).toBeNull();
+  });
+
+  it("forwards the liveness probe result when wired", async () => {
+    const ctx = makeCtx({ probeOfRunning: () => false });
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.ofRunning).toBe(false);
+  });
+
+  it("surfaces ofRunning=null when the liveness probe throws", async () => {
+    const ctx = makeCtx({
+      probeOfRunning: () => {
+        throw new Error("probe boom");
+      },
+    });
+    const envelope = await handleInternalStatus({}, ctx);
+    expect(envelope.data.ofRunning).toBeNull();
   });
 
   it("reports the negotiated session density (#818)", async () => {
@@ -197,7 +217,10 @@ describe("internal_status — error resilience", () => {
     });
     const envelope = await handleInternalStatus({}, ctx);
     expect(envelope.data.uptimeMs).toBeGreaterThanOrEqual(0);
-    expect(envelope.data.ofRunning).toBe(true);
+    // Previously pinned ofRunning=true here — asserting the misleading value
+    // in exactly the failure scenario the field exists to report. With no
+    // liveness probe wired the honest answer is null ("not probed").
+    expect(envelope.data.ofRunning).toBeNull();
     expect(Array.isArray(envelope.data.circuits)).toBe(true);
   });
 });

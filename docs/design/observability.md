@@ -36,7 +36,7 @@ No Prometheus, no OTel in v1. The `internal_status` tool returns a snapshot:
 {
   uptimeMs: number,
   ofVersion: string,
-  ofRunning: boolean,
+  ofRunning: boolean | null, // null = not probed; omnifocus_doctor is the live check
   lastSync: { at: string, status: "ok" | "error" } | null,
   cache: { size: number, hits: number, misses: number, evictions: number },
   circuits: Record<ToolName, "closed" | "open" | "half-open">,
