@@ -341,6 +341,21 @@ describe("InMemoryAdapter — Projects", () => {
   });
 });
 
+describe("InMemoryAdapter — review", () => {
+  it("listProjectsDueForReview compares against the clock instant, not end of day", async () => {
+    // JXA's review_list_due.js treats "due" as nextReviewDate <= now. A
+    // review scheduled for later today must NOT count as due yet, and the
+    // comparison must go through the injected clock (FIXED_NOW), not wall time.
+    const a = makeAdapter();
+    const past = await a.createProject({ name: "past" });
+    await a.setProjectNextReviewDate(past, "2026-04-21T06:00:00.000Z");
+    const laterToday = await a.createProject({ name: "later" });
+    await a.setProjectNextReviewDate(laterToday, "2026-04-21T18:00:00.000Z");
+    const due = await a.listProjectsDueForReview();
+    expect(due.map((p) => p.id)).toEqual([past]);
+  });
+});
+
 describe("InMemoryAdapter — Tags", () => {
   it("creates, updates, and deletes a tag", async () => {
     const a = makeAdapter();

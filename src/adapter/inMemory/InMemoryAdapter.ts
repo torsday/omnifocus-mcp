@@ -965,10 +965,13 @@ export class InMemoryAdapter implements OmniFocusAdapter {
   }
 
   async listProjectsDueForReview(): Promise<Project[]> {
-    const today = new Date();
-    today.setUTCHours(23, 59, 59, 999); // end of today
+    // "Due" means nextReviewDate <= the current instant — matching the JXA
+    // script (review_list_due.js compares against `new Date()`), not
+    // end-of-UTC-day. Routed through the injectable clock so pinned-clock
+    // tests are deterministic.
+    const now = this.now();
     return [...this.projects.values()]
-      .filter((p) => p.nextReviewDate === null || new Date(p.nextReviewDate) <= today)
+      .filter((p) => p.nextReviewDate === null || new Date(p.nextReviewDate) <= now)
       .sort((a, b) => {
         if (a.nextReviewDate === null && b.nextReviewDate === null) return 0;
         if (a.nextReviewDate === null) return -1;
