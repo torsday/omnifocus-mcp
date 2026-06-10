@@ -141,9 +141,12 @@ describe("parseTaskPaperLine — @done(date)", () => {
     expect(parsed.doneDate).toBeUndefined();
   });
 
-  it("strips a parenthesized @dropped argument from the name too", () => {
+  it("strips a parenthesized @dropped argument and keeps dropped distinct from done", () => {
     const parsed = parseTaskPaperLine("Old idea @dropped(2026-04-01)", 1, []);
     expect(parsed.name).toBe("Old idea");
+    expect(parsed.dropped).toBe(true);
+    expect(parsed.done).toBe(false);
+    expect(parsed.droppedDate).toMatch(/^2026-04-01T00:00:00[+-]\d{2}:\d{2}$/);
   });
 });
 

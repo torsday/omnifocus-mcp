@@ -251,6 +251,15 @@ describe("ExportService.importTaskPaper — @due/@defer/@flagged/@done", () => {
     ]);
   });
 
+  it("imports @dropped as dropped, not completed", async () => {
+    const { adapter, service } = makeService();
+    await service.importTaskPaper("- Old idea @dropped");
+    const tasks = await adapter.listTasks({});
+    const task = tasks.find((t) => t.name === "Old idea");
+    expect(task?.dropped).toBe(true);
+    expect(task?.completed).toBe(false);
+  });
+
   it("emits a warning for unrecognised date format", async () => {
     const { adapter, service } = makeService();
     const result = await service.importTaskPaper("- Task @due(next-week)");
@@ -383,6 +392,23 @@ describe("ExportService — round-trip (export → import)", () => {
     const grandchild = tasks.find((t) => t.name === "Grandchild");
     expect(child?.parentId).toBe(parent?.id);
     expect(grandchild?.parentId).toBe(child?.id);
+  });
+
+  it("round-trips a dropped task as dropped, not completed", async () => {
+    const { adapter, service } = makeService();
+    const projId = await adapter.createProject({ name: "RT-drop" });
+    const taskId = await adapter.createTask({ name: "Abandoned", projectId: projId as ProjectId });
+    await adapter.dropTask(taskId);
+
+    const exported = await service.exportTaskPaper({ kind: "project", id: projId as ProjectId });
+    expect(exported.taskpaper).toContain("@dropped");
+
+    const proj2 = await adapter.createProject({ name: "RT-drop-2" });
+    await service.importTaskPaper(exported.taskpaper, proj2 as ProjectId);
+    const tasks = await adapter.listTasks({ projectId: proj2 as ProjectId });
+    const copy = tasks.find((t) => t.name === "Abandoned");
+    expect(copy?.dropped).toBe(true);
+    expect(copy?.completed).toBe(false);
   });
 
   it("keeps due dates on the same local calendar day through a round-trip", async () => {

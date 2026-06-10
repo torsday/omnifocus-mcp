@@ -143,6 +143,9 @@ export interface ParsedTaskPaperLine {
   done: boolean;
   /** Completion instant from `@done(date)`, when the argument parses. */
   doneDate: string | undefined;
+  dropped: boolean;
+  /** Drop instant from `@dropped(date)`, when the argument parses. */
+  droppedDate: string | undefined;
   tagNames: string[];
   note: string | undefined;
 }
@@ -150,8 +153,10 @@ export interface ParsedTaskPaperLine {
 /**
  * Parse a single TaskPaper task line (the text after the leading `- `).
  *
- * Extracts `@due(date)`, `@defer(date)`, `@flagged`, `@done`, and bare
- * `@tag` names. Dates are passed through as-is; callers may normalise them.
+ * Extracts `@due(date)`, `@defer(date)`, `@flagged`, `@done`, `@dropped`,
+ * and bare `@tag` names. Dates are passed through as-is; callers may
+ * normalise them. `@dropped` is kept distinct from `@done` so the import
+ * side can round-trip dropped tasks as dropped, not completed.
  */
 export function parseTaskPaperLine(
   text: string,
@@ -164,6 +169,8 @@ export function parseTaskPaperLine(
   let flagged = false;
   let done = false;
   let doneDate: string | undefined;
+  let dropped = false;
+  let droppedDate: string | undefined;
   const tagNames: string[] = [];
 
   // Extract @due(date) and @defer(date)
@@ -191,8 +198,8 @@ export function parseTaskPaperLine(
     return "";
   });
   remaining = remaining.replace(/@dropped(?:\(([^)]*)\))?/g, (_, d: string | undefined) => {
-    done = true;
-    if (d?.trim()) doneDate = normaliseDateToken(d.trim(), lineNum, warnings, "dropped");
+    dropped = true;
+    if (d?.trim()) droppedDate = normaliseDateToken(d.trim(), lineNum, warnings, "dropped");
     return "";
   });
 
@@ -226,7 +233,18 @@ export function parseTaskPaperLine(
     warnings.push(`Line ${lineNum}: empty task name after parsing tags — skipped`);
   }
 
-  return { name: name || "(unnamed)", dueDate, deferDate, flagged, done, doneDate, tagNames, note };
+  return {
+    name: name || "(unnamed)",
+    dueDate,
+    deferDate,
+    flagged,
+    done,
+    doneDate,
+    dropped,
+    droppedDate,
+    tagNames,
+    note,
+  };
 }
 
 /** Normalise a date token to ISO-8601 (YYYY-MM-DD → local midnight with offset). */

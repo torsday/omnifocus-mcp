@@ -237,6 +237,7 @@ export class ExportService {
    *
    * Supported tags: `@due(date)`, `@defer(date)`, `@flagged`, `@done` /
    * `@done(date)` (the native TaskPaper form; the timestamp is honoured),
+   * `@dropped` / `@dropped(date)` (the task is dropped, not completed),
    * `@tag-name` (bare tags become OF tags, created if absent).
    *
    * @param text            TaskPaper-formatted string to import.
@@ -345,7 +346,16 @@ export class ExportService {
       const id = await this.adapter.createTask(input);
       created.push(id);
 
-      if (parsed.done) {
+      if (parsed.dropped) {
+        // `@dropped` round-trips as dropped, not completed — the export side
+        // emits it for dropped tasks. Takes precedence over `@done` when a
+        // line carries both (a task cannot be both states in OmniFocus).
+        if (parsed.droppedDate) {
+          await this.adapter.dropTask(id, new Date(parsed.droppedDate));
+        } else {
+          await this.adapter.dropTask(id);
+        }
+      } else if (parsed.done) {
         // Honour the native `@done(date)` timestamp when present; bare
         // `@done` falls back to the adapter's "now".
         if (parsed.doneDate) {
