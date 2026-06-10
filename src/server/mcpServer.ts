@@ -31,6 +31,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 // `resolveJsonModule` in tsconfig and tsup's bundler both inline the JSON,
 // so this stays a compile-time constant — no runtime fs read.
 import packageJson from "../../package.json" with { type: "json" };
+import { RESPONSIVENESS_PROBE_SCRIPT } from "../adapter/_shared/busyProbe.js";
 import { killActiveChildren } from "../adapter/_shared/childRegistry.js";
 import { configureRetryPolicy } from "../adapter/_shared/retryPolicy.js";
 import { getSpawnFloorMs } from "../adapter/_shared/spawnFloor.js";
@@ -40,7 +41,7 @@ import {
   disposePersistentJxa,
   getPersistentTransportStats,
 } from "../adapter/jxa/persistentScriptRunner.js";
-import { configurePersistentJxa } from "../adapter/jxa/scriptRunner.js";
+import { configurePersistentJxa, runJxaScript } from "../adapter/jxa/scriptRunner.js";
 import { ReadPool } from "../concurrency/ReadPool.js";
 import { WriteQueue } from "../concurrency/WriteQueue.js";
 import { parseConfig, redactConfig } from "../config/env.js";
@@ -641,11 +642,28 @@ export async function startServer(): Promise<void> {
 
   // Lifecycle self-diagnostic (#838). Composes the typed-error suggestions
   // from the reliability triad (#816 / #835 / #817) into a single probe.
+  //
+  // The connectivity probe is a real osascript round-trip: the bounded
+  // responsiveness script from the busy classifier (#1109) reads the default
+  // document's name plus an O(1) `flattenedTasks` count, exercising both the
+  // AppleEvent bridge (running + TCC) and the database layer the read tools
+  // depend on. Routed through `runJxaScript` so failures surface as the same
+  // typed errors every other tool produces — exactly what the doctor's
+  // classifier keys on. Deliberately NOT `getLastSync()`: that adapter
+  // method is a process-local cache read that never spawns osascript and can
+  // never throw, so probing it reported `pass` even with OmniFocus quit.
+  // The in-memory E2E harness (ADR-0014) has no live OmniFocus, so it gets a
+  // resolved no-op to keep the doctor consistent with the rest of the tools.
   registerOmnifocusDoctorTool(server, {
     adapter,
     startedAt,
     serverVersion: PACKAGE_VERSION,
     makeMeta,
+    probeConnectivity: config.OMNIFOCUS_E2E_USE_MEMORY
+      ? async (): Promise<void> => undefined
+      : async (): Promise<void> => {
+          await runJxaScript(RESPONSIVENESS_PROBE_SCRIPT, {}, { scriptName: "ping" });
+        },
   });
 
   // Window controls — UI-affecting; advisory; no cache invalidation. (#466)

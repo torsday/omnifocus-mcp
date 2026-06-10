@@ -15,8 +15,9 @@
  * `OFBusy`, `CircuitOpen` each carry their own `suggestion`, so the
  * doctor's remediation text is the error class's own actionable message.
  *
- * Read-only and idempotent. Cheap — a single `getLastSync()` call covers
- * the running / TCC / responsiveness checks via its error classification.
+ * Read-only and idempotent. Cheap — a single live JXA round-trip (the same
+ * bounded responsiveness script the busy classifier uses, #1109) covers the
+ * running / TCC / responsiveness checks via its error classification.
  *
  * @see DESIGN.md §6.3 — lifecycle layer
  * @see src/tools/observability/internalStatus.ts — sibling health probe (server-side metrics)
@@ -88,6 +89,20 @@ export interface OmnifocusDoctorContext {
   /** Package version (`packageJson.version` at server-boot import). */
   serverVersion: string;
   makeMeta: (partial?: Partial<ResponseMeta>) => ResponseMeta;
+  /**
+   * Probe that exercises the live OmniFocus connection. Must reject with a
+   * typed error from the taxonomy (`OmniFocusNotRunning`, `PermissionDenied`,
+   * …) on failure. Production wires a real `osascript` round-trip (see the
+   * registration in `mcpServer.ts` — the tool layer must not import the
+   * transport implementation directly); unit tests and in-memory E2E mode
+   * inject a fake.
+   *
+   * Deliberately NOT a `getLastSync()` call: that adapter method is a
+   * process-local cache read that never spawns `osascript` and can never
+   * throw, so probing it reported `pass` even with OmniFocus quit or
+   * Automation permission revoked.
+   */
+  probeConnectivity: () => Promise<void>;
 }
 
 /**
@@ -123,10 +138,12 @@ function checkServerInfo(ctx: OmnifocusDoctorContext): DoctorCheck {
 }
 
 /**
- * Run the OmniFocus connectivity probe via `getLastSync()`.
+ * Run the OmniFocus connectivity probe — a live JXA round-trip
+ * (`ctx.probeConnectivity`) followed by a `getLastSync()` read for the
+ * sync-state details.
  *
  * Success means: OmniFocus is running, Automation permission is granted,
- * and the adapter's JXA bridge is responsive. The single call covers
+ * and the adapter's JXA bridge is responsive. The single probe covers
  * three acceptance-criteria checks because its error taxonomy already
  * separates the failure modes:
  *
@@ -142,6 +159,7 @@ async function checkOmniFocusConnectivity(
   ctx: OmnifocusDoctorContext,
 ): Promise<{ ofRunning: DoctorCheck; automationPermission: DoctorCheck; sync: DoctorCheck }> {
   try {
+    await ctx.probeConnectivity();
     const sync = await ctx.adapter.getLastSync();
     return {
       ofRunning: {

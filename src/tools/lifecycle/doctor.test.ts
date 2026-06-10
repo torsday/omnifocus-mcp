@@ -2,9 +2,10 @@
  * Tests for the `omnifocus_doctor` tool (#838).
  *
  * Schema parsing + per-error-class classification + summary roll-up.
- * Uses {@link InMemoryAdapter} as the happy-path fixture and a custom
- * stub adapter for failure modes — every typed error class gets its
- * own classifier-path assertion.
+ * Uses {@link InMemoryAdapter} as the happy-path fixture and a rejecting
+ * `probeConnectivity` for failure modes — every typed error class gets
+ * its own classifier-path assertion. The probe is always injected so no
+ * test spawns a real `osascript` round-trip.
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -30,7 +31,9 @@ import {
 // Harness
 // ---------------------------------------------------------------------------
 
-function makeCtx(overrides: { adapter?: OmniFocusAdapter; startedAt?: number } = {}) {
+function makeCtx(
+  overrides: { adapter?: OmniFocusAdapter; startedAt?: number; probeError?: unknown } = {},
+) {
   const adapter = overrides.adapter ?? new InMemoryAdapter();
   const makeMeta = (partial: Partial<ResponseMeta> = {}): ResponseMeta => ({
     correlationId: "test-cid",
@@ -45,14 +48,11 @@ function makeCtx(overrides: { adapter?: OmniFocusAdapter; startedAt?: number } =
     startedAt: overrides.startedAt ?? Date.now() - 5_000,
     serverVersion: "1.5.3-test",
     makeMeta,
+    probeConnectivity:
+      overrides.probeError !== undefined
+        ? () => Promise.reject(overrides.probeError)
+        : async (): Promise<void> => undefined,
   };
-}
-
-/** Stub adapter that throws `err` from `getLastSync`. Other methods are unused. */
-function adapterThatThrows(err: unknown): OmniFocusAdapter {
-  return {
-    getLastSync: vi.fn().mockRejectedValue(err),
-  } as unknown as OmniFocusAdapter;
 }
 
 function statusOf(checks: Array<{ name: string; status: CheckStatus }>, name: string): CheckStatus {
@@ -120,7 +120,7 @@ describe("omnifocus_doctor — happy path", () => {
 
 describe("omnifocus_doctor — failure classification", () => {
   it("OmniFocusNotRunning → of_running=fail, downstream=warn (skipped)", async () => {
-    const ctx = makeCtx({ adapter: adapterThatThrows(new OmniFocusNotRunning()) });
+    const ctx = makeCtx({ probeError: new OmniFocusNotRunning() });
     const envelope = await handleOmnifocusDoctor({}, ctx);
     expect(envelope.data.summary).toBe("failed");
     expect(statusOf(envelope.data.checks, "of_running")).toBe("fail");
@@ -132,7 +132,7 @@ describe("omnifocus_doctor — failure classification", () => {
 
   it("PermissionDenied → of_running=pass, automation_permission=fail", async () => {
     const ctx = makeCtx({
-      adapter: adapterThatThrows(new PermissionDenied()),
+      probeError: new PermissionDenied(),
     });
     const envelope = await handleOmnifocusDoctor({}, ctx);
     expect(envelope.data.summary).toBe("failed");
@@ -144,7 +144,7 @@ describe("omnifocus_doctor — failure classification", () => {
 
   it("OFBusy → connectivity pass, sync_state=warn with remediation", async () => {
     const ctx = makeCtx({
-      adapter: adapterThatThrows(new OFBusy("OmniFocus is busy")),
+      probeError: new OFBusy("OmniFocus is busy"),
     });
     const envelope = await handleOmnifocusDoctor({}, ctx);
     expect(envelope.data.summary).toBe("degraded");
@@ -157,7 +157,7 @@ describe("omnifocus_doctor — failure classification", () => {
 
   it("CircuitOpen → of_running=fail (sustained outage, breaker open)", async () => {
     const ctx = makeCtx({
-      adapter: adapterThatThrows(new CircuitOpen("circuit open")),
+      probeError: new CircuitOpen("circuit open"),
     });
     const envelope = await handleOmnifocusDoctor({}, ctx);
     expect(envelope.data.summary).toBe("failed");
@@ -167,7 +167,7 @@ describe("omnifocus_doctor — failure classification", () => {
 
   it("Timeout → of_running=warn (likely transient wedge)", async () => {
     const ctx = makeCtx({
-      adapter: adapterThatThrows(new Timeout("Timeout")),
+      probeError: new Timeout("Timeout"),
     });
     const envelope = await handleOmnifocusDoctor({}, ctx);
     expect(envelope.data.summary).toBe("degraded");
@@ -176,11 +176,9 @@ describe("omnifocus_doctor — failure classification", () => {
 
   it("TransportUnavailable → of_running=fail (osascript binary missing)", async () => {
     const ctx = makeCtx({
-      adapter: adapterThatThrows(
-        new TransportUnavailable("osascript not found", {
-          details: { reason: "spawn-failed" },
-        }),
-      ),
+      probeError: new TransportUnavailable("osascript not found", {
+        details: { reason: "spawn-failed" },
+      }),
     });
     const envelope = await handleOmnifocusDoctor({}, ctx);
     expect(envelope.data.summary).toBe("failed");
@@ -188,7 +186,7 @@ describe("omnifocus_doctor — failure classification", () => {
   });
 
   it("unknown error → all three connectivity checks fail with the original message", async () => {
-    const ctx = makeCtx({ adapter: adapterThatThrows(new Error("kaboom")) });
+    const ctx = makeCtx({ probeError: new Error("kaboom") });
     const envelope = await handleOmnifocusDoctor({}, ctx);
     expect(envelope.data.summary).toBe("failed");
     expect(statusOf(envelope.data.checks, "of_running")).toBe("fail");
@@ -196,6 +194,22 @@ describe("omnifocus_doctor — failure classification", () => {
     expect(statusOf(envelope.data.checks, "sync_state")).toBe("fail");
     const of = envelope.data.checks.find((c) => c.name === "of_running");
     expect(of?.details.error).toBe("kaboom");
+  });
+
+  it("detects failure via the live probe even when getLastSync succeeds (#1110 cache-read shape)", async () => {
+    // Production getLastSync is a process-local cache read that never throws
+    // — only the connectivity probe can observe a quit OmniFocus. Pin that
+    // the classification keys on the probe, not on getLastSync.
+    const getLastSync = vi.fn().mockResolvedValue({ lastSyncAt: null, inFlight: false });
+    const ctx = makeCtx({
+      adapter: { getLastSync } as unknown as OmniFocusAdapter,
+      probeError: new OmniFocusNotRunning(),
+    });
+    const envelope = await handleOmnifocusDoctor({}, ctx);
+    expect(envelope.data.summary).toBe("failed");
+    expect(statusOf(envelope.data.checks, "of_running")).toBe("fail");
+    // The probe failed first, so the sync read is never attempted.
+    expect(getLastSync).not.toHaveBeenCalled();
   });
 });
 
@@ -207,7 +221,7 @@ describe("omnifocus_doctor — summary roll-up", () => {
   it("'failed' beats 'warn' beats 'ok'", async () => {
     // CircuitOpen makes of_running fail but the warn-skipped downstreams
     // shouldn't dilute the summary back down to degraded.
-    const ctx = makeCtx({ adapter: adapterThatThrows(new CircuitOpen("x")) });
+    const ctx = makeCtx({ probeError: new CircuitOpen("x") });
     const envelope = await handleOmnifocusDoctor({}, ctx);
     expect(envelope.data.summary).toBe("failed");
   });
