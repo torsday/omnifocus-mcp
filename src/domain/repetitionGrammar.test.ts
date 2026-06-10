@@ -179,6 +179,29 @@ const OK_FIXTURES: readonly OkFixture[] = [
     description: "every weekend",
   },
 
+  // Interval + weekday selection — "on" clause keeps the weekday instead of
+  // silently dropping it
+  {
+    prose: "every 2 weeks on Monday",
+    rule: { method: "fixed", unit: "weeks", steps: 2, weekdays: ["monday"] },
+    description: "every 2 weeks on Monday",
+  },
+  {
+    prose: "every 3 weeks on Monday and Friday",
+    rule: {
+      method: "fixed",
+      unit: "weeks",
+      steps: 3,
+      weekdays: ["monday", "friday"],
+    },
+    description: "every 3 weeks on Monday and Friday",
+  },
+  {
+    prose: "every other week on Tuesday",
+    rule: { method: "fixed", unit: "weeks", steps: 2, weekdays: ["tuesday"] },
+    description: "every 2 weeks on Tuesday",
+  },
+
   // Nth-of-month, weekday-position
   {
     prose: "the first Monday of every month",
@@ -317,6 +340,13 @@ describe("parseRepetitionFromProse — ambiguous fixtures", () => {
     });
   });
 
+  it("describes interpretation 1 in a form the grammar re-parses losslessly", () => {
+    const result = parseRepetitionFromProse("every other Tuesday");
+    expect(result.kind).toBe("ambiguous");
+    if (result.kind !== "ambiguous") return;
+    expect(result.interpretations[0]?.description).toBe("every 2 weeks on Tuesday");
+  });
+
   it("'every other Monday after I complete it' propagates method to both readings", () => {
     const result = parseRepetitionFromProse("every other Monday after I complete it");
     expect(result.kind).toBe("ambiguous");
@@ -408,6 +438,37 @@ describe("parseRepetitionFromProse — robustness", () => {
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
     expect(result.rule.weekdays).toEqual(["monday", "friday"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Round-trip — the grammar must parse its own normalized descriptions back
+// to the same rule. This is the confirm-loop contract: the agent shows
+// normalizedDescription to the user, and that prose may be echoed straight
+// back into the parser.
+// ---------------------------------------------------------------------------
+
+describe("parseRepetitionFromProse — description round-trip", () => {
+  for (const fixture of OK_FIXTURES) {
+    it(`re-parses '${fixture.description}' to the same rule`, () => {
+      const result = parseRepetitionFromProse(fixture.description);
+      expect(result.kind).toBe("ok");
+      if (result.kind !== "ok") return;
+      expect(result.rule).toEqual(fixture.rule);
+      expect(result.normalizedDescription).toBe(fixture.description);
+    });
+  }
+
+  it("re-parses each 'every other Tuesday' interpretation description to its rule", () => {
+    const result = parseRepetitionFromProse("every other Tuesday");
+    expect(result.kind).toBe("ambiguous");
+    if (result.kind !== "ambiguous") return;
+    for (const interp of result.interpretations) {
+      const reparsed = parseRepetitionFromProse(interp.description);
+      expect(reparsed.kind).toBe("ok");
+      if (reparsed.kind !== "ok") return;
+      expect(reparsed.rule).toEqual(interp.rule);
+    }
   });
 });
 

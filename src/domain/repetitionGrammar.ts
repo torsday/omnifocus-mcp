@@ -121,12 +121,20 @@ function sortWeekdays(weekdays: readonly Weekday[]): Weekday[] {
   return [...weekdays].sort((a, b) => WEEKDAY_ORDER.indexOf(a) - WEEKDAY_ORDER.indexOf(b));
 }
 
+/** Capitalized weekday names joined with commas/'and' — "Monday and Friday". */
+function listWeekdayNames(weekdays: readonly Weekday[]): string {
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  const names = sortWeekdays(weekdays).map(cap);
+  if (names.length === 1) return names[0] ?? "";
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+}
+
 function describeWeekdays(weekdays: readonly Weekday[]): string {
   if (weekdays.length === 0) return "";
   if (weekdays.length === 7) return "every day";
 
-  const sorted = sortWeekdays(weekdays);
-  const weekdaysSet = new Set(sorted);
+  const weekdaysSet = new Set(weekdays);
   const weekdaySet: ReadonlySet<Weekday> = new Set([
     "monday",
     "tuesday",
@@ -141,11 +149,7 @@ function describeWeekdays(weekdays: readonly Weekday[]): string {
     return "every weekend";
   }
 
-  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-  const names = sorted.map(cap);
-  if (names.length === 1) return `every ${names[0]}`;
-  if (names.length === 2) return `every ${names[0]} and ${names[1]}`;
-  return `every ${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+  return `every ${listWeekdayNames(weekdays)}`;
 }
 
 function describePosition(position: 1 | 2 | 3 | 4 | "last"): string {
@@ -163,8 +167,13 @@ function describeMethod(method: RepetitionRule["method"]): string {
 function describeRule(rule: RepetitionRule, suffix: string): string {
   let core: string;
   if (rule.weekdays && rule.weekdays.length > 0) {
-    core = describeWeekdays(rule.weekdays);
-    if (rule.steps !== 1) core = `${core} every ${rule.steps} weeks`;
+    // For steps > 1 emit "every N weeks on {days}" — a form detectFrequency
+    // parses back losslessly. The old "every Tuesday every 2 weeks" phrasing
+    // re-parsed as a plain every-2-weeks rule with the weekday dropped.
+    core =
+      rule.steps === 1
+        ? describeWeekdays(rule.weekdays)
+        : `every ${rule.steps} weeks on ${listWeekdayNames(rule.weekdays)}`;
   } else if (rule.monthlyAnchor) {
     if ("day" in rule.monthlyAnchor) {
       core = `the ${rule.monthlyAnchor.day} of every month`;
@@ -253,6 +262,34 @@ interface FrequencyMatch {
   };
 }
 
+/** Parse weekday names out of a comma/'and'-separated phrase, de-duplicated. */
+function parseWeekdayList(phrase: string): Weekday[] {
+  const tokens = phrase
+    .replace(/\band\b/g, ",")
+    .split(/[, ]+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+  const weekdays: Weekday[] = [];
+  for (const t of tokens) {
+    const wd = WEEKDAY_LOOKUP.get(t);
+    if (wd) weekdays.push(wd);
+  }
+  return Array.from(new Set(weekdays));
+}
+
+/**
+ * Match a trailing "on {weekday}[, {weekday}, ...]" clause starting at `from`
+ * (the end of an interval match like "every 2 weeks"). Returns `null` when no
+ * such clause follows — the interval rule stands alone.
+ */
+function detectOnWeekdays(text: string, from: number): Weekday[] | null {
+  const rest = text.slice(from);
+  const onMatch = rest.match(/^\s+on\s+([a-z, ]+?)(?=$|\s+(at|after|from|once|until|for))/);
+  if (!onMatch) return null;
+  const weekdays = parseWeekdayList(onMatch[1] ?? "");
+  return weekdays.length > 0 ? weekdays : null;
+}
+
 /**
  * Match a frequency clause. Returns `null` when no recognized frequency
  * appears. Caller adds method, time-of-day narration, etc.
@@ -263,6 +300,7 @@ interface FrequencyMatch {
  *   - "every other {weekday}" (returns weekly with steps=2; ambiguity
  *     flagged by caller — see parseRepetitionFromProse)
  *   - "every {N} {unit}s" / "every {N|num-word} {unit}"
+ *   - "every {N} weeks on {weekday}[, {weekday}, ...]" (also "every other week on …")
  *   - "the {position} {weekday} of (every|each) month"
  *   - "the {N} of (every|each) month"
  *   - "daily" / "weekly" / "monthly" / "yearly" / "annually"
@@ -319,7 +357,8 @@ function detectFrequency(text: string): FrequencyMatch | null {
     }
   }
 
-  // "every {N} {unit}s" — e.g. "every 3 days", "every two weeks"
+  // "every {N} {unit}s" — e.g. "every 3 days", "every two weeks",
+  // "every 2 weeks on Tuesday"
   const everyN = text.match(
     /\bevery (\d+|a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(minute|hour|day|week|month|year)s?\b/,
   );
@@ -327,14 +366,25 @@ function detectFrequency(text: string): FrequencyMatch | null {
     const count = parseCount(everyN[1]);
     const unit = `${everyN[2]}s` as RepetitionRule["unit"];
     if (count !== null && count >= 1) {
+      if (unit === "weeks") {
+        const weekdays = detectOnWeekdays(text, (everyN.index ?? 0) + everyN[0].length);
+        if (weekdays) return { rule: { unit, steps: count, weekdays } };
+      }
       return { rule: { unit, steps: count } };
     }
   }
 
-  // "every other {unit}" — e.g. "every other week"
+  // "every other {unit}" — e.g. "every other week", "every other week on Friday"
   const everyOtherUnit = text.match(/\bevery other\s+(minute|hour|day|week|month|year)\b/);
   if (everyOtherUnit) {
     const unit = `${everyOtherUnit[1]}s` as RepetitionRule["unit"];
+    if (unit === "weeks") {
+      const weekdays = detectOnWeekdays(
+        text,
+        (everyOtherUnit.index ?? 0) + everyOtherUnit[0].length,
+      );
+      if (weekdays) return { rule: { unit, steps: 2, weekdays } };
+    }
     return { rule: { unit, steps: 2 } };
   }
 
