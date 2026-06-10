@@ -409,3 +409,62 @@ describe("makeDatabaseChangeHandler — webhook observation", () => {
     expect(listCalls).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// makeDatabaseChangeHandler — cache invalidation
+// ---------------------------------------------------------------------------
+//
+// Externally-detected changes must flush list-shaped caches too: search /
+// forecast / perspective / tag-list / folder-list results embed task and
+// project rows, so a targeted per-id eviction alone would leave them serving
+// pre-change data for the rest of the TTL — the same invariant the
+// mutation-side helpers in src/cache/invalidation.ts enforce.
+
+describe("makeDatabaseChangeHandler — cache invalidation", () => {
+  let adapter: InMemoryAdapter;
+  let cache: OmniFocusLruCache;
+  let server: McpServer;
+
+  beforeEach(() => {
+    adapter = new InMemoryAdapter();
+    cache = new OmniFocusLruCache({ ttlMs: 30000, capacity: 64 });
+    server = stubServer();
+  });
+
+  function fire(): Promise<void> {
+    const handler = makeDatabaseChangeHandler({ adapter, cache, server, aggregateUris: [] });
+    return handler({ detectedAt: new Date().toISOString(), source: "node" });
+  }
+
+  it("flushes list-shaped scopes alongside the per-id evictions (targeted branch)", async () => {
+    const taskId = await adapter.createTask({ name: "t1" });
+    cache.set(`task:${taskId}:ids-only`, "stale");
+    cache.set("task:unrelated:ids-only", "fresh");
+    cache.set("search:tasks:abc", "stale");
+    cache.set("search:projects:abc", "stale");
+    cache.set("forecast:today", "stale");
+    cache.set("perspective:p1:result", "stale");
+    cache.set("tag:list:h1", "stale");
+    cache.set("folder:list:h1", "stale");
+
+    await fire();
+
+    // Per-id eviction still applies…
+    expect(cache.has(`task:${taskId}:ids-only`)).toBe(false);
+    // …list-shaped entries are flushed too (they embed the changed rows)…
+    expect(cache.has("search:tasks:abc")).toBe(false);
+    expect(cache.has("search:projects:abc")).toBe(false);
+    expect(cache.has("forecast:today")).toBe(false);
+    expect(cache.has("perspective:p1:result")).toBe(false);
+    expect(cache.has("tag:list:h1")).toBe(false);
+    expect(cache.has("folder:list:h1")).toBe(false);
+    // …while unrelated per-entity entries survive (eviction stays targeted).
+    expect(cache.has("task:unrelated:ids-only")).toBe(true);
+  });
+
+  it("clears everything when the change query finds no changed IDs (full-clear branch)", async () => {
+    cache.set("task:unrelated:ids-only", "x");
+    await fire();
+    expect(cache.has("task:unrelated:ids-only")).toBe(false);
+  });
+});

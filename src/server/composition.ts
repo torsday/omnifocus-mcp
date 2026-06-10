@@ -290,7 +290,10 @@ export function makeDatabaseChangeHandler(deps: {
       logger.debug({ event: "database.changed.query_failed", err });
     }
 
-    if (querySucceeded && (changed.taskIds.length > 0 || changed.projectIds.length > 0)) {
+    const targeted =
+      querySucceeded && (changed.taskIds.length > 0 || changed.projectIds.length > 0);
+
+    if (targeted) {
       // Targeted: evict only the affected entries.
       for (const id of changed.taskIds) {
         cache.invalidate(`task:${id}`);
@@ -298,6 +301,15 @@ export function makeDatabaseChangeHandler(deps: {
       for (const id of changed.projectIds) {
         cache.invalidate(`project:${id}`);
       }
+      // List-shaped results (task/project lists, forecast, perspective
+      // evaluations, tag/folder lists with embedded counts) embed the rows
+      // that just changed and cannot be surgically pruned — same invariant
+      // as the mutation-side helpers in src/cache/invalidation.ts.
+      cache.invalidate("forecast:*");
+      cache.invalidate("perspective:*");
+      cache.invalidate("search:*");
+      cache.invalidate("tag:list");
+      cache.invalidate("folder:list");
     } else {
       // Unknown what changed (query failed, or nothing found with new timestamp).
       // Clear everything conservatively.
@@ -349,7 +361,7 @@ export function makeDatabaseChangeHandler(deps: {
       detectedAt: ctx.detectedAt,
       changedTasks: changed.taskIds.length,
       changedProjects: changed.projectIds.length,
-      cacheStrategy: querySucceeded ? "targeted" : "full-clear",
+      cacheStrategy: targeted ? "targeted" : "full-clear",
     });
   };
 }
