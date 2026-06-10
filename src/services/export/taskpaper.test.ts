@@ -14,7 +14,13 @@ import { describe, expect, it } from "vitest";
 import type { TaskId } from "../../domain/ids.js";
 import { TaskId as TaskIdCtor } from "../../domain/ids.js";
 import type { Task } from "../../domain/task.js";
-import { localDayKey, parseTaskPaperLine, renderTaskPaper } from "./taskpaper.js";
+import {
+  escapeNoteLine,
+  localDayKey,
+  parseTaskPaperLine,
+  renderTaskPaper,
+  unescapeNoteLine,
+} from "./taskpaper.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -119,6 +125,50 @@ describe("parseTaskPaperLine — bare date tokens", () => {
   it("passes full ISO-8601 datetimes through unchanged", () => {
     const parsed = parseTaskPaperLine("Task @due(2026-06-10T17:00:00Z)", 1, []);
     expect(parsed.dueDate).toBe("2026-06-10T17:00:00Z");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// escapeNoteLine / unescapeNoteLine
+// ---------------------------------------------------------------------------
+
+describe("escapeNoteLine / unescapeNoteLine", () => {
+  it("escapes dash-leading note lines with one space", () => {
+    expect(escapeNoteLine("- buy milk")).toBe(" - buy milk");
+  });
+
+  it("escapes already-space-prefixed dash lines so the pair stays bijective", () => {
+    expect(escapeNoteLine(" - nested bullet")).toBe("  - nested bullet");
+  });
+
+  it("leaves plain note lines untouched", () => {
+    expect(escapeNoteLine("plain text")).toBe("plain text");
+    expect(escapeNoteLine("-not a bullet")).toBe("-not a bullet");
+  });
+
+  it("round-trips through unescapeNoteLine", () => {
+    for (const line of ["- buy milk", " - nested", "plain", "-joined", "\tindented", "-"]) {
+      expect(unescapeNoteLine(escapeNoteLine(line))).toBe(line);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// renderTaskPaper — note emission
+// ---------------------------------------------------------------------------
+
+describe("renderTaskPaper — dash-leading note lines", () => {
+  it("space-escapes note lines that would parse as task lines", () => {
+    const task = makeTask({
+      id: TaskIdCtor.of("task-aaa"),
+      name: "Shopping",
+      note: "Checklist:\n- buy milk\n- buy eggs",
+    });
+
+    const lines: string[] = [];
+    renderTaskPaper(task, new Map(), 1, lines, []);
+
+    expect(lines).toEqual(["\t- Shopping", "\t\tChecklist:", "\t\t - buy milk", "\t\t - buy eggs"]);
   });
 });
 

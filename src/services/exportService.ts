@@ -14,7 +14,13 @@ import type { Project } from "../domain/project.js";
 import { NotFound, ValidationError } from "../errors/index.js";
 import { renderProjectOutline } from "./export/opml.js";
 import { type OutlineNode, parseOpml } from "./export/opmlParser.js";
-import { countLeadingTabs, parseTaskPaperLine, renderTaskPaper } from "./export/taskpaper.js";
+import {
+  countLeadingTabs,
+  escapeNoteLine,
+  parseTaskPaperLine,
+  renderTaskPaper,
+  unescapeNoteLine,
+} from "./export/taskpaper.js";
 import { fetchProjectTaskTree, partitionTasksByParent } from "./export/tree.js";
 
 // ---------------------------------------------------------------------------
@@ -196,11 +202,12 @@ export class ExportService {
     )) {
       const { rootTasks, byParent } = partitionTasksByParent(tasks);
 
-      // Project heading
+      // Project heading — dash-leading note lines are escaped so they cannot
+      // be re-parsed as task lines (see escapeNoteLine).
       lines.push(`${project.name}:`);
       if (project.note) {
         for (const noteLine of project.note.split("\n")) {
-          lines.push(`\t${noteLine}`);
+          lines.push(`\t${escapeNoteLine(noteLine)}`);
         }
       }
 
@@ -230,7 +237,11 @@ export class ExportService {
    *
    * Parses TaskPaper lines and creates tasks via the adapter. Each top-level
    * `-` line becomes a task; indented sub-lines become subtasks of the nearest
-   * parent. Project headings (`Name:`) set the container project when
+   * parent. Indented non-dash continuation lines following a task line are
+   * reattached as that task's note (the exporter's inverse); continuation
+   * lines following a project heading are the project's note, which import
+   * cannot apply — they are skipped with a warning.
+   * Project headings (`Name:`) set the container project when
    * `targetProjectId` is not supplied — they must already exist in OmniFocus
    * (by name match); unknown project names are recorded as warnings and tasks
    * fall back to inbox.
@@ -278,6 +289,32 @@ export class ExportService {
     let currentProjectId: ProjectId | undefined = targetProjectId;
 
     const lines = text.split("\n");
+    /**
+     * Collect indented continuation (note) lines starting at `from` — the
+     * inverse of the exporter's note emission. Consumes lines indented
+     * deeper than `baseDepth` whose content (after the indentation tabs) is
+     * not itself a task line; the exporter space-escapes dash-leading note
+     * lines so they land here rather than as phantom subtasks. Returns the
+     * unescaped note lines plus the index of the first line not consumed.
+     */
+    const collectNoteLines = (
+      from: number,
+      baseDepth: number,
+    ): { noteLines: string[]; next: number } => {
+      const noteLines: string[] = [];
+      let j = from;
+      for (; j < lines.length; j++) {
+        const peek = lines[j];
+        if (peek === undefined || peek.trim() === "") break;
+        const peekDepth = countLeadingTabs(peek);
+        if (peekDepth <= baseDepth) break;
+        const content = peek.slice(peekDepth);
+        if (content.startsWith("- ") || content.startsWith("-\t")) break; // subtask line
+        noteLines.push(unescapeNoteLine(peek.slice(baseDepth + 1)));
+      }
+      return { noteLines, next: j };
+    };
+
     for (let i = 0; i < lines.length; i++) {
       const raw = lines[i];
       if (!raw) continue;
@@ -306,11 +343,25 @@ export class ExportService {
           }
         }
         parentStack.length = 0;
+        // Project note lines follow the heading as indented continuation
+        // lines. importTaskPaper only creates tasks — it never mutates the
+        // existing project — so the note cannot be applied; consume the
+        // block (instead of mis-parsing it) and surface the loss.
+        const projNote = collectNoteLines(i + 1, 0);
+        if (projNote.noteLines.length > 0) {
+          warnings.push(`Line ${i + 2}: project note is not imported — skipped`);
+          i = projNote.next - 1;
+        }
         continue;
       }
 
       // Task line: starts with "- "
-      if (!trimmed.startsWith("- ") && !trimmed.startsWith("-\t")) continue;
+      if (!trimmed.startsWith("- ") && !trimmed.startsWith("-\t")) {
+        if (depth > 0) {
+          warnings.push(`Line ${i + 1}: continuation line without a preceding task — skipped`);
+        }
+        continue;
+      }
 
       // Pop stack to find the correct parent
       while (parentStack.length > 0 && (parentStack[parentStack.length - 1]?.depth ?? 0) >= depth) {
@@ -319,6 +370,16 @@ export class ExportService {
 
       const taskText = trimmed.slice(2).trim();
       const parsed = parseTaskPaperLine(taskText, i + 1, warnings);
+
+      // Continuation lines under this task are its note (the exporter's
+      // inverse); deeper dash lines are subtasks and end the note block.
+      const { noteLines, next } = collectNoteLines(i + 1, depth);
+      if (noteLines.length > 0) i = next - 1;
+      const noteFromLines = noteLines.length > 0 ? noteLines.join("\n") : undefined;
+      const note =
+        parsed.note !== undefined && noteFromLines !== undefined
+          ? `${parsed.note}\n${noteFromLines}`
+          : (parsed.note ?? noteFromLines);
 
       // Resolve tag IDs
       const tagIds: TagId[] = [];
@@ -339,7 +400,7 @@ export class ExportService {
         ...(parsed.dueDate ? { dueDate: parsed.dueDate } : {}),
         ...(parsed.deferDate ? { deferDate: parsed.deferDate } : {}),
         ...(parsed.flagged ? { flagged: true } : {}),
-        ...(parsed.note ? { note: parsed.note } : {}),
+        ...(note ? { note } : {}),
         ...(tagIds.length > 0 ? { tagIds } : {}),
       };
 

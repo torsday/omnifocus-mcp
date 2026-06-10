@@ -394,6 +394,53 @@ describe("ExportService — round-trip (export → import)", () => {
     expect(grandchild?.parentId).toBe(child?.id);
   });
 
+  it("round-trips a multi-line note as the task's note, not phantom subtasks", async () => {
+    const { adapter, service } = makeService();
+    const projId = await adapter.createProject({ name: "RT-notes" });
+    await adapter.createTask({
+      name: "Shopping",
+      projectId: projId as ProjectId,
+      note: "Checklist:\n- buy milk\n- buy eggs",
+    });
+
+    const exported = await service.exportTaskPaper({ kind: "project", id: projId as ProjectId });
+
+    const proj2 = await adapter.createProject({ name: "RT-notes-2" });
+    const result = await service.importTaskPaper(exported.taskpaper, proj2 as ProjectId);
+    // One task — the old import created "buy milk"/"buy eggs" as subtasks
+    // and silently dropped the rest of the note.
+    expect(result.created).toHaveLength(1);
+
+    const tasks = await adapter.listTasks({ projectId: proj2 as ProjectId });
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]?.name).toBe("Shopping");
+    expect(tasks[0]?.note).toBe("Checklist:\n- buy milk\n- buy eggs");
+  });
+
+  it("attaches continuation note lines to the task while keeping following subtasks", async () => {
+    const { adapter, service } = makeService();
+    await service.importTaskPaper("- Parent\n\tsome note\n\tmore note\n\t- Child");
+    const tasks = await adapter.listTasks({});
+    const parent = tasks.find((t) => t.name === "Parent");
+    const child = tasks.find((t) => t.name === "Child");
+    expect(parent?.note).toBe("some note\nmore note");
+    expect(child?.parentId).toBe(parent?.id);
+  });
+
+  it("warns about project note lines instead of importing them as tasks", async () => {
+    const { adapter, service } = makeService();
+    const projId = await adapter.createProject({
+      name: "Noted",
+      note: "Project context:\n- not a task",
+    });
+    const exported = await service.exportTaskPaper({ kind: "project", id: projId as ProjectId });
+
+    const proj2 = await adapter.createProject({ name: "Noted-2" });
+    const result = await service.importTaskPaper(exported.taskpaper, proj2 as ProjectId);
+    expect(result.created).toHaveLength(0);
+    expect(result.warnings.some((w) => w.includes("project note"))).toBe(true);
+  });
+
   it("round-trips a dropped task as dropped, not completed", async () => {
     const { adapter, service } = makeService();
     const projId = await adapter.createProject({ name: "RT-drop" });

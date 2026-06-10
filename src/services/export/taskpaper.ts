@@ -74,6 +74,33 @@ function localMidnightIso(ymd: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Note-line escaping
+// ---------------------------------------------------------------------------
+
+// A note line that itself looks like a task line (optional leading spaces,
+// then `- `) would be indistinguishable from a subtask once emitted —
+// TaskPaper has no escape syntax. ESCAPED matches what escapeNoteLine
+// produces (one-or-more spaces before the dash), so the pair is bijective:
+// genuine space-prefixed dash lines get a second space on export and lose
+// exactly one on import.
+const NOTE_LINE_NEEDS_ESCAPE = /^ *-(?:[ \t]|$)/;
+const NOTE_LINE_ESCAPED = /^ +-(?:[ \t]|$)/;
+
+/**
+ * Escape a note line for emission so it cannot be re-parsed as a task line.
+ * Space-prefixed dash lines stay note lines for both `importTaskPaper` and
+ * TaskPaper-native parsers (TaskPaper indents tasks with tabs only).
+ */
+export function escapeNoteLine(line: string): string {
+  return NOTE_LINE_NEEDS_ESCAPE.test(line) ? ` ${line}` : line;
+}
+
+/** Inverse of {@link escapeNoteLine}: strip the single escape space. */
+export function unescapeNoteLine(line: string): string {
+  return NOTE_LINE_ESCAPED.test(line) ? line.slice(1) : line;
+}
+
+// ---------------------------------------------------------------------------
 // Render
 // ---------------------------------------------------------------------------
 
@@ -113,11 +140,12 @@ export function renderTaskPaper(
   const tagStr = tags.length > 0 ? ` ${tags.join(" ")}` : "";
   lines.push(`${indent}- ${task.name}${tagStr}`);
 
-  // Note as indented continuation lines
+  // Note as indented continuation lines — dash-leading lines are escaped so
+  // they round-trip as note content rather than phantom subtasks.
   const noteText = task.note ?? (task.noteHtml ? task.noteHtml.replace(/<[^>]*>/g, "") : null);
   if (noteText) {
     for (const noteLine of noteText.split("\n")) {
-      if (noteLine.trim()) lines.push(`${indent}\t${noteLine}`);
+      if (noteLine.trim()) lines.push(`${indent}\t${escapeNoteLine(noteLine)}`);
     }
     if (task.noteHtml && !task.note) {
       warnings.push(`Task "${task.name}": HTML note downgraded to plain text`);
