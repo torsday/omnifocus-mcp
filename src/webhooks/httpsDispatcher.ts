@@ -75,10 +75,20 @@ export function buildHttpsRequest(httpsRequest: typeof https.request): HttpsRequ
   return ({ url, body, headers, timeoutMs }) =>
     new Promise<HttpsRequestResult>((resolve, reject) => {
       const parsed = new URL(url);
+      // Decompose into hostname + port. `URL.host` keeps an explicit
+      // ":port" suffix, and Node's http client hands the `host` option
+      // verbatim to DNS (getaddrinfo ENOTFOUND "example.com:8443") while
+      // defaulting the connection to 443 — so explicit-port webhook URLs
+      // would never deliver. Mirror Node's `urlToHttpOptions`: bracket-free
+      // hostname for IPv6 literals, numeric port when one is present.
+      const hostname = parsed.hostname.startsWith("[")
+        ? parsed.hostname.slice(1, -1)
+        : parsed.hostname;
       const req = httpsRequest(
         {
           method: "POST",
-          host: parsed.host,
+          hostname,
+          port: parsed.port === "" ? 443 : Number(parsed.port),
           path: `${parsed.pathname}${parsed.search}`,
           headers: { "Content-Length": Buffer.byteLength(body), ...headers },
           timeout: timeoutMs,

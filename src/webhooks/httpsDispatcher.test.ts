@@ -398,3 +398,84 @@ describe("defaultHttpsRequest — response-stream error handling", () => {
     expect(circuit?.consecutiveFailures).toBe(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// buildHttpsRequest — host/port decomposition
+// ---------------------------------------------------------------------------
+
+describe("buildHttpsRequest — host/port decomposition", () => {
+  /**
+   * Fake `https.request` that captures the options object and completes
+   * with a 200 (empty body). Lets us assert the exact option shape the
+   * production transport hands to Node — the seam every other test in
+   * this file injects above.
+   */
+  function fakeCapturingHttpsRequest(captured: Array<Record<string, unknown>>) {
+    return ((opts: unknown, cb?: unknown) => {
+      captured.push(opts as Record<string, unknown>);
+      const fakeRes = Object.assign(new EventEmitter(), { statusCode: 200 });
+      const fakeReq = Object.assign(new EventEmitter(), {
+        destroy: vi.fn(),
+        write: vi.fn(),
+        end: vi.fn(),
+      });
+      if (typeof cb === "function") {
+        queueMicrotask(() => {
+          (cb as (res: unknown) => void)(fakeRes);
+          queueMicrotask(() => fakeRes.emit("end"));
+        });
+      }
+      return fakeReq as unknown as ReturnType<typeof https.request>;
+    }) as unknown as typeof https.request;
+  }
+
+  it("passes hostname without the port and a numeric port for explicit-port URLs", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const request = buildHttpsRequest(fakeCapturingHttpsRequest(captured));
+
+    await request({
+      url: "https://hooks.example.com:8443/hook?x=1",
+      body: "{}",
+      headers: {},
+      timeoutMs: 1000,
+    });
+
+    expect(captured).toHaveLength(1);
+    expect(captured[0]?.hostname).toBe("hooks.example.com");
+    expect(captured[0]?.port).toBe(8443);
+    expect(captured[0]?.path).toBe("/hook?x=1");
+    // The old shape passed `host: "hooks.example.com:8443"`, which Node
+    // hands verbatim to DNS (getaddrinfo ENOTFOUND) — must not reappear.
+    expect(captured[0]?.host).toBeUndefined();
+  });
+
+  it("defaults to port 443 when the URL has no explicit port", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const request = buildHttpsRequest(fakeCapturingHttpsRequest(captured));
+
+    await request({
+      url: "https://hooks.example.com/hook",
+      body: "{}",
+      headers: {},
+      timeoutMs: 1000,
+    });
+
+    expect(captured[0]?.hostname).toBe("hooks.example.com");
+    expect(captured[0]?.port).toBe(443);
+  });
+
+  it("strips IPv6 brackets from the hostname (mirrors Node's urlToHttpOptions)", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const request = buildHttpsRequest(fakeCapturingHttpsRequest(captured));
+
+    await request({
+      url: "https://[::1]:8443/hook",
+      body: "{}",
+      headers: {},
+      timeoutMs: 1000,
+    });
+
+    expect(captured[0]?.hostname).toBe("::1");
+    expect(captured[0]?.port).toBe(8443);
+  });
+});
