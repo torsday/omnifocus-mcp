@@ -76,6 +76,13 @@
       /* OF 4.x: property access may not exist on all object types — default used */
     }
 
+    // OmniJS has no `blocked`/`available`/`dropped` booleans on Task — the
+    // computed state lives on `taskStatus` (a Task.Status enum value); map it
+    // (same pattern as task_create.js). Next/DueSoon/Overdue are refinements
+    // of Available, so all four count as available, matching JXA's
+    // task.available().
+    const status = task.taskStatus;
+
     return {
       id: task.id.primaryKey,
       name: task.name,
@@ -90,10 +97,14 @@
       flagged: !!task.flagged,
       completed: !!task.completed,
       completedAt: isoOrNull(task.completionDate),
-      dropped: !!task.dropped,
+      dropped: status === Task.Status.Dropped,
       droppedAt: isoOrNull(task.dropDate),
-      available: !task.blocked && !task.completed && !task.dropped,
-      blocked: !!task.blocked,
+      available:
+        status === Task.Status.Available ||
+        status === Task.Status.Next ||
+        status === Task.Status.DueSoon ||
+        status === Task.Status.Overdue,
+      blocked: status === Task.Status.Blocked,
       sequential: !!task.sequential,
       completedByChildren: !!task.completedByChildren,
       repetition: buildRepetition(task),
