@@ -121,3 +121,27 @@ describe("parseTaskPaperLine — bare date tokens", () => {
     expect(parsed.dueDate).toBe("2026-06-10T17:00:00Z");
   });
 });
+
+// ---------------------------------------------------------------------------
+// parseTaskPaperLine — `//` note delimiter
+// ---------------------------------------------------------------------------
+
+describe("parseTaskPaperLine — `//` note delimiter", () => {
+  it("keeps URLs in the task name intact (`//` without leading whitespace is not a delimiter)", () => {
+    const parsed = parseTaskPaperLine("Read https://example.com/docs", 1, []);
+    expect(parsed.name).toBe("Read https://example.com/docs");
+    expect(parsed.note).toBeUndefined();
+  });
+
+  it("splits name and note on a whitespace-preceded `//`", () => {
+    const parsed = parseTaskPaperLine("Task // note here", 1, []);
+    expect(parsed.name).toBe("Task");
+    expect(parsed.note).toBe("note here");
+  });
+
+  it("keeps later `//` occurrences inside the note instead of discarding them", () => {
+    const parsed = parseTaskPaperLine("Task // see https://example.com // and more", 1, []);
+    expect(parsed.name).toBe("Task");
+    expect(parsed.note).toBe("see https://example.com // and more");
+  });
+});

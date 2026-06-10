@@ -201,10 +201,17 @@ export function parseTaskPaperLine(
     return "";
   });
 
-  // The task name is what's left, trimmed; note may be embedded after //
-  const parts = remaining.split("//");
-  const name = (parts[0] ?? "").trim();
-  const note = parts[1] ? parts[1].trim() : undefined;
+  // The task name is what's left, trimmed; a note may be embedded after a
+  // standalone `//`. The delimiter only counts when preceded by whitespace
+  // (or starting the line) so URLs in task names (`https://…`) stay intact —
+  // same delimiter rule as the transport-text parser
+  // (src/taskParser/transportText.ts). Everything after the first delimiter
+  // is the note, so later `//` occurrences are kept rather than discarded.
+  const noteMatch = /(?:^|\s)\/\//.exec(remaining);
+  const name = noteMatch === null ? remaining.trim() : remaining.slice(0, noteMatch.index).trim();
+  const rawNote =
+    noteMatch === null ? "" : remaining.slice(noteMatch.index + noteMatch[0].length).trim();
+  const note = rawNote ? rawNote : undefined;
 
   if (!name) {
     warnings.push(`Line ${lineNum}: empty task name after parsing tags — skipped`);
