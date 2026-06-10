@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import { TaskId } from "../../domain/ids.js";
 import type { ResponseMeta } from "../../envelope/index.js";
+import { NotFound, Timeout } from "../../errors/index.js";
 import { SyncSnapshotStore } from "../../state/syncSnapshotStore.js";
 import {
   type ChangesSinceData,
@@ -145,6 +146,66 @@ describe("changes_since — includeRemoved (#1095)", () => {
     expect(d.tasks.modified).toHaveLength(1);
     expect(d.tasks.modified[0]?.id).toBe(idB as string);
     expect(d.tasks.modified[0]?.changes).toMatchObject({ flagged: true });
+  });
+});
+
+describe("changes_since — per-entity fetch failures (C24)", () => {
+  it("rethrows a transient getTask failure without consuming the token", async () => {
+    const ctx = makeCtx();
+    const idA = await ctx.adapter.createTask({ name: "Task A" });
+    const boot = data(await handleChangesSince({}, ctx));
+
+    await ctx.adapter.updateTask(idA, { flagged: true });
+
+    // First delta attempt: the per-entity fetch times out (slow DB contending
+    // with sync). The call must fail — NOT silently advance the watermark.
+    const realGetTask = ctx.adapter.getTask.bind(ctx.adapter);
+    ctx.adapter.getTask = () => Promise.reject(new Timeout("JXA script exceeded 30000ms timeout"));
+    await expect(handleChangesSince({ syncToken: boot.syncToken }, ctx)).rejects.toBeInstanceOf(
+      Timeout,
+    );
+
+    // The token survived the failed call, so a retry re-reports the change.
+    ctx.adapter.getTask = realGetTask;
+    const d = data(await handleChangesSince({ syncToken: boot.syncToken }, ctx));
+    expect(d.reset).toBe(false);
+    expect(d.tasks.modified).toHaveLength(1);
+    expect(d.tasks.modified[0]?.id).toBe(idA as string);
+    expect(d.tasks.modified[0]?.changes).toMatchObject({ flagged: true });
+  });
+
+  it("rethrows a transient getProject failure without consuming the token", async () => {
+    const ctx = makeCtx();
+    const idP = await ctx.adapter.createProject({ name: "Project P" });
+    const boot = data(await handleChangesSince({}, ctx));
+
+    await ctx.adapter.updateProject(idP, { name: "Project P2" });
+
+    const realGetProject = ctx.adapter.getProject.bind(ctx.adapter);
+    ctx.adapter.getProject = () => Promise.reject(new Timeout("timeout"));
+    await expect(handleChangesSince({ syncToken: boot.syncToken }, ctx)).rejects.toBeInstanceOf(
+      Timeout,
+    );
+
+    ctx.adapter.getProject = realGetProject;
+    const d = data(await handleChangesSince({ syncToken: boot.syncToken }, ctx));
+    expect(d.projects.modified).toHaveLength(1);
+    expect(d.projects.modified[0]?.id).toBe(idP as string);
+  });
+
+  it("still skips a changed-then-vanished entity (NotFound) silently", async () => {
+    const ctx = makeCtx();
+    const idA = await ctx.adapter.createTask({ name: "Task A" });
+    const boot = data(await handleChangesSince({}, ctx));
+
+    await ctx.adapter.updateTask(idA, { flagged: true });
+
+    // The entity vanished between the cheap id query and the full fetch.
+    ctx.adapter.getTask = () => Promise.reject(new NotFound(`Task not found: ${idA as string}`));
+    const d = data(await handleChangesSince({ syncToken: boot.syncToken }, ctx));
+    expect(d.reset).toBe(false);
+    expect(d.tasks.added).toEqual([]);
+    expect(d.tasks.modified).toEqual([]);
   });
 });
 

@@ -37,6 +37,7 @@ import { ProjectId, TaskId } from "../../domain/ids.js";
 import type { Project } from "../../domain/project.js";
 import type { Task } from "../../domain/task.js";
 import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
+import { NotFound } from "../../errors/index.js";
 import {
   syncSnapshotStore as defaultStore,
   type SyncSnapshotStore,
@@ -198,8 +199,16 @@ export async function handleChangesSince(input: ChangesSinceInput, ctx: ChangesS
     let current: Task;
     try {
       current = await ctx.adapter.getTask(TaskId.of(id));
-    } catch {
-      continue; // Changed-then-vanished between query and fetch — not reported in v1.
+    } catch (err) {
+      // Changed-then-vanished between query and fetch — not reported in v1.
+      // ONLY NotFound may be swallowed: any other failure (Timeout, OFBusy,
+      // ScriptError, …) must abort the call before the token is superseded,
+      // or the skipped entity's delta would be lost forever — its
+      // modificationDate predates the next snapshot's issuedAtIso. The old
+      // token stays registered, so the caller retries with it and the
+      // change is re-reported.
+      if (err instanceof NotFound) continue;
+      throw err;
     }
     nextTasks.set(id, current);
     const before = prior.tasksById.get(id);
@@ -218,8 +227,9 @@ export async function handleChangesSince(input: ChangesSinceInput, ctx: ChangesS
     let current: Project;
     try {
       current = await ctx.adapter.getProject(ProjectId.of(id));
-    } catch {
-      continue;
+    } catch (err) {
+      if (err instanceof NotFound) continue; // Same vanished-entity rule as tasks above.
+      throw err;
     }
     nextProjects.set(id, current);
     const before = prior.projectsById.get(id);
