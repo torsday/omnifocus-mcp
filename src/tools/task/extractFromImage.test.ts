@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import type { AttachmentId, ProjectId, TaskId } from "../../domain/ids.js";
 import type { ResponseMeta } from "../../envelope/index.js";
+import { ValidationError } from "../../errors/index.js";
 import { AttachmentService } from "../../services/attachmentService.js";
 
 import { handleTaskExtractFromImage, taskExtractFromImageInputSchema } from "./extractFromImage.js";
@@ -161,6 +162,76 @@ describe("handleTaskExtractFromImage — dry run", () => {
     const failures = (caught as { details?: { failures?: Array<{ expected: string }> } }).details
       ?.failures;
     expect(failures?.some((f) => /imagePath must use one of/.test(f.expected))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Path validation precedes any write (no orphaned wrapper task)
+// ---------------------------------------------------------------------------
+
+describe("handleTaskExtractFromImage — path validation precedes writes", () => {
+  it("dry run rejects a nonexistent / out-of-scope path instead of approving it", async () => {
+    const adapter = new InMemoryAdapter();
+    const projId = await adapter.createProject({ name: "Triage" });
+
+    await expect(
+      handleTaskExtractFromImage(
+        {
+          source: { kind: "path", imagePath: "/etc/omnifocus-mcp-486-nonexistent.png" },
+          targetProjectId: projId,
+          proposed: PROPOSED,
+          attachSourceTo: "parent-task",
+          dryRun: true,
+        },
+        makeCtx(adapter),
+      ),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it("write phase fails before creating the wrapper task when the path is invalid", async () => {
+    const adapter = new InMemoryAdapter();
+    const projId = await adapter.createProject({ name: "Triage" });
+    // In-scope directory, but the file was never written.
+    const missingPath = join(tmpdir(), `omnifocus-mcp-486-${randomUUID()}.png`);
+
+    await expect(
+      handleTaskExtractFromImage(
+        {
+          source: { kind: "path", imagePath: missingPath },
+          targetProjectId: projId,
+          proposed: PROPOSED,
+          confirmation: PROPOSED,
+          attachSourceTo: "parent-task",
+          dryRun: false,
+        },
+        makeCtx(adapter),
+      ),
+    ).rejects.toThrow(ValidationError);
+
+    // Nothing was written — no orphaned "Captured from image" wrapper.
+    expect(await adapter.listTasks({ projectId: projId })).toHaveLength(0);
+  });
+
+  it("each-task mode fails before creating any child task when the path is invalid", async () => {
+    const adapter = new InMemoryAdapter();
+    const projId = await adapter.createProject({ name: "Triage" });
+    const missingPath = join(tmpdir(), `omnifocus-mcp-486-${randomUUID()}.png`);
+
+    await expect(
+      handleTaskExtractFromImage(
+        {
+          source: { kind: "path", imagePath: missingPath },
+          targetProjectId: projId,
+          proposed: PROPOSED,
+          confirmation: PROPOSED,
+          attachSourceTo: "each-task",
+          dryRun: false,
+        },
+        makeCtx(adapter),
+      ),
+    ).rejects.toThrow(ValidationError);
+
+    expect(await adapter.listTasks({ projectId: projId })).toHaveLength(0);
   });
 });
 

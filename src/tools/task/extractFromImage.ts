@@ -261,9 +261,12 @@ async function resolveSource(
   ctx: TaskExtractFromImageContext,
 ): Promise<ResolvedSource> {
   if (source.kind === "path") {
-    // Image-extension check is now enforced at the Zod boundary
-    // (see sourceSchema.path.imagePath.refine). Reaching this branch means
-    // the path is already validated.
+    // Image-extension check is enforced at the Zod boundary
+    // (see sourceSchema.path.imagePath.refine). Path scope, existence, and
+    // size cap must be asserted HERE — before any task is written — so both
+    // the dry-run preview and the write phase fail fast instead of orphaning
+    // a wrapper task when a later attachmentService.add rejects the path.
+    await ctx.attachmentService.assertAddable(source.imagePath);
     return { kind: "path", imagePath: source.imagePath };
   }
   const owner = source.ownerTaskId

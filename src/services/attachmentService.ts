@@ -80,6 +80,21 @@ export class AttachmentService {
   }
 
   /**
+   * Assert that a local file path could be added as an attachment — exists,
+   * resolves inside the configured path scope, and is under the size cap —
+   * without performing any mutation. Tools that create records *before*
+   * attaching (e.g. task_extract_from_image) call this during their
+   * validation phase so a bad path fails fast instead of orphaning a
+   * partial write.
+   *
+   * @throws ValidationError — path outside allowed scope, missing file, or file exceeds cap
+   */
+  async assertAddable(filePath: string): Promise<void> {
+    await assertAttachmentPath(filePath, this.allowedPaths);
+    await assertAttachmentSize(filePath, this.maxMb);
+  }
+
+  /**
    * Add an attachment from a local file path.
    *
    * Path-scope and size-cap checks run before the adapter call so
@@ -89,8 +104,7 @@ export class AttachmentService {
    * @throws NotFound — when the owner does not exist
    */
   async add(input: AddAttachmentInput): Promise<{ id: AttachmentId } & AttachmentMutationOutcome> {
-    await assertAttachmentPath(input.filePath, this.allowedPaths);
-    await assertAttachmentSize(input.filePath, this.maxMb);
+    await this.assertAddable(input.filePath);
     const id = await this.adapter.addAttachment(input);
     const owner = ownerFromInput(input);
     return { id, ownerKind: ownerKindOf(owner), ownerName: await this.lookupOwnerName(owner) };
