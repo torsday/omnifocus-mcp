@@ -69,6 +69,38 @@ describe("parseTransportText — single task", () => {
     expect(tasks[0]?.deferDate).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
+  it("does not treat '//' inside an https URL as a note marker", () => {
+    const { tasks, warnings } = parseTransportText(
+      "Read https://example.com/article @reading #tomorrow",
+    );
+    expect(warnings).toHaveLength(0);
+    const [t] = tasks;
+    expect(t?.name).toBe("Read https://example.com/article");
+    expect(t?.note).toBeUndefined();
+    expect(t?.tagNames).toEqual(["reading"]);
+    expect(t?.dueDate).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it("does not treat '//' inside http or file URLs as a note marker", () => {
+    const { tasks } = parseTransportText(
+      "Mirror http://example.org/repo to file:///Users/me/backup",
+    );
+    expect(tasks[0]?.name).toBe("Mirror http://example.org/repo to file:///Users/me/backup");
+    expect(tasks[0]?.note).toBeUndefined();
+  });
+
+  it("still extracts a whitespace-preceded note after a URL in the name", () => {
+    const { tasks } = parseTransportText("Read https://example.com/article //skim it first");
+    expect(tasks[0]?.name).toBe("Read https://example.com/article");
+    expect(tasks[0]?.note).toBe("skim it first");
+  });
+
+  it("keeps URLs inside the note intact", () => {
+    const { tasks } = parseTransportText("Plan trip //see https://example.com/itinerary");
+    expect(tasks[0]?.name).toBe("Plan trip");
+    expect(tasks[0]?.note).toBe("see https://example.com/itinerary");
+  });
+
   it("passes through unrecognized date format with warning", () => {
     const { tasks, warnings } = parseTransportText("Task #next-tuesday");
     expect(tasks[0]?.dueDate).toBe("next-tuesday");

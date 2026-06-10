@@ -130,9 +130,13 @@ export function parseTransportText(text: string): ParseTransportTextResult {
     let flagged = false;
     let note: string | undefined;
 
-    // Extract note (// to end of line) first, to avoid interfering with other tokens
-    const noteIdx = remaining.indexOf("//");
-    if (noteIdx !== -1) {
+    // Extract note (// to end of line) first, to avoid interfering with other
+    // tokens. The marker only counts at a token boundary (line start or after
+    // whitespace) so the '//' inside URL schemes (https://, file://) never
+    // splits the line.
+    const noteMatch = remaining.match(/(^|\s)\/\//);
+    if (noteMatch?.index !== undefined) {
+      const noteIdx = noteMatch.index + (noteMatch[1]?.length ?? 0);
       note = remaining.slice(noteIdx + 2).trim();
       remaining = remaining.slice(0, noteIdx).trim();
     }
