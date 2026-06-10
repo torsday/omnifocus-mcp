@@ -161,6 +161,52 @@ describe("TaskService.list — cursor pagination with sortBy", () => {
     expect(page2.hasMore).toBe(false);
   });
 
+  it("paginates correctly with sortBy: dueDate DESC (nulls last, boundary before null tail)", async () => {
+    const { service, adapter } = makeService();
+    await adapter.createTask({ name: "NoDue1" });
+    await adapter.createTask({ name: "NoDue2" });
+    await adapter.createTask({ name: "Due2", dueDate: "2026-06-01T00:00:00Z" });
+    await adapter.createTask({ name: "Due1", dueDate: "2026-05-01T00:00:00Z" });
+
+    const page1 = await service.list({ limit: 2, sortBy: "dueDate", sortDirection: "desc" });
+    expect(page1.tasks.map((t) => t.name)).toEqual(["Due2", "Due1"]);
+    expect(page1.hasMore).toBe(true);
+
+    const page2 = await service.list({
+      limit: 2,
+      sortBy: "dueDate",
+      sortDirection: "desc",
+      // biome-ignore lint/style/noNonNullAssertion: hasMore is asserted true above
+      cursor: page1.nextCursor!,
+    });
+    // The null-dueDate tail must still be emitted on page 2 (nulls last in DESC too)
+    expect(page2.tasks.map((t) => t.name)).toEqual(["NoDue1", "NoDue2"]);
+    expect(page2.hasMore).toBe(false);
+  });
+
+  it("paginates correctly with sortBy: dueDate DESC (boundary inside null tail, no duplicates)", async () => {
+    const { service, adapter } = makeService();
+    await adapter.createTask({ name: "NoDue1" });
+    await adapter.createTask({ name: "NoDue2" });
+    await adapter.createTask({ name: "Due2", dueDate: "2026-06-01T00:00:00Z" });
+    await adapter.createTask({ name: "Due1", dueDate: "2026-05-01T00:00:00Z" });
+
+    const page1 = await service.list({ limit: 3, sortBy: "dueDate", sortDirection: "desc" });
+    expect(page1.tasks.map((t) => t.name)).toEqual(["Due2", "Due1", "NoDue1"]);
+    expect(page1.hasMore).toBe(true);
+
+    const page2 = await service.list({
+      limit: 3,
+      sortBy: "dueDate",
+      sortDirection: "desc",
+      // biome-ignore lint/style/noNonNullAssertion: hasMore is asserted true above
+      cursor: page1.nextCursor!,
+    });
+    // No already-returned task may be re-emitted after a null-anchored cursor
+    expect(page2.tasks.map((t) => t.name)).toEqual(["NoDue2"]);
+    expect(page2.hasMore).toBe(false);
+  });
+
   it("rejects cursor when sortBy changes mid-sequence", async () => {
     const { service, adapter } = makeService();
     for (let i = 0; i < 3; i++) await adapter.createTask({ name: `Task ${i}` });

@@ -147,10 +147,11 @@ export function isAfterCursor(
   // Both null → tie-break on id (always ascending for stability)
   if (iv === null && cv === null) return item.id > cursor.lastId;
 
-  // Null sorts last: a null item is only "after" a non-null cursor in ASC,
-  // and always "after" nothing (non-null > null) in DESC.
-  if (iv === null) return sortDirection === "asc"; // null comes after non-null in ASC
-  if (cv === null) return sortDirection === "desc"; // non-null comes after null in DESC
+  // Null sorts last regardless of direction: the null tail follows every
+  // non-null item, so a null item is always after a non-null cursor, and a
+  // non-null item is never after a null-anchored cursor.
+  if (iv === null) return true; // null item is in the tail, after any non-null cursor
+  if (cv === null) return false; // cursor is in the null tail; non-null items precede it
 
   // Both non-null: compare normally
   if (iv !== cv) {

@@ -200,6 +200,10 @@ describe("isAfterCursor — null sortValue (nulls-last)", () => {
     expect(isAfterCursor({ id: "id_bbb", sortValue: null }, cursorWithValue, "asc")).toBe(true);
   });
 
+  it("null item is after non-null cursor in DESC (nulls last)", () => {
+    expect(isAfterCursor({ id: "id_bbb", sortValue: null }, cursorWithValue, "desc")).toBe(true);
+  });
+
   it("null item is NOT after null cursor with smaller id (both null)", () => {
     expect(isAfterCursor({ id: "id_aaa", sortValue: null }, cursorWithNull, "asc")).toBe(false);
   });
@@ -214,9 +218,13 @@ describe("isAfterCursor — null sortValue (nulls-last)", () => {
     ).toBe(false);
   });
 
-  it("non-null item is after null cursor in DESC", () => {
+  // Nulls sort last regardless of direction (matching every producer sort),
+  // so a non-null item precedes a null-anchored cursor in DESC too. The
+  // previous expectation (true) encoded nulls-first-in-DESC, which dropped
+  // the entire null tail and re-emitted earlier items on DESC page sequences.
+  it("non-null item is NOT after null cursor in DESC (item is before null)", () => {
     expect(
       isAfterCursor({ id: "id_bbb", sortValue: "2026-04-19T00:00:00Z" }, cursorWithNull, "desc"),
-    ).toBe(true);
+    ).toBe(false);
   });
 });
