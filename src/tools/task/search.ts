@@ -41,7 +41,7 @@ export const TASK_SEARCH_DESCRIPTION =
   "available, dueBefore, dueAfter, flagged, and completed. " +
   "At least one of q, projectId, tagIds, available, dueBefore, or dueAfter must be provided. " +
   "Do NOT use when you already have an ID — prefer task_get instead. " +
-  "Returns tasks[] with pagination (limit defaults to 100, max 500); safe to call repeatedly; no side effects. " +
+  "Returns tasks[] with pagination (limit defaults to 50, max 500); safe to call repeatedly; no side effects. " +
   'Example: task_search({ q: "dentist" }) ' +
   'Example: task_search({ tagIds: ["tag123"], available: true, dueBefore: "2026-05-01T00:00:00Z" })';
 
@@ -103,7 +103,7 @@ export const taskSearchInputShape = {
     .min(1)
     .max(500)
     .optional()
-    .describe("Max results per page (1..500). Default 100. Use cursor to fetch subsequent pages."),
+    .describe("Max results per page (1..500). Default 50. Use cursor to fetch subsequent pages."),
   cursor: z
     .string()
     .optional()

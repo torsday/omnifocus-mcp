@@ -5014,7 +5014,7 @@ Reorder an OmniFocus task among its siblings. OmniFocus has no numeric sibling i
 
 ## task_search
 
-Search OmniFocus tasks by keyword and/or structured filters, with cursor pagination. q is optional — omit it to filter by tag, project, date range, or availability alone. When q is supplied, scans task names and/or notes (controlled by scope) for a case-insensitive substring match. Narrow results with: projectId, tagIds (task must carry ALL listed tags), available, dueBefore, dueAfter, flagged, and completed. At least one of q, projectId, tagIds, available, dueBefore, or dueAfter must be provided. Do NOT use when you already have an ID — prefer task_get instead. Returns tasks[] with pagination (limit defaults to 100, max 500); safe to call repeatedly; no side effects. Example: task_search({ q: "dentist" }) Example: task_search({ tagIds: ["tag123"], available: true, dueBefore: "2026-05-01T00:00:00Z" })
+Search OmniFocus tasks by keyword and/or structured filters, with cursor pagination. q is optional — omit it to filter by tag, project, date range, or availability alone. When q is supplied, scans task names and/or notes (controlled by scope) for a case-insensitive substring match. Narrow results with: projectId, tagIds (task must carry ALL listed tags), available, dueBefore, dueAfter, flagged, and completed. At least one of q, projectId, tagIds, available, dueBefore, or dueAfter must be provided. Do NOT use when you already have an ID — prefer task_get instead. Returns tasks[] with pagination (limit defaults to 50, max 500); safe to call repeatedly; no side effects. Example: task_search({ q: "dentist" }) Example: task_search({ tagIds: ["tag123"], available: true, dueBefore: "2026-05-01T00:00:00Z" })
 
 ### Input
 
@@ -5029,7 +5029,7 @@ Search OmniFocus tasks by keyword and/or structured filters, with cursor paginat
 | `dueAfter` | string | No | Tasks with dueDate strictly after this moment. ISO-8601 with offset or relative shortcut. |
 | `flagged` | boolean | No | true = flagged tasks only; false = unflagged only; omit = all. |
 | `completed` | one of: any | only | exclude | No | 'exclude' = active tasks only (default); 'only' = completed tasks only; 'any' = both. |
-| `limit` | number | No | Max results per page (1..500). Default 100. Use cursor to fetch subsequent pages. |
+| `limit` | number | No | Max results per page (1..500). Default 50. Use cursor to fetch subsequent pages. |
 | `cursor` | string | No | Opaque cursor from a previous task_search response. Must use the same filters — changing filters mid-sequence returns a ValidationError. |
 | `includeLinks` | boolean | No | When true, each task carries a `_links` HATEOAS block (self, project, parent, tags). Default false — the block is omitted to save payload size. Use the task's `id`, `projectId`, `parentId`, and `tagIds` fields directly instead. |
 

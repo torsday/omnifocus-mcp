@@ -12,7 +12,12 @@ import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { SearchService } from "../../services/searchService.js";
-import { handleTaskSearch, taskSearchInputSchema } from "./search.js";
+import {
+  handleTaskSearch,
+  TASK_SEARCH_DESCRIPTION,
+  taskSearchInputSchema,
+  taskSearchInputShape,
+} from "./search.js";
 
 // ---------------------------------------------------------------------------
 // Harness
@@ -249,5 +254,27 @@ describe("task_search — pagination", () => {
     expect(result.data.tasks).toHaveLength(3);
     expect(result.pagination?.hasMore).toBe(false);
     expect(result.pagination?.cursor).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Default page size — description must match service behavior
+// ---------------------------------------------------------------------------
+
+describe("task_search — default limit", () => {
+  it("defaults to 50 results per page when limit is omitted", async () => {
+    const { ctx, adapter } = makeCtx();
+    for (let i = 0; i < 51; i++) await adapter.createTask({ name: `buy item ${i}` });
+
+    const result = await handleTaskSearch({ q: "buy" }, ctx);
+    expect(result.data.tasks).toHaveLength(50);
+    expect(result.pagination?.hasMore).toBe(true);
+  });
+
+  it("description strings document the real default of 50, not a stale 100", () => {
+    // Tool descriptions are the LLM's contract — the documented default must
+    // match SearchService's DEFAULT_LIMIT (cf. search_query, which says 50).
+    expect(TASK_SEARCH_DESCRIPTION).toContain("limit defaults to 50");
+    expect(taskSearchInputShape.limit.description).toContain("Default 50.");
   });
 });
