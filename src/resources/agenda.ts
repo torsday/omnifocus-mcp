@@ -81,6 +81,14 @@ function parseDate(raw: string): Date {
       details: { raw },
     });
   }
+  // Bare dates parse as UTC midnight under ECMAScript rules — the *previous*
+  // local day anywhere west of UTC. Re-construct as local midnight so
+  // ?date=YYYY-MM-DD means the user's calendar day (cf. ADR-0007 and the
+  // bare-date precedent in src/taskParser/transportText.ts).
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const parts = raw.split("-");
+    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 0, 0, 0, 0);
+  }
   return d;
 }
 

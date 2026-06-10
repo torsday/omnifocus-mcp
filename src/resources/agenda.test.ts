@@ -2,7 +2,7 @@
  * Unit tests for `omnifocus://agenda{?date}` — calendar + forecast merge.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { CalendarEvent } from "../bridge/calendarBridge.js";
 import { ProjectId, TaskId } from "../domain/ids.js";
 import type { Task } from "../domain/task.js";
@@ -249,6 +249,46 @@ describe("buildAgendaPayload — caching", () => {
     );
 
     expect(bridge.readEvents).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("buildAgendaPayload — bare-date parsing (local calendar day)", () => {
+  // Pin a west-of-UTC zone so the date-only-as-UTC-midnight regression is
+  // observable regardless of the host machine's timezone. Node re-reads
+  // process.env.TZ on subsequent Date operations.
+  const ORIGINAL_TZ = process.env.TZ;
+  beforeAll(() => {
+    process.env.TZ = "America/Chicago";
+  });
+  afterAll(() => {
+    if (ORIGINAL_TZ === undefined) delete process.env.TZ;
+    else process.env.TZ = ORIGINAL_TZ;
+  });
+
+  it("treats ?date=YYYY-MM-DD as local midnight, not UTC midnight", async () => {
+    const bridge = { readEvents: vi.fn().mockResolvedValue([]) };
+    const forecastService = { get: vi.fn().mockResolvedValue(emptyForecast) };
+
+    await buildAgendaPayload(
+      { bridge, forecastService, cache: new _AgendaCache() },
+      { date: "2026-06-09" },
+    );
+
+    const [fromIso] = bridge.readEvents.mock.calls[0] as [string, string, string | undefined];
+    // Local midnight June 9 — NOT June 8 (which a UTC-midnight parse yields
+    // anywhere west of UTC).
+    expect(fromIso).toBe(new Date(2026, 5, 9).toISOString());
+  });
+
+  it("still rejects nonsense bare dates like 2026-13-45", async () => {
+    const bridge = { readEvents: vi.fn() };
+    const forecastService = { get: vi.fn() };
+    await expect(
+      buildAgendaPayload(
+        { bridge, forecastService, cache: new _AgendaCache() },
+        { date: "2026-13-45" },
+      ),
+    ).rejects.toThrow(/could not parse date/);
   });
 });
 
