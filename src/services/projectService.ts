@@ -153,7 +153,7 @@ export class ProjectService {
 
     const cursor = input.cursor !== undefined ? decodeCursor(input.cursor, filterHash) : undefined;
 
-    const cacheKey = this.listCacheKey(filterHash, input.cursor);
+    const cacheKey = this.listCacheKey(filterHash, limit, input.cursor);
     const cacheHit = this.cache.has(cacheKey);
 
     // `_links` is injected post-cache so toggling includeLinks doesn't
@@ -346,10 +346,13 @@ export class ProjectService {
     };
   }
 
-  private listCacheKey(filterHash: string, cursor: string | undefined): string {
+  private listCacheKey(filterHash: string, limit: number, cursor: string | undefined): string {
     // Prefix on `search:` so task-mutation / project-mutation invalidations
     // that emit `search:*` also flush stale list pages. See docs/cache-invalidation.md.
-    return `search:projects:${filterHash}:${cursor ?? "first"}`;
+    // `limit` is part of the key (the cached value is the limit-sized page
+    // slice) but deliberately NOT part of the filterHash, so cursors survive
+    // limit changes mid-sequence.
+    return `search:projects:${filterHash}:${limit}:${cursor ?? "first"}`;
   }
 
   private getCacheKey(id: ProjectId, includeTaskTree: boolean): string {

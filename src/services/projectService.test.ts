@@ -224,6 +224,19 @@ describe("ProjectService.list — cache", () => {
     await service.list({ status: "active", limit: 10 });
     expect(spy).toHaveBeenCalledTimes(1);
   });
+
+  it("same filters with a different limit do not share a cache entry", async () => {
+    const { service, adapter } = makeHarness();
+    for (let i = 0; i < 4; i++) await adapter.createProject({ name: `p${i}` });
+    const first = await service.list({ status: "active", limit: 2 });
+    expect(first.projects).toHaveLength(2);
+    expect(first.hasMore).toBe(true);
+    // Re-issuing with a larger limit must not serve the stale limit-2 page.
+    const second = await service.list({ status: "active", limit: 4 });
+    expect(second.cacheHit).toBe(false);
+    expect(second.projects).toHaveLength(4);
+    expect(second.hasMore).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
