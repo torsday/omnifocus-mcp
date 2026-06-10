@@ -73,7 +73,7 @@ export const searchQueryInputSchema = z.object({
     .enum(["any", "only", "exclude"])
     .optional()
     .describe(
-      "'exclude' = active tasks only; 'only' = completed only; 'any' = both. Default 'any'.",
+      "'exclude' = active tasks only; 'only' = completed only; 'any' = both. Default 'exclude'.",
     ),
   limit: z
     .number()

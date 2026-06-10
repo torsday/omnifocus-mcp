@@ -1177,10 +1177,13 @@ export class InMemoryAdapter implements OmniFocusAdapter {
       // flagged filter
       if (filter.flagged !== undefined && task.flagged !== filter.flagged) return false;
 
-      // completed filter
+      // completed filter — omitted defaults to "exclude", matching the JXA
+      // transport (JxaTransport.searchTasks pins `completed ?? "exclude"` and
+      // task_search.js applies the same default).
+      const completedMode = filter.completed ?? "exclude";
       const isCompleted = task.completedAt !== null;
-      if (filter.completed === "only" && !isCompleted) return false;
-      if (filter.completed === "exclude" && isCompleted) return false;
+      if (completedMode === "only" && !isCompleted) return false;
+      if (completedMode === "exclude" && isCompleted) return false;
 
       return true;
     });

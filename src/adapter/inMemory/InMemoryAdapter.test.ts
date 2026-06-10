@@ -207,6 +207,31 @@ describe("InMemoryAdapter — listTasks filters", () => {
   });
 });
 
+describe("InMemoryAdapter — searchTasks", () => {
+  it("omitted completed defaults to 'exclude', matching the JXA transport", async () => {
+    const a = makeAdapter();
+    const active = await a.createTask({ name: "report draft" });
+    const done = await a.createTask({ name: "report final" });
+    await a.completeTask(done);
+
+    const defaulted = await a.searchTasks({ q: "report" });
+    expect(defaulted.map((t) => t.id)).toEqual([active]);
+  });
+
+  it("completed 'any' includes completed tasks; 'only' returns just them", async () => {
+    const a = makeAdapter();
+    const active = await a.createTask({ name: "report draft" });
+    const done = await a.createTask({ name: "report final" });
+    await a.completeTask(done);
+
+    const any = await a.searchTasks({ q: "report", completed: "any" });
+    expect(any.map((t) => t.id)).toEqual([active, done]);
+
+    const only = await a.searchTasks({ q: "report", completed: "only" });
+    expect(only.map((t) => t.id)).toEqual([done]);
+  });
+});
+
 describe("InMemoryAdapter — Projects", () => {
   it("creates a project and lists by status", async () => {
     const a = makeAdapter();

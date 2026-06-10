@@ -2863,7 +2863,7 @@ Full-text search across OmniFocus task names and/or notes. Use for finding tasks
 | `projectId` | string | No | Restrict to tasks in this project. Get the ID from project_list. |
 | `tagIds` | string[] | No | Restrict to tasks carrying ALL of these tags. Get IDs from tag_list. |
 | `flagged` | boolean | No | true = flagged tasks only; false = unflagged only; omit = all. |
-| `completed` | one of: any | only | exclude | No | 'exclude' = active tasks only; 'only' = completed only; 'any' = both. Default 'any'. |
+| `completed` | one of: any | only | exclude | No | 'exclude' = active tasks only; 'only' = completed only; 'any' = both. Default 'exclude'. |
 | `limit` | number | No | Max results per page (1..500). Default 50. |
 | `cursor` | string | No | Opaque cursor from a previous search_query response. Must use identical filters — changing filters returns a ValidationError. |
 | `fields` | string[] | No | Restrict each returned task to this list of top-level fields (id is always returned). Omit for the full task shape. Empty array returns just id. Unknown names are dropped silently and surface in meta.warnings.WARN_UNKNOWN_FIELDS. Allowed: name, note, noteHtml, projectId, parentId, tagIds, deferDate, deferDateFloating, dueDate, dueDateFloating, estimatedMinutes, flagged, completed, completedAt, dropped, droppedAt, available, blocked, sequential, completedByChildren, repetition, notifications, createdAt, modifiedAt, _links. |
