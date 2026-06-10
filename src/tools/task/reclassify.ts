@@ -228,8 +228,10 @@ export async function handleTaskReclassify(input: TaskReclassifyInput, ctx: Task
 
   // Phase 0: pull all open tasks and apply the predicate in TS.
   // We don't include completed/dropped tasks — reclassification of completed
-  // work is out of scope for the v1 contract.
-  const allOpen = await ctx.adapter.listTasks({ completed: false });
+  // work is out of scope for the v1 contract. `completed: false` alone does
+  // NOT exclude dropped tasks (completed and dropped are independent flags
+  // and TaskFilter has no dropped field), so filter them here.
+  const allOpen = (await ctx.adapter.listTasks({ completed: false })).filter((t) => !t.dropped);
   const matched = allOpen.filter((t) => evaluatePredicate(input.predicate, t));
 
   // Phase 1: dry-run — return the diff, no mutations.

@@ -177,6 +177,52 @@ describe("handleTaskReclassify — dry run", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Dropped tasks are outside the contract (open = non-completed, non-dropped)
+// ---------------------------------------------------------------------------
+
+describe("handleTaskReclassify — dropped tasks excluded", () => {
+  it("does not count dropped tasks in the dry-run and does not mutate them on apply", async () => {
+    const adapter = new InMemoryAdapter();
+    const projId = await adapter.createProject({ name: "p" });
+    const tagId = await adapter.createTag({ name: "errands" });
+    const openId = await adapter.createTask({ name: "open", projectId: projId, tagIds: [tagId] });
+    const droppedId = await adapter.createTask({
+      name: "abandoned",
+      projectId: projId,
+      tagIds: [tagId],
+    });
+    await adapter.dropTask(droppedId);
+
+    const dry = await handleTaskReclassify(
+      { predicate: { kind: "tag", tagId }, changes: { setFlagged: true }, dryRun: true },
+      makeCtx(adapter),
+    );
+    if (!("data" in dry) || dry.data.phase !== "dryRun") {
+      expect.fail("expected dryRun envelope");
+      return;
+    }
+    expect(dry.data.matched).toBe(1);
+    expect(dry.data.proposed.map((p) => p.taskId)).toEqual([String(openId)]);
+
+    const applied = await handleTaskReclassify(
+      {
+        predicate: { kind: "tag", tagId },
+        changes: { setFlagged: true },
+        dryRun: false,
+        confirmation: "1",
+      },
+      makeCtx(adapter),
+    );
+    if (!("data" in applied) || applied.data.phase !== "applied") {
+      expect.fail("expected applied envelope");
+      return;
+    }
+    expect((await adapter.getTask(openId)).flagged).toBe(true);
+    expect((await adapter.getTask(droppedId)).flagged).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Apply path
 // ---------------------------------------------------------------------------
 

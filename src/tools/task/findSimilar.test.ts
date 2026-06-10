@@ -162,6 +162,43 @@ describe("handleTaskFindSimilar — includeCompleted", () => {
     if (!("data" in env)) return;
     expect(env.data.candidates.map((c) => c.taskId)).toContain(String(completed));
   });
+
+  it("excludes dropped tasks by default (completed and dropped are independent flags)", async () => {
+    const adapter = new InMemoryAdapter();
+    const projId = await adapter.createProject({ name: "p" });
+    const open = await adapter.createTask({ name: "Call dentist (open)", projectId: projId });
+    const dropped = await adapter.createTask({
+      name: "Call dentist (abandoned)",
+      projectId: projId,
+    });
+    await adapter.dropTask(dropped);
+
+    const env = await handleTaskFindSimilar(
+      { name: "Call dentist", limit: 5, includeCompleted: false },
+      makeCtx(adapter),
+    );
+    if (!("data" in env)) return;
+    const ids = env.data.candidates.map((c) => c.taskId);
+    expect(ids).toContain(String(open));
+    expect(ids).not.toContain(String(dropped));
+  });
+
+  it("includes dropped tasks when includeCompleted=true", async () => {
+    const adapter = new InMemoryAdapter();
+    const projId = await adapter.createProject({ name: "p" });
+    const dropped = await adapter.createTask({
+      name: "Call dentist (abandoned)",
+      projectId: projId,
+    });
+    await adapter.dropTask(dropped);
+
+    const env = await handleTaskFindSimilar(
+      { name: "Call dentist", limit: 5, includeCompleted: true },
+      makeCtx(adapter),
+    );
+    if (!("data" in env)) return;
+    expect(env.data.candidates.map((c) => c.taskId)).toContain(String(dropped));
+  });
 });
 
 // ---------------------------------------------------------------------------

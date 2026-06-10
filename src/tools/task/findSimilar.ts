@@ -140,7 +140,11 @@ export async function handleTaskFindSimilar(
   if (input.scope?.projectId !== undefined) filter.projectId = input.scope.projectId;
   if (input.scope?.tagId !== undefined) filter.tagId = input.scope.tagId;
 
-  const tasks = await ctx.adapter.listTasks(filter);
+  // `completed: false` does NOT exclude dropped tasks (completed and dropped
+  // are independent flags and TaskFilter has no dropped field), so honor the
+  // documented "excludes completed and dropped by default" contract here.
+  const listed = await ctx.adapter.listTasks(filter);
+  const tasks = input.includeCompleted ? listed : listed.filter((t) => !t.dropped);
 
   const reference = { name: input.name, ...(input.note !== undefined && { note: input.note }) };
 
