@@ -7,7 +7,11 @@ import { describe, expect, it, vi } from "vitest";
 import { ProjectId as ProjectIdCtor } from "../../domain/ids.js";
 import { NotFound } from "../../errors/index.js";
 import { ReviewService } from "../../services/reviewService.js";
-import { handleProjectSetNextReviewDate } from "./setNextReviewDate.js";
+import {
+  handleProjectSetNextReviewDate,
+  PROJECT_SET_NEXT_REVIEW_DATE_DESCRIPTION,
+  projectSetNextReviewDateInputSchema,
+} from "./setNextReviewDate.js";
 
 function makeCtx(opts: { setRejects?: Error; projectName?: string } = {}) {
   const setProjectNextReviewDate = vi.fn();
@@ -116,5 +120,27 @@ describe("project_set_next_review_date pairs name with id (#607)", () => {
     );
     expect(env.data.name).toBeNull();
     expect(env.data.nextReviewDate).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Description examples must satisfy the schema
+// ---------------------------------------------------------------------------
+
+describe("project_set_next_review_date description examples", () => {
+  it("every documented nextReviewDate example value passes the input schema", () => {
+    // Tool descriptions are the LLM's contract — an example the schema
+    // rejects costs every agent a failed round-trip.
+    const examples = [
+      ...PROJECT_SET_NEXT_REVIEW_DATE_DESCRIPTION.matchAll(/nextReviewDate: ("[^"]*"|null)/g),
+    ].map((m) => JSON.parse(m[1] as string) as string | null);
+    expect(examples.length).toBeGreaterThan(0);
+    for (const nextReviewDate of examples) {
+      const result = projectSetNextReviewDateInputSchema.safeParse({
+        projectId: "prj123",
+        nextReviewDate,
+      });
+      expect(result.success, `example value ${JSON.stringify(nextReviewDate)}`).toBe(true);
+    }
   });
 });
