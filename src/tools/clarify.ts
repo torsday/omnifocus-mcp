@@ -74,7 +74,10 @@ export async function handleClarify(input: ClarifyInput, ctx: ClarifyContext) {
   const store = ctx.replayStore ?? defaultReplayStore;
   const meta = ctx.makeMeta();
 
-  const entry = store.consume(input.replayToken);
+  // Peek first — the token must NOT be consumed before the choice is
+  // validated, or the ValidationError's "Valid options: …" suggestion would
+  // be impossible to follow (the corrected retry would hit NotFound).
+  const entry = store.get(input.replayToken);
   if (entry === undefined) {
     return err(
       new NotFound(`Replay token not found or expired: ${input.replayToken.slice(0, 8)}…`, {
@@ -96,6 +99,13 @@ export async function handleClarify(input: ClarifyInput, ctx: ClarifyContext) {
       meta,
     );
   }
+
+  // Consume only now that the call is going to execute — single-use is about
+  // preventing double-replay of the callback, not punishing a bad index.
+  // (Consume-before-execute keeps at-most-once semantics for non-idempotent
+  // callbacks; no await sits between the peek above and this delete, so the
+  // token cannot be double-consumed.)
+  store.consume(input.replayToken);
 
   // Execute the stored callback with the chosen index. The callback returns a
   // ToolEnvelope. We return it as-is — the outer toolResponse wrapper handles
