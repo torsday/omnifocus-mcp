@@ -343,6 +343,34 @@ describe("ExportService — round-trip (export → import)", () => {
     expect(beta?.flagged).toBe(true);
   });
 
+  it("exports a 3-level task tree exactly once per task and round-trips the structure", async () => {
+    const { adapter, service } = makeService();
+    const projId = await adapter.createProject({ name: "Deep" });
+    const parentId = await adapter.createTask({ name: "Parent", projectId: projId as ProjectId });
+    const childId = await adapter.createTask({ name: "Child", parentId });
+    await adapter.createTask({ name: "Grandchild", parentId: childId });
+
+    const exported = await service.exportTaskPaper({ kind: "project", id: projId as ProjectId });
+
+    // Each task must appear exactly once — the old tree walk re-collected
+    // every depth-n task n+1 times (Child ×2, Grandchild ×6, taskCount 6).
+    expect(exported.taskCount).toBe(3);
+    expect(exported.taskpaper.match(/- Parent/g)).toHaveLength(1);
+    expect(exported.taskpaper.match(/- Child/g)).toHaveLength(1);
+    expect(exported.taskpaper.match(/- Grandchild/g)).toHaveLength(1);
+
+    // Round-trip into a fresh project preserves the 3-deep chain, no dupes.
+    const proj2 = await adapter.createProject({ name: "Deep2" });
+    await service.importTaskPaper(exported.taskpaper, proj2 as ProjectId);
+    const tasks = await adapter.listTasks({ projectId: proj2 as ProjectId });
+    expect(tasks).toHaveLength(3);
+    const parent = tasks.find((t) => t.name === "Parent");
+    const child = tasks.find((t) => t.name === "Child");
+    const grandchild = tasks.find((t) => t.name === "Grandchild");
+    expect(child?.parentId).toBe(parent?.id);
+    expect(grandchild?.parentId).toBe(child?.id);
+  });
+
   it("keeps due dates on the same local calendar day through a round-trip", async () => {
     const { adapter, service } = makeService();
     const projId = await adapter.createProject({ name: "RT-dates" });

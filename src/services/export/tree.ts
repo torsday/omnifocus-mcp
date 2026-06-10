@@ -17,17 +17,22 @@ import type { Task } from "../../domain/task.js";
 /**
  * Fetch ALL tasks belonging to a project, including subtasks at every depth.
  *
- * `adapter.listTasks({ projectId })` only returns tasks whose `projectId`
- * field equals the given ID — subtasks (which carry `parentId` but have
- * `projectId: null`) are excluded. This helper does a BFS expansion to
- * collect every descendant.
+ * `adapter.listTasks({ projectId })` already returns every descendant on
+ * both adapters — JXA iterates `proj.flattenedTasks()`, and the in-memory
+ * double derives a child's `projectId` from containment — so most (usually
+ * all) tasks arrive in the first fetch. The BFS expansion below is kept as
+ * a safety net for adapters that return only direct tasks, with id-level
+ * dedup so a task present in both passes is emitted exactly once (the old
+ * code re-collected every depth-n task n+1 times, duplicating export
+ * output multiplicatively).
  */
 export async function fetchProjectTaskTree(
   adapter: OmniFocusAdapter,
   projectId: ProjectId,
 ): Promise<Task[]> {
-  // Fetch root-level tasks (directly in the project)
+  // Fetch tasks attached to the project (all descendants on real adapters)
   const direct = await adapter.listTasks({ projectId });
+  const seen = new Set<string>(direct.map((t) => String(t.id)));
   const all: Task[] = [...direct];
 
   // BFS: for each task, fetch its children. `for (;;)` with break-on-empty
@@ -39,6 +44,8 @@ export async function fetchProjectTaskTree(
     if (current === undefined) break;
     const children = await adapter.listTasks({ parentId: current.id });
     for (const child of children) {
+      if (seen.has(String(child.id))) continue;
+      seen.add(String(child.id));
       all.push(child);
       queue.push(child);
     }
