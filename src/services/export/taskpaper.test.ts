@@ -123,6 +123,31 @@ describe("parseTaskPaperLine — bare date tokens", () => {
 });
 
 // ---------------------------------------------------------------------------
+// parseTaskPaperLine — @done(date)
+// ---------------------------------------------------------------------------
+
+describe("parseTaskPaperLine — @done(date)", () => {
+  it("captures the completion date and leaves no residue in the name", () => {
+    const parsed = parseTaskPaperLine("Ship it @done(2026-05-05)", 1, []);
+    expect(parsed.name).toBe("Ship it");
+    expect(parsed.done).toBe(true);
+    expect(parsed.doneDate).toMatch(/^2026-05-05T00:00:00[+-]\d{2}:\d{2}$/);
+  });
+
+  it("still accepts bare @done with no date", () => {
+    const parsed = parseTaskPaperLine("Ship it @done", 1, []);
+    expect(parsed.name).toBe("Ship it");
+    expect(parsed.done).toBe(true);
+    expect(parsed.doneDate).toBeUndefined();
+  });
+
+  it("strips a parenthesized @dropped argument from the name too", () => {
+    const parsed = parseTaskPaperLine("Old idea @dropped(2026-04-01)", 1, []);
+    expect(parsed.name).toBe("Old idea");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // parseTaskPaperLine — `//` note delimiter
 // ---------------------------------------------------------------------------
 

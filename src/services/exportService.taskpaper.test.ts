@@ -237,6 +237,20 @@ describe("ExportService.importTaskPaper — @due/@defer/@flagged/@done", () => {
     expect(tasks.some((t) => t.name === "Finished")).toBe(true);
   });
 
+  it("honours the native @done(date) form: clean name, completion on that day", async () => {
+    const { adapter, service } = makeService();
+    await service.importTaskPaper("- Ship it @done(2026-05-05)");
+    const tasks = await adapter.listTasks({ completed: true });
+    const task = tasks.find((t) => t.name === "Ship it");
+    expect(task).toBeDefined();
+    // No "(2026-05-05)" residue in any task name
+    expect(tasks.every((t) => !t.name.includes("(2026-05-05)"))).toBe(true);
+    const completedAt = new Date(task?.completedAt ?? "");
+    expect([completedAt.getFullYear(), completedAt.getMonth() + 1, completedAt.getDate()]).toEqual([
+      2026, 5, 5,
+    ]);
+  });
+
   it("emits a warning for unrecognised date format", async () => {
     const { adapter, service } = makeService();
     const result = await service.importTaskPaper("- Task @due(next-week)");

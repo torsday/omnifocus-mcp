@@ -235,7 +235,8 @@ export class ExportService {
    * (by name match); unknown project names are recorded as warnings and tasks
    * fall back to inbox.
    *
-   * Supported tags: `@due(date)`, `@defer(date)`, `@flagged`, `@done`,
+   * Supported tags: `@due(date)`, `@defer(date)`, `@flagged`, `@done` /
+   * `@done(date)` (the native TaskPaper form; the timestamp is honoured),
    * `@tag-name` (bare tags become OF tags, created if absent).
    *
    * @param text            TaskPaper-formatted string to import.
@@ -345,7 +346,13 @@ export class ExportService {
       created.push(id);
 
       if (parsed.done) {
-        await this.adapter.completeTask(id);
+        // Honour the native `@done(date)` timestamp when present; bare
+        // `@done` falls back to the adapter's "now".
+        if (parsed.doneDate) {
+          await this.adapter.completeTask(id, new Date(parsed.doneDate));
+        } else {
+          await this.adapter.completeTask(id);
+        }
       }
 
       parentStack.push({ depth, id });

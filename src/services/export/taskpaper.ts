@@ -141,6 +141,8 @@ export interface ParsedTaskPaperLine {
   deferDate: string | undefined;
   flagged: boolean;
   done: boolean;
+  /** Completion instant from `@done(date)`, when the argument parses. */
+  doneDate: string | undefined;
   tagNames: string[];
   note: string | undefined;
 }
@@ -161,6 +163,7 @@ export function parseTaskPaperLine(
   let deferDate: string | undefined;
   let flagged = false;
   let done = false;
+  let doneDate: string | undefined;
   const tagNames: string[] = [];
 
   // Extract @due(date) and @defer(date)
@@ -173,17 +176,23 @@ export function parseTaskPaperLine(
     return "";
   });
 
-  // Extract @flagged and @done
-  remaining = remaining.replace(/@flagged/g, () => {
+  // Extract @flagged and @done/@dropped. The latter two accept the native
+  // TaskPaper parenthesized form (`@done(2026-05-05)`) — TaskPaper's own
+  // "Mark Done" and OmniFocus's TaskPaper export both write it — so the
+  // argument is captured as the completion instant instead of leaving
+  // `(date)` residue in the task name.
+  remaining = remaining.replace(/@flagged(?:\(([^)]*)\))?/g, () => {
     flagged = true;
     return "";
   });
-  remaining = remaining.replace(/@done/g, () => {
+  remaining = remaining.replace(/@done(?:\(([^)]*)\))?/g, (_, d: string | undefined) => {
     done = true;
+    if (d?.trim()) doneDate = normaliseDateToken(d.trim(), lineNum, warnings, "done");
     return "";
   });
-  remaining = remaining.replace(/@dropped/g, () => {
+  remaining = remaining.replace(/@dropped(?:\(([^)]*)\))?/g, (_, d: string | undefined) => {
     done = true;
+    if (d?.trim()) doneDate = normaliseDateToken(d.trim(), lineNum, warnings, "dropped");
     return "";
   });
 
@@ -217,7 +226,7 @@ export function parseTaskPaperLine(
     warnings.push(`Line ${lineNum}: empty task name after parsing tags — skipped`);
   }
 
-  return { name: name || "(unnamed)", dueDate, deferDate, flagged, done, tagNames, note };
+  return { name: name || "(unnamed)", dueDate, deferDate, flagged, done, doneDate, tagNames, note };
 }
 
 /** Normalise a date token to ISO-8601 (YYYY-MM-DD → local midnight with offset). */
