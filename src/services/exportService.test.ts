@@ -119,6 +119,23 @@ describe("ExportService.exportOpml — scope: project", () => {
     // Single quotes don't need escaping inside double-quoted XML attributes
     expect(result.opml).toContain("Task with &lt;tag&gt; &amp; 'quotes'");
   });
+
+  it("escapes newlines/CR/tabs in note attributes as character references", async () => {
+    const { adapter, service } = makeService();
+    const projectId = await adapter.createProject({ name: "Proj" });
+    await adapter.createTask({
+      name: "Notes",
+      projectId,
+      note: "Line one\nLine two\t(indented)\r\nLine three",
+    });
+
+    const result = await service.exportOpml({ kind: "project", id: projectId });
+    // Literal #x9/#xA/#xD inside attribute values are normalized to spaces
+    // by every conforming XML parser (XML 1.0 §3.3.3) — only the character
+    // references survive a round-trip into OmniFocus File → Import.
+    expect(result.opml).toContain('note="Line one&#10;Line two&#9;(indented)&#13;&#10;Line three"');
+    expect(result.opml).not.toMatch(/note="[^"]*\n/);
+  });
 });
 
 describe("ExportService.exportOpml — scope: folder", () => {

@@ -71,12 +71,20 @@ export function extractAttr(attrs: string, name: string): string | undefined {
   return decodeXmlEntities(raw);
 }
 
-/** Reverse XML entity encoding for common entities. */
+/**
+ * Reverse XML entity encoding for common entities, plus the numeric
+ * character references `xmlAttr` emits for whitespace control characters
+ * (&#13;/&#10;/&#9;) so internal round-trips stay symmetric. `&amp;` is
+ * decoded last so escaped sequences like `&amp;#10;` stay literal.
+ */
 export function decodeXmlEntities(s: string): string {
   return s
     .replace(/&quot;/g, '"')
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
+    .replace(/&#13;/g, "\r")
+    .replace(/&#10;/g, "\n")
+    .replace(/&#9;/g, "\t")
     .replace(/&amp;/g, "&");
 }
 

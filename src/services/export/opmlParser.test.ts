@@ -48,6 +48,14 @@ describe("decodeXmlEntities", () => {
   it("returns plain strings unchanged", () => {
     expect(decodeXmlEntities("hello")).toBe("hello");
   });
+
+  it("decodes the whitespace character references xmlAttr emits", () => {
+    expect(decodeXmlEntities("a&#10;b&#13;c&#9;d")).toBe("a\nb\rc\td");
+  });
+
+  it("keeps double-escaped sequences literal (&amp;#10;)", () => {
+    expect(decodeXmlEntities("a&amp;#10;b")).toBe("a&#10;b");
+  });
 });
 
 // ---------------------------------------------------------------------------

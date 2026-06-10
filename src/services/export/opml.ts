@@ -17,13 +17,25 @@ import type { Project } from "../../domain/project.js";
 import type { Task } from "../../domain/task.js";
 import { partitionTasksByParent } from "./tree.js";
 
-/** Escape XML special characters in attribute values. */
+/**
+ * Escape XML special characters in attribute values.
+ *
+ * Literal whitespace control characters must be emitted as numeric character
+ * references: per XML 1.0 §3.3.3 attribute-value normalization, a conforming
+ * parser (including OmniFocus's File → Import, this export's round-trip
+ * target) replaces raw #x9/#xA/#xD in attribute values with spaces — only
+ * the character-reference forms survive, so multi-line notes would
+ * otherwise be silently flattened to one line.
+ */
 export function xmlAttr(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/\r/g, "&#13;")
+    .replace(/\n/g, "&#10;")
+    .replace(/\t/g, "&#9;");
 }
 
 /**
