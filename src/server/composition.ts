@@ -19,8 +19,9 @@ import { JxaTransport } from "../adapter/jxa/JxaTransport.js";
 import type { OmniFocusAdapter } from "../adapter/OmniFocusAdapter.js";
 import { OmniJsTransport } from "../adapter/omnijs/OmniJsTransport.js";
 import { TransportRouter } from "../adapter/router.js";
-import { OmniFocusLruCache } from "../cache/lruCache.js";
+import { type InvalidationScope, OmniFocusLruCache } from "../cache/lruCache.js";
 import type { Config } from "../config/env.js";
+import { TaskId } from "../domain/ids.js";
 import type { ResponseMeta, Transport } from "../envelope/index.js";
 import { generateCorrelationId, getCorrelationId } from "../logging/correlation.js";
 import { logger } from "../logging/logger.js";
@@ -224,9 +225,13 @@ export function makeMeta(partial: Partial<ResponseMeta> = {}): ResponseMeta {
  *  1. Ask OmniFocus which specific tasks/projects changed since just before
  *     the watcher's detection timestamp. A 200ms safety buffer guards against
  *     sub-second clock skew between the Swift watcher and the JXA runtime.
- *  2. Targeted cache eviction for those IDs. If the changes-query fails or
- *     returns nothing, fall back to a full cache clear — equivalent to the
- *     coarse pre-#374 behaviour, ensuring correctness when we lose precision.
+ *  2. Targeted cache eviction for those IDs plus their containers — each
+ *     changed task's parent task and containing project, whose cached
+ *     per-id payloads embed the changed rows but whose own
+ *     modificationDates OmniFocus does not bump. If the changes-query or
+ *     the container resolution fails, or nothing changed, fall back to a
+ *     full cache clear — equivalent to the coarse pre-#374 behaviour,
+ *     ensuring correctness when we lose precision.
  *  3. Push per-object resource notifications (`omnifocus://task/{id}`,
  *     `omnifocus://project/{id}`) so subscribers re-read only what changed,
  *     plus aggregate-view notifications (snapshot, inbox, forecast, etc.) so
@@ -290,8 +295,35 @@ export function makeDatabaseChangeHandler(deps: {
       logger.debug({ event: "database.changed.query_failed", err });
     }
 
-    const targeted =
-      querySucceeded && (changed.taskIds.length > 0 || changed.projectIds.length > 0);
+    let targeted = querySucceeded && (changed.taskIds.length > 0 || changed.projectIds.length > 0);
+
+    // Container scopes for the changed tasks. `task_get` caches a parent's
+    // payload with embedded subtask bodies / ids and `project_get` caches
+    // `project:${id}:with-tasks`, but OmniFocus does not bump the parent
+    // task's or containing project's own modificationDate when a child
+    // task is edited — so the changed-id set alone never covers them.
+    // Resolve each changed task's parentId / projectId (one batched
+    // adapter read) and evict those scopes too, matching the invariant
+    // the mutation-side helpers enforce (docs/cache-invalidation.md).
+    // Tasks that vanished between the change query and this read resolve
+    // to null and are skipped — a deletion leaves no modified object, so
+    // its own watcher event takes the full-clear branch below.
+    const containerScopes = new Set<InvalidationScope>();
+    if (targeted && changed.taskIds.length > 0) {
+      try {
+        const tasks = await adapter.getTasksMany(changed.taskIds.map((id) => TaskId.of(id)));
+        for (const task of tasks) {
+          if (task === null) continue;
+          if (task.parentId !== null) containerScopes.add(`task:${task.parentId}`);
+          if (task.projectId !== null) containerScopes.add(`project:${task.projectId}`);
+        }
+      } catch (err) {
+        // Containers unknown — fall back to the conservative full clear,
+        // same as when the change query itself fails.
+        logger.debug({ event: "database.changed.container_resolve_failed", err });
+        targeted = false;
+      }
+    }
 
     if (targeted) {
       // Targeted: evict only the affected entries.
@@ -300,6 +332,9 @@ export function makeDatabaseChangeHandler(deps: {
       }
       for (const id of changed.projectIds) {
         cache.invalidate(`project:${id}`);
+      }
+      for (const scope of containerScopes) {
+        cache.invalidate(scope);
       }
       // List-shaped results (task/project lists, forecast, perspective
       // evaluations, tag/folder lists with embedded counts) embed the rows

@@ -467,4 +467,41 @@ describe("makeDatabaseChangeHandler — cache invalidation", () => {
     await fire();
     expect(cache.has("task:unrelated:ids-only")).toBe(false);
   });
+
+  it("evicts the parent task's and containing project's per-id payloads when only a child task changed", async () => {
+    const projectId = await adapter.createProject({ name: "P" });
+    const parentId = await adapter.createTask({ name: "parent", projectId });
+    const childId = await adapter.createTask({ name: "child", parentId });
+    // OmniFocus does not bump the parent's or project's modificationDate
+    // when a child task is edited in the UI — model a change set that
+    // contains only the child.
+    adapter.getChangesSince = async () => ({ taskIds: [childId], projectIds: [] });
+
+    cache.set(`task:${parentId}:with-subtasks`, "stale");
+    cache.set(`project:${projectId}:with-tasks`, "stale");
+    cache.set("task:unrelated:ids-only", "fresh");
+    cache.set("project:unrelated:with-tasks", "fresh");
+
+    await fire();
+
+    // The parent's and project's cached payloads embed the changed child…
+    expect(cache.has(`task:${parentId}:with-subtasks`)).toBe(false);
+    expect(cache.has(`project:${projectId}:with-tasks`)).toBe(false);
+    // …while unrelated per-entity entries survive (eviction stays targeted).
+    expect(cache.has("task:unrelated:ids-only")).toBe(true);
+    expect(cache.has("project:unrelated:with-tasks")).toBe(true);
+  });
+
+  it("falls back to a full clear when container resolution fails", async () => {
+    const taskId = await adapter.createTask({ name: "t1" });
+    adapter.getChangesSince = async () => ({ taskIds: [taskId], projectIds: [] });
+    adapter.getTasksMany = async () => {
+      throw new Error("simulated transport failure");
+    };
+    cache.set("task:unrelated:ids-only", "x");
+
+    await fire();
+
+    expect(cache.has("task:unrelated:ids-only")).toBe(false);
+  });
 });
