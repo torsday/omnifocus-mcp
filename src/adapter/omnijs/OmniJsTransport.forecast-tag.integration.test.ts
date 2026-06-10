@@ -1,10 +1,10 @@
 /**
  * Integration tests for the forecast-tag composite methods (#849).
  *
- * `getForecastTagWithName` / `setForecastTagWithName` route to OmniJS
- * (`Database.forecastTag`); creating the fixture tag routes to JXA. Both
- * transports are exercised through a real {@link TransportRouter}, so this
- * is the live round-trip the AC calls for.
+ * `getForecastTagWithName` / `setForecastTagWithName` route to OmniJS (the
+ * `settings` store key `_ForecastBlessedTagIdentifier`); creating the
+ * fixture tag routes to JXA. Both transports are exercised through a real
+ * {@link TransportRouter}, so this is the live round-trip the AC calls for.
  *
  * Gated behind `OMNIFOCUS_INTEGRATION=1`; requires a running OmniFocus.
  * Run with:
@@ -32,7 +32,7 @@ describe.skipIf(!INTEGRATION)("forecast-tag composite — integration", () => {
 
   beforeAll(async () => {
     original = await router.getForecastTagWithName();
-    fixtureTagId = await router.createTag({ name: "__mcp_forecast_tag_test__" });
+    fixtureTagId = await router.createTag({ name: "mcp-fixture-forecast-tag" });
   });
 
   afterAll(async () => {
@@ -52,22 +52,18 @@ describe.skipIf(!INTEGRATION)("forecast-tag composite — integration", () => {
     // tag's name alongside its id, eliminating the separate JXA getTag spawn.
     const result = await router.setForecastTagWithName(fixtureTagId);
     expect(result.tagId).toBe(fixtureTagId);
-    expect(result.name).toBe("__mcp_forecast_tag_test__");
+    expect(result.name).toBe("mcp-fixture-forecast-tag");
   });
 
-  it("getForecastTagWithName returns a self-consistent {tagId, name} shape (one round-trip)", async () => {
-    // The composite read guarantees id and name agree — both null (unset) or
-    // both populated from the same live tag object. We assert that invariant
-    // rather than a specific value: `Database.forecastTag` writes for a
-    // freshly-created tag don't reliably persist across OmniJS invocations
-    // until OF syncs, so the exact read-back value is environment-dependent
-    // (and outside #849's scope — the set assignment is unchanged from main).
+  it("getForecastTagWithName reads back the persisted forecast tag (real round-trip)", async () => {
+    // set + get are separate evaluateJavascript invocations, so this pins
+    // that the write actually persists in the settings store under
+    // `_ForecastBlessedTagIdentifier` — the regression that shipped when the
+    // scripts wrote a per-invocation `Database.forecastTag` expando instead.
+    await router.setForecastTagWithName(fixtureTagId);
     const result = await router.getForecastTagWithName();
-    if (result.tagId === null) {
-      expect(result.name).toBeNull();
-    } else {
-      expect(typeof result.name).toBe("string");
-    }
+    expect(result.tagId).toBe(fixtureTagId);
+    expect(result.name).toBe("mcp-fixture-forecast-tag");
   });
 
   it("setForecastTagWithName(null) clears and reads back null in one round-trip each", async () => {
