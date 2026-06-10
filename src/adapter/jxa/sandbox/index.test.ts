@@ -1237,6 +1237,55 @@ describe("JXA sandbox — review_list_due", () => {
     expect(result.projects[0]?.id).toBe("project_broken");
   });
 
+  // flattenedProjects() includes done/dropped projects whose nextReviewDate
+  // stays frozen (or null) forever — they must never count as due. Matches
+  // OF's Review perspective (remaining projects only). OF 4.8.8 returns
+  // verbose enum strings ("done status"), verified live.
+  it("excludes done and dropped projects even when their nextReviewDate is past or null", () => {
+    const past = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const done = fakeProject({
+      id: () => "project_done",
+      nextReviewDate: () => past,
+      status: () => "done status",
+      effectiveStatus: () => "done status",
+    });
+    const dropped = fakeProject({
+      id: () => "project_dropped",
+      nextReviewDate: () => null,
+      status: () => "dropped status",
+      effectiveStatus: () => "dropped status",
+    });
+    const onHold = fakeProject({
+      id: () => "project_on_hold",
+      nextReviewDate: () => past,
+      status: () => "on hold status",
+      effectiveStatus: () => "on hold status",
+    });
+    const result = runJxaScriptInSandbox<{ projects: { id: string }[] }>(
+      reviewListDueScript,
+      {},
+      { projects: [done, dropped, onHold] },
+    );
+    expect(result.projects.map((p) => p.id)).toEqual(["project_on_hold"]);
+  });
+
+  it("excludes projects inside dropped folders via effectiveStatus", () => {
+    // A project in a dropped (hidden) folder keeps status "active" but
+    // reports effectiveStatus "dropped status" — verified live on OF 4.8.8.
+    const inDroppedFolder = fakeProject({
+      id: () => "project_in_dropped_folder",
+      nextReviewDate: () => null,
+      status: () => "active status",
+      effectiveStatus: () => "dropped status",
+    });
+    const result = runJxaScriptInSandbox<{ projects: { id: string }[] }>(
+      reviewListDueScript,
+      {},
+      { projects: [inDroppedFolder] },
+    );
+    expect(result.projects).toEqual([]);
+  });
+
   // reviewIntervalDays must come from the bridged `review interval` record
   // ({ unit, steps, fixed } — plain values), unit-converted to days. The
   // `reviewIntervalDays()` accessor does not exist on live OF 4.8.x (it

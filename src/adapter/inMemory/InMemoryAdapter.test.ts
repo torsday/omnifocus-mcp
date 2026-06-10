@@ -354,6 +354,21 @@ describe("InMemoryAdapter — review", () => {
     const due = await a.listProjectsDueForReview();
     expect(due.map((p) => p.id)).toEqual([past]);
   });
+
+  it("listProjectsDueForReview excludes done and dropped projects", async () => {
+    // Done/dropped projects keep a frozen (or null) nextReviewDate, so
+    // without a status gate they'd be "due" forever. Mirrors the JXA
+    // script's remaining-only filter (OF Review perspective parity).
+    const a = makeAdapter();
+    const done = await a.createProject({ name: "shipped" });
+    await a.setProjectNextReviewDate(done, "2026-01-01T00:00:00.000Z");
+    await a.completeProject(done);
+    const dropped = await a.createProject({ name: "abandoned" });
+    await a.dropProject(dropped);
+    const active = await a.createProject({ name: "alive" });
+    const due = await a.listProjectsDueForReview();
+    expect(due.map((p) => p.id)).toEqual([active]);
+  });
 });
 
 describe("InMemoryAdapter — Tags", () => {

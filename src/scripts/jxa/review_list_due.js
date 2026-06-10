@@ -27,6 +27,27 @@ function run(argv) {
 
   for (let i = 0; i < allProjects.length; i++) {
     const p = allProjects[i];
+
+    // flattenedProjects() includes done/dropped projects, whose
+    // nextReviewDate stays frozen (or null) forever — without a status gate
+    // they'd surface as due on every call. Match OF's own Review perspective:
+    // remaining projects only. effectiveStatus also excludes projects inside
+    // dropped folders, whose own status stays "active" (verified live on
+    // OF 4.8.8); fall back to status() and default to inclusion on throws.
+    let status = "active";
+    try {
+      const raw = p.effectiveStatus();
+      if (typeof raw === "string") status = raw.replace(/ status$/, "");
+    } catch (_e) {
+      try {
+        const raw = p.status();
+        if (typeof raw === "string") status = raw.replace(/ status$/, "");
+      } catch (_e2) {
+        /* keep "active" — lenient inclusion when the bridge misbehaves */
+      }
+    }
+    if (status !== "active" && status !== "on hold") continue;
+
     let nextReviewDate = null;
     try {
       const nd = p.nextReviewDate();

@@ -968,9 +968,13 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     // "Due" means nextReviewDate <= the current instant — matching the JXA
     // script (review_list_due.js compares against `new Date()`), not
     // end-of-UTC-day. Routed through the injectable clock so pinned-clock
-    // tests are deterministic.
+    // tests are deterministic. Only remaining projects (active / on-hold)
+    // are eligible — done/dropped projects keep a frozen nextReviewDate and
+    // would otherwise stay "due" forever, diverging from OF's Review
+    // perspective and the JXA script's status gate.
     const now = this.now();
     return [...this.projects.values()]
+      .filter((p) => p.status === "active" || p.status === "on-hold")
       .filter((p) => p.nextReviewDate === null || new Date(p.nextReviewDate) <= now)
       .sort((a, b) => {
         if (a.nextReviewDate === null && b.nextReviewDate === null) return 0;

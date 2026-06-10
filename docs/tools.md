@@ -2686,7 +2686,7 @@ Deterministic prose-to-RepetitionRule helper. Pass a natural-language phrase ('e
 
 ## review_list_due
 
-List projects due for review in OmniFocus — those whose next review date is today or earlier, or has never been set. Sorted by next review date ascending (overdue first, never-reviewed first). Do not use to get all projects; prefer project_list for that. Returns each project's id, name, nextReviewDate, lastReviewDate, and reviewIntervalDays. Safe to call repeatedly; no side effects, no writes. Example: review_list_due()
+List projects due for review in OmniFocus — those whose next review date is today or earlier, or has never been set. Only remaining projects (active or on-hold) are eligible; completed and dropped projects are never due — matches OmniFocus's Review perspective. Sorted by next review date ascending (overdue first, never-reviewed first). Do not use to get all projects; prefer project_list for that. Returns each project's id, name, nextReviewDate, lastReviewDate, and reviewIntervalDays. Safe to call repeatedly; no side effects, no writes. Example: review_list_due()
 
 ### Input
 
