@@ -64,7 +64,11 @@ export async function handleTaskClearAlarms(
   await ctx.adapter.clearTaskAlarms(input.id);
   const task = await ctx.adapter.getTask(input.id);
   if (ctx.cache !== undefined) {
-    invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
+    invalidateTaskMutation(ctx.cache, {
+      taskId: input.id,
+      projectId: task.projectId,
+      parentId: task.parentId,
+    });
   }
   const meta = ctx.makeMeta({
     syncPending: true,

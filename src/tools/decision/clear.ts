@@ -59,7 +59,11 @@ export async function handleDecisionClear(input: DecisionClearInput, ctx: Decisi
     }
     await ctx.adapter.updateTask(taskId, { note: newNote });
     if (ctx.cache !== undefined) {
-      invalidateTaskMutation(ctx.cache, { taskId, projectId: task.projectId });
+      invalidateTaskMutation(ctx.cache, {
+        taskId,
+        projectId: task.projectId,
+        parentId: task.parentId,
+      });
     }
     return ok(
       { targetKind: "task" as const, targetId: taskId, cleared: true as const },

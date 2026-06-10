@@ -214,6 +214,21 @@ describe("task_move — cache invalidation", () => {
     expect(scopes).toContain("search:*");
   });
 
+  it("invalidates both the old and new parent task scopes when re-parenting", async () => {
+    const { ctx: base, adapter } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    const scopes = recordScopes(cache);
+    const parentA = await adapter.createTask({ name: "parent a" });
+    const parentB = await adapter.createTask({ name: "parent b" });
+    const id = await adapter.createTask({ name: "child", parentId: parentA });
+
+    await handleTaskMove({ id, parentId: parentB }, { ...base, cache });
+
+    expect(scopes).toContain(`task:${id}`);
+    expect(scopes).toContain(`task:${parentA}`);
+    expect(scopes).toContain(`task:${parentB}`);
+  });
+
   it("emits only source-project scope when moving to the inbox", async () => {
     const { ctx: base, adapter } = makeCtx();
     const cache = new OmniFocusLruCache();

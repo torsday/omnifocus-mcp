@@ -152,6 +152,7 @@ export async function handleTaskSetWaitingOn(
     invalidateTaskMutation(ctx.cache, {
       taskId: input.taskId,
       projectId: task.projectId,
+      parentId: task.parentId,
     });
   }
 
@@ -215,6 +216,7 @@ export async function handleTaskClearWaitingOn(
     invalidateTaskMutation(ctx.cache, {
       taskId: input.taskId,
       projectId: task.projectId,
+      parentId: task.parentId,
     });
   }
 

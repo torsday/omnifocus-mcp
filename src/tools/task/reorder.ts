@@ -144,12 +144,21 @@ export async function handleTaskReorder(input: TaskReorderToolInput, ctx: TaskRe
   await ctx.adapter.reorderTask(input.id, position);
 
   if (ctx.cache !== undefined) {
-    invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: sourceProjectId });
-    // For { at, in: { projectId } } the destination container may differ from
-    // the source; invalidate that scope too.
+    invalidateTaskMutation(ctx.cache, {
+      taskId: input.id,
+      projectId: sourceProjectId,
+      parentId: task.parentId,
+    });
+    // For { at, in: { projectId | parentId } } the destination container may
+    // differ from the source; invalidate that scope too.
     if (input.at !== undefined && input.in !== undefined && "projectId" in input.in) {
       if (input.in.projectId !== sourceProjectId) {
         invalidateTaskMutation(ctx.cache, { projectId: input.in.projectId });
+      }
+    }
+    if (input.at !== undefined && input.in !== undefined && "parentId" in input.in) {
+      if (input.in.parentId !== task.parentId) {
+        invalidateTaskMutation(ctx.cache, { parentId: input.in.parentId });
       }
     }
   }

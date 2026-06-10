@@ -123,13 +123,24 @@ export async function handleTaskDuplicate(
   });
 
   if (ctx.cache !== undefined) {
-    invalidateTaskMutation(ctx.cache, { taskId: newId, projectId: source.projectId });
+    invalidateTaskMutation(ctx.cache, {
+      taskId: newId,
+      projectId: source.projectId,
+      parentId: source.parentId,
+    });
     if (
       input.destination !== undefined &&
       "projectId" in input.destination &&
       input.destination.projectId !== source.projectId
     ) {
       invalidateTaskMutation(ctx.cache, { projectId: input.destination.projectId });
+    }
+    if (
+      input.destination !== undefined &&
+      "parentId" in input.destination &&
+      input.destination.parentId !== source.parentId
+    ) {
+      invalidateTaskMutation(ctx.cache, { parentId: input.destination.parentId });
     }
   }
 

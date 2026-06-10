@@ -7,7 +7,7 @@
  * across the mutation surface.
  *
  * Scope policy (per docs/adr/0006-read-cache-strategy.md):
- *   - task mutations    → task:${id}, project:${projectId?}, forecast:*, perspective:*, search:*
+ *   - task mutations    → task:${id}, task:${parentId?}, project:${projectId?}, forecast:*, perspective:*, search:*
  *   - project mutations → project:${id}, forecast:*, perspective:*, search:*
  *   - tag mutations     → tag:${id}, forecast:*, perspective:*, search:*
  *   - folder mutations  → folder:${id}, perspective:*, search:*
@@ -52,15 +52,21 @@ export interface ClearableCache extends InvalidatingCache {
  *
  * `taskId` may be omitted for mutations that haven't produced an ID yet
  * (e.g. a failed create); `projectId` may be omitted or null when the task
- * lives in the inbox. Wildcard scopes (`forecast:*`, `perspective:*`,
+ * lives in the inbox. `parentId` (the task's parent when it is a subtask)
+ * emits the parent's own `task:` scope — `task_get` caches the parent's
+ * payload with embedded subtask bodies / counts, so any subtask mutation
+ * must flush it. Wildcard scopes (`forecast:*`, `perspective:*`,
  * `search:*`) are always emitted because task-list / forecast / perspective
  * results all embed task data and cannot be surgically pruned.
  */
 export function invalidateTaskMutation(
   cache: InvalidatingCache,
-  opts: { taskId?: TaskId; projectId?: ProjectId | null } = {},
+  opts: { taskId?: TaskId; projectId?: ProjectId | null; parentId?: TaskId | null } = {},
 ): void {
   if (opts.taskId !== undefined) cache.invalidate(`task:${opts.taskId}`);
+  if (opts.parentId !== undefined && opts.parentId !== null) {
+    cache.invalidate(`task:${opts.parentId}`);
+  }
   if (opts.projectId !== undefined && opts.projectId !== null) {
     cache.invalidate(`project:${opts.projectId}`);
   }

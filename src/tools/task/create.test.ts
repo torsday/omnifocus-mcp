@@ -8,9 +8,18 @@
 
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
+import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.js";
 import type { ResponseMeta, ToolEnvelope, ToolSuccess } from "../../envelope/index.js";
 import { IdempotencyStore } from "../../server/idempotencyStore.js";
 import { handleTaskCreate, TASK_CREATE_DESCRIPTION, taskCreateInputSchema } from "./create.js";
+
+function recordScopes(cache: OmniFocusLruCache): InvalidationScope[] {
+  const scopes: InvalidationScope[] = [];
+  cache.on("cache.invalidated", (e: { scopes: InvalidationScope[] }) => {
+    scopes.push(...e.scopes);
+  });
+  return scopes;
+}
 
 /** Narrow a handler envelope to ToolSuccess or fail the assertion. */
 function assertOk<T>(envelope: ToolEnvelope<T>): ToolSuccess<T> {
@@ -249,5 +258,32 @@ describe("task_create — description", () => {
 
   it("mentions idempotency_key", () => {
     expect(TASK_CREATE_DESCRIPTION).toContain("idempotency_key");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cache invalidation (docs/cache-invalidation.md)
+// ---------------------------------------------------------------------------
+
+describe("task_create — cache invalidation", () => {
+  it("emits the parent task scope when creating a subtask", async () => {
+    const { adapter, ctx } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    const scopes = recordScopes(cache);
+    const parentTaskId = await adapter.createTask({ name: "Parent" });
+
+    await handleTaskCreate({ name: "Child", parentTaskId }, { ...ctx, cache });
+
+    expect(scopes).toEqual([`task:${parentTaskId}`, "forecast:*", "perspective:*", "search:*"]);
+  });
+
+  it("emits only the wildcard scopes for an inbox task", async () => {
+    const { ctx } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    const scopes = recordScopes(cache);
+
+    await handleTaskCreate({ name: "Inbox task" }, { ...ctx, cache });
+
+    expect(scopes).toEqual(["forecast:*", "perspective:*", "search:*"]);
   });
 });

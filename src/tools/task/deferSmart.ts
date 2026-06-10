@@ -160,7 +160,11 @@ export async function handleTaskDeferSmart(
       await ctx.adapter.updateTask(input.taskId, { deferDate: resolved.resolvedDeferDate });
       const task = await ctx.adapter.getTask(input.taskId);
       if (ctx.cache !== undefined) {
-        invalidateTaskMutation(ctx.cache, { taskId: input.taskId, projectId: task.projectId });
+        invalidateTaskMutation(ctx.cache, {
+          taskId: input.taskId,
+          projectId: task.projectId,
+          parentId: task.parentId,
+        });
       }
       return ok(
         {

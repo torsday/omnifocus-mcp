@@ -82,6 +82,38 @@ describe("invalidateTaskMutation", () => {
     invalidateTaskMutation(cache as unknown as InvalidatingCache);
     expect(cache.scopes).toEqual(["forecast:*", "perspective:*", "search:*"]);
   });
+
+  it("emits task:${parentId} after the task scope when the task is a subtask", () => {
+    const cache = makeRecorder();
+    invalidateTaskMutation(cache as unknown as InvalidatingCache, {
+      taskId: "task_child" as TaskId,
+      parentId: "task_parent" as TaskId,
+      projectId: null,
+    });
+    expect(cache.scopes).toEqual([
+      "task:task_child",
+      "task:task_parent",
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+    ]);
+  });
+
+  it("skips the parent scope when parentId is null (top-level task)", () => {
+    const cache = makeRecorder();
+    invalidateTaskMutation(cache as unknown as InvalidatingCache, {
+      taskId: "task_3" as TaskId,
+      projectId: "project_3" as ProjectId,
+      parentId: null,
+    });
+    expect(cache.scopes).toEqual([
+      "task:task_3",
+      "project:project_3",
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+    ]);
+  });
 });
 
 // ---------------------------------------------------------------------------

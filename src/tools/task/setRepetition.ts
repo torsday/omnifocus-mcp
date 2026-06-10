@@ -88,7 +88,11 @@ export async function handleTaskSetRepetition(
     );
   }
   if (ctx.cache !== undefined) {
-    invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
+    invalidateTaskMutation(ctx.cache, {
+      taskId: input.id,
+      projectId: task.projectId,
+      parentId: task.parentId,
+    });
   }
   const meta = ctx.makeMeta({
     syncPending: true,

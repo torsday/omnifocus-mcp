@@ -162,6 +162,11 @@ export async function handleTaskBatchCreate(
             seen.add(pid);
             invalidateTaskMutation(ctx.cache, { projectId: pid });
           }
+          const parentId = src?.parentTaskId;
+          if (parentId !== undefined && !seen.has(parentId)) {
+            seen.add(parentId);
+            invalidateTaskMutation(ctx.cache, { parentId });
+          }
         }
         if (seen.size === 0) invalidateTaskMutation(ctx.cache, {});
       }

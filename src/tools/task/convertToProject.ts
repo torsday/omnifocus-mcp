@@ -96,7 +96,7 @@ export async function handleTaskConvertToProject(
   const projectId = await ctx.adapter.convertTaskToProject(input.id, opts);
 
   if (ctx.cache !== undefined) {
-    invalidateTaskMutation(ctx.cache, { taskId: input.id });
+    invalidateTaskMutation(ctx.cache, { taskId: input.id, parentId: task.parentId });
     invalidateProjectMutation(ctx.cache, { projectId });
   }
 

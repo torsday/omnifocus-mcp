@@ -353,6 +353,24 @@ describe("task_update — cache invalidation", () => {
     expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*"]);
   });
 
+  it("emits the parent task scope when updating a subtask", async () => {
+    const { ctx: base, adapter } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    const scopes = recordScopes(cache);
+    const parentId = await adapter.createTask({ name: "Parent" });
+    const id = await adapter.createTask({ name: "Child", parentId });
+
+    await handleTaskUpdate({ id, name: "renamed child" }, { ...base, cache });
+
+    expect(scopes).toEqual([
+      `task:${id}`,
+      `task:${parentId}`,
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+    ]);
+  });
+
   it("does not invalidate on a dry_run preview", async () => {
     const { ctx: base, adapter } = makeCtx();
     const cache = new OmniFocusLruCache();

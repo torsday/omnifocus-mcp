@@ -55,6 +55,14 @@ re-read the task after the mutation (e.g. `task_delete`), the handler
 pre-fetches via `adapter.getTask` before writing so the project scope can
 still be flushed.
 
+When the mutated task is a subtask (`parentId !== null`),
+`invalidateTaskMutation` additionally emits `task:${parentId}` — `task_get`
+caches the parent's payload with embedded subtask bodies (`with-subtasks`)
+or `subtaskIds`/`subtaskCount` (`ids-only`), so any subtask mutation must
+flush the parent's entries too. Tools that re-parent or create under a
+parent (`task_move`, `task_reorder`, `task_duplicate`, `task_create`,
+`task_batch_create`) also emit the destination parent's scope.
+
 ## Testing contract
 
 Every mutation's unit test must:

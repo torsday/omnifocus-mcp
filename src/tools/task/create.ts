@@ -196,6 +196,7 @@ export async function handleTaskCreate(input: TaskCreateToolInput, ctx: TaskCrea
     if (ctx.cache !== undefined) {
       invalidateTaskMutation(ctx.cache, {
         ...(input.projectId !== undefined && { projectId: input.projectId }),
+        ...(input.parentTaskId !== undefined && { parentId: input.parentTaskId }),
       });
     }
 

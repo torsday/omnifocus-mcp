@@ -61,7 +61,11 @@ export async function handleTaskDrop(input: TaskDropToolInput, ctx: TaskDropCont
   const at = input.at !== undefined ? new Date(input.at) : undefined;
   await ctx.adapter.dropTask(input.id, at);
   if (ctx.cache !== undefined) {
-    invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
+    invalidateTaskMutation(ctx.cache, {
+      taskId: input.id,
+      projectId: task.projectId,
+      parentId: task.parentId,
+    });
   }
   return ok(
     { done: true as const, id: input.id, name: task.name },

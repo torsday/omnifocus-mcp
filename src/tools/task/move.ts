@@ -138,11 +138,19 @@ export async function handleTaskMove(input: TaskMoveToolInput, ctx: TaskMoveCont
   await ctx.adapter.moveTask(input.id, destination);
 
   if (ctx.cache !== undefined) {
-    // Invalidate under OLD project (task-list cached keys still reference it)
-    invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
+    // Invalidate under OLD project + OLD parent (cached keys still reference them)
+    invalidateTaskMutation(ctx.cache, {
+      taskId: input.id,
+      projectId: task.projectId,
+      parentId: task.parentId,
+    });
     // And under NEW project if different (avoid double-emit when same or null)
     if (input.projectId !== undefined && input.projectId !== task.projectId) {
       invalidateTaskMutation(ctx.cache, { projectId: input.projectId });
+    }
+    // And under NEW parent if different — its cached subtask payload now lists this task
+    if (input.parentId !== undefined && input.parentId !== task.parentId) {
+      invalidateTaskMutation(ctx.cache, { parentId: input.parentId });
     }
   }
 

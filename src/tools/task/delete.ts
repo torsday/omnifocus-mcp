@@ -151,7 +151,11 @@ export async function handleTaskDelete(
     const live = async (): Promise<ToolEnvelope<TaskDeleteData>> => {
       await ctx.adapter.deleteTask(input.id);
       if (ctx.cache !== undefined) {
-        invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
+        invalidateTaskMutation(ctx.cache, {
+          taskId: input.id,
+          projectId: task.projectId,
+          parentId: task.parentId,
+        });
       }
       return ok(
         { deleted: true as const, id: input.id },

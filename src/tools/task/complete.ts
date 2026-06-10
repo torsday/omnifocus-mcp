@@ -120,7 +120,11 @@ async function _doComplete(
   const at = input.at !== undefined ? new Date(input.at) : undefined;
   await ctx.adapter.completeTask(input.id, at);
   if (ctx.cache !== undefined) {
-    invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
+    invalidateTaskMutation(ctx.cache, {
+      taskId: input.id,
+      projectId: task.projectId,
+      parentId: task.parentId,
+    });
   }
 
   // Hint: if the parent project now has no remaining tasks, suggest completing it.

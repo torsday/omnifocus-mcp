@@ -297,7 +297,11 @@ export async function handleTaskUpdate(
       await ctx.adapter.updateTask(id, patch);
       const task = await ctx.adapter.getTask(id);
       if (ctx.cache !== undefined) {
-        invalidateTaskMutation(ctx.cache, { taskId: id, projectId: task.projectId });
+        invalidateTaskMutation(ctx.cache, {
+          taskId: id,
+          projectId: task.projectId,
+          parentId: task.parentId,
+        });
       }
       return ok({ task }, ctx.makeMeta({ syncPending: true }));
     };

@@ -55,7 +55,11 @@ export async function handleTaskUncomplete(
   }
   await ctx.adapter.uncompleteTask(input.id);
   if (ctx.cache !== undefined) {
-    invalidateTaskMutation(ctx.cache, { taskId: input.id, projectId: task.projectId });
+    invalidateTaskMutation(ctx.cache, {
+      taskId: input.id,
+      projectId: task.projectId,
+      parentId: task.parentId,
+    });
   }
   return ok(
     { done: true as const, id: input.id, name: task.name },

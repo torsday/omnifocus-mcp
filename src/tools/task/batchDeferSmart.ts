@@ -142,6 +142,7 @@ export async function handleTaskBatchDeferSmart(
             invalidateTaskMutation(ctx.cache, {
               taskId: entry.taskId,
               projectId: task.projectId,
+              parentId: task.parentId,
             });
           }
         }
