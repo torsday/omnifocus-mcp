@@ -25,6 +25,16 @@ import type { WebhookRegistry } from "./registry.js";
 export interface WebhookOrchestratorOptions {
   registry: WebhookRegistry;
   dispatcher: WebhookDispatcher;
+  /**
+   * Master env gate (OMNIFOCUS_WEBHOOKS_ENABLED). When false the
+   * orchestrator never observes or delivers: `shouldObserve()` returns
+   * false so the database-change handler skips its full-snapshot fetch,
+   * and `observeSnapshot` no-ops defensively. Without this gate, webhooks
+   * registered during an earlier enabled run (persisted to disk) would
+   * keep firing real HTTPS deliveries after the user turned the feature
+   * off — violating ADR-0016 §4a's opt-in promise. Defaults to true.
+   */
+  enabled?: boolean;
   /** Inject `now` for tests. */
   now?: () => Date;
 }
@@ -32,6 +42,7 @@ export interface WebhookOrchestratorOptions {
 export class WebhookOrchestrator {
   private readonly registry: WebhookRegistry;
   private readonly dispatcher: WebhookDispatcher;
+  private readonly enabled: boolean;
   private readonly now: () => Date;
   private lastTasks: readonly TaskSnapshotEntry[] = [];
   private lastProjects: readonly ProjectSnapshotEntry[] = [];
@@ -40,18 +51,20 @@ export class WebhookOrchestrator {
   constructor(options: WebhookOrchestratorOptions) {
     this.registry = options.registry;
     this.dispatcher = options.dispatcher;
+    this.enabled = options.enabled ?? true;
     this.now = options.now ?? (() => new Date());
   }
 
   /**
-   * True iff at least one webhook is currently registered. The
-   * cache-observation hook calls this *before* fetching a fresh full
-   * snapshot — when no hooks are registered the snapshot fetch would be
-   * pure overhead, since `observeSnapshot` would no-op anyway. Cheap:
-   * peeks the in-memory registry view, no I/O.
+   * True iff the subsystem is enabled AND at least one webhook is
+   * currently registered. The cache-observation hook calls this *before*
+   * fetching a fresh full snapshot — when disabled or no hooks are
+   * registered the snapshot fetch would be pure overhead, since
+   * `observeSnapshot` would no-op anyway. Cheap: peeks the in-memory
+   * registry view, no I/O.
    */
   shouldObserve(): boolean {
-    return this.registry.listFull().length > 0;
+    return this.enabled && this.registry.listFull().length > 0;
   }
 
   /**
@@ -64,6 +77,12 @@ export class WebhookOrchestrator {
    * dispatcher per ADR-0016 §4e.
    */
   async observeSnapshot(tasks: readonly Task[], projects: readonly Project[]): Promise<void> {
+    // Env gate (ADR-0016 §4a). Belt-and-braces with shouldObserve(): even
+    // if a caller skips that check, a disabled subsystem must never diff
+    // or dispatch — webhooks persisted from an earlier enabled run would
+    // otherwise keep delivering.
+    if (!this.enabled) return;
+
     const taskSnap = tasks.map(snapshotTask);
     const projSnap = projects.map(snapshotProject);
 

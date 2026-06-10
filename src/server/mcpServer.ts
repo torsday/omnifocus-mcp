@@ -499,10 +499,14 @@ export async function startServer(): Promise<void> {
   // Slice 4+5 of #483: orchestrator + webhook_test + cache-observation
   // hook (the orchestrator is threaded into makeDatabaseChangeHandler
   // below so observeSnapshot fires whenever the database watcher
-  // detects an OF state change — see ADR-0016 §1).
+  // detects an OF state change — see ADR-0016 §1). The env gate is
+  // threaded in at construction so a disabled subsystem never fetches
+  // snapshots or delivers — even when webhooks registered during an
+  // earlier enabled run are still on disk (ADR-0016 §4a).
   const webhookOrchestrator = new WebhookOrchestrator({
     registry: webhookRegistry,
     dispatcher: new HttpsDispatcher(),
+    enabled: config.OMNIFOCUS_WEBHOOKS_ENABLED,
   });
   registerWebhookTestTool(server, {
     orchestrator: webhookOrchestrator,

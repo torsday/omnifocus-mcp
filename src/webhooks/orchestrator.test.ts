@@ -134,6 +134,59 @@ describe("WebhookOrchestrator — shouldObserve", () => {
   });
 });
 
+describe("WebhookOrchestrator — enabled gate (OMNIFOCUS_WEBHOOKS_ENABLED)", () => {
+  let filePath: string;
+
+  beforeEach(() => {
+    filePath = tmpFile();
+  });
+  afterEach(() => {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  });
+
+  it("shouldObserve returns false when disabled, even with webhooks registered", () => {
+    const registry = new WebhookRegistry({ filePath });
+    registry.register({
+      name: "wh",
+      url: "https://example.com/x",
+      trigger: { on: "task-completed" },
+    });
+    const orch = new WebhookOrchestrator({
+      registry,
+      dispatcher: new CapturingDispatcher(),
+      enabled: false,
+    });
+    expect(orch.shouldObserve()).toBe(false);
+  });
+
+  it("observeSnapshot never dispatches when disabled — persisted webhooks stay silent", async () => {
+    const registry = new WebhookRegistry({ filePath });
+    registry.register({
+      name: "wh",
+      url: "https://example.com/x",
+      trigger: { on: "task-completed" },
+    });
+    const dispatcher = new CapturingDispatcher();
+    const orch = new WebhookOrchestrator({ registry, dispatcher, enabled: false });
+
+    await orch.observeSnapshot([makeTask({ id: "t1", completed: false })], []);
+    await orch.observeSnapshot([makeTask({ id: "t1", completed: true })], []);
+
+    expect(dispatcher.delivered).toEqual([]);
+  });
+
+  it("defaults to enabled when the option is omitted (existing wiring unchanged)", () => {
+    const registry = new WebhookRegistry({ filePath });
+    registry.register({
+      name: "wh",
+      url: "https://example.com/x",
+      trigger: { on: "task-completed" },
+    });
+    const orch = new WebhookOrchestrator({ registry, dispatcher: new CapturingDispatcher() });
+    expect(orch.shouldObserve()).toBe(true);
+  });
+});
+
 describe("WebhookOrchestrator — observeSnapshot", () => {
   let filePath: string;
 
