@@ -128,6 +128,38 @@ describe("ProjectService.list — filters", () => {
     expect(out.projects.map((p) => p.name)).toEqual(["soon"]);
   });
 
+  it("compares reviewDueBefore as an instant, not a string: west-of-UTC threshold includes earlier UTC review dates", async () => {
+    const { service, adapter } = makeHarness();
+    const a = await adapter.createProject({ name: "due" });
+    // markProjectReviewed sets nextReviewDate = now + 1 day ≈ 2026-01-02T00:00:0X.000Z.
+    await adapter.updateProject(a, { reviewIntervalDays: 1 });
+    await adapter.markProjectReviewed(a);
+
+    // Threshold = 2026-01-01T20:00:00-07:00 = 2026-01-02T03:00:00Z — strictly
+    // AFTER nextReviewDate as an instant, so the project is review-due. A
+    // lexicographic compare ("2026-01-02…Z" >= "2026-01-01…-07:00") would
+    // wrongly exclude it.
+    const out = await service.list({ reviewDueBefore: "2026-01-01T20:00:00-07:00" });
+    expect(out.projects.map((p) => p.name)).toEqual(["due"]);
+  });
+
+  it("compares reviewDueBefore as an instant: equal instant with a no-fraction threshold is excluded (strictly before)", async () => {
+    const { service, adapter } = makeHarness();
+    const a = await adapter.createProject({ name: "exact" });
+    await adapter.updateProject(a, { reviewIntervalDays: 1 });
+    await adapter.markProjectReviewed(a);
+
+    // Threshold = the project's own nextReviewDate with the fractional
+    // seconds stripped — the same instant, so the strictly-before contract
+    // excludes it. A lexicographic compare sees "…00.000Z" < "…00Z"
+    // ('.' < 'Z') and would wrongly include it.
+    const { nextReviewDate } = await adapter.getProject(a);
+    const threshold = (nextReviewDate as string).replace(".000Z", "Z");
+    expect(threshold).not.toContain(".");
+    const out = await service.list({ reviewDueBefore: threshold });
+    expect(out.projects).toEqual([]);
+  });
+
   it("combines status + flagged filters (adapter + post-filter)", async () => {
     const { service, adapter } = makeHarness();
     const activeFlaggedId = await adapter.createProject({ name: "active-flag" });

@@ -268,12 +268,18 @@ export class ProjectService {
     const raw = await this.adapter.listProjects(adapterFilter);
 
     // Post-filter: flagged + reviewDueBefore (adapter primitive doesn't accept these).
+    // Compare reviewDueBefore as instants, not strings: nextReviewDate is
+    // always UTC (`...Z`) but the threshold may carry a non-UTC offset, and
+    // lexicographic comparison across different offsets is not an instant
+    // comparison.
     const { flagged, reviewDueBefore } = normalized;
+    const reviewDueBeforeMs =
+      reviewDueBefore !== undefined ? Date.parse(reviewDueBefore) : undefined;
     const filtered = raw.filter((p) => {
       if (flagged !== undefined && p.flagged !== flagged) return false;
-      if (reviewDueBefore !== undefined) {
+      if (reviewDueBeforeMs !== undefined) {
         if (p.nextReviewDate === null) return false;
-        if (p.nextReviewDate >= reviewDueBefore) return false;
+        if (Date.parse(p.nextReviewDate) >= reviewDueBeforeMs) return false;
       }
       return true;
     });
