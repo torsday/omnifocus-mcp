@@ -123,6 +123,14 @@ function isoOf(d: Date): string {
   return d.toISOString();
 }
 
+function msOf(iso: string): number {
+  // ISO-8601-with-offset strings are NOT lexicographically ordered across
+  // mixed UTC offsets ("…23:00:00+02:00" string-compares later than
+  // "…22:00:00Z" but is chronologically earlier). Compare as timestamps,
+  // matching the JXA scripts' parsed-Date comparisons.
+  return new Date(iso).getTime();
+}
+
 // ---------------------------------------------------------------------------
 // Adapter
 // ---------------------------------------------------------------------------
@@ -1497,10 +1505,18 @@ export class InMemoryAdapter implements OmniFocusAdapter {
       includeFlagged = true,
     } = input;
 
-    const overdue = includeOverdue ? all.filter((t) => t.dueDate !== null && t.dueDate < from) : [];
-    const dueToday = all.filter((t) => t.dueDate !== null && t.dueDate >= from && t.dueDate <= to);
+    const fromMs = msOf(from);
+    const toMs = msOf(to);
+    const overdue = includeOverdue
+      ? all.filter((t) => t.dueDate !== null && msOf(t.dueDate) < fromMs)
+      : [];
+    const dueToday = all.filter(
+      (t) => t.dueDate !== null && msOf(t.dueDate) >= fromMs && msOf(t.dueDate) <= toMs,
+    );
     const deferredToday = includeDeferred
-      ? all.filter((t) => t.deferDate !== null && t.deferDate >= from && t.deferDate <= to)
+      ? all.filter(
+          (t) => t.deferDate !== null && msOf(t.deferDate) >= fromMs && msOf(t.deferDate) <= toMs,
+        )
       : [];
     const flagged = includeFlagged ? all.filter((t) => t.flagged) : [];
 
@@ -1716,19 +1732,22 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     if (filter.available !== undefined && task.available !== filter.available) return false;
     if (filter.blocked !== undefined && task.blocked !== filter.blocked) return false;
     if (filter.completedSince !== undefined) {
-      if (task.completedAt === null || task.completedAt < filter.completedSince) return false;
+      if (task.completedAt === null || msOf(task.completedAt) < msOf(filter.completedSince))
+        return false;
     }
     if (filter.dueBefore !== undefined) {
-      if (task.dueDate === null || task.dueDate >= filter.dueBefore) return false;
+      if (task.dueDate === null || msOf(task.dueDate) >= msOf(filter.dueBefore)) return false;
     }
     if (filter.dueAfter !== undefined) {
-      if (task.dueDate === null || task.dueDate <= filter.dueAfter) return false;
+      if (task.dueDate === null || msOf(task.dueDate) <= msOf(filter.dueAfter)) return false;
     }
     if (filter.deferredBefore !== undefined) {
-      if (task.deferDate === null || task.deferDate >= filter.deferredBefore) return false;
+      if (task.deferDate === null || msOf(task.deferDate) >= msOf(filter.deferredBefore))
+        return false;
     }
     if (filter.deferredAfter !== undefined) {
-      if (task.deferDate === null || task.deferDate <= filter.deferredAfter) return false;
+      if (task.deferDate === null || msOf(task.deferDate) <= msOf(filter.deferredAfter))
+        return false;
     }
     // inbox=true: only tasks with no project assignment (projectId === null)
     if (filter.inbox === true && task.projectId !== null) return false;

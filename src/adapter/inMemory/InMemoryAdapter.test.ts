@@ -222,6 +222,30 @@ describe("InMemoryAdapter — listTasks filters", () => {
     expect(after.map((t) => t.id)).toEqual([late]);
   });
 
+  it("compares date filters chronologically across mixed UTC offsets", async () => {
+    const a = makeAdapter();
+    // 23:00+02:00 == 21:00Z — chronologically before the 22:00Z bound, but
+    // lexicographically AFTER it ("23" > "22" at the hour digits).
+    const id = await a.createTask({ name: "offset", dueDate: "2026-06-09T23:00:00+02:00" });
+    const before = await a.listTasks({ dueBefore: "2026-06-09T22:00:00Z" });
+    expect(before.map((t) => t.id)).toEqual([id]);
+    const after = await a.listTasks({ dueAfter: "2026-06-09T22:00:00Z" });
+    expect(after).toEqual([]);
+  });
+
+  it("getForecast classifies mixed-offset due dates chronologically", async () => {
+    const a = makeAdapter();
+    // 23:00+02:00 == 21:00Z — chronologically before the window start, so
+    // the task is overdue, not dueToday (lexicographic order says otherwise).
+    const id = await a.createTask({ name: "offset", dueDate: "2026-06-09T23:00:00+02:00" });
+    const fc = await a.getForecast({
+      from: "2026-06-09T22:00:00Z",
+      to: "2026-06-10T21:59:59Z",
+    });
+    expect(fc.overdue.map((t) => t.id)).toEqual([id]);
+    expect(fc.dueToday).toEqual([]);
+  });
+
   it("filters by completedSince inclusively", async () => {
     const t0 = new Date("2026-04-21T12:00:00.000Z");
     const t1 = new Date("2026-04-21T13:00:00.000Z");
