@@ -154,4 +154,21 @@ describe("task_convert_to_project — cache invalidation", () => {
     expect(scopes.some((s) => s.startsWith("task:"))).toBe(true);
     expect(scopes.some((s) => s.startsWith("project:"))).toBe(true);
   });
+
+  it("flushes the source project's scope when converting a task out of a project", async () => {
+    const { ctx, adapter } = makeCtx();
+    const cache = new OmniFocusLruCache({ capacity: 100 });
+    const scopes = recordScopes(cache);
+
+    const sourceProjectId = await adapter.createProject({ name: "source" });
+    const id = await adapter.createTask({ name: "in-project task", projectId: sourceProjectId });
+    await handleTaskConvertToProject({ id }, { ...ctx, cache });
+
+    // Conversion removes the task from its source project, so the source
+    // project's cached task tree (project:${id}:with-tasks) is stale. The
+    // new project's scope alone doesn't cover it — the new project's ID
+    // equals the task's ID, not the source project's.
+    expect(scopes).toContain(`project:${sourceProjectId}`);
+    expect(scopes).toContain(`project:${id}`);
+  });
 });

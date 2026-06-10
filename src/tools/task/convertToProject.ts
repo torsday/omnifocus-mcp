@@ -96,7 +96,14 @@ export async function handleTaskConvertToProject(
   const projectId = await ctx.adapter.convertTaskToProject(input.id, opts);
 
   if (ctx.cache !== undefined) {
-    invalidateTaskMutation(ctx.cache, { taskId: input.id, parentId: task.parentId });
+    // projectId here is the SOURCE project (when the task lived in one) —
+    // conversion removes the task from it, so its cached task tree is stale.
+    // The new project's scope is flushed by invalidateProjectMutation below.
+    invalidateTaskMutation(ctx.cache, {
+      taskId: input.id,
+      parentId: task.parentId,
+      projectId: task.projectId,
+    });
     invalidateProjectMutation(ctx.cache, { projectId });
   }
 
