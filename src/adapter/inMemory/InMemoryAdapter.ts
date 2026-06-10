@@ -230,12 +230,20 @@ export class InMemoryAdapter implements OmniFocusAdapter {
 
     const id = this.nextId("task", TaskIdCtor);
     const now = isoOf(this.now()) as Task["createdAt"];
+    // A child created under a parent lives in the parent's containing project:
+    // real adapters derive projectId from containment (containingProject()),
+    // so the in-memory double must inherit it too (same derivation as
+    // duplicateTask and resolveReorderDestination).
+    const projectId =
+      input.parentId !== undefined
+        ? (this.tasks.get(input.parentId)?.projectId ?? null)
+        : (input.projectId ?? null);
     const task: Task = {
       id,
       name: input.name,
       note: input.note ?? null,
       noteHtml: input.noteHtml ?? null,
-      projectId: input.projectId ?? null,
+      projectId,
       parentId: input.parentId ?? null,
       tagIds: [...(input.tagIds ?? [])],
       deferDate: (input.deferDate ?? null) as Task["deferDate"],
@@ -447,7 +455,12 @@ export class InMemoryAdapter implements OmniFocusAdapter {
     }
     this.adjustProjectCountsForTask(task.projectId, task, -1);
 
-    const newProjectId = destination.projectId ?? null;
+    // Moving under a parent puts the task in the parent's containing project —
+    // matching real adapters, where projectId is derived from containment.
+    const newProjectId =
+      destination.parentId !== undefined
+        ? (this.tasks.get(destination.parentId)?.projectId ?? null)
+        : (destination.projectId ?? null);
     this.tasks.set(id, {
       ...task,
       projectId: newProjectId,

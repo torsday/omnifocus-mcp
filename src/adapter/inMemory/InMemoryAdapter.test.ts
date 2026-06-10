@@ -45,6 +45,24 @@ describe("InMemoryAdapter — Tasks", () => {
     );
   });
 
+  it("child created under a parent inherits the parent's project", async () => {
+    const a = makeAdapter();
+    const projectId = await a.createProject({ name: "p" });
+    const parentId = await a.createTask({ name: "parent", projectId });
+    const childId = await a.createTask({ name: "child", parentId });
+    const child = await a.getTask(childId);
+    expect(child.projectId).toBe(projectId);
+    expect(child.parentId).toBe(parentId);
+    expect((await a.getProject(projectId)).taskCount).toBe(2);
+  });
+
+  it("child created under an inbox parent stays projectless", async () => {
+    const a = makeAdapter();
+    const parentId = await a.createTask({ name: "parent" });
+    const childId = await a.createTask({ name: "child", parentId });
+    expect((await a.getTask(childId)).projectId).toBeNull();
+  });
+
   it("rejects unknown projectId with NotFound", async () => {
     const a = makeAdapter();
     const projectId = await a.createProject({ name: "p" });
@@ -130,6 +148,18 @@ describe("InMemoryAdapter — Tasks", () => {
     expect((await a.getTask(id)).projectId).toBe(p2);
     expect((await a.getProject(p1)).taskCount).toBe(0);
     expect((await a.getProject(p2)).taskCount).toBe(1);
+  });
+
+  it("moveTask under a parent inherits the parent's project and rebalances counts", async () => {
+    const a = makeAdapter();
+    const p = await a.createProject({ name: "dest" });
+    const parentId = await a.createTask({ name: "parent", projectId: p });
+    const id = await a.createTask({ name: "child" });
+    await a.moveTask(id, { parentId });
+    const moved = await a.getTask(id);
+    expect(moved.projectId).toBe(p);
+    expect(moved.parentId).toBe(parentId);
+    expect((await a.getProject(p)).taskCount).toBe(2);
   });
 
   it("moveTask rejects projectId + parentId both set", async () => {
