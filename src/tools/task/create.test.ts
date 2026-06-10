@@ -274,7 +274,13 @@ describe("task_create — cache invalidation", () => {
 
     await handleTaskCreate({ name: "Child", parentTaskId }, { ...ctx, cache });
 
-    expect(scopes).toEqual([`task:${parentTaskId}`, "forecast:*", "perspective:*", "search:*"]);
+    expect(scopes).toEqual([
+      `task:${parentTaskId}`,
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+      "tag:list",
+    ]);
   });
 
   it("emits only the wildcard scopes for an inbox task", async () => {
@@ -284,6 +290,6 @@ describe("task_create — cache invalidation", () => {
 
     await handleTaskCreate({ name: "Inbox task" }, { ...ctx, cache });
 
-    expect(scopes).toEqual(["forecast:*", "perspective:*", "search:*"]);
+    expect(scopes).toEqual(["forecast:*", "perspective:*", "search:*", "tag:list"]);
   });
 });

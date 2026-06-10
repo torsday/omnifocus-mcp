@@ -45,7 +45,7 @@ function makeRecorder(): ClearableCache & { scopes: InvalidationScope[]; cleared
 // ---------------------------------------------------------------------------
 
 describe("invalidateTaskMutation", () => {
-  it("emits task, project, forecast:*, perspective:*, search:* when both IDs known", () => {
+  it("emits task, project, forecast:*, perspective:*, search:*, tag:list when both IDs known", () => {
     const cache = makeRecorder();
     invalidateTaskMutation(cache as unknown as InvalidatingCache, {
       taskId: "task_1" as TaskId,
@@ -57,6 +57,7 @@ describe("invalidateTaskMutation", () => {
       "forecast:*",
       "perspective:*",
       "search:*",
+      "tag:list",
     ]);
   });
 
@@ -66,7 +67,13 @@ describe("invalidateTaskMutation", () => {
       taskId: "task_2" as TaskId,
       projectId: null,
     });
-    expect(cache.scopes).toEqual(["task:task_2", "forecast:*", "perspective:*", "search:*"]);
+    expect(cache.scopes).toEqual([
+      "task:task_2",
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+      "tag:list",
+    ]);
   });
 
   it("skips task scope when taskId is omitted", () => {
@@ -74,13 +81,19 @@ describe("invalidateTaskMutation", () => {
     invalidateTaskMutation(cache as unknown as InvalidatingCache, {
       projectId: "project_2" as ProjectId,
     });
-    expect(cache.scopes).toEqual(["project:project_2", "forecast:*", "perspective:*", "search:*"]);
+    expect(cache.scopes).toEqual([
+      "project:project_2",
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+      "tag:list",
+    ]);
   });
 
-  it("emits the three wildcards when neither ID is known", () => {
+  it("emits the wildcards and tag:list when neither ID is known", () => {
     const cache = makeRecorder();
     invalidateTaskMutation(cache as unknown as InvalidatingCache);
-    expect(cache.scopes).toEqual(["forecast:*", "perspective:*", "search:*"]);
+    expect(cache.scopes).toEqual(["forecast:*", "perspective:*", "search:*", "tag:list"]);
   });
 
   it("emits task:${parentId} after the task scope when the task is a subtask", () => {
@@ -96,6 +109,7 @@ describe("invalidateTaskMutation", () => {
       "forecast:*",
       "perspective:*",
       "search:*",
+      "tag:list",
     ]);
   });
 
@@ -112,6 +126,7 @@ describe("invalidateTaskMutation", () => {
       "forecast:*",
       "perspective:*",
       "search:*",
+      "tag:list",
     ]);
   });
 });
@@ -121,12 +136,18 @@ describe("invalidateTaskMutation", () => {
 // ---------------------------------------------------------------------------
 
 describe("invalidateProjectMutation", () => {
-  it("emits project, forecast:*, perspective:*, search:*", () => {
+  it("emits project, forecast:*, perspective:*, search:*, folder:list", () => {
     const cache = makeRecorder();
     invalidateProjectMutation(cache as unknown as InvalidatingCache, {
       projectId: "project_42" as ProjectId,
     });
-    expect(cache.scopes).toEqual(["project:project_42", "forecast:*", "perspective:*", "search:*"]);
+    expect(cache.scopes).toEqual([
+      "project:project_42",
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+      "folder:list",
+    ]);
   });
 });
 

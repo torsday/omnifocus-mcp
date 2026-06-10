@@ -339,6 +339,7 @@ describe("task_update — cache invalidation", () => {
       "forecast:*",
       "perspective:*",
       "search:*",
+      "tag:list",
     ]);
   });
 
@@ -350,7 +351,7 @@ describe("task_update — cache invalidation", () => {
 
     await handleTaskUpdate({ id, flagged: true }, { ...base, cache });
 
-    expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*"]);
+    expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*", "tag:list"]);
   });
 
   it("emits the parent task scope when updating a subtask", async () => {
@@ -368,6 +369,7 @@ describe("task_update — cache invalidation", () => {
       "forecast:*",
       "perspective:*",
       "search:*",
+      "tag:list",
     ]);
   });
 

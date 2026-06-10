@@ -164,7 +164,7 @@ describe("project_update — handler", () => {
 // ---------------------------------------------------------------------------
 
 describe("project_update — cache invalidation", () => {
-  it("emits project:${id}, forecast:*, perspective:*, search:*", async () => {
+  it("emits project:${id}, forecast:*, perspective:*, search:*, folder:list", async () => {
     const { ctx: base, adapter } = makeCtx();
     const cache = new OmniFocusLruCache();
     const scopes = recordScopes(cache);
@@ -172,7 +172,13 @@ describe("project_update — cache invalidation", () => {
 
     await handleProjectUpdate({ id }, { ...base, cache });
 
-    expect(scopes).toEqual([`project:${id}`, "forecast:*", "perspective:*", "search:*"]);
+    expect(scopes).toEqual([
+      `project:${id}`,
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+      "folder:list",
+    ]);
   });
 
   it("does not invalidate when update fails (NotFound)", async () => {

@@ -265,6 +265,7 @@ describe("task_set_repetition / task_clear_repetition — cache invalidation", (
       "forecast:*",
       "perspective:*",
       "search:*",
+      "tag:list",
     ]);
   });
 
@@ -276,7 +277,7 @@ describe("task_set_repetition / task_clear_repetition — cache invalidation", (
 
     await handleTaskClearRepetition({ id }, { ...base, cache });
 
-    expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*"]);
+    expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*", "tag:list"]);
   });
 });
 

@@ -117,7 +117,7 @@ describe("task_uncomplete — handler", () => {
 // ---------------------------------------------------------------------------
 
 describe("task_uncomplete — cache invalidation", () => {
-  it("emits task:${id}, forecast:*, perspective:*, search:* for inbox task", async () => {
+  it("emits task:${id}, forecast:*, perspective:*, search:*, tag:list for inbox task", async () => {
     const { ctx: base, adapter } = makeCtx();
     const cache = new OmniFocusLruCache();
     const scopes = recordScopes(cache);
@@ -126,7 +126,7 @@ describe("task_uncomplete — cache invalidation", () => {
 
     await handleTaskUncomplete({ id }, { ...base, cache });
 
-    expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*"]);
+    expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*", "tag:list"]);
   });
 
   it("does not invalidate on noChange", async () => {

@@ -102,7 +102,7 @@ describe("project_drop — handler", () => {
 // ---------------------------------------------------------------------------
 
 describe("project_drop — cache invalidation", () => {
-  it("emits project:${id}, forecast:*, perspective:*, search:*", async () => {
+  it("emits project:${id}, forecast:*, perspective:*, search:*, folder:list", async () => {
     const { ctx: base, adapter } = makeCtx();
     const lruCache = new OmniFocusLruCache();
     const scopes = recordScopes(lruCache);
@@ -110,7 +110,13 @@ describe("project_drop — cache invalidation", () => {
 
     await handleProjectDrop({ id }, { ...base, cache: lruCache });
 
-    expect(scopes).toEqual([`project:${id}`, "forecast:*", "perspective:*", "search:*"]);
+    expect(scopes).toEqual([
+      `project:${id}`,
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+      "folder:list",
+    ]);
   });
 
   it("does not invalidate when drop fails", async () => {

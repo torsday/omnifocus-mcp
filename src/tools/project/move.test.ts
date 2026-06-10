@@ -121,7 +121,7 @@ describe("project_move — handler", () => {
 // ---------------------------------------------------------------------------
 
 describe("project_move — cache invalidation", () => {
-  it("emits project:${id}, forecast:*, perspective:*, search:*", async () => {
+  it("emits project:${id}, forecast:*, perspective:*, search:*, folder:list", async () => {
     const { ctx: base, adapter } = makeCtx();
     const lruCache = new OmniFocusLruCache();
     const scopes = recordScopes(lruCache);
@@ -130,7 +130,13 @@ describe("project_move — cache invalidation", () => {
 
     await handleProjectMove({ id, folderId }, { ...base, cache: lruCache });
 
-    expect(scopes).toEqual([`project:${id}`, "forecast:*", "perspective:*", "search:*"]);
+    expect(scopes).toEqual([
+      `project:${id}`,
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+      "folder:list",
+    ]);
   });
 
   it("does not invalidate when move fails", async () => {

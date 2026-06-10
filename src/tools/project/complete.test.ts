@@ -109,7 +109,7 @@ describe("project_complete — handler", () => {
 // ---------------------------------------------------------------------------
 
 describe("project_complete — cache invalidation", () => {
-  it("emits project:${id}, forecast:*, perspective:*, search:*", async () => {
+  it("emits project:${id}, forecast:*, perspective:*, search:*, folder:list", async () => {
     const { ctx: base, adapter } = makeCtx();
     const lruCache = new OmniFocusLruCache();
     const scopes = recordScopes(lruCache);
@@ -117,7 +117,13 @@ describe("project_complete — cache invalidation", () => {
 
     await handleProjectComplete({ id }, { ...base, cache: lruCache });
 
-    expect(scopes).toEqual([`project:${id}`, "forecast:*", "perspective:*", "search:*"]);
+    expect(scopes).toEqual([
+      `project:${id}`,
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+      "folder:list",
+    ]);
   });
 
   it("does not invalidate when complete fails", async () => {

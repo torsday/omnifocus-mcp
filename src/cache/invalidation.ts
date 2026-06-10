@@ -7,8 +7,8 @@
  * across the mutation surface.
  *
  * Scope policy (per docs/adr/0006-read-cache-strategy.md):
- *   - task mutations    → task:${id}, task:${parentId?}, project:${projectId?}, forecast:*, perspective:*, search:*
- *   - project mutations → project:${id}, forecast:*, perspective:*, search:*
+ *   - task mutations    → task:${id}, task:${parentId?}, project:${projectId?}, forecast:*, perspective:*, search:*, tag:list
+ *   - project mutations → project:${id}, forecast:*, perspective:*, search:*, folder:list
  *   - tag mutations     → tag:${id}, forecast:*, perspective:*, search:*
  *   - folder mutations  → folder:${id}, perspective:*, search:*
  *   - sync_trigger      → clear all (remote state just changed under us)
@@ -57,7 +57,9 @@ export interface ClearableCache extends InvalidatingCache {
  * payload with embedded subtask bodies / counts, so any subtask mutation
  * must flush it. Wildcard scopes (`forecast:*`, `perspective:*`,
  * `search:*`) are always emitted because task-list / forecast / perspective
- * results all embed task data and cannot be surgically pruned.
+ * results all embed task data and cannot be surgically pruned. `tag:list`
+ * is also always emitted: tag rows embed live task counts, so creating,
+ * completing, retagging, or deleting a task changes them.
  */
 export function invalidateTaskMutation(
   cache: InvalidatingCache,
@@ -73,6 +75,7 @@ export function invalidateTaskMutation(
   cache.invalidate("forecast:*");
   cache.invalidate("perspective:*");
   cache.invalidate("search:*");
+  cache.invalidate("tag:list");
 }
 
 /**
@@ -82,7 +85,9 @@ export function invalidateTaskMutation(
  * A project mutation conservatively invalidates the per-project scope plus
  * the three wildcards — every task inside the project could be visible in
  * forecast / perspective / search results and the project's own row is
- * embedded in project-list responses.
+ * embedded in project-list responses. `folder:list` is also emitted:
+ * folder rows embed live project counts, so creating, moving, completing,
+ * or deleting a project changes them.
  */
 export function invalidateProjectMutation(
   cache: InvalidatingCache,
@@ -92,6 +97,7 @@ export function invalidateProjectMutation(
   cache.invalidate("forecast:*");
   cache.invalidate("perspective:*");
   cache.invalidate("search:*");
+  cache.invalidate("folder:list");
 }
 
 /**

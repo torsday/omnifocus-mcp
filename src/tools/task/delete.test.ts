@@ -171,7 +171,7 @@ describe("task_delete — handler", () => {
 // ---------------------------------------------------------------------------
 
 describe("task_delete — cache invalidation", () => {
-  it("emits task:${id}, project:${projectId}, forecast:*, perspective:*, search:* for a project task", async () => {
+  it("emits task:${id}, project:${projectId}, forecast:*, perspective:*, search:*, tag:list for a project task", async () => {
     const { ctx: base, adapter } = makeCtx();
     const cache = new OmniFocusLruCache();
     const scopes = recordScopes(cache);
@@ -186,6 +186,7 @@ describe("task_delete — cache invalidation", () => {
       "forecast:*",
       "perspective:*",
       "search:*",
+      "tag:list",
     ]);
   });
 
@@ -197,7 +198,7 @@ describe("task_delete — cache invalidation", () => {
 
     await handleTaskDelete({ confirm: true, id }, { ...base, cache });
 
-    expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*"]);
+    expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*", "tag:list"]);
   });
 
   it("does not invalidate when the delete fails (NotFound raised before write)", async () => {

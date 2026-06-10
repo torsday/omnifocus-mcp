@@ -242,7 +242,7 @@ describe("task_complete — clarification-needed (incomplete children)", () => {
 // ---------------------------------------------------------------------------
 
 describe("task_complete — cache invalidation", () => {
-  it("emits task:${id}, forecast:*, perspective:*, search:* for inbox task", async () => {
+  it("emits task:${id}, forecast:*, perspective:*, search:*, tag:list for inbox task", async () => {
     const { ctx: base, adapter } = makeCtx();
     const cache = new OmniFocusLruCache();
     const scopes = recordScopes(cache);
@@ -250,7 +250,7 @@ describe("task_complete — cache invalidation", () => {
 
     await handleTaskComplete({ id }, { ...base, cache });
 
-    expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*"]);
+    expect(scopes).toEqual([`task:${id}`, "forecast:*", "perspective:*", "search:*", "tag:list"]);
   });
 
   it("emits project:${projectId} for a project task", async () => {

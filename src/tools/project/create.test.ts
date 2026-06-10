@@ -206,7 +206,7 @@ describe("project_create — handler", () => {
 // ---------------------------------------------------------------------------
 
 describe("project_create — cache invalidation", () => {
-  it("emits project:${id}, forecast:*, perspective:*, search:*", async () => {
+  it("emits project:${id}, forecast:*, perspective:*, search:*, folder:list", async () => {
     const { ctx: base } = makeCtx();
     const cache = new OmniFocusLruCache();
     const scopes = recordScopes(cache);
@@ -216,7 +216,13 @@ describe("project_create — cache invalidation", () => {
     );
     const id = envelope.data.id;
 
-    expect(scopes).toEqual([`project:${id}`, "forecast:*", "perspective:*", "search:*"]);
+    expect(scopes).toEqual([
+      `project:${id}`,
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+      "folder:list",
+    ]);
   });
 
   it("does not invalidate when no cache is provided", async () => {

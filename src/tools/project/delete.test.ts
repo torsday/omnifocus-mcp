@@ -171,7 +171,7 @@ describe("project_delete — handler", () => {
 // ---------------------------------------------------------------------------
 
 describe("project_delete — cache invalidation", () => {
-  it("emits project:${id}, forecast:*, perspective:*, search:*", async () => {
+  it("emits project:${id}, forecast:*, perspective:*, search:*, folder:list", async () => {
     const { ctx: base, adapter } = makeCtx();
     const cache = new OmniFocusLruCache();
     const scopes = recordScopes(cache);
@@ -179,7 +179,13 @@ describe("project_delete — cache invalidation", () => {
 
     await handleProjectDelete({ id }, { ...base, cache });
 
-    expect(scopes).toEqual([`project:${id}`, "forecast:*", "perspective:*", "search:*"]);
+    expect(scopes).toEqual([
+      `project:${id}`,
+      "forecast:*",
+      "perspective:*",
+      "search:*",
+      "folder:list",
+    ]);
   });
 
   it("does not invalidate when the delete fails (NotFound)", async () => {
