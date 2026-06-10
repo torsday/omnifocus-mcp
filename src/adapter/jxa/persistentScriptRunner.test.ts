@@ -40,6 +40,52 @@ afterEach(async () => {
   transport = null;
 });
 
+// ---------------------------------------------------------------------------
+// Mock child — an in-process EventEmitter with PassThrough pipes, for tests
+// that need exact control over chunk boundaries and stream events (the real
+// fake child is a separate process, so the OS may coalesce its writes).
+// ---------------------------------------------------------------------------
+
+interface MockChild {
+  child: ChildProcess;
+  stdin: PassThrough;
+  stderr: PassThrough;
+  fd3: PassThrough;
+}
+
+function makeMockChild(): MockChild {
+  const stdin = new PassThrough();
+  const stderr = new PassThrough();
+  const fd3 = new PassThrough();
+  const child = new EventEmitter() as unknown as ChildProcess & {
+    exitCode: number | null;
+    signalCode: NodeJS.Signals | null;
+    killed: boolean;
+  };
+  Object.assign(child, {
+    pid: 424242,
+    exitCode: null,
+    signalCode: null,
+    killed: false,
+    stdin,
+    stdout: null,
+    stderr,
+    stdio: [stdin, null, stderr, fd3],
+    kill: (signal?: NodeJS.Signals | number): boolean => {
+      child.killed = true;
+      child.signalCode = typeof signal === "string" ? signal : "SIGTERM";
+      child.emit("exit", null, child.signalCode);
+      return true;
+    },
+  });
+  return { child, stdin, stderr, fd3 };
+}
+
+/** Let pending stream callbacks (data events) drain. */
+function tick(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
 describe("persistent JXA transport — happy path", () => {
   it("spawns one child lazily and echoes the argument back", async () => {
     const t = makeTransport();
@@ -104,6 +150,37 @@ describe("persistent JXA transport — crash recovery", () => {
   });
 });
 
+describe("persistent JXA transport — stdin write failure", () => {
+  it("routes a stdin stream error through the restart path instead of crashing", async () => {
+    let latest = makeMockChild();
+    transport = createPersistentJxaTransport(() => {
+      latest = makeMockChild();
+      return latest.child;
+    }, 20);
+    const t = transport;
+
+    const pending = t.spawner("echo", "{}", 5000);
+    await tick();
+    // The child died with the frame still buffered: the write surfaces as an
+    // async 'error' on the stdin *stream*, not on the ChildProcess. Unhandled,
+    // this emit would throw (uncaughtException → server exit 1).
+    latest.stdin.emit("error", Object.assign(new Error("write EPIPE"), { code: "EPIPE" }));
+
+    const result = await pending;
+    expect(result.restarted).toBe(true);
+    expect(result.stderr).toContain("EPIPE");
+    expect(t.stats().restarts).toBe(1);
+
+    // Next call transparently spawns a fresh child and completes.
+    const next = t.spawner("echo", '{"after":1}', 5000);
+    await tick();
+    latest.fd3.write(Buffer.from(`${JSON.stringify({ ok: true, stdout: '{"after":1}' })}\n`));
+    const recovered = await next;
+    expect(recovered.stdout).toBe('{"after":1}');
+    expect(t.stats().spawns).toBe(2);
+  });
+});
+
 describe("persistent JXA transport — timeout", () => {
   it("times out a wedged call, kills the child, and recovers on the next call", async () => {
     const t = makeTransport();
@@ -127,52 +204,6 @@ describe("persistent JXA transport — script-level error passthrough", () => {
     expect(result.stderr).toContain("-1728");
   });
 });
-
-// ---------------------------------------------------------------------------
-// Mock child — an in-process EventEmitter with PassThrough pipes, for tests
-// that need exact control over chunk boundaries and stream events (the real
-// fake child is a separate process, so the OS may coalesce its writes).
-// ---------------------------------------------------------------------------
-
-interface MockChild {
-  child: ChildProcess;
-  stdin: PassThrough;
-  stderr: PassThrough;
-  fd3: PassThrough;
-}
-
-function makeMockChild(): MockChild {
-  const stdin = new PassThrough();
-  const stderr = new PassThrough();
-  const fd3 = new PassThrough();
-  const child = new EventEmitter() as unknown as ChildProcess & {
-    exitCode: number | null;
-    signalCode: NodeJS.Signals | null;
-    killed: boolean;
-  };
-  Object.assign(child, {
-    pid: 424242,
-    exitCode: null,
-    signalCode: null,
-    killed: false,
-    stdin,
-    stdout: null,
-    stderr,
-    stdio: [stdin, null, stderr, fd3],
-    kill: (signal?: NodeJS.Signals | number): boolean => {
-      child.killed = true;
-      child.signalCode = typeof signal === "string" ? signal : "SIGTERM";
-      child.emit("exit", null, child.signalCode);
-      return true;
-    },
-  });
-  return { child, stdin, stderr, fd3 };
-}
-
-/** Let pending stream callbacks (data events) drain. */
-function tick(): Promise<void> {
-  return new Promise((resolve) => setImmediate(resolve));
-}
 
 describe("persistent JXA transport — multibyte UTF-8 split across pipe chunks", () => {
   it("decodes a response frame split mid-emoji across two fd3 data events", async () => {

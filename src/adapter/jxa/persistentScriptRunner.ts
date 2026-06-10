@@ -260,6 +260,10 @@ class PersistentJxaTransport {
     }
     child.once("exit", (code, signal) => this.onChildExit(child, code, signal));
     child.once("error", (err) => this.onChildError(child, err));
+    // A failed stdin write (EPIPE racing the child's death) surfaces as an
+    // 'error' event on the *stream*, not the ChildProcess — unhandled, Node
+    // raises it as an uncaughtException and takes the whole server down.
+    child.stdin?.on("error", (err: NodeJS.ErrnoException) => this.onStdinError(child, err));
     // Register for shutdown so a SIGINT/SIGTERM mid-flight can terminate the
     // long-lived child rather than orphan an osascript holding OmniFocus (#839).
     trackChild(child);
@@ -413,6 +417,36 @@ class PersistentJxaTransport {
     logger.warn(
       { event: "transport.persistent.child_error", err: err.message },
       "persistent osascript child error",
+    );
+  }
+
+  /**
+   * A write into `child.stdin` failed — typically EPIPE in the window between
+   * the liveness/writable checks and the actual write, when the child died
+   * with a frame still in flight. The child is unusable: settle the in-flight
+   * call as restarted (mapped to `OmniFocusTransportRestarted` by the runner)
+   * and drop the child so the next call spawns a fresh one.
+   */
+  private onStdinError(child: ChildProcess, err: NodeJS.ErrnoException): void {
+    if (child === this.child) {
+      this.child = null;
+      this.killChild(child, "stdin-error");
+      const call = this.current;
+      if (call !== null && !call.settled) {
+        this.counters.restarts += 1;
+        this.counters.unexpectedExits += 1;
+        this.settle(call, {
+          stdout: "",
+          stderr: `persistent transport: stdin write failed (${err.code ?? err.message})`,
+          exitCode: null,
+          timedOut: false,
+          restarted: true,
+        });
+      }
+    }
+    logger.warn(
+      { event: "transport.persistent.stdin_error", err: err.message },
+      "persistent osascript child stdin error",
     );
   }
 
