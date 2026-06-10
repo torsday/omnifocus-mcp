@@ -136,7 +136,7 @@ describe("invalidateTaskMutation", () => {
 // ---------------------------------------------------------------------------
 
 describe("invalidateProjectMutation", () => {
-  it("emits project, forecast:*, perspective:*, search:*, folder:list", () => {
+  it("emits project, forecast:*, perspective:*, search:*, tag:list, folder:list", () => {
     const cache = makeRecorder();
     invalidateProjectMutation(cache as unknown as InvalidatingCache, {
       projectId: "project_42" as ProjectId,
@@ -146,6 +146,7 @@ describe("invalidateProjectMutation", () => {
       "forecast:*",
       "perspective:*",
       "search:*",
+      "tag:list",
       "folder:list",
     ]);
   });

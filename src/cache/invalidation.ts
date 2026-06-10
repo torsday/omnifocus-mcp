@@ -8,7 +8,7 @@
  *
  * Scope policy (per docs/adr/0006-read-cache-strategy.md):
  *   - task mutations    → task:${id}, task:${parentId?}, project:${projectId?}, forecast:*, perspective:*, search:*, tag:list
- *   - project mutations → project:${id}, forecast:*, perspective:*, search:*, folder:list
+ *   - project mutations → project:${id}, forecast:*, perspective:*, search:*, tag:list, folder:list
  *   - tag mutations     → tag:${id}, forecast:*, perspective:*, search:*
  *   - folder mutations  → folder:${id}, perspective:*, search:*
  *   - sync_trigger      → clear all (remote state just changed under us)
@@ -85,9 +85,11 @@ export function invalidateTaskMutation(
  * A project mutation conservatively invalidates the per-project scope plus
  * the three wildcards — every task inside the project could be visible in
  * forecast / perspective / search results and the project's own row is
- * embedded in project-list responses. `folder:list` is also emitted:
- * folder rows embed live project counts, so creating, moving, completing,
- * or deleting a project changes them.
+ * embedded in project-list responses. `tag:list` is also emitted: project
+ * mutations cascade to contained tasks (delete removes them, complete/drop
+ * change their state), and tag rows embed live task counts. `folder:list`
+ * too: folder rows embed live project counts, so creating, moving,
+ * completing, or deleting a project changes them.
  */
 export function invalidateProjectMutation(
   cache: InvalidatingCache,
@@ -97,6 +99,7 @@ export function invalidateProjectMutation(
   cache.invalidate("forecast:*");
   cache.invalidate("perspective:*");
   cache.invalidate("search:*");
+  cache.invalidate("tag:list");
   cache.invalidate("folder:list");
 }
 

@@ -109,7 +109,7 @@ describe("project_complete — handler", () => {
 // ---------------------------------------------------------------------------
 
 describe("project_complete — cache invalidation", () => {
-  it("emits project:${id}, forecast:*, perspective:*, search:*, folder:list", async () => {
+  it("emits project:${id}, forecast:*, perspective:*, search:*, tag:list, folder:list", async () => {
     const { ctx: base, adapter } = makeCtx();
     const lruCache = new OmniFocusLruCache();
     const scopes = recordScopes(lruCache);
@@ -122,6 +122,7 @@ describe("project_complete — cache invalidation", () => {
       "forecast:*",
       "perspective:*",
       "search:*",
+      "tag:list",
       "folder:list",
     ]);
   });

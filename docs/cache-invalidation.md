@@ -28,7 +28,9 @@ any write within the noun's scope.
 
 Cross-entity count scopes: task mutations also emit `tag:list` (tag rows
 embed live task counts, which change as tasks are created, completed,
-retagged, or deleted), and project mutations also emit `folder:list`
+retagged, or deleted), and project mutations also emit `tag:list` (project
+mutations cascade to contained tasks — delete removes them, complete/drop
+change their state — which changes tag task counts) plus `folder:list`
 (folder rows embed live project counts). Tag and folder mutations already
 emitted their own list scopes.
 
