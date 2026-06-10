@@ -179,7 +179,10 @@ export async function buildAgendaPayload(
   const sources = deps.sources;
 
   const day = params.date ? localDayStart(parseDate(params.date)) : localDayStart(now);
-  const dayEnd = new Date(day.getTime() + 24 * 60 * 60 * 1000);
+  // Next local midnight via calendar math — a fixed +24h would land at 23:00
+  // on the 25-hour DST fall-back day and 01:00 next-day on spring-forward.
+  const dayEnd = new Date(day);
+  dayEnd.setDate(dayEnd.getDate() + 1);
   const fromIso = day.toISOString();
   const toIso = dayEnd.toISOString();
 

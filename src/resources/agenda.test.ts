@@ -292,6 +292,43 @@ describe("buildAgendaPayload — bare-date parsing (local calendar day)", () => 
   });
 });
 
+describe("buildAgendaPayload — DST transition day windows", () => {
+  // Pin a DST-observing zone so the +24h-vs-calendar-math difference is
+  // observable regardless of the host machine's timezone.
+  const ORIGINAL_TZ = process.env.TZ;
+  beforeAll(() => {
+    process.env.TZ = "America/New_York";
+  });
+  afterAll(() => {
+    if (ORIGINAL_TZ === undefined) delete process.env.TZ;
+    else process.env.TZ = ORIGINAL_TZ;
+  });
+
+  async function windowFor(date: string): Promise<[string, string]> {
+    const bridge = { readEvents: vi.fn().mockResolvedValue([]) };
+    const forecastService = { get: vi.fn().mockResolvedValue(emptyForecast) };
+    await buildAgendaPayload({ bridge, forecastService, cache: new _AgendaCache() }, { date });
+    const [fromIso, toIso] = bridge.readEvents.mock.calls[0] as [string, string];
+    return [fromIso, toIso];
+  }
+
+  it("spans the full 25-hour fall-back day, ending at next local midnight", async () => {
+    // US fall-back 2025-11-02: the local day is 25h. A fixed +24h window
+    // would end at 23:00 local, dropping the last hour's events and tasks.
+    const [fromIso, toIso] = await windowFor("2025-11-02T00:00:00-04:00");
+    expect(fromIso).toBe(new Date(2025, 10, 2).toISOString());
+    expect(toIso).toBe(new Date(2025, 10, 3).toISOString());
+  });
+
+  it("spans the 23-hour spring-forward day without leaking into the next day", async () => {
+    // US spring-forward 2026-03-08: the local day is 23h. A fixed +24h
+    // window would end at 01:00 next-day, pulling in next-day items.
+    const [fromIso, toIso] = await windowFor("2026-03-08T00:00:00-05:00");
+    expect(fromIso).toBe(new Date(2026, 2, 8).toISOString());
+    expect(toIso).toBe(new Date(2026, 2, 9).toISOString());
+  });
+});
+
 describe("buildAgendaPayload — input validation", () => {
   it("throws when date is unparseable", async () => {
     const bridge = { readEvents: vi.fn() };
