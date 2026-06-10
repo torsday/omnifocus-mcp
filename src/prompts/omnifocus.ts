@@ -1,6 +1,7 @@
 /**
- * OmniFocus MCP prompt templates — four workflow guides for daily-review,
- * weekly-review, capture-meeting, and project-planning.
+ * OmniFocus MCP prompt templates — workflow guides (daily-review,
+ * weekly-review, capture-meeting, project-planning, inbox-triage,
+ * perspective-author; canonical list: `ALL_PROMPT_NAMES`).
  *
  * Prompts are registered via `prompts/list` and returned as MCP message arrays
  * when the client calls `prompts/get`. Each returns a single `user`-role
@@ -27,6 +28,23 @@ export const CAPTURE_MEETING_PROMPT = "capture-meeting";
 export const PROJECT_PLANNING_PROMPT = "project-planning";
 export const INBOX_TRIAGE_PROMPT = "inbox-triage";
 export const PERSPECTIVE_AUTHOR_PROMPT = "perspective-author";
+
+/**
+ * Canonical list of every prompt name {@link registerOmniFocusPrompts}
+ * registers, in registration order. The `server.started` manifest derives
+ * its `prompts` array from this (mirroring `ALL_TOOL_DESCRIPTIONS` for
+ * tools) so the startup log cannot drift from the registered surface; a
+ * unit test asserts it matches the actual `registerPrompt` calls. Add new
+ * prompts here when registering them.
+ */
+export const ALL_PROMPT_NAMES: readonly string[] = [
+  DAILY_REVIEW_PROMPT,
+  WEEKLY_REVIEW_PROMPT,
+  CAPTURE_MEETING_PROMPT,
+  PROJECT_PLANNING_PROMPT,
+  INBOX_TRIAGE_PROMPT,
+  PERSPECTIVE_AUTHOR_PROMPT,
+];
 
 // ---------------------------------------------------------------------------
 // Message builders (pure functions — testable in isolation)
@@ -334,7 +352,8 @@ Read-only verification first; mutation only on explicit user approval.`;
 // ---------------------------------------------------------------------------
 
 /**
- * Register all four OmniFocus workflow prompts with the given McpServer.
+ * Register every OmniFocus workflow prompt (`ALL_PROMPT_NAMES`) with the
+ * given McpServer.
  *
  * Prompts are pure templates — they return \`messages\` arrays and have no
  * side effects on the OmniFocus database.

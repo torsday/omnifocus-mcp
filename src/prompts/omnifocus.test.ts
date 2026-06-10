@@ -11,6 +11,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { describe, expect, it, vi } from "vitest";
 import {
+  ALL_PROMPT_NAMES,
   buildCaptureMeetingMessage,
   buildDailyReviewMessage,
   buildInboxTriageMessage,
@@ -90,6 +91,15 @@ describe("registerOmniFocusPrompts — registration", () => {
     for (const p of registered) {
       expect(p.config.description.length).toBeGreaterThan(0);
     }
+  });
+
+  it("ALL_PROMPT_NAMES matches the actual registerPrompt surface (server.started manifest source)", () => {
+    // The startup manifest derives its prompts array from ALL_PROMPT_NAMES;
+    // if a prompt is registered without being added to the list (or vice
+    // versa), the server.started log would under/over-report the surface.
+    const { registered } = makeHarness();
+    const names = registered.map((r) => r.name);
+    expect([...names].sort()).toEqual([...ALL_PROMPT_NAMES].sort());
   });
 });
 

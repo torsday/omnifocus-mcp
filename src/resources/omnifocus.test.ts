@@ -24,6 +24,7 @@ import { PerspectiveService } from "../services/perspectiveService.js";
 import { ProjectService } from "../services/projectService.js";
 import { ReviewService } from "../services/reviewService.js";
 import {
+  ALL_RESOURCE_URIS,
   FLAGGED_URI,
   FORECAST_TODAY_URI,
   INBOX_URI,
@@ -155,6 +156,20 @@ describe("registerOmniFocusResources — registration", () => {
     for (const name of expected) {
       expect(names, `expected ${name} to be registered`).toContain(name);
     }
+  });
+
+  it("ALL_RESOURCE_URIS matches the actual registerResource surface (server.started manifest source)", () => {
+    // The startup manifest derives its resources array from
+    // ALL_RESOURCE_URIS (plus the separately-registered capabilities URI);
+    // if a resource is registered without being added to the list (or vice
+    // versa), the server.started log would under/over-report the surface.
+    const { registered } = makeHarness();
+    const uris = registered.map((r) =>
+      typeof r.uriOrTemplate === "string"
+        ? r.uriOrTemplate
+        : (r.uriOrTemplate as { uriTemplate: { toString(): string } }).uriTemplate.toString(),
+    );
+    expect([...uris].sort()).toEqual([...ALL_RESOURCE_URIS].sort());
   });
 
   it("registers omnifocus-snapshot with the correct URI", () => {

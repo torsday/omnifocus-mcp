@@ -3,7 +3,8 @@
  *
  * Stands up the server over stdio (ADR-0010) using the high-level McpServer
  * API from @modelcontextprotocol/sdk. Currently registers `internal_status`,
- * the five OmniFocus workflow prompts, the thirteen MCP resources, and 79 domain
+ * the OmniFocus workflow prompts (`ALL_PROMPT_NAMES`), the MCP resources
+ * (`ALL_RESOURCE_URIS` plus capabilities), and 79 domain
  * tools across folder, tag, note, search, forecast, perspective, plugin,
  * sync, review, export, app, project, task, repetition, attachment, and
  * database surfaces. Two additional raw-script escape-hatch tools
@@ -52,13 +53,7 @@ import { LatencyStatsRegistry } from "../observability/latencyStats.js";
 import { ResponseStatsRegistry } from "../observability/responseStats.js";
 import { buildTelemetrySink } from "../observability/telemetrySink.js";
 import { ToolDurationStatsRegistry } from "../observability/toolDurationStats.js";
-import {
-  CAPTURE_MEETING_PROMPT,
-  DAILY_REVIEW_PROMPT,
-  PROJECT_PLANNING_PROMPT,
-  registerOmniFocusPrompts,
-  WEEKLY_REVIEW_PROMPT,
-} from "../prompts/omnifocus.js";
+import { ALL_PROMPT_NAMES, registerOmniFocusPrompts } from "../prompts/omnifocus.js";
 import { ToolRateLimiter } from "../rateLimit/ToolRateLimiter.js";
 import {
   buildCapabilities,
@@ -67,16 +62,14 @@ import {
   registerCapabilitiesResource,
 } from "../resources/capabilities.js";
 import {
+  ALL_RESOURCE_URIS,
   FLAGGED_URI,
   FORECAST_TODAY_URI,
   INBOX_URI,
   OVERDUE_URI,
-  PERSPECTIVE_URI_TEMPLATE,
-  PROJECT_URI_TEMPLATE,
   REVIEW_DUE_URI,
   registerOmniFocusResources,
   SNAPSHOT_URI,
-  TAG_URI_TEMPLATE,
 } from "../resources/omnifocus.js";
 import { replayStore } from "../state/replayStore.js";
 import { negotiateDensityFromCapabilities } from "../state/sessionState.js";
@@ -480,7 +473,8 @@ export async function startServer(): Promise<void> {
       readPool.pendingCount() + jxaWriteQueue.pendingCount() + omniJsQueue.pendingCount(),
   });
 
-  // Register MCP prompts (DESIGN §29) — four workflow templates.
+  // Register MCP prompts (DESIGN §29) — the workflow templates in
+  // ALL_PROMPT_NAMES.
   registerOmniFocusPrompts(server);
 
   // Webhook subsystem (per ADR-0016, #483 slice 1). The registry initializes
@@ -514,7 +508,8 @@ export async function startServer(): Promise<void> {
     makeMeta,
   });
 
-  // Register the ten MCP resources (DESIGN §28).
+  // Register the MCP resources (DESIGN §28) — capabilities plus
+  // ALL_RESOURCE_URIS.
   registerCapabilitiesResource(server, async () => {
     const summaries = webhookRegistry.list();
     return buildCapabilities(config, {
@@ -879,24 +874,12 @@ export async function startServer(): Promise<void> {
       version: PACKAGE_VERSION,
       config: redactConfig(config),
       tools,
-      prompts: [
-        DAILY_REVIEW_PROMPT,
-        WEEKLY_REVIEW_PROMPT,
-        CAPTURE_MEETING_PROMPT,
-        PROJECT_PLANNING_PROMPT,
-      ],
-      resources: [
-        CAPABILITIES_URI,
-        SNAPSHOT_URI,
-        INBOX_URI,
-        FORECAST_TODAY_URI,
-        OVERDUE_URI,
-        FLAGGED_URI,
-        REVIEW_DUE_URI,
-        PROJECT_URI_TEMPLATE,
-        TAG_URI_TEMPLATE,
-        PERSPECTIVE_URI_TEMPLATE,
-      ],
+      // Prompts and resources derive from the same canonical lists the
+      // registration helpers use (mirroring ALL_TOOL_DESCRIPTIONS above),
+      // so the manifest cannot drift from the registered surface again.
+      // Unit tests pin each list to its register* call surface.
+      prompts: [...ALL_PROMPT_NAMES],
+      resources: [CAPABILITIES_URI, ...ALL_RESOURCE_URIS],
     },
     "server started",
   );

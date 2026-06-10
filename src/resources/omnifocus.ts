@@ -1,5 +1,6 @@
 /**
- * OmniFocus MCP data resources — all nine URIs from DESIGN §28.
+ * OmniFocus MCP data resources — every URI from DESIGN §28 (canonical
+ * list: `ALL_RESOURCE_URIS`).
  *
  * Resources are read-only, URI-addressable, enumerable via `resources/list`.
  * They let an agent load structured context without spending a tool call.
@@ -38,35 +39,37 @@ import type { ForecastService } from "../services/forecastService.js";
 import type { PerspectiveService } from "../services/perspectiveService.js";
 import type { ProjectService } from "../services/projectService.js";
 import type { ReviewService } from "../services/reviewService.js";
-import { registerAgendaResource } from "./agenda.js";
-import { registerBurndownResource } from "./burndown.js";
-import { registerCalendarResource } from "./calendar.js";
-import { registerIntentsResource } from "./intents.js";
-import { registerProjectHealthResource } from "./projectHealth.js";
-import { registerRecentActivityResource } from "./recentActivity.js";
-import { registerRetrospectiveResource } from "./retrospective.js";
-import { registerStatsResource } from "./stats.js";
-import { registerTaxonomyAuditResource } from "./taxonomyAudit.js";
-import { registerVelocityResource } from "./velocity.js";
-import { registerWaitingOnResource } from "./waitingOn.js";
+import { AGENDA_URI_TEMPLATE, registerAgendaResource } from "./agenda.js";
+import { BURNDOWN_URI_TEMPLATE, registerBurndownResource } from "./burndown.js";
+import { CALENDAR_URI_TEMPLATE, registerCalendarResource } from "./calendar.js";
+import { INTENTS_URI, registerIntentsResource } from "./intents.js";
+import { PROJECT_HEALTH_URI_TEMPLATE, registerProjectHealthResource } from "./projectHealth.js";
+import { RECENT_ACTIVITY_URI_TEMPLATE, registerRecentActivityResource } from "./recentActivity.js";
+import { RETROSPECTIVE_URI_TEMPLATE, registerRetrospectiveResource } from "./retrospective.js";
+import { registerStatsResource, STATS_URI } from "./stats.js";
+import { registerTaxonomyAuditResource, TAXONOMY_AUDIT_URI } from "./taxonomyAudit.js";
+import { registerVelocityResource, VELOCITY_URI_TEMPLATE } from "./velocity.js";
+import { registerWaitingOnResource, WAITING_ON_URI } from "./waitingOn.js";
 
-export { AGENDA_URI_TEMPLATE } from "./agenda.js";
-export { BURNDOWN_URI_TEMPLATE } from "./burndown.js";
-export { CALENDAR_URI_TEMPLATE } from "./calendar.js";
-export { INTENTS_URI } from "./intents.js";
-export { PROJECT_HEALTH_URI_TEMPLATE } from "./projectHealth.js";
-export { RECENT_ACTIVITY_URI_TEMPLATE } from "./recentActivity.js";
-export { RETROSPECTIVE_URI_TEMPLATE } from "./retrospective.js";
-export { STATS_URI } from "./stats.js";
-export { TAXONOMY_AUDIT_URI } from "./taxonomyAudit.js";
-export { VELOCITY_URI_TEMPLATE } from "./velocity.js";
-export { WAITING_ON_URI } from "./waitingOn.js";
+export {
+  AGENDA_URI_TEMPLATE,
+  BURNDOWN_URI_TEMPLATE,
+  CALENDAR_URI_TEMPLATE,
+  INTENTS_URI,
+  PROJECT_HEALTH_URI_TEMPLATE,
+  RECENT_ACTIVITY_URI_TEMPLATE,
+  RETROSPECTIVE_URI_TEMPLATE,
+  STATS_URI,
+  TAXONOMY_AUDIT_URI,
+  VELOCITY_URI_TEMPLATE,
+  WAITING_ON_URI,
+};
 
 // ---------------------------------------------------------------------------
 // Dependency bundle
 // ---------------------------------------------------------------------------
 
-/** Services and adapter required to serve the nine data resources. */
+/** Services and adapter required to serve the data resources. */
 export interface OmniFocusResourceDeps {
   /** Raw adapter — used for queries that have no dedicated service (inbox, overdue, flagged, tag). */
   adapter: OmniFocusAdapter;
@@ -92,6 +95,41 @@ export const PERSPECTIVE_URI_TEMPLATE = "omnifocus://perspective/{id}";
 export const TASKS_INBOX_URI = "omnifocus://tasks/inbox";
 export const TASKS_BY_PROJECT_URI_TEMPLATE = "omnifocus://tasks/project/{projectId}";
 export const TASKS_BY_TAG_URI_TEMPLATE = "omnifocus://tasks/tag/{tagId}";
+
+/**
+ * Canonical list of every resource URI (or URI template) that
+ * {@link registerOmniFocusResources} registers, in registration order.
+ * The `server.started` manifest derives its `resources` array from this
+ * (plus `omnifocus://capabilities`, registered separately) so the startup
+ * log cannot drift from the registered surface; a unit test asserts it
+ * matches the actual `registerResource` calls. Add new resources here
+ * when registering them.
+ */
+export const ALL_RESOURCE_URIS: readonly string[] = [
+  SNAPSHOT_URI,
+  INBOX_URI,
+  FORECAST_TODAY_URI,
+  OVERDUE_URI,
+  FLAGGED_URI,
+  REVIEW_DUE_URI,
+  PROJECT_URI_TEMPLATE,
+  TAG_URI_TEMPLATE,
+  PERSPECTIVE_URI_TEMPLATE,
+  TASKS_INBOX_URI,
+  TASKS_BY_PROJECT_URI_TEMPLATE,
+  TASKS_BY_TAG_URI_TEMPLATE,
+  RECENT_ACTIVITY_URI_TEMPLATE,
+  WAITING_ON_URI,
+  RETROSPECTIVE_URI_TEMPLATE,
+  TAXONOMY_AUDIT_URI,
+  VELOCITY_URI_TEMPLATE,
+  BURNDOWN_URI_TEMPLATE,
+  CALENDAR_URI_TEMPLATE,
+  AGENDA_URI_TEMPLATE,
+  INTENTS_URI,
+  STATS_URI,
+  PROJECT_HEALTH_URI_TEMPLATE,
+];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -123,7 +161,8 @@ function jsonContents(uri: string, data: unknown) {
 // ---------------------------------------------------------------------------
 
 /**
- * Register all nine OmniFocus data resources with the given McpServer.
+ * Register every OmniFocus data resource (`ALL_RESOURCE_URIS`) with the
+ * given McpServer.
  *
  * Each resource handler delegates to the relevant service or adapter method.
  * No business logic lives here — the service / adapter layer owns filtering,
