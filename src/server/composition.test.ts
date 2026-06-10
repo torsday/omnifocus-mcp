@@ -326,6 +326,72 @@ describe("makeDatabaseChangeHandler — webhook observation", () => {
     expect(dispatcher.delivered).toEqual([]);
   });
 
+  it("serializes overlapping runs so a slow stale snapshot cannot regress the baseline and re-deliver events", async () => {
+    registry.register({
+      name: "wh",
+      url: "https://example.com/x",
+      trigger: { on: "task-completed" },
+    });
+
+    // Capture the two snapshot states up front so the patched adapter can
+    // replay them with controlled timing.
+    const taskId = await adapter.createTask({ name: "t1" });
+    const before = await adapter.listTasks({}); // t1 incomplete
+    await adapter.completeTask(taskId);
+    const after = await adapter.listTasks({}); // t1 completed
+
+    adapter.getChangesSince = async () => ({ taskIds: [], projectIds: [] });
+    adapter.listProjects = async () => [];
+
+    // Call 1 = seed run (incomplete baseline). Call 2 = run A — captures
+    // STALE (incomplete) data but only resolves when released, simulating
+    // a JXA read that stalls past the next debounce window. Calls 3+ =
+    // fresh (completed) data.
+    let releaseStale: () => void = () => {};
+    const staleGate = new Promise<void>((resolve) => {
+      releaseStale = resolve;
+    });
+    let listTaskCalls = 0;
+    adapter.listTasks = async () => {
+      listTaskCalls += 1;
+      if (listTaskCalls === 1) return before;
+      if (listTaskCalls === 2) {
+        await staleGate;
+        return before;
+      }
+      return after;
+    };
+
+    // ONE handler instance, as in production (created once at startup).
+    const handler = makeDatabaseChangeHandler({
+      adapter,
+      cache,
+      server,
+      aggregateUris: [],
+      orchestrator,
+    });
+    const ctx = (): ChangeContext => ({ detectedAt: new Date().toISOString(), source: "node" });
+
+    await handler(ctx()); // seed baseline (incomplete) — no events
+
+    const runA = handler(ctx()); // stale fetch, parked on the gate
+    const runB = handler(ctx()); // fresh fetch (t1 completed)
+    // Give run B time to finish first: without serialization it applies
+    // the fresh snapshot now, then run A's stale snapshot lands after it
+    // and regresses the baseline.
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    releaseStale();
+    await Promise.all([runA, runB]);
+
+    expect(dispatcher.delivered.map((e) => e.kind)).toEqual(["task-completed"]);
+
+    // The next observation must diff against the NEWEST snapshot. If the
+    // stale snapshot had been applied last, this run would re-detect the
+    // already-dispatched completion and deliver a duplicate.
+    await handler(ctx());
+    expect(dispatcher.delivered.map((e) => e.kind)).toEqual(["task-completed"]);
+  });
+
   it("skips the snapshot fetch when no orchestrator is wired (back-compat shape)", async () => {
     let listCalls = 0;
     adapter.listTasks = async () => {

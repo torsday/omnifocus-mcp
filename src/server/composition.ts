@@ -262,6 +262,16 @@ export function makeDatabaseChangeHandler(deps: {
 }): (ctx: ChangeContext) => Promise<void> {
   const { adapter, cache, server, aggregateUris, orchestrator } = deps;
 
+  // Serializes webhook snapshot capture+apply across overlapping handler
+  // runs. The watcher invokes the handler fire-and-forget per debounce
+  // window, so runs overlap whenever the JXA reads outlast the debounce
+  // gap. Without the chain, a slower (older) snapshot fetch can complete
+  // after a faster (newer) one and overwrite the orchestrator's diff
+  // baseline with stale state — re-delivering already-dispatched events
+  // on the next observation. Chaining fetch+observe applies snapshots in
+  // fetch order, so the baseline only ever moves forward.
+  let observeChain: Promise<void> = Promise.resolve();
+
   return async (ctx: ChangeContext): Promise<void> => {
     // Safety buffer: subtract 200 ms from detectedAt to guard against
     // sub-second clock skew between the Swift watcher and the JXA runtime.
@@ -300,12 +310,17 @@ export function makeDatabaseChangeHandler(deps: {
     // there is no consumer. The fetch deliberately bypasses the cache
     // we just invalidated so the orchestrator sees ground-truth state.
     if (orchestrator?.shouldObserve()) {
-      try {
+      const observation = observeChain.then(async () => {
         const [tasks, projects] = await Promise.all([
           adapter.listTasks({}),
           adapter.listProjects(),
         ]);
         await orchestrator.observeSnapshot(tasks, projects);
+      });
+      // Keep the chain alive on failure — each run logs its own error.
+      observeChain = observation.catch(() => {});
+      try {
+        await observation;
       } catch (err) {
         // ADR-0016 §4e: webhook failures must never propagate into the
         // OF read path. Cache invalidation and resource notifications
