@@ -27,6 +27,7 @@ import {
 } from "../../domain/dateGrammar.js";
 import { TaskId } from "../../domain/ids.js";
 import { ok, type ResponseMeta, type ToolEnvelope, toolResponse } from "../../envelope/index.js";
+import { assertNotModifiedSince } from "../../server/assertNotModifiedSince.js";
 import { dryRunGuard } from "../../server/dryRunGuard.js";
 import {
   idempotencyStore as defaultIdempotencyStore,
@@ -140,6 +141,12 @@ export async function handleTaskDeferSmart(
   const hours = ctx.hours ?? readDeferHoursFromEnv();
 
   return withIdempotencyKey(store, input.idempotency_key, async () => {
+    // Optimistic-concurrency guard — same placement as task_update /
+    // task_delete: pre-fetch, then ConflictError on a stale guard before
+    // any write (a no-op when expectedModifiedAt is omitted).
+    const task = await ctx.adapter.getTask(input.taskId);
+    assertNotModifiedSince(input.expectedModifiedAt, task.modifiedAt, `task:${input.taskId}`);
+
     const resolved = resolveDeferIntent(input.intent as DeferIntent, {
       now,
       morningHour: hours.morningHour,
@@ -158,7 +165,6 @@ export async function handleTaskDeferSmart(
 
     const live = async (): Promise<ToolEnvelope<TaskDeferSmartData>> => {
       await ctx.adapter.updateTask(input.taskId, { deferDate: resolved.resolvedDeferDate });
-      const task = await ctx.adapter.getTask(input.taskId);
       if (ctx.cache !== undefined) {
         invalidateTaskMutation(ctx.cache, {
           taskId: input.taskId,

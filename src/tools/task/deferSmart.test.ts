@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import { OmniFocusLruCache } from "../../cache/lruCache.js";
 import type { ResponseMeta, ToolEnvelope, ToolSuccess } from "../../envelope/index.js";
-import { CalendarBridgeUnavailable } from "../../errors/index.js";
+import { CalendarBridgeUnavailable, ConflictError } from "../../errors/index.js";
 import { IdempotencyStore } from "../../server/idempotencyStore.js";
 import { handleTaskDeferSmart, taskDeferSmartInputSchema } from "./deferSmart.js";
 
@@ -142,5 +142,57 @@ describe("task_defer_smart — handler", () => {
       await handleTaskDeferSmart({ taskId, intent: { kind: "in-business-days", days: 1 } }, ctx),
     );
     expect(envelope.data.resolvedDeferDate).toMatch(/^2026-04-27T/);
+  });
+});
+
+describe("task_defer_smart — expectedModifiedAt guard", () => {
+  it("stale expectedModifiedAt fails with ConflictError and writes nothing", async () => {
+    const { ctx, adapter, taskId } = await harness();
+    await expect(
+      handleTaskDeferSmart(
+        {
+          taskId,
+          intent: { kind: "next-work-day" },
+          expectedModifiedAt: "2000-01-01T00:00:00Z",
+        },
+        ctx,
+      ),
+    ).rejects.toThrow(ConflictError);
+
+    const task = await adapter.getTask(taskId);
+    expect(task.deferDate ?? null).toBeNull();
+  });
+
+  it("matching expectedModifiedAt applies the defer", async () => {
+    const { ctx, adapter, taskId } = await harness();
+    const current = await adapter.getTask(taskId);
+    const envelope = assertOk(
+      await handleTaskDeferSmart(
+        {
+          taskId,
+          intent: { kind: "next-work-day" },
+          expectedModifiedAt: current.modifiedAt,
+        },
+        ctx,
+      ),
+    );
+    expect(envelope.data.resolvedDeferDate).toMatch(/^2026-04-27T09:00:00/);
+    const task = await adapter.getTask(taskId);
+    expect(task.deferDate).toMatch(/^2026-04-27T09:00:00/);
+  });
+
+  it("enforces the guard on dry_run previews too (mirrors task_update)", async () => {
+    const { ctx, taskId } = await harness();
+    await expect(
+      handleTaskDeferSmart(
+        {
+          taskId,
+          intent: { kind: "next-work-day" },
+          expectedModifiedAt: "2000-01-01T00:00:00Z",
+          dry_run: true,
+        },
+        ctx,
+      ),
+    ).rejects.toThrow(ConflictError);
   });
 });
