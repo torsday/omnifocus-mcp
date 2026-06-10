@@ -46,6 +46,7 @@
 
 import { type ChildProcess, spawn } from "node:child_process";
 import type { Readable } from "node:stream";
+import { StringDecoder } from "node:string_decoder";
 import { logger } from "../../logging/logger.js";
 import type { PersistentTransportStats } from "../../observability/transportStats.js";
 import { trackChild } from "../_shared/childRegistry.js";
@@ -169,7 +170,12 @@ function launchOsascript(): ChildProcess {
 class PersistentJxaTransport {
   private child: ChildProcess | null = null;
   private fd3Buf = "";
+  // Pipe chunks split on byte — not code-point — boundaries, so each stream
+  // needs a stateful decoder; a per-chunk `Buffer.toString` would turn a
+  // multibyte character straddling two chunks into U+FFFD on both sides.
+  private fd3Decoder = new StringDecoder("utf8");
   private stderrTail = "";
+  private stderrDecoder = new StringDecoder("utf8");
   private current: PendingCall | null = null;
   private chain: Promise<unknown> = Promise.resolve();
   private disposing = false;
@@ -232,7 +238,9 @@ class PersistentJxaTransport {
     this.counters.spawns += 1;
     this.child = child;
     this.fd3Buf = "";
+    this.fd3Decoder = new StringDecoder("utf8");
     this.stderrTail = "";
+    this.stderrDecoder = new StringDecoder("utf8");
 
     const fd3 = child.stdio[3] as Readable | null | undefined;
     if (fd3 && typeof fd3 !== "number") {
@@ -240,7 +248,7 @@ class PersistentJxaTransport {
     }
     if (child.stderr) {
       child.stderr.on("data", (d: Buffer) => {
-        this.stderrTail = (this.stderrTail + d.toString("utf8")).slice(-2048);
+        this.stderrTail = (this.stderrTail + this.stderrDecoder.write(d)).slice(-2048);
       });
     }
     child.once("exit", (code, signal) => this.onChildExit(child, code, signal));
@@ -257,7 +265,7 @@ class PersistentJxaTransport {
 
   private onFd3Data(child: ChildProcess, d: Buffer): void {
     if (child !== this.child) return; // frame from a replaced child — ignore
-    this.fd3Buf += d.toString("utf8");
+    this.fd3Buf += this.fd3Decoder.write(d);
     let idx = this.fd3Buf.indexOf("\n");
     while (idx >= 0) {
       const line = this.fd3Buf.slice(0, idx);

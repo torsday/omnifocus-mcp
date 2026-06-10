@@ -9,6 +9,9 @@
  * `osascript` in `persistentScriptRunner.integration.test.ts`.
  */
 
+import type { ChildProcess } from "node:child_process";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { launchFakePersistentChild } from "../../../tests/lib/fakePersistentChild.js";
 import { OmniFocusTransportRestarted } from "../../errors/index.js";
@@ -122,6 +125,90 @@ describe("persistent JXA transport — script-level error passthrough", () => {
     expect(result).toMatchObject({ exitCode: 1, timedOut: false });
     expect(result.restarted).toBeUndefined();
     expect(result.stderr).toContain("-1728");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Mock child — an in-process EventEmitter with PassThrough pipes, for tests
+// that need exact control over chunk boundaries and stream events (the real
+// fake child is a separate process, so the OS may coalesce its writes).
+// ---------------------------------------------------------------------------
+
+interface MockChild {
+  child: ChildProcess;
+  stdin: PassThrough;
+  stderr: PassThrough;
+  fd3: PassThrough;
+}
+
+function makeMockChild(): MockChild {
+  const stdin = new PassThrough();
+  const stderr = new PassThrough();
+  const fd3 = new PassThrough();
+  const child = new EventEmitter() as unknown as ChildProcess & {
+    exitCode: number | null;
+    signalCode: NodeJS.Signals | null;
+    killed: boolean;
+  };
+  Object.assign(child, {
+    pid: 424242,
+    exitCode: null,
+    signalCode: null,
+    killed: false,
+    stdin,
+    stdout: null,
+    stderr,
+    stdio: [stdin, null, stderr, fd3],
+    kill: (signal?: NodeJS.Signals | number): boolean => {
+      child.killed = true;
+      child.signalCode = typeof signal === "string" ? signal : "SIGTERM";
+      child.emit("exit", null, child.signalCode);
+      return true;
+    },
+  });
+  return { child, stdin, stderr, fd3 };
+}
+
+/** Let pending stream callbacks (data events) drain. */
+function tick(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
+describe("persistent JXA transport — multibyte UTF-8 split across pipe chunks", () => {
+  it("decodes a response frame split mid-emoji across two fd3 data events", async () => {
+    const mock = makeMockChild();
+    transport = createPersistentJxaTransport(() => mock.child, 20);
+    const t = transport;
+    const pending = t.spawner("echo", "{}", 5000);
+
+    const frame = Buffer.from(`${JSON.stringify({ ok: true, stdout: "🌍 café" })}\n`, "utf8");
+    const splitAt = frame.indexOf(Buffer.from("🌍", "utf8")) + 2; // inside the 4-byte emoji
+    mock.fd3.write(frame.subarray(0, splitAt));
+    await tick();
+    mock.fd3.write(frame.subarray(splitAt));
+
+    const result = await pending;
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("🌍 café"); // per-chunk decode yields U+FFFD here
+  });
+
+  it("decodes a stderr tail split mid-emoji when surfacing a crash", async () => {
+    const mock = makeMockChild();
+    transport = createPersistentJxaTransport(() => mock.child, 20);
+    const t = transport;
+    const pending = t.spawner("echo", "{}", 5000);
+
+    const noise = Buffer.from("boom 💥 stderr", "utf8");
+    const splitAt = noise.indexOf(Buffer.from("💥", "utf8")) + 2; // inside the 4-byte emoji
+    mock.stderr.write(noise.subarray(0, splitAt));
+    await tick();
+    mock.stderr.write(noise.subarray(splitAt));
+    await tick();
+    mock.child.emit("exit", 1, null); // crash mid-call — tail rides the restart
+
+    const result = await pending;
+    expect(result.restarted).toBe(true);
+    expect(result.stderr).toBe("boom 💥 stderr");
   });
 });
 
