@@ -8,16 +8,17 @@
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
 
 /**
- * Format an ISO-8601 datetime string as a human-readable date.
- * Includes the time component only when the time is non-midnight UTC.
+ * Format an ISO-8601 datetime string as a human-readable date in the local
+ * timezone (host TZ = user TZ per docs/dates.md).
+ * Includes the time component only when the time is non-midnight local.
  */
 export function formatDate(iso: string): string {
   const d = new Date(iso);
-  const year = d.getUTCFullYear();
-  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  const hours = d.getUTCHours();
-  const minutes = d.getUTCMinutes();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hours = d.getHours();
+  const minutes = d.getMinutes();
   if (hours === 0 && minutes === 0) {
     return `${year}-${month}-${day}`;
   }
