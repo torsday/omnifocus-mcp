@@ -294,11 +294,16 @@ export class TaskService {
         ? raw.filter((t) => normalized.tagIds.every((id) => t.tagIds.includes(id)))
         : raw;
 
-    // Post-filter: updatedSince — keep only tasks modified strictly after the threshold.
+    // Post-filter: updatedSince — keep only tasks modified strictly after the
+    // threshold. Compare as instants, not strings: modifiedAt is always UTC
+    // (`...Z`) but the threshold may carry a non-UTC offset (or resolve to a
+    // local-offset string via a relative shortcut), and lexicographic
+    // comparison across different offsets is not an instant comparison.
     const { updatedSince } = normalized;
+    const updatedSinceMs = updatedSince !== undefined ? Date.parse(updatedSince) : undefined;
     const afterUpdatedSince =
-      updatedSince !== undefined
-        ? postFiltered.filter((t) => t.modifiedAt > updatedSince)
+      updatedSinceMs !== undefined
+        ? postFiltered.filter((t) => Date.parse(t.modifiedAt) > updatedSinceMs)
         : postFiltered;
 
     // Stable sort: (sortValue, id ASC). Null values sort last regardless of direction.

@@ -67,6 +67,53 @@ describe("TaskService.list — updatedSince", () => {
     expect(tasks).toHaveLength(2);
   });
 
+  it("compares instants, not strings: west-of-UTC threshold excludes earlier UTC modifications", async () => {
+    const { service, adapter } = makeService();
+    // Tasks modified at 00:00:00Z / 00:00:01Z / 00:00:02Z on 2026-01-01.
+    await adapter.createTask({ name: "A" });
+    await adapter.createTask({ name: "B" });
+    await adapter.createTask({ name: "C" });
+
+    // Threshold = 2025-12-31T17:30:00-07:00 = 2026-01-01T00:30:00Z — strictly
+    // AFTER every modifiedAt as an instant, so nothing matches. A lexicographic
+    // compare ("2026-…Z" > "2025-…-07:00") would wrongly return all three.
+    const { tasks } = await service.list({
+      updatedSince: "2025-12-31T17:30:00-07:00",
+    });
+    expect(tasks).toHaveLength(0);
+  });
+
+  it("compares instants, not strings: east-of-UTC threshold includes later UTC modifications", async () => {
+    const { service, adapter } = makeService();
+    await adapter.createTask({ name: "A" });
+    await adapter.createTask({ name: "B" });
+    await adapter.createTask({ name: "C" });
+
+    // Threshold = 2026-01-01T02:00:00+03:00 = 2025-12-31T23:00:00Z — strictly
+    // BEFORE every modifiedAt as an instant, so all three match. A lexicographic
+    // compare ("2026-01-01T0…Z" > "2026-01-01T2…+03:00") would wrongly exclude all.
+    const { tasks } = await service.list({
+      updatedSince: "2026-01-01T02:00:00+03:00",
+    });
+    expect(tasks).toHaveLength(3);
+  });
+
+  it("compares instants, not strings: no-fraction Z threshold vs fractional modifiedAt", async () => {
+    // Task modified at 2026-01-01T00:00:00.500Z — strictly after a threshold
+    // of 2026-01-01T00:00:00Z as an instant. A lexicographic compare sees
+    // "…T00:00:00.500Z" < "…T00:00:00Z" ('.' < 'Z') and would wrongly exclude it.
+    const adapter = new InMemoryAdapter({
+      now: () => new Date(Date.UTC(2026, 0, 1, 0, 0, 0, 500)),
+    });
+    const service = new TaskService({ adapter, cache: new OmniFocusLruCache({ ttlMs: 30_000 }) });
+    await adapter.createTask({ name: "Fractional" });
+
+    const { tasks } = await service.list({
+      updatedSince: "2026-01-01T00:00:00Z",
+    });
+    expect(tasks.map((t) => t.name)).toEqual(["Fractional"]);
+  });
+
   it("uses strict greater-than (not >=)", async () => {
     const { service, adapter } = makeService();
     // Task created at tick 0 → modifiedAt = "2026-01-01T00:00:00.000Z"
