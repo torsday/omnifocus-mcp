@@ -17,6 +17,63 @@
 import type { Task } from "../../domain/task.js";
 
 // ---------------------------------------------------------------------------
+// Date helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Local calendar day (`YYYY-MM-DD`) for an ISO instant. The adapter emits
+ * Z-normalized timestamps, so slicing the first ten characters (the prior
+ * implementation) yielded the *UTC* day — one day off from the user's
+ * wall-clock whenever local midnight has passed but UTC's hasn't (or vice
+ * versa). Same bug class as #1035; mirrors `localDayKey` in
+ * `src/tools/forecast/get.ts`.
+ *
+ * `tz` is for tests; production callers omit it and get the host TZ, which
+ * is the user's TZ per `docs/dates.md`.
+ */
+export function localDayKey(iso: string, tz?: string): string {
+  // `en-CA` yields `YYYY-MM-DD` from numeric/2-digit options.
+  const opts: Intl.DateTimeFormatOptions = {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  };
+  if (tz !== undefined) opts.timeZone = tz;
+  return new Intl.DateTimeFormat("en-CA", opts).format(new Date(iso));
+}
+
+/**
+ * Resolve a bare `YYYY-MM-DD` to midnight *local* time with an explicit
+ * offset (e.g. `2026-06-10T00:00:00-07:00`). UTC midnight (the prior
+ * behavior) lands on the previous local calendar day for every user west
+ * of UTC; local midnight matches OmniFocus's own TaskPaper date handling
+ * and the sibling transport-text parser
+ * (`src/taskParser/transportText.ts`).
+ */
+function localMidnightIso(ymd: string): string {
+  const parts = ymd.split("-");
+  const yr = Number(parts[0]);
+  const mo = Number(parts[1]);
+  const dy = Number(parts[2]);
+  // Construct from local parts so the offset is the one in effect on that
+  // date (DST-aware), not today's. Format back from the Date's own parts
+  // (not the raw token) so zones that skip midnight at a DST boundary
+  // still serialize the instant the runtime actually resolved.
+  const d = new Date(yr, mo - 1, dy, 0, 0, 0);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const y = d.getFullYear();
+  const m = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const h = pad(d.getHours());
+  const mi = pad(d.getMinutes());
+  const s = pad(d.getSeconds());
+  const offsetMin = -d.getTimezoneOffset(); // getTimezoneOffset() returns UTC-local
+  const sign = offsetMin >= 0 ? "+" : "-";
+  const absMin = Math.abs(offsetMin);
+  return `${y}-${m}-${day}T${h}:${mi}:${s}${sign}${pad(Math.floor(absMin / 60))}:${pad(absMin % 60)}`;
+}
+
+// ---------------------------------------------------------------------------
 // Render
 // ---------------------------------------------------------------------------
 
@@ -40,9 +97,10 @@ export function renderTaskPaper(
   const indent = "\t".repeat(depth);
   const tags: string[] = [];
 
-  // Tag attributes
-  if (task.dueDate) tags.push(`@due(${task.dueDate.slice(0, 10)})`);
-  if (task.deferDate) tags.push(`@defer(${task.deferDate.slice(0, 10)})`);
+  // Tag attributes — emit the *local* calendar day, matching what the user
+  // sees in OmniFocus (see localDayKey above for why slicing would drift).
+  if (task.dueDate) tags.push(`@due(${localDayKey(task.dueDate)})`);
+  if (task.deferDate) tags.push(`@defer(${localDayKey(task.deferDate)})`);
   if (task.flagged) tags.push("@flagged");
   if (task.completed) tags.push("@done");
   if (task.dropped) tags.push("@dropped");
@@ -155,15 +213,16 @@ export function parseTaskPaperLine(
   return { name: name || "(unnamed)", dueDate, deferDate, flagged, done, tagNames, note };
 }
 
-/** Normalise a date token to ISO-8601 (YYYY-MM-DD → YYYY-MM-DDT00:00:00Z). */
+/** Normalise a date token to ISO-8601 (YYYY-MM-DD → local midnight with offset). */
 function normaliseDateToken(
   raw: string,
   lineNum: number,
   warnings: string[],
   field: string,
 ): string | undefined {
-  // Accept YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return `${raw}T00:00:00Z`;
+  // Accept YYYY-MM-DD — resolved to *local* midnight so the task lands on
+  // the calendar day the file says, regardless of the user's TZ.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return localMidnightIso(raw);
   // Accept full ISO-8601
   if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw;
   warnings.push(`Line ${lineNum}: unrecognised ${field} date format "${raw}" — skipped`);

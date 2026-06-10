@@ -74,14 +74,17 @@ describe("ExportService.exportTaskPaper — scope: project", () => {
     expect(result.taskCount).toBe(2);
   });
 
-  it("emits @due and @defer tags when dates are set", async () => {
+  it("emits @due and @defer tags with the local calendar day", async () => {
     const { adapter, service } = makeService();
     const projId = await adapter.createProject({ name: "P" });
+    // Instants built from local parts so the expected day is host-TZ-
+    // independent. A bare Z-midnight fixture (the old pin) only agreed
+    // with the local day on UTC hosts — the UTC-slice drift this guards.
     await adapter.createTask({
       name: "Dated",
       projectId: projId as ProjectId,
-      dueDate: "2026-05-01T00:00:00Z",
-      deferDate: "2026-04-25T00:00:00Z",
+      dueDate: new Date(2026, 4, 1, 12, 0, 0).toISOString(),
+      deferDate: new Date(2026, 3, 25, 12, 0, 0).toISOString(),
     });
 
     const result = await service.exportTaskPaper({ kind: "project", id: projId as ProjectId });
@@ -198,18 +201,26 @@ describe("ExportService.importTaskPaper — basic creation", () => {
 // ---------------------------------------------------------------------------
 
 describe("ExportService.importTaskPaper — @due/@defer/@flagged/@done", () => {
-  it("parses @due(date) into dueDate", async () => {
+  // Bare dates resolve to *local* midnight with an explicit offset, not UTC
+  // midnight — UTC midnight placed the task on the previous local calendar
+  // day for every user west of UTC. Matches transportText's handling.
+  it("parses @due(date) into dueDate at local midnight with offset", async () => {
     const { adapter, service } = makeService();
     await service.importTaskPaper("- Urgent @due(2026-06-01)");
     const tasks = await adapter.listTasks({});
-    expect(tasks[0]?.dueDate).toBe("2026-06-01T00:00:00Z");
+    expect(tasks[0]?.dueDate).toMatch(/^2026-06-01T00:00:00[+-]\d{2}:\d{2}$/);
+    // The instant must be midnight on June 1 in the host TZ.
+    const due = new Date(tasks[0]?.dueDate ?? "");
+    expect([due.getFullYear(), due.getMonth() + 1, due.getDate(), due.getHours()]).toEqual([
+      2026, 6, 1, 0,
+    ]);
   });
 
-  it("parses @defer(date) into deferDate", async () => {
+  it("parses @defer(date) into deferDate at local midnight with offset", async () => {
     const { adapter, service } = makeService();
     await service.importTaskPaper("- Later @defer(2026-05-15)");
     const tasks = await adapter.listTasks({});
-    expect(tasks[0]?.deferDate).toBe("2026-05-15T00:00:00Z");
+    expect(tasks[0]?.deferDate).toMatch(/^2026-05-15T00:00:00[+-]\d{2}:\d{2}$/);
   });
 
   it("parses @flagged", async () => {
@@ -330,5 +341,28 @@ describe("ExportService — round-trip (export → import)", () => {
     expect(tasks.map((t) => t.name)).toContain("Beta");
     const beta = tasks.find((t) => t.name === "Beta");
     expect(beta?.flagged).toBe(true);
+  });
+
+  it("keeps due dates on the same local calendar day through a round-trip", async () => {
+    const { adapter, service } = makeService();
+    const projId = await adapter.createProject({ name: "RT-dates" });
+    // 23:00 local on June 9 — Z-normalized, this instant falls on June 10
+    // in UTC for any zone west of UTC. The export must still say the
+    // user's day, and re-import must land on it (not drift a day).
+    const lateEvening = new Date(2026, 5, 9, 23, 0, 0);
+    await adapter.createTask({
+      name: "Late",
+      projectId: projId as ProjectId,
+      dueDate: lateEvening.toISOString(),
+    });
+
+    const exported = await service.exportTaskPaper({ kind: "project", id: projId as ProjectId });
+    expect(exported.taskpaper).toContain("@due(2026-06-09)");
+
+    const proj2 = await adapter.createProject({ name: "RT-dates-2" });
+    await service.importTaskPaper(exported.taskpaper, proj2 as ProjectId);
+    const tasks = await adapter.listTasks({ projectId: proj2 as ProjectId });
+    const due = new Date(tasks[0]?.dueDate ?? "");
+    expect([due.getFullYear(), due.getMonth() + 1, due.getDate()]).toEqual([2026, 6, 9]);
   });
 });
