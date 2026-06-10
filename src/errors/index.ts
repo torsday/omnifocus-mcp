@@ -26,6 +26,7 @@ export type ErrorCode =
   | "OF_PERMISSION_DENIED"
   | "OF_FEATURE_REQUIRES_PRO"
   | "OF_FEATURE_REQUIRES_VERSION"
+  | "OF_UNSUPPORTED"
   | "OF_WINDOW_UNAVAILABLE"
   | "OF_CALENDAR_PERMISSION_DENIED"
   | "OF_CALENDAR_BRIDGE_UNAVAILABLE"
@@ -205,6 +206,22 @@ export class FeatureRequiresOfVersion extends OmniFocusError {
       remediationClass: "environment",
       suggestion:
         "This feature requires a newer OmniFocus version. Update OmniFocus or use a different tool.",
+      ...options,
+    });
+  }
+}
+
+/**
+ * Thrown when the running OmniFocus's automation bridge has no working API
+ * for the requested operation (e.g. HTML note writes on OF 4.x, where the
+ * JXA `noteHtml` accessor rejects both reads and writes).
+ */
+export class UnsupportedOperation extends OmniFocusError {
+  constructor(message: string, options: ErrorOptions = {}) {
+    super("OF_UNSUPPORTED", message, {
+      remediationClass: "environment",
+      suggestion:
+        "The running OmniFocus version's automation bridge does not support this operation. Use the alternative named in the message, if any.",
       ...options,
     });
   }

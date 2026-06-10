@@ -184,6 +184,7 @@ See [`docs/adr/0004-raw-script-escape-hatch.md`](./adr/0004-raw-script-escape-ha
 | `OF_CALENDAR_BRIDGE_UNAVAILABLE` | `environment` | Run `pnpm build:calendar-bridge` |
 | `OF_FEATURE_REQUIRES_PRO` | `environment` | Upgrade to Pro or use a different tool |
 | `OF_FEATURE_REQUIRES_VERSION` | `environment` | Update OmniFocus |
+| `OF_UNSUPPORTED` | `environment` | Automation bridge lacks this API; use the alternative named in the message |
 | `OF_WINDOW_UNAVAILABLE` | `environment` | Open an OmniFocus window |
 | `OF_VALIDATION` | `input` | Fix the input; see `details` for field reasons |
 | `OF_NOT_FOUND` | `input` | Confirm ID with `*_list`; use persistent IDs |

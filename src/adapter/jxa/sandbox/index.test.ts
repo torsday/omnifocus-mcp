@@ -1963,24 +1963,29 @@ describe("JXA sandbox — project_update", () => {
     expect(result.project.flagged).toBe(true);
   });
 
-  it("writes noteHtml via property assignment (note_set_html plumbing)", () => {
+  // Live OF 4.x rejects noteHtml assignment ("Can't convert types.") — the
+  // fixture's throwing setter mirrors that, and the script must convert the
+  // bridge error into a typed OF_UNSUPPORTED instead of a raw script failure.
+  it("surfaces OF_UNSUPPORTED when the bridge rejects a noteHtml write", () => {
     const target = fakeProject({ id: () => "project_target" });
-    runJxaScriptInSandbox<{ project: { id: string } }>(
-      projectUpdateScript,
-      { id: "project_target", noteHtml: "<b>Priority:</b> high" },
-      { projects: [target] },
-    );
-    expect((target.noteHtml as () => string | null)()).toBe("<b>Priority:</b> high");
+    expect(() =>
+      runJxaScriptInSandbox<{ project: { id: string } }>(
+        projectUpdateScript,
+        { id: "project_target", noteHtml: "<b>Priority:</b> high" },
+        { projects: [target] },
+      ),
+    ).toThrowError(/OF_UNSUPPORTED.*note_set/);
   });
 
-  it("clears noteHtml to empty when null is passed", () => {
+  it("surfaces OF_UNSUPPORTED when clearing noteHtml with null", () => {
     const target = fakeProject({ id: () => "project_target", noteHtml: () => "<i>old</i>" });
-    runJxaScriptInSandbox<{ project: { id: string } }>(
-      projectUpdateScript,
-      { id: "project_target", noteHtml: null },
-      { projects: [target] },
-    );
-    expect((target.noteHtml as () => string | null)()).toBe("");
+    expect(() =>
+      runJxaScriptInSandbox<{ project: { id: string } }>(
+        projectUpdateScript,
+        { id: "project_target", noteHtml: null },
+        { projects: [target] },
+      ),
+    ).toThrowError(/OF_UNSUPPORTED/);
   });
 
   it("clears estimatedMinutes to null, not 0", () => {
@@ -2354,24 +2359,29 @@ describe("JXA sandbox — task_update", () => {
     expect(result.task.flagged).toBe(true);
   });
 
-  it("writes noteHtml via property assignment (note_set_html plumbing)", () => {
+  // Live OF 4.x rejects noteHtml assignment ("Can't convert types.") — the
+  // fixture's throwing setter mirrors that, and the script must convert the
+  // bridge error into a typed OF_UNSUPPORTED instead of a raw script failure.
+  it("surfaces OF_UNSUPPORTED when the bridge rejects a noteHtml write", () => {
     const target = fakeTask({ id: () => "task_target" });
-    runJxaScriptInSandbox<{ task: { id: string } }>(
-      taskUpdateScript,
-      { id: "task_target", noteHtml: "<b>Priority:</b> high" },
-      { tasks: [target] },
-    );
-    expect((target.noteHtml as () => string | null)()).toBe("<b>Priority:</b> high");
+    expect(() =>
+      runJxaScriptInSandbox<{ task: { id: string } }>(
+        taskUpdateScript,
+        { id: "task_target", noteHtml: "<b>Priority:</b> high" },
+        { tasks: [target] },
+      ),
+    ).toThrowError(/OF_UNSUPPORTED.*note_set/);
   });
 
-  it("clears noteHtml to empty when null is passed", () => {
+  it("surfaces OF_UNSUPPORTED when clearing noteHtml with null", () => {
     const target = fakeTask({ id: () => "task_target", noteHtml: () => "<i>old</i>" });
-    runJxaScriptInSandbox<{ task: { id: string } }>(
-      taskUpdateScript,
-      { id: "task_target", noteHtml: null },
-      { tasks: [target] },
-    );
-    expect((target.noteHtml as () => string | null)()).toBe("");
+    expect(() =>
+      runJxaScriptInSandbox<{ task: { id: string } }>(
+        taskUpdateScript,
+        { id: "task_target", noteHtml: null },
+        { tasks: [target] },
+      ),
+    ).toThrowError(/OF_UNSUPPORTED/);
   });
 
   it("delegates tagIds replacement to OmniJS via evaluateJavascript", () => {

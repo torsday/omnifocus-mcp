@@ -785,6 +785,31 @@ export function defineWritableNameAccessor(obj: Record<string, unknown>, initial
   defineWritableAccessor(obj, "name", initial);
 }
 
+/**
+ * An accessor whose callable getter works but whose ASSIGNMENT throws —
+ * mirrors OF 4.x runtime extras the bridge can read in some configurations
+ * but always rejects writing (e.g. `noteHtml`, which raises "Can't convert
+ * types." on assignment; see the live probe in #1118-era sweep notes).
+ */
+export function defineReadOnlyBridgeAccessor(
+  obj: Record<string, unknown>,
+  key: string,
+  initial: unknown,
+): void {
+  const getter: () => unknown =
+    typeof initial === "function" ? (initial as () => unknown) : () => initial;
+  Object.defineProperty(obj, key, {
+    configurable: true,
+    enumerable: true,
+    get: () => getter,
+    set: () => {
+      throw new ScriptError("Can't convert types.", {
+        details: { stderr: "Can't convert types." },
+      });
+    },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Slice 7b: System Events + ObjC bridge fakes (app_launch, attachment_save_to_path)
 // ---------------------------------------------------------------------------

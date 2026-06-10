@@ -37,10 +37,17 @@ function run(argv) {
   if (args.name !== undefined) target.name = args.name;
   if (args.note !== undefined) target.note = args.note ?? "";
   if (args.noteHtml !== undefined) {
-    // noteHtml is a runtime extra (see _types/sdef-overrides.d.ts) — the
-    // setter accepts an HTML fragment and replaces the rich note. Null
-    // clears the note, mirroring the plain-text `note` branch above.
-    target.noteHtml = args.noteHtml ?? "";
+    // noteHtml is a runtime extra (see _types/sdef-overrides.d.ts). On
+    // OF 4.x the JXA bridge rejects the accessor entirely ("Can't convert
+    // types", both read and write), so surface a typed OF_UNSUPPORTED
+    // instead of letting the raw bridge error read like a script bug.
+    try {
+      target.noteHtml = args.noteHtml ?? "";
+    } catch (_e) {
+      throw new Error(
+        "OF_UNSUPPORTED: this OmniFocus version's JXA bridge rejects noteHtml writes; use note_set (plain text) instead",
+      );
+    }
   }
   if (args.flagged !== undefined) target.flagged = args.flagged;
   // Null clears the estimate (OF stores null, not 0, for "no estimate") —

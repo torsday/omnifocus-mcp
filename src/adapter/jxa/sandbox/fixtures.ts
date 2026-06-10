@@ -20,7 +20,11 @@
  */
 
 import { ScriptError } from "../../../errors/index.js";
-import { defineWritableAccessor, defineWritableNameAccessor } from "./index.js";
+import {
+  defineReadOnlyBridgeAccessor,
+  defineWritableAccessor,
+  defineWritableNameAccessor,
+} from "./index.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -224,7 +228,9 @@ export function fakeTask(
   // path through build_task.js sees the latest values.
   defineWritableAccessor(task, "name", overrides.name ?? fn(`Task ${_taskSeq}`));
   defineWritableAccessor(task, "note", overrides.note ?? fn(""));
-  defineWritableAccessor(task, "noteHtml", overrides.noteHtml ?? fn(null));
+  // Live OF 4.x rejects noteHtml assignment ("Can't convert types.") — the
+  // sandbox mirrors that so scripts must route writes through OF_UNSUPPORTED.
+  defineReadOnlyBridgeAccessor(task, "noteHtml", overrides.noteHtml ?? fn(null));
   defineWritableAccessor(task, "flagged", overrides.flagged ?? fn(false));
   defineWritableAccessor(task, "deferDate", overrides.deferDate ?? fn(null));
   defineWritableAccessor(task, "dueDate", overrides.dueDate ?? fn(null));
@@ -345,7 +351,8 @@ export function fakeProject(
   // `target.x()` returns it via the callable getter.
   defineWritableAccessor(project, "name", overrides.name ?? fn(`Project ${_projectSeq}`));
   defineWritableAccessor(project, "note", overrides.note ?? fn(""));
-  defineWritableAccessor(project, "noteHtml", overrides.noteHtml ?? fn(null));
+  // Same bridge limitation as the task fixture: writable in no OF 4.x config.
+  defineReadOnlyBridgeAccessor(project, "noteHtml", overrides.noteHtml ?? fn(null));
   defineWritableAccessor(project, "status", overrides.status ?? fn("active"));
   defineWritableAccessor(project, "deferDate", overrides.deferDate ?? fn(null));
   defineWritableAccessor(project, "dueDate", overrides.dueDate ?? fn(null));

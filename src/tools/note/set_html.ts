@@ -35,6 +35,8 @@ export const NOTE_SET_HTML_DESCRIPTION =
   "Overwrites the existing note entirely with the provided HTML. " +
   "OmniFocus preserves its supported HTML subset (bold, italic, links, lists, inline images); " +
   "unsupported elements may be stripped. Pass noteHtml: null to clear the note. " +
+  "Known limitation: OmniFocus 4.x's automation bridge rejects HTML note writes, " +
+  "so this tool fails there with OF_UNSUPPORTED — use note_set (plain text) instead. " +
   "For plain-text writes use note_set instead. " +
   "Returns { updated: true, id, targetKind, name, noteHtml } — name is the parent task/project's display name (pre-fetched so the response describes the change without a follow-up read); noteHtml echoes back the requested HTML (or null if cleared). " +
   "Side effects: writes to OmniFocus, sets meta.syncPending = true. " +

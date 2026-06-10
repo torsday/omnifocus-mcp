@@ -26,6 +26,7 @@ Agents switch on `remediationClass` to decide next action without parsing text.
 | `OF_CALENDAR_BRIDGE_UNAVAILABLE` | `CalendarBridgeUnavailable` | Run `pnpm build:calendar-bridge` |
 | `OF_FEATURE_REQUIRES_PRO` | `FeatureRequiresPro` | Upgrade to OmniFocus Pro |
 | `OF_FEATURE_REQUIRES_VERSION` | `FeatureRequiresOfVersion` | Update OmniFocus |
+| `OF_UNSUPPORTED` | `UnsupportedOperation` | The running OmniFocus's automation bridge has no API for this; use the alternative named in the message |
 | `OF_WINDOW_UNAVAILABLE` | `WindowUnavailable` | Ask user to open an OmniFocus window |
 
 ### Input — `remediationClass: "input"`

@@ -1407,7 +1407,7 @@ Read the plain-text note from a task or project. Do not use when formatting fide
 
 ## note_get_html
 
-Read the HTML fragment from a task or project note. Returns { noteHtml } — an HTML string (may be empty) or null when no note exists. Set targetKind to 'task' and provide a task ID, or 'project' and a project ID. For plain-text access without formatting, use note_get instead. Safe to call repeatedly; no side effects. Example: note_get_html({ targetKind: "task", id: "abc123" })
+Read the HTML fragment from a task or project note. Returns { noteHtml } — an HTML string (may be empty) or null when no note exists. Known limitation: OmniFocus 4.x's automation bridge cannot read notes as HTML, so noteHtml degrades to null there even when a note exists — use note_get for plain text. Set targetKind to 'task' and provide a task ID, or 'project' and a project ID. For plain-text access without formatting, use note_get instead. Safe to call repeatedly; no side effects. Example: note_get_html({ targetKind: "task", id: "abc123" })
 
 ### Input
 
@@ -1489,7 +1489,7 @@ Replace the plain-text note on a task or project. Overwrites the existing note e
 
 ## note_set_html
 
-Replace the HTML fragment note on a task or project. Overwrites the existing note entirely with the provided HTML. OmniFocus preserves its supported HTML subset (bold, italic, links, lists, inline images); unsupported elements may be stripped. Pass noteHtml: null to clear the note. For plain-text writes use note_set instead. Returns { updated: true, id, targetKind, name, noteHtml } — name is the parent task/project's display name (pre-fetched so the response describes the change without a follow-up read); noteHtml echoes back the requested HTML (or null if cleared). Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the change to appear on other devices. Example: note_set_html({ targetKind: "task", id: "abc123", noteHtml: "<b>Priority:</b> high" })
+Replace the HTML fragment note on a task or project. Overwrites the existing note entirely with the provided HTML. OmniFocus preserves its supported HTML subset (bold, italic, links, lists, inline images); unsupported elements may be stripped. Pass noteHtml: null to clear the note. Known limitation: OmniFocus 4.x's automation bridge rejects HTML note writes, so this tool fails there with OF_UNSUPPORTED — use note_set (plain text) instead. For plain-text writes use note_set instead. Returns { updated: true, id, targetKind, name, noteHtml } — name is the parent task/project's display name (pre-fetched so the response describes the change without a follow-up read); noteHtml echoes back the requested HTML (or null if cleared). Side effects: writes to OmniFocus, sets meta.syncPending = true. Call sync_trigger when you need the change to appear on other devices. Example: note_set_html({ targetKind: "task", id: "abc123", noteHtml: "<b>Priority:</b> high" })
 
 ### Input
 

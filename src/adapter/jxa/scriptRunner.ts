@@ -37,6 +37,7 @@ import {
   ScriptError,
   Timeout,
   TransportUnavailable,
+  UnsupportedOperation,
   ValidationError,
 } from "../../errors/index.js";
 import { logger } from "../../logging/logger.js";
@@ -501,6 +502,21 @@ function classifyJxaStderr(stderr: string, scriptName?: string): Error | null {
     /not allowed assistive access/i.test(stderr)
   ) {
     return new PermissionDenied({
+      details: {
+        transport: "jxa",
+        stderr: truncateWithEllipsis(stderr, 512),
+        ...(scriptName !== undefined ? { scriptName } : {}),
+      },
+    });
+  }
+
+  // "OF_UNSUPPORTED: ..." → UnsupportedOperation. Scripts raise this when
+  // the live automation bridge rejects an operation it has no API for
+  // (e.g. noteHtml writes on OF 4.x). Checked before NotFound because the
+  // JXA uncaught-error formatter wraps the message in "execution error:
+  // Error: ... (-2700)" and the broad NotFound fallbacks must not win.
+  if (/\bOF_UNSUPPORTED\b/.test(stderr)) {
+    return new UnsupportedOperation(stderr, {
       details: {
         transport: "jxa",
         stderr: truncateWithEllipsis(stderr, 512),

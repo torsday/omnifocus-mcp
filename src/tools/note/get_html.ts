@@ -23,6 +23,8 @@ import { ok, type ResponseMeta, toolResponse } from "../../envelope/index.js";
 export const NOTE_GET_HTML_DESCRIPTION =
   "Read the HTML fragment from a task or project note. " +
   "Returns { noteHtml } — an HTML string (may be empty) or null when no note exists. " +
+  "Known limitation: OmniFocus 4.x's automation bridge cannot read notes as HTML, " +
+  "so noteHtml degrades to null there even when a note exists — use note_get for plain text. " +
   "Set targetKind to 'task' and provide a task ID, or 'project' and a project ID. " +
   "For plain-text access without formatting, use note_get instead. " +
   "Safe to call repeatedly; no side effects. " +
