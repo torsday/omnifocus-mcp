@@ -218,6 +218,13 @@ describe("capByMeasuredPrefix", () => {
     expect(r).toMatchObject({ keptCount: 1, truncatedAtCap: true, bytesReturned: 12 });
   });
 
+  it("does not mark truncated when a lone oversized item is the whole sequence", () => {
+    // Nothing is dropped (kept === itemCount), so reporting truncation would
+    // point callers at a continuation that does not exist.
+    const r = capByMeasuredPrefix(1, measure, { maxOutputBytes: 5 });
+    expect(r).toMatchObject({ keptCount: 1, truncatedAtCap: false, bytesReturned: 12 });
+  });
+
   it("clamps a pathological cap to the hard ceiling", () => {
     const r = capByMeasuredPrefix(4, measure, {
       maxOutputBytes: Number.MAX_SAFE_INTEGER,

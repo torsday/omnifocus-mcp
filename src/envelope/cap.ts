@@ -255,5 +255,8 @@ export function capByMeasuredPrefix(
       hi = mid - 1;
     }
   }
-  return { keptCount: best, truncatedAtCap: true, bytesReturned: bestBytes };
+  // For itemCount === 1 the forced first item *is* the whole sequence — nothing
+  // was dropped, so it is not a truncation (matches applyByteCap's semantics
+  // for a lone oversized item).
+  return { keptCount: best, truncatedAtCap: best < itemCount, bytesReturned: bestBytes };
 }
