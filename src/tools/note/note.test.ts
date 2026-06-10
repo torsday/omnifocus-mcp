@@ -210,6 +210,15 @@ describe("note_set — handler", () => {
     expect(calls.some((s) => s.startsWith("task:"))).toBe(true);
   });
 
+  it("invalidates the task's project scope on task write (project_get caches the task tree)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const { cache, calls } = makeSpyCache();
+    const projectId = await adapter.createProject({ name: "P" });
+    const id = await adapter.createTask({ name: "T", projectId });
+    await handleNoteSet({ targetKind: "task", id, note: "x" }, { ...ctx, cache });
+    expect(calls).toContain(`project:${projectId}`);
+  });
+
   it("invalidates project cache scope on project write", async () => {
     const { ctx, adapter } = makeCtx();
     const { cache, calls } = makeSpyCache();
@@ -296,6 +305,15 @@ describe("note_append — handler", () => {
     const id = await adapter.createTask({ name: "T" });
     await handleNoteAppend({ targetKind: "task", id, text: "x" }, { ...ctx, cache });
     expect(calls.some((s) => s.startsWith("task:"))).toBe(true);
+  });
+
+  it("invalidates the task's project scope on task append (project_get caches the task tree)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const { cache, calls } = makeSpyCache();
+    const projectId = await adapter.createProject({ name: "P" });
+    const id = await adapter.createTask({ name: "T", projectId });
+    await handleNoteAppend({ targetKind: "task", id, text: "x" }, { ...ctx, cache });
+    expect(calls).toContain(`project:${projectId}`);
   });
 
   it("invalidates project cache scope on project append", async () => {
@@ -494,6 +512,15 @@ describe("note_set_html — handler", () => {
     const id = await adapter.createTask({ name: "T" });
     await handleNoteSetHtml({ targetKind: "task", id, noteHtml: "<b>x</b>" }, { ...ctx, cache });
     expect(calls.some((s) => s.startsWith("task:"))).toBe(true);
+  });
+
+  it("invalidates the task's project scope on task write (project_get caches the task tree)", async () => {
+    const { ctx, adapter } = makeCtx();
+    const { cache, calls } = makeSpyCache();
+    const projectId = await adapter.createProject({ name: "P" });
+    const id = await adapter.createTask({ name: "T", projectId });
+    await handleNoteSetHtml({ targetKind: "task", id, noteHtml: "<b>x</b>" }, { ...ctx, cache });
+    expect(calls).toContain(`project:${projectId}`);
   });
 
   it("invalidates project cache scope on project write", async () => {

@@ -113,7 +113,26 @@ export async function handleTaskBatchMove(
       for (const s of outcome.succeeded) {
         const src = input.items[s.index];
         if (src !== undefined) {
-          invalidateTaskMutation(ctx.cache, { taskId: src.id });
+          // Invalidate under the OLD project/parent (from the pre-fetch)…
+          const task = tasks[s.index];
+          invalidateTaskMutation(ctx.cache, {
+            taskId: src.id,
+            ...(task !== null &&
+              task !== undefined && { projectId: task.projectId, parentId: task.parentId }),
+          });
+          // …and under the NEW destination if different — mirrors task_move.
+          if (
+            src.destination.projectId !== undefined &&
+            src.destination.projectId !== task?.projectId
+          ) {
+            invalidateTaskMutation(ctx.cache, { projectId: src.destination.projectId });
+          }
+          if (
+            src.destination.parentId !== undefined &&
+            src.destination.parentId !== task?.parentId
+          ) {
+            invalidateTaskMutation(ctx.cache, { parentId: src.destination.parentId });
+          }
         }
       }
     }

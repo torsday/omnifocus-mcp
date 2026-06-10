@@ -311,10 +311,17 @@ export async function handleTaskBatchAssign(
       for (const s of succeeded) {
         // biome-ignore lint/style/noNonNullAssertion: s.index is always a valid assignments index
         const a = assignments[s.index]!;
+        // Invalidate under the OLD project/parent (from the pre-fetch)…
+        const task = allTasks[s.index];
         invalidateTaskMutation(ctx.cache, {
           taskId: a.taskId,
-          ...(a.projectId !== undefined && { projectId: a.projectId }),
+          ...(task !== null &&
+            task !== undefined && { projectId: task.projectId, parentId: task.parentId }),
         });
+        // …and under the NEW project if the item moved — mirrors task_move.
+        if (a.projectId !== undefined && a.projectId !== task?.projectId) {
+          invalidateTaskMutation(ctx.cache, { projectId: a.projectId });
+        }
       }
     }
 

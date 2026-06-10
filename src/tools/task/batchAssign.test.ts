@@ -15,6 +15,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
+import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.js";
 import type { TagId } from "../../domain/ids.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 
@@ -423,5 +424,32 @@ describe("registerTaskBatchAssignTool", () => {
     registerTaskBatchAssignTool(server, makeCtx(adapter));
     expect(registerTool).toHaveBeenCalledTimes(1);
     expect(registerTool.mock.calls[0]?.[0]).toBe("task_batch_assign");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cache invalidation (docs/cache-invalidation.md)
+// ---------------------------------------------------------------------------
+
+describe("task_batch_assign — cache invalidation", () => {
+  it("emits the old project scope alongside the destination scope on a move", async () => {
+    const adapter = new InMemoryAdapter();
+    const cache = new OmniFocusLruCache();
+    const scopes: InvalidationScope[] = [];
+    cache.on("cache.invalidated", (e: { scopes: InvalidationScope[] }) => {
+      scopes.push(...e.scopes);
+    });
+    const projectA = await adapter.createProject({ name: "A" });
+    const projectB = await adapter.createProject({ name: "B" });
+    const taskId = await adapter.createTask({ name: "T", projectId: projectA });
+
+    await handleTaskBatchAssign(
+      { assignments: [{ taskId, projectId: projectB }] },
+      { ...makeCtx(adapter), cache },
+    );
+
+    expect(scopes).toContain(`task:${taskId}`);
+    expect(scopes).toContain(`project:${projectA}`);
+    expect(scopes).toContain(`project:${projectB}`);
   });
 });

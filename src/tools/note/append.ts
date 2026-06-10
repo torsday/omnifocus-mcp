@@ -141,13 +141,18 @@ export async function handleNoteAppend(
     input.idempotency_key,
     async (): Promise<ToolEnvelope<NoteAppendData>> => {
       // Single read fetches both the existing note and the parent's display
-      // name; no extra round trip for the lever-4 name pairing (#606).
+      // name; no extra round trip for the lever-4 name pairing (#606). The
+      // task's projectId / parentId ride along so their scopes flush too.
       let existing: string | null;
       let name: string;
+      let taskProjectId: ProjectId | null = null;
+      let taskParentId: TaskId | null = null;
       if (input.targetKind === "task") {
         const task = await ctx.adapter.getTask(TaskId.of(input.id));
         existing = task.note;
         name = task.name;
+        taskProjectId = task.projectId;
+        taskParentId = task.parentId;
       } else {
         const project = await ctx.adapter.getProject(ProjectId.of(input.id));
         existing = project.note;
@@ -159,7 +164,11 @@ export async function handleNoteAppend(
       if (input.targetKind === "task") {
         await ctx.adapter.updateTask(TaskId.of(input.id), { note: combined });
         if (ctx.cache !== undefined) {
-          invalidateTaskMutation(ctx.cache, { taskId: TaskId.of(input.id) });
+          invalidateTaskMutation(ctx.cache, {
+            taskId: TaskId.of(input.id),
+            projectId: taskProjectId,
+            parentId: taskParentId,
+          });
         }
       } else {
         await ctx.adapter.updateProject(ProjectId.of(input.id), { note: combined });

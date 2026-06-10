@@ -12,6 +12,7 @@
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import type { OmniFocusAdapter } from "../../adapter/OmniFocusAdapter.js";
+import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.js";
 import type { ProjectId, TaskId } from "../../domain/ids.js";
 import type { ResponseMeta, ToolEnvelope } from "../../envelope/index.js";
 import { handleTaskBatchComplete, taskBatchCompleteInputBaseSchema } from "./batchComplete.js";
@@ -295,5 +296,38 @@ describe("batch tools — one adapter call per batch", () => {
       { adapter: spy, makeMeta },
     );
     expect(calls).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cache invalidation (docs/cache-invalidation.md)
+// ---------------------------------------------------------------------------
+
+describe("task_batch_update — cache invalidation", () => {
+  it("emits the project and parent scopes from the pre-fetched tasks", async () => {
+    const { ctx, adapter } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    const scopes: InvalidationScope[] = [];
+    cache.on("cache.invalidated", (e: { scopes: InvalidationScope[] }) => {
+      scopes.push(...e.scopes);
+    });
+    const projectId = await adapter.createProject({ name: "P" });
+    const inProject = await adapter.createTask({ name: "a", projectId });
+    const parentId = await adapter.createTask({ name: "parent" });
+    const child = await adapter.createTask({ name: "b", parentId });
+
+    await handleTaskBatchUpdate(
+      {
+        items: [
+          { id: inProject, patch: { flagged: true } },
+          { id: child, patch: { flagged: true } },
+        ],
+      },
+      { ...ctx, cache },
+    );
+
+    expect(scopes).toContain(`task:${inProject}`);
+    expect(scopes).toContain(`project:${projectId}`);
+    expect(scopes).toContain(`task:${parentId}`);
   });
 });

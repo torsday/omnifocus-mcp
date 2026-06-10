@@ -88,7 +88,12 @@ export async function handleTaskBatchDrop(
       for (const s of outcome.succeeded) {
         const src = input.items[s.index];
         if (src !== undefined) {
-          invalidateTaskMutation(ctx.cache, { taskId: src.id });
+          const task = tasks[s.index];
+          invalidateTaskMutation(ctx.cache, {
+            taskId: src.id,
+            ...(task !== null &&
+              task !== undefined && { projectId: task.projectId, parentId: task.parentId }),
+          });
         }
       }
     }

@@ -8,6 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
+import { type InvalidationScope, OmniFocusLruCache } from "../../cache/lruCache.js";
 import type { ProjectId } from "../../domain/ids.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { handleTaskBatchMove, taskBatchMoveInputSchema } from "./batchMove.js";
@@ -223,5 +224,32 @@ describe("task_batch_move — handler", () => {
 
     expect(result.data.moved).toHaveLength(0);
     expect(result.data.failed).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cache invalidation (docs/cache-invalidation.md)
+// ---------------------------------------------------------------------------
+
+describe("task_batch_move — cache invalidation", () => {
+  it("emits both the source and destination project scopes", async () => {
+    const { ctx, adapter } = makeCtx();
+    const cache = new OmniFocusLruCache();
+    const scopes: InvalidationScope[] = [];
+    cache.on("cache.invalidated", (e: { scopes: InvalidationScope[] }) => {
+      scopes.push(...e.scopes);
+    });
+    const projectA = await adapter.createProject({ name: "A" });
+    const projectB = await adapter.createProject({ name: "B" });
+    const id = await adapter.createTask({ name: "T", projectId: projectA });
+
+    await handleTaskBatchMove(
+      { items: [{ id, destination: { projectId: projectB } }] },
+      { ...ctx, cache },
+    );
+
+    expect(scopes).toContain(`task:${id}`);
+    expect(scopes).toContain(`project:${projectA}`);
+    expect(scopes).toContain(`project:${projectB}`);
   });
 });

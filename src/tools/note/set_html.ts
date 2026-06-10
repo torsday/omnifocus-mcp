@@ -85,18 +85,22 @@ export interface NoteSetHtmlContext {
  * @throws {NotFound} when the task or project ID does not exist
  */
 export async function handleNoteSetHtml(input: NoteSetHtmlToolInput, ctx: NoteSetHtmlContext) {
-  // Pre-fetch the parent's display name (lever-4 pairing, #606).
-  const name =
-    input.targetKind === "task"
-      ? (await ctx.adapter.getTask(TaskId.of(input.id))).name
-      : (await ctx.adapter.getProject(ProjectId.of(input.id))).name;
-
+  // Pre-fetch the target (lever-4 pairing, #606) so the response can name it
+  // and the task's projectId / parentId scopes can be flushed.
+  let name: string;
   if (input.targetKind === "task") {
+    const task = await ctx.adapter.getTask(TaskId.of(input.id));
+    name = task.name;
     await ctx.adapter.updateTask(TaskId.of(input.id), { noteHtml: input.noteHtml });
     if (ctx.cache !== undefined) {
-      invalidateTaskMutation(ctx.cache, { taskId: TaskId.of(input.id) });
+      invalidateTaskMutation(ctx.cache, {
+        taskId: TaskId.of(input.id),
+        projectId: task.projectId,
+        parentId: task.parentId,
+      });
     }
   } else {
+    name = (await ctx.adapter.getProject(ProjectId.of(input.id))).name;
     await ctx.adapter.updateProject(ProjectId.of(input.id), { noteHtml: input.noteHtml });
     if (ctx.cache !== undefined) {
       invalidateProjectMutation(ctx.cache, { projectId: ProjectId.of(input.id) });
