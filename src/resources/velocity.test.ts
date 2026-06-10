@@ -136,6 +136,26 @@ describe("buildVelocityPayload — weekly bucketing", () => {
     expect(thisWeek.completed).toBeGreaterThanOrEqual(1);
   });
 
+  it("counts tasks created AND completed in-window as created (netDelta unbiased)", async () => {
+    const adapter = new InMemoryAdapter();
+    // Anchor "now" to the real clock: InMemoryAdapter stamps createdAt at
+    // creation time, so both creation and completion land in the current week.
+    const now = new Date();
+    const t1 = await adapter.createTask({ name: "done-1" });
+    const t2 = await adapter.createTask({ name: "done-2" });
+    await adapter.completeTask(t1, now);
+    await adapter.completeTask(t2, now);
+
+    const payload = await buildVelocityPayload(adapter, 1, now);
+    const week = payload.weeklyTotals[0] as (typeof payload.weeklyTotals)[0];
+    // Tasks completed before the read exist only in the completed fetch;
+    // their createdAt must still count toward `created`, leaving netDelta
+    // at 0 — not the fabricated backlog-shrinking signal of -2.
+    expect(week.created).toBe(2);
+    expect(week.completed).toBe(2);
+    expect(week.netDelta).toBe(0);
+  });
+
   it("netDelta accounts for created, completed, and dropped", async () => {
     const adapter = new InMemoryAdapter();
     // 3 created, 1 completed, 1 dropped → netDelta = 3 - 1 - 1 = 1

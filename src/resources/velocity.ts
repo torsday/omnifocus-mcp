@@ -123,7 +123,8 @@ export async function buildVelocityPayload(
   // ── Fetch data ─────────────────────────────────────────────────────────
   // Three parallel fetches:
   //  - incomplete tasks (includes dropped) — for created + dropped counts
-  //  - completed tasks since windowFrom — for completed counts
+  //  - completed tasks since windowFrom — for completed counts, plus the
+  //    created counts of tasks already completed by read time
   //  - projects — for topClosingProjects
   const [incompleteTasks, completedTasks, projects] = await Promise.all([
     adapter.listTasks({ completed: false }),
@@ -145,10 +146,18 @@ export async function buildVelocityPayload(
     const weekStartIso = weekStart.toISOString();
     const weekEndIso = weekEnd.toISOString();
 
-    // created: tasks whose createdAt falls in this week
-    const created = incompleteTasks.filter(
-      (t) => t.createdAt >= weekStartIso && t.createdAt < weekEndIso,
-    ).length;
+    // created: tasks whose createdAt falls in this week — across BOTH
+    // fetched lists. A task created in-window and completed before the
+    // read exists only in completedTasks (the completed:false fetch
+    // excludes it); counting incompleteTasks alone biased netDelta
+    // negative for every productive week. Coverage is complete because
+    // completion cannot precede creation, so any in-window creation that
+    // got completed has completedAt >= windowFrom and is in the
+    // completedSince fetch. The two lists are disjoint (completed:true
+    // vs completed:false), so nothing is double-counted.
+    const inWeek = (t: { createdAt: string }) =>
+      t.createdAt >= weekStartIso && t.createdAt < weekEndIso;
+    const created = incompleteTasks.filter(inWeek).length + completedTasks.filter(inWeek).length;
 
     // completed: tasks whose completedAt falls in this week
     // (completedTasks only contains tasks completed since windowFrom; we
