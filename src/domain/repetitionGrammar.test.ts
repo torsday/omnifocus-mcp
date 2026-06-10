@@ -267,10 +267,23 @@ const OK_FIXTURES: readonly OkFixture[] = [
     rule: { method: "start-again", unit: "weeks", steps: 1 },
     description: "every week, after I complete it",
   },
+  // "from the due date" asks for OF's due-date-anchored schedule — that is
+  // the `fixed` method. `due-again` is completion-relative (OF shows it as
+  // "due after completion"), so the old due-again mapping inverted anchoring.
   {
     prose: "monthly from the due date",
+    rule: { method: "fixed", unit: "months", steps: 1 },
+    description: "every month",
+  },
+  {
+    prose: "monthly due again after I complete it",
     rule: { method: "due-again", unit: "months", steps: 1 },
-    description: "every month, from the due date",
+    description: "every month, due again after I complete it",
+  },
+  {
+    prose: "every 2 weeks due after completion",
+    rule: { method: "due-again", unit: "weeks", steps: 2 },
+    description: "every 2 weeks, due again after I complete it",
   },
 
   // Time-of-day and end-conditions surface as advisory text

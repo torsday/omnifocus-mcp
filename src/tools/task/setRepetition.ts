@@ -44,7 +44,7 @@ export const taskSetRepetitionInputSchema = z.object({
   id: TaskId.schema.describe("ID of the task to update. Get from task_list or search_query."),
   rule: RepetitionRuleSchema.describe(
     "Repetition rule to apply. " +
-      "'method': 'fixed' repeats from the due date, 'start-again' from completion, 'due-again' from due date (alias). " +
+      "'method': 'fixed' repeats on the original schedule, 'start-again' sets the next defer date from completion, 'due-again' sets the next due date from completion. " +
       "'unit': time unit for the interval. " +
       "'steps': how many units between occurrences (minimum 1). " +
       "'weekdays': optional array of day names — only valid when unit is 'weeks'. " +

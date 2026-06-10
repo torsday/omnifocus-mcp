@@ -159,7 +159,7 @@ function describePosition(position: 1 | 2 | 3 | 4 | "last"): string {
 
 function describeMethod(method: RepetitionRule["method"]): string {
   if (method === "start-again") return "after I complete it";
-  if (method === "due-again") return "from the due date";
+  if (method === "due-again") return "due again after I complete it";
   return "";
 }
 
@@ -206,15 +206,23 @@ interface MethodMatch {
  * Detect "after I complete it" / "from completion" / "after completion"
  * patterns. Returns the method and the substring to strip from the input
  * before further parsing. Default method is `fixed`.
+ *
+ * Anchoring semantics (see docs/domain-reference.md "RepetitionRule"):
+ * `fixed` is OmniFocus's due-date-anchored schedule, while `due-again` is
+ * completion-relative (next due = completion + interval — OF shows it as
+ * "due after completion"). So "from the due date" maps to `fixed` and the
+ * "due (again) after …" phrasings map to `due-again`; the due-again patterns
+ * run first because they embed the start-again "after completion" wording.
  */
 function detectMethod(text: string): MethodMatch {
   const completionPatterns: ReadonlyArray<{ re: RegExp; method: RepetitionRule["method"] }> = [
+    { re: /\bdue again after i complete (it|the task)?\b/, method: "due-again" },
+    { re: /\bdue (again )?after completion\b/, method: "due-again" },
     { re: /\bafter i complete (it|the task)?\b/, method: "start-again" },
     { re: /\bafter completion\b/, method: "start-again" },
     { re: /\bfrom completion\b/, method: "start-again" },
     { re: /\bonce completed\b/, method: "start-again" },
-    { re: /\bfrom the due date\b/, method: "due-again" },
-    { re: /\bfrom (its|the) due date\b/, method: "due-again" },
+    { re: /\bfrom (its|the) due date\b/, method: "fixed" },
   ];
   for (const { re, method } of completionPatterns) {
     const match = text.match(re);
