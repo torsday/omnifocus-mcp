@@ -149,20 +149,22 @@ function run(argv) {
       built.completed !== args.completed
     )
       continue;
-    if (completedSince && built.completedAt) {
-      if (new Date(built.completedAt) < completedSince) continue;
+    // Tasks with no date never match a date filter (mirrors task_search.js
+    // and the adapter contract in OmniFocusAdapter.ts).
+    if (completedSince) {
+      if (!built.completedAt || new Date(built.completedAt) < completedSince) continue;
     }
-    if (dueBefore && built.dueDate) {
-      if (new Date(built.dueDate) >= dueBefore) continue;
+    if (dueBefore) {
+      if (!built.dueDate || new Date(built.dueDate) >= dueBefore) continue;
     }
-    if (dueAfter && built.dueDate) {
-      if (new Date(built.dueDate) <= dueAfter) continue;
+    if (dueAfter) {
+      if (!built.dueDate || new Date(built.dueDate) <= dueAfter) continue;
     }
-    if (deferredBefore && built.deferDate) {
-      if (new Date(built.deferDate) >= deferredBefore) continue;
+    if (deferredBefore) {
+      if (!built.deferDate || new Date(built.deferDate) >= deferredBefore) continue;
     }
-    if (deferredAfter && built.deferDate) {
-      if (new Date(built.deferDate) <= deferredAfter) continue;
+    if (deferredAfter) {
+      if (!built.deferDate || new Date(built.deferDate) <= deferredAfter) continue;
     }
 
     result.push(built);

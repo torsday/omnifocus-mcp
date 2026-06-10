@@ -390,6 +390,62 @@ describe("JXA sandbox — task_list", () => {
     expect(result.tasks.map((t) => t.name)).toEqual(["task_default"]);
   });
 
+  it("dueBefore excludes tasks with no due date on source-narrowed branches", () => {
+    // The projectId branch takes no whose() pushdown — the post-loop guards
+    // alone decide. Tasks with no due date never match a date filter
+    // (adapter contract; mirrors task_search.js and InMemoryAdapter).
+    const noDue = fakeTask({ dueDate: () => null, name: () => "task_no_due" });
+    const early = fakeTask({
+      dueDate: () => new Date("2026-04-01T00:00:00Z"),
+      name: () => "task_early",
+    });
+    const proj = fakeProject({
+      id: () => "p1",
+      flattenedTasks: () => [noDue, early],
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { name: string }[] }>(
+      taskListScript,
+      { projectId: "p1", dueBefore: "2026-05-01T00:00:00Z" },
+      { projects: [proj] },
+    );
+    expect(result.tasks.map((t) => t.name)).toEqual(["task_early"]);
+  });
+
+  it("completedSince excludes never-completed tasks", () => {
+    // completedSince never pushes down into whose() — the post-loop guard
+    // must reject tasks with completedAt === null, not pass them through.
+    const open = fakeTask({
+      completed: () => false,
+      completionDate: () => null,
+      name: () => "task_open",
+    });
+    const done = fakeTask({
+      completed: () => true,
+      completionDate: () => new Date("2026-06-05T00:00:00Z"),
+      name: () => "task_done",
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { name: string }[] }>(
+      taskListScript,
+      { completedSince: "2026-06-01T00:00:00Z" },
+      { tasks: [open, done] },
+    );
+    expect(result.tasks.map((t) => t.name)).toEqual(["task_done"]);
+  });
+
+  it("deferredAfter excludes tasks with no defer date", () => {
+    const noDefer = fakeTask({ deferDate: () => null, name: () => "task_no_defer" });
+    const deferred = fakeTask({
+      deferDate: () => new Date("2026-06-08T00:00:00Z"),
+      name: () => "task_deferred",
+    });
+    const result = runJxaScriptInSandbox<{ tasks: { name: string }[] }>(
+      taskListScript,
+      { inbox: true, deferredAfter: "2026-06-01T00:00:00Z" },
+      { inboxTasks: [noDefer, deferred] },
+    );
+    expect(result.tasks.map((t) => t.name)).toEqual(["task_deferred"]);
+  });
+
   it("source-narrowing branches (projectId/tagId/parentId/inbox) are unchanged — no whose() applied", () => {
     // `inbox: true` uses inboxTasks() — the whose() pushdown branch is not
     // taken even when filters are present. The post-loop filters still apply.
