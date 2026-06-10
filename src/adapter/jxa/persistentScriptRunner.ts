@@ -120,7 +120,14 @@ const PERSISTENT_RUNTIME_SRC = [
   "      var v = dispatch(req.s, req.a);",
   '      send({ ok: true, stdout: v == null ? "" : String(v) });',
   "    } catch (e2) {",
-  "      send({ ok: false, stderr: e2 && e2.message ? e2.message : String(e2) });",
+  // AppleEvent errors carry their numeric code only on `e.errorNumber` — the
+  // "(-1728)"-style suffix in one-shot stderr is appended by osascript's own
+  // uncaught-error formatter, which this loop's catch replaces. Append it here
+  // so the runner's stderr signature matching (transient retry-once,
+  // NotFound / PermissionDenied classification) sees the one-shot shape.
+  "      var m2 = e2 && e2.message ? e2.message : String(e2);",
+  "      if (e2 && typeof e2.errorNumber === 'number') m2 += ' (' + e2.errorNumber + ')';",
+  "      send({ ok: false, stderr: m2 });",
   "    }",
   "  }",
   "})();",

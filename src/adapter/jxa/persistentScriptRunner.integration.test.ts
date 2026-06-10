@@ -79,6 +79,22 @@ describe.skipIf(!RUN)("persistent JXA transport — real osascript", () => {
     expect(transport.stats().spawns).toBe(1);
   });
 
+  it("appends e.errorNumber so stderr matches one-shot AppleEvent signatures", async () => {
+    transport = createPersistentJxaTransport();
+    // AppleEvent errors (e.g. errAENoSuchObject from a lazy `byId` specifier)
+    // carry the numeric code only on `e.errorNumber`; the "(-1728)" text in
+    // one-shot stderr comes from osascript's uncaught-error formatter. The
+    // runner's retry/NotFound signatures key on that suffix, so the persistent
+    // runtime must reproduce it.
+    const thrown = await transport.spawner(
+      'function run(){ var e = new Error("Can\'t get object."); e.errorNumber = -1728; throw e; }',
+      "{}",
+      5000,
+    );
+    expect(thrown.exitCode).toBe(1);
+    expect(thrown.stderr).toBe("Can't get object. (-1728)");
+  });
+
   it("reuses one child across 1000 calls without leaking (RSS ceiling)", async () => {
     transport = createPersistentJxaTransport();
     const script = "function run(argv){ return argv[0]; }";
