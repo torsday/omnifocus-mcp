@@ -9,8 +9,12 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { CircuitOpen } from "../errors/index.js";
-import { CircuitBreaker, CircuitBreakerRegistry } from "./circuitBreaker.js";
+import { CircuitOpen, NotFound, RateLimited, Timeout, ValidationError } from "../errors/index.js";
+import {
+  CircuitBreaker,
+  CircuitBreakerRegistry,
+  isCircuitCountableFailure,
+} from "./circuitBreaker.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -96,6 +100,68 @@ describe("CircuitBreaker — failure counting", () => {
     await expect(b.call(fail)).rejects.toThrow(); // t=61000 — old failures pruned
     await expect(b.call(fail)).rejects.toThrow(); // t=61000 — 2nd fresh failure
     expect(b.state).toBe("closed"); // only 2 in-window failures
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Failure classification (C26) — input/backpressure errors don't count
+// ---------------------------------------------------------------------------
+
+describe("CircuitBreaker — failure classification", () => {
+  const notFound = () => Promise.reject(new NotFound("Task not found: stale-id"));
+  const rateLimited = () => Promise.reject(new RateLimited("window full"));
+  const timeout = () => Promise.reject(new Timeout("JXA script exceeded 30000ms timeout"));
+
+  it("stays CLOSED after repeated input-class errors (stale-id NotFound probes)", async () => {
+    const b = makeBreaker();
+    for (let i = 0; i < 5; i++) await expect(b.call(notFound)).rejects.toThrow();
+    expect(b.state).toBe("closed");
+    // A healthy call must still reach the handler — no OF_CIRCUIT_OPEN.
+    await expect(b.call(ok)).resolves.toBe("ok");
+  });
+
+  it("stays CLOSED after repeated backpressure errors (RateLimited)", async () => {
+    const b = makeBreaker();
+    for (let i = 0; i < 5; i++) await expect(b.call(rateLimited)).rejects.toThrow();
+    expect(b.state).toBe("closed");
+  });
+
+  it("still opens on taxonomy errors that signal a sick pipeline (Timeout)", async () => {
+    const b = makeBreaker();
+    for (let i = 0; i < 3; i++) await expect(b.call(timeout)).rejects.toThrow();
+    expect(b.state).toBe("open");
+  });
+
+  it("a non-countable error mid-burst neither counts nor resets the window", async () => {
+    const b = makeBreaker();
+    await expect(b.call(timeout)).rejects.toThrow();
+    await expect(b.call(timeout)).rejects.toThrow();
+    await expect(b.call(notFound)).rejects.toThrow(); // not counted, not a reset
+    expect(b.state).toBe("closed");
+    await expect(b.call(timeout)).rejects.toThrow(); // 3rd countable failure
+    expect(b.state).toBe("open");
+  });
+
+  it("a half-open probe hitting a non-countable error neither closes nor re-opens", async () => {
+    const clock = makeClock();
+    const b = makeBreaker(clock);
+    for (let i = 0; i < 3; i++) await expect(b.call(fail)).rejects.toThrow();
+    clock.advance(60_000);
+    expect(b.state).toBe("half_open");
+    await expect(b.call(notFound)).rejects.toThrow();
+    // Inconclusive probe — the slot frees up for the next caller.
+    expect(b.state).toBe("half_open");
+    await b.call(ok);
+    expect(b.state).toBe("closed");
+  });
+
+  it("isCircuitCountableFailure classifies by error code, not message", () => {
+    expect(isCircuitCountableFailure(new ValidationError("bad input"))).toBe(false);
+    expect(isCircuitCountableFailure(new NotFound("nope"))).toBe(false);
+    expect(isCircuitCountableFailure(new RateLimited("slow down"))).toBe(false);
+    expect(isCircuitCountableFailure(new CircuitOpen("already open"))).toBe(false);
+    expect(isCircuitCountableFailure(new Timeout("wedged"))).toBe(true);
+    expect(isCircuitCountableFailure(new Error("unknown crash"))).toBe(true);
   });
 });
 

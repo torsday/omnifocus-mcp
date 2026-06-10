@@ -23,8 +23,50 @@
  * @see src/errors/index.ts — CircuitOpen error class
  */
 
-import { CircuitOpen } from "../errors/index.js";
+import { CircuitOpen, type ErrorCode, isOmniFocusError } from "../errors/index.js";
 import { logger } from "../logging/logger.js";
+
+// ---------------------------------------------------------------------------
+// Failure classification
+// ---------------------------------------------------------------------------
+
+/**
+ * Backpressure / fail-fast signals emitted by the middleware stack itself
+ * (rate limiter, write-queue cap, a breaker that is already open). They mean
+ * "slow down", not "this tool is broken" — counting them would convert a
+ * brief burst of calls into a 60s OF_CIRCUIT_OPEN outage.
+ */
+const BACKPRESSURE_CODES: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
+  "OF_RATE_LIMITED",
+  "OF_QUEUE_FULL",
+  "OF_CIRCUIT_OPEN",
+]);
+
+/**
+ * Predicate: should this thrown error count toward opening the per-tool
+ * circuit?
+ *
+ * Mirrors the sibling transport circuit's discipline (`isCircuitTransient`
+ * in `src/adapter/_shared/transportCircuit.ts`): only failures that suggest
+ * the tool/OmniFocus pipeline is actually unhealthy may pollute the
+ * consecutive-failure counter. Excluded by classification:
+ *
+ * - **input-class errors** (`remediationClass: "input"` — ValidationError,
+ *   NotFound, ConflictError, LoopDetected): the caller's input is wrong;
+ *   three stale-id probes must not lock a healthy tool for 60s.
+ * - **backpressure signals** ({@link BACKPRESSURE_CODES}): the middleware's
+ *   own throttling, thrown inside `breaker.call` by design (the breaker
+ *   wraps the limiter so an open circuit doesn't burn rate slots).
+ *
+ * Unknown (non-taxonomy) errors still count — a repeatedly crashing handler
+ * is a genuine outage signal.
+ */
+export function isCircuitCountableFailure(err: unknown): boolean {
+  if (!isOmniFocusError(err)) return true;
+  if (err.remediationClass === "input") return false;
+  if (BACKPRESSURE_CODES.has(err.code)) return false;
+  return true;
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -121,7 +163,13 @@ export class CircuitBreaker {
       this._onSuccess();
       return result;
     } catch (err) {
-      this._onFailure();
+      // Input errors and backpressure signals are neither successes nor
+      // outage evidence — they leave the breaker state untouched (a
+      // half-open probe that hits one simply frees the probe slot for
+      // the next caller).
+      if (isCircuitCountableFailure(err)) {
+        this._onFailure();
+      }
       throw err;
     } finally {
       if (this._state === "half_open") {

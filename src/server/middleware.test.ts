@@ -10,6 +10,7 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { describe, expect, it, vi } from "vitest";
 import type { ToolSuccess } from "../envelope/index.js";
+import { NotFound } from "../errors/index.js";
 import { LoopDetector } from "../loopDetector/LoopDetector.js";
 import { ResponseStatsRegistry } from "../observability/responseStats.js";
 import { ToolRateLimiter } from "../rateLimit/ToolRateLimiter.js";
@@ -103,6 +104,21 @@ describe("composeToolCallback", () => {
     }
     // Next call must short-circuit with CircuitOpen rather than re-invoke.
     await expect(wrapped({}, {})).rejects.toMatchObject({ code: "OF_CIRCUIT_OPEN" });
+  });
+
+  it("does not open the circuit on repeated input errors (stale-id NotFound, C26)", async () => {
+    const deps = makeDeps();
+    const notFoundCb = async (): Promise<CallToolResult> => {
+      throw new NotFound("Task not found: stale-id");
+    };
+    const wrapped = composeToolCallback("tool_nf", notFoundCb, deps);
+
+    // Three input-class failures must NOT convert into a 60s tool outage.
+    for (let i = 0; i < 3; i++) {
+      await expect(wrapped({}, {})).rejects.toMatchObject({ code: "OF_NOT_FOUND" });
+    }
+    // The 4th call still reaches the handler — OF_NOT_FOUND, not OF_CIRCUIT_OPEN.
+    await expect(wrapped({}, {})).rejects.toMatchObject({ code: "OF_NOT_FOUND" });
   });
 
   it("records the full SDK-result wire size into responseStats on success (#778, corrected #793)", async () => {
