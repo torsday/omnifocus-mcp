@@ -185,6 +185,26 @@ describe("JxaTransport — updateProject", () => {
     expect(arg.flagged).toBe(true);
     expect(arg.name).toBeUndefined();
   });
+
+  it("forwards noteHtml to the script (note_set_html plumbing)", async () => {
+    const spawner = spawnerReturning({ project: BASE_PROJECT });
+    const t = new JxaTransport({ spawner });
+    await t.updateProject("proj_aaa" as ProjectId, { noteHtml: "<b>Priority:</b> high" });
+    const arg = JSON.parse(
+      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string])[1],
+    ) as { id: string; noteHtml: string };
+    expect(arg.noteHtml).toBe("<b>Priority:</b> high");
+  });
+
+  it("forwards a null noteHtml (clear) to the script", async () => {
+    const spawner = spawnerReturning({ project: BASE_PROJECT });
+    const t = new JxaTransport({ spawner });
+    await t.updateProject("proj_aaa" as ProjectId, { noteHtml: null });
+    const arg = JSON.parse(
+      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string])[1],
+    ) as { id: string; noteHtml: string | null };
+    expect(arg.noteHtml).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -9,7 +9,7 @@
  *
  * Args (argv[0] JSON): {
  *   id: string,
- *   name?: string, note?: string|null, flagged?: boolean,
+ *   name?: string, note?: string|null, noteHtml?: string|null, flagged?: boolean,
  *   deferDate?: string|null, dueDate?: string|null,
  *   estimatedMinutes?: number|null, tagIds?: string[],
  *   sequential?: boolean, completedByChildren?: boolean,
@@ -39,6 +39,12 @@ function run(argv) {
   if (args.name !== undefined) found.name = args.name;
   if (Object.hasOwn(args, "note")) {
     found.note = args.note ?? "";
+  }
+  if (Object.hasOwn(args, "noteHtml")) {
+    // noteHtml is a runtime extra (see _types/sdef-overrides.d.ts) — the
+    // setter accepts an HTML fragment and replaces the rich note. Null
+    // clears the note, mirroring the plain-text `note` branch above.
+    found.noteHtml = args.noteHtml ?? "";
   }
   if (args.flagged !== undefined) found.flagged = args.flagged;
   if (Object.hasOwn(args, "deferDate")) {

@@ -268,6 +268,26 @@ describe("JxaTransport — updateTask", () => {
     expect(arg.name).toBeUndefined();
   });
 
+  it("forwards noteHtml to the script (note_set_html plumbing)", async () => {
+    const spawner = spawnerReturning({ task: BASE_TASK });
+    const t = new JxaTransport({ spawner });
+    await t.updateTask("task_aaa" as TaskId, { noteHtml: "<b>Priority:</b> high" });
+    const arg = JSON.parse(
+      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string])[1],
+    ) as { id: string; noteHtml: string };
+    expect(arg.noteHtml).toBe("<b>Priority:</b> high");
+  });
+
+  it("forwards a null noteHtml (clear) to the script", async () => {
+    const spawner = spawnerReturning({ task: BASE_TASK });
+    const t = new JxaTransport({ spawner });
+    await t.updateTask("task_aaa" as TaskId, { noteHtml: null });
+    const arg = JSON.parse(
+      ((spawner as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string])[1],
+    ) as { id: string; noteHtml: string | null };
+    expect(arg.noteHtml).toBeNull();
+  });
+
   it("forwards a repetition rule to the script (#938)", async () => {
     const spawner = spawnerReturning({ task: BASE_TASK });
     const t = new JxaTransport({ spawner });

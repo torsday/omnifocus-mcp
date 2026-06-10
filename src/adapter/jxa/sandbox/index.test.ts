@@ -1963,6 +1963,26 @@ describe("JXA sandbox — project_update", () => {
     expect(result.project.flagged).toBe(true);
   });
 
+  it("writes noteHtml via property assignment (note_set_html plumbing)", () => {
+    const target = fakeProject({ id: () => "project_target" });
+    runJxaScriptInSandbox<{ project: { id: string } }>(
+      projectUpdateScript,
+      { id: "project_target", noteHtml: "<b>Priority:</b> high" },
+      { projects: [target] },
+    );
+    expect((target.noteHtml as () => string | null)()).toBe("<b>Priority:</b> high");
+  });
+
+  it("clears noteHtml to empty when null is passed", () => {
+    const target = fakeProject({ id: () => "project_target", noteHtml: () => "<i>old</i>" });
+    runJxaScriptInSandbox<{ project: { id: string } }>(
+      projectUpdateScript,
+      { id: "project_target", noteHtml: null },
+      { projects: [target] },
+    );
+    expect((target.noteHtml as () => string | null)()).toBe("");
+  });
+
   it("throws when the id does not exist", () => {
     expect(() =>
       runJxaScriptInSandbox(
@@ -2319,6 +2339,26 @@ describe("JXA sandbox — task_update", () => {
       { tasks: [target] },
     );
     expect(result.task.flagged).toBe(true);
+  });
+
+  it("writes noteHtml via property assignment (note_set_html plumbing)", () => {
+    const target = fakeTask({ id: () => "task_target" });
+    runJxaScriptInSandbox<{ task: { id: string } }>(
+      taskUpdateScript,
+      { id: "task_target", noteHtml: "<b>Priority:</b> high" },
+      { tasks: [target] },
+    );
+    expect((target.noteHtml as () => string | null)()).toBe("<b>Priority:</b> high");
+  });
+
+  it("clears noteHtml to empty when null is passed", () => {
+    const target = fakeTask({ id: () => "task_target", noteHtml: () => "<i>old</i>" });
+    runJxaScriptInSandbox<{ task: { id: string } }>(
+      taskUpdateScript,
+      { id: "task_target", noteHtml: null },
+      { tasks: [target] },
+    );
+    expect((target.noteHtml as () => string | null)()).toBe("");
   });
 
   it("delegates tagIds replacement to OmniJS via evaluateJavascript", () => {

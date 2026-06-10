@@ -135,6 +135,8 @@ export interface FakeTaskOverrides {
   estimatedMinutes?: () => number | null;
   repetitionRule?: () => unknown;
   note?: () => string;
+  // Runtime extra — note_get_html.js reads it, task_update.js assigns it.
+  noteHtml?: () => string | null;
   creationDate?: () => Date;
   modificationDate?: () => Date;
   inInbox?: () => boolean;
@@ -222,6 +224,7 @@ export function fakeTask(
   // path through build_task.js sees the latest values.
   defineWritableAccessor(task, "name", overrides.name ?? fn(`Task ${_taskSeq}`));
   defineWritableAccessor(task, "note", overrides.note ?? fn(""));
+  defineWritableAccessor(task, "noteHtml", overrides.noteHtml ?? fn(null));
   defineWritableAccessor(task, "flagged", overrides.flagged ?? fn(false));
   defineWritableAccessor(task, "deferDate", overrides.deferDate ?? fn(null));
   defineWritableAccessor(task, "dueDate", overrides.dueDate ?? fn(null));
@@ -267,6 +270,8 @@ export interface FakeProjectOverrides {
   completionCriterion?: () => string;
   sequential?: () => boolean;
   note?: () => string;
+  // Runtime extra — note_get_html.js reads it, project_update.js assigns it.
+  noteHtml?: () => string | null;
   creationDate?: () => Date;
   modificationDate?: () => Date;
   reviewInterval?: () => unknown;
@@ -340,6 +345,7 @@ export function fakeProject(
   // `target.x()` returns it via the callable getter.
   defineWritableAccessor(project, "name", overrides.name ?? fn(`Project ${_projectSeq}`));
   defineWritableAccessor(project, "note", overrides.note ?? fn(""));
+  defineWritableAccessor(project, "noteHtml", overrides.noteHtml ?? fn(null));
   defineWritableAccessor(project, "status", overrides.status ?? fn("active"));
   defineWritableAccessor(project, "deferDate", overrides.deferDate ?? fn(null));
   defineWritableAccessor(project, "dueDate", overrides.dueDate ?? fn(null));

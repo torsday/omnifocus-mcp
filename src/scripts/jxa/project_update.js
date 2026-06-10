@@ -36,6 +36,12 @@ function run(argv) {
 
   if (args.name !== undefined) target.name = args.name;
   if (args.note !== undefined) target.note = args.note ?? "";
+  if (args.noteHtml !== undefined) {
+    // noteHtml is a runtime extra (see _types/sdef-overrides.d.ts) — the
+    // setter accepts an HTML fragment and replaces the rich note. Null
+    // clears the note, mirroring the plain-text `note` branch above.
+    target.noteHtml = args.noteHtml ?? "";
+  }
   if (args.flagged !== undefined) target.flagged = args.flagged;
   if (args.estimatedMinutes !== undefined) target.estimatedMinutes = args.estimatedMinutes ?? 0;
   if (args.deferDate !== undefined)

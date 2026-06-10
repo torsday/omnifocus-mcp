@@ -319,6 +319,7 @@ export class JxaTransport implements OmniFocusAdapter {
         id,
         ...(patch.name !== undefined ? { name: patch.name } : {}),
         ...(patch.note !== undefined && !splitNote ? { note: patch.note } : {}),
+        ...(patch.noteHtml !== undefined ? { noteHtml: patch.noteHtml } : {}),
         ...(patch.flagged !== undefined ? { flagged: patch.flagged } : {}),
         ...(patch.deferDate !== undefined ? { deferDate: patch.deferDate } : {}),
         ...(patch.dueDate !== undefined ? { dueDate: patch.dueDate } : {}),
@@ -612,6 +613,7 @@ export class JxaTransport implements OmniFocusAdapter {
         id,
         ...(patch.name !== undefined ? { name: patch.name } : {}),
         ...(patch.note !== undefined ? { note: patch.note } : {}),
+        ...(patch.noteHtml !== undefined ? { noteHtml: patch.noteHtml } : {}),
         ...(patch.flagged !== undefined ? { flagged: patch.flagged } : {}),
         ...(patch.estimatedMinutes !== undefined
           ? { estimatedMinutes: patch.estimatedMinutes }
