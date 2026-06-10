@@ -18,6 +18,7 @@ import { CalendarBridge, type CalendarPermission } from "../bridge/calendarBridg
 import type { Config } from "../config/env.js";
 import { CalendarBridgeUnavailable } from "../errors/index.js";
 import { logger } from "../logging/logger.js";
+import { idempotencyStore } from "../server/idempotencyStore.js";
 
 // ---------------------------------------------------------------------------
 // Capabilities shape
@@ -49,7 +50,11 @@ export interface Capabilities {
     /** Tool calls per minute at the default rate limit. */
     defaultPerToolPerMinute: number;
   };
-  /** How long idempotency keys are retained (ms). */
+  /**
+   * How long idempotency keys are retained (ms). Mirrors the live
+   * `IdempotencyStore` configuration (`OMNIFOCUS_IDEMPOTENCY_TTL_MS`,
+   * default 600_000 = 10 min).
+   */
   idempotencyTtlMs: number;
   /**
    * macOS Calendar (EventKit) bridge state. `available: false` means the
@@ -82,9 +87,6 @@ export interface Capabilities {
 // ---------------------------------------------------------------------------
 // Builder
 // ---------------------------------------------------------------------------
-
-/** Default idempotency key TTL: 24 hours. */
-const DEFAULT_IDEMPOTENCY_TTL_MS = 86_400_000;
 
 /**
  * Build a `Capabilities` object from parsed config.
@@ -126,7 +128,7 @@ export function buildCapabilities(
     rateLimits: {
       defaultPerToolPerMinute: perMinute,
     },
-    idempotencyTtlMs: DEFAULT_IDEMPOTENCY_TTL_MS,
+    idempotencyTtlMs: idempotencyStore.ttlMs,
     calendarAccess: overrides.calendarAccess ?? { available: false, permission: "unknown" },
     webhooks: overrides.webhooks ?? {
       enabled: config.OMNIFOCUS_WEBHOOKS_ENABLED,

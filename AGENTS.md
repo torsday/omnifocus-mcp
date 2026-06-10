@@ -228,7 +228,7 @@ All optional scalar fields are **always present** in responses, set to `null` wh
 
 ### Idempotency — safe retries
 
-`project_create`, `project_update`, and `project_delete` accept an optional `idempotency_key?: string`. If you supply one and the call succeeds, replaying the exact same key within 5 minutes returns the cached result with `meta.idempotentReplay: true` and skips the OmniFocus call. Use a deterministic key scoped to your session and intent (e.g. `"session-abc/create-project-finance"`).
+`project_create`, `project_update`, and `project_delete` accept an optional `idempotency_key?: string`. If you supply one and the call succeeds, replaying the exact same key within the idempotency TTL (default 10 minutes; tunable via `OMNIFOCUS_IDEMPOTENCY_TTL_MS`, advertised as `idempotencyTtlMs` in `omnifocus://capabilities`) returns the cached result with `meta.idempotentReplay: true` and skips the OmniFocus call. Use a deterministic key scoped to your session and intent (e.g. `"session-abc/create-project-finance"`).
 
 ### Dry-run — validate before committing
 

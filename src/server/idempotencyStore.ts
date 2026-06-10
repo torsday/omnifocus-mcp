@@ -107,6 +107,16 @@ export class IdempotencyStore {
     return this._entries.size;
   }
 
+  /**
+   * Milliseconds a cached envelope remains replayable, as resolved at
+   * construction. Exposed so agent-facing surfaces (the capabilities
+   * resource) can advertise the store's real retention window instead of
+   * a hand-written constant.
+   */
+  get ttlMs(): number {
+    return this._ttlMs;
+  }
+
   /** Drop all entries. Intended for tests and shutdown. */
   clear(): void {
     this._entries.clear();

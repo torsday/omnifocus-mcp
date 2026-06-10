@@ -6,6 +6,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { describe, expect, it, vi } from "vitest";
 import type { Config } from "../config/env.js";
 import { CalendarBridgeUnavailable, OmniFocusError } from "../errors/index.js";
+import { idempotencyStore } from "../server/idempotencyStore.js";
 import {
   buildCapabilities,
   CAPABILITIES_URI,
@@ -127,9 +128,11 @@ describe("buildCapabilities", () => {
     expect(caps.rateLimits.defaultPerToolPerMinute).toBe(120);
   });
 
-  it("sets idempotencyTtlMs to 86_400_000 (24h)", () => {
+  it("advertises the live idempotency store's TTL, not a hand-written constant", () => {
     const caps = buildCapabilities(makeConfig());
-    expect(caps.idempotencyTtlMs).toBe(86_400_000);
+    expect(caps.idempotencyTtlMs).toBe(idempotencyStore.ttlMs);
+    // Default store TTL is 10 minutes (OMNIFOCUS_IDEMPOTENCY_TTL_MS unset).
+    expect(caps.idempotencyTtlMs).toBe(600_000);
   });
 
   it("defaults calendarAccess to { available: false, permission: 'unknown' }", () => {

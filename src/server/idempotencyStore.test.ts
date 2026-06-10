@@ -56,6 +56,16 @@ function failure(): ToolEnvelope<unknown> {
 // Store — set/get/TTL/LRU
 // ---------------------------------------------------------------------------
 
+describe("IdempotencyStore — ttlMs", () => {
+  it("exposes the resolved TTL from the constructor option", () => {
+    expect(new IdempotencyStore({ ttlMs: 1234 }).ttlMs).toBe(1234);
+  });
+
+  it("defaults to 600_000 (10 min) when no option is given", () => {
+    expect(new IdempotencyStore().ttlMs).toBe(600_000);
+  });
+});
+
 describe("IdempotencyStore — set/get", () => {
   it("returns undefined for unknown keys", () => {
     const s = new IdempotencyStore();
