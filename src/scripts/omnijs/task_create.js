@@ -84,7 +84,10 @@
   if (args.estimatedMinutes != null) task.estimatedMinutes = args.estimatedMinutes;
   if (args.sequential != null) task.sequential = args.sequential;
   if (args.completedByChildren != null) {
-    task.containsSingletonActions = args.completedByChildren;
+    // OmniJS Task exposes `completedByChildren` directly —
+    // `containsSingletonActions` is a JXA-bridge-only runtime extra that
+    // exists on Project here, not Task (assigning it is a silent expando).
+    task.completedByChildren = args.completedByChildren;
   }
 
   // Apply tags. OmniJS exposes `Task.addTag(tag)`.
@@ -142,7 +145,7 @@
       available: task.taskStatus === Task.Status.Available,
       blocked: task.taskStatus === Task.Status.Blocked,
       sequential: task.sequential ?? false,
-      completedByChildren: task.containsSingletonActions ?? false,
+      completedByChildren: task.completedByChildren ?? false,
       repetition: repetition,
       createdAt: isoOrNull(task.added) || new Date().toISOString(),
       modifiedAt: isoOrNull(task.modified) || new Date().toISOString(),
