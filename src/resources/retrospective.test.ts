@@ -60,6 +60,21 @@ describe("resolveWindow", () => {
     expect(w.to).toBe("2026-04-26T12:00:00.000Z");
   });
 
+  it("normalizes offset-bearing ISO input to UTC Z form (instants, not code units)", () => {
+    const w = resolveWindow("2026-04-20T09:00:00+09:00", "2026-04-26T09:00:00+09:00", FIXED_NOW);
+    expect(w.from).toBe("2026-04-20T00:00:00.000Z");
+    expect(w.to).toBe("2026-04-26T00:00:00.000Z");
+  });
+
+  it("orders offset-bearing from/to as instants, not raw strings", () => {
+    // Raw strings: "…T12:00:00+09:00" > "…T05:00:00Z" lexicographically,
+    // but as instants 12:00+09:00 = 03:00Z, which precedes 05:00Z — the
+    // window is already in order and must NOT be swapped.
+    const w = resolveWindow("2026-04-26T12:00:00+09:00", "2026-04-26T05:00:00Z", FIXED_NOW);
+    expect(w.from).toBe("2026-04-26T03:00:00.000Z");
+    expect(w.to).toBe("2026-04-26T05:00:00.000Z");
+  });
+
   it("default window is exactly RETROSPECTIVE_DEFAULT_DAYS days wide", () => {
     const w = resolveWindow(undefined, undefined, FIXED_NOW);
     const widthDays = (new Date(w.to).getTime() - new Date(w.from).getTime()) / 86_400_000;
@@ -129,6 +144,26 @@ describe("buildRetrospectivePayload — completed", () => {
     });
 
     expect(payload.completed).toEqual([]);
+  });
+
+  it("excludes tasks completed after an offset-bearing window end (resolveWindow → payload path)", async () => {
+    const adapter = new InMemoryAdapter();
+    const id = await adapter.createTask({ name: "After window end" });
+    // Completed at 04:00Z on 2026-04-26 — two hours AFTER the window end.
+    await adapter.completeTask(id, new Date("2026-04-26T04:00:00.000Z"));
+
+    // Window end expressed with a +09:00 offset: 11:00+09:00 = 02:00Z.
+    // Raw string compare would include the task ("T04" < "T11"); instant
+    // compare must exclude it.
+    const window = resolveWindow(
+      "2026-04-25T09:00:00+09:00", // = 2026-04-25T00:00Z
+      "2026-04-26T11:00:00+09:00", // = 2026-04-26T02:00Z
+      () => new Date("2026-04-26T12:00:00.000Z"),
+    );
+    const payload = await buildRetrospectivePayload(adapter, window);
+
+    expect(payload.completed).toEqual([]);
+    expect(payload.summary.completedCount).toBe(0);
   });
 
   it("sorts completed tasks by completedAt descending (most recent first)", async () => {

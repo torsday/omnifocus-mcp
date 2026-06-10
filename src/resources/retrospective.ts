@@ -95,6 +95,13 @@ export interface RetrospectivePayload {
  * the conventional default. Invalid ISO inputs fall back to the defaults
  * so a malformed URI never blows up the resource — agents get a sensible
  * window even when they pass garbage.
+ *
+ * Valid inputs are normalized to UTC "Z" form via `toISOString()` so the
+ * payload builder's lexicographic comparisons against the adapter's
+ * Z-format task timestamps compare as instants. Offset-bearing ISO input
+ * (e.g. `2026-06-08T12:00:00+09:00`) would otherwise be compared by code
+ * units — the same string-vs-instant class fixed in the adapters
+ * (2293d6d / 6f651d0).
  */
 export function resolveWindow(
   fromRaw: string | undefined,
@@ -107,8 +114,8 @@ export function resolveWindow(
     nowDate.getTime() - RETROSPECTIVE_DEFAULT_DAYS * 86_400_000,
   ).toISOString();
 
-  const from = isIso(fromRaw) ? fromRaw : defaultFrom;
-  const to = isIso(toRaw) ? toRaw : defaultTo;
+  const from = isIso(fromRaw) ? new Date(fromRaw).toISOString() : defaultFrom;
+  const to = isIso(toRaw) ? new Date(toRaw).toISOString() : defaultTo;
 
   // Clamp to a sane order if the agent passed them swapped.
   if (from > to) {
