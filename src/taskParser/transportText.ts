@@ -79,15 +79,25 @@ function parseDateToken(
   // Try strict ISO date (YYYY-MM-DD or full ISO-8601)
   const isoDate = /^\d{4}-\d{2}-\d{2}(T.*)?$/.test(raw);
   if (isoDate) {
+    // V8's Date parser leniently rolls out-of-range components over
+    // ('2026-02-30' becomes Mar 2 instead of Invalid Date), so round-trip
+    // the calendar components explicitly and warn instead of silently
+    // shifting the date.
+    const parts = raw.slice(0, 10).split("-");
+    const yr = Number(parts[0]);
+    const mo = Number(parts[1]);
+    const dy = Number(parts[2]);
+    const d = new Date(yr, mo - 1, dy, 0, 0, 0);
+    if (d.getFullYear() !== yr || d.getMonth() !== mo - 1 || d.getDate() !== dy) {
+      return {
+        value: raw,
+        warning: `Line ${lineNum}: ${kind} date '${raw}' is not a valid calendar date; passing through as-is`,
+      };
+    }
     const parsed = new Date(raw);
     if (!Number.isNaN(parsed.getTime())) {
       // If it's a bare date (no time), treat as midnight local
       if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-        const parts = raw.split("-");
-        const yr = Number(parts[0]);
-        const mo = Number(parts[1]);
-        const dy = Number(parts[2]);
-        const d = new Date(yr, mo - 1, dy, 0, 0, 0);
         return { value: toIsoWithOffset(d) };
       }
       return { value: raw };

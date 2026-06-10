@@ -109,6 +109,34 @@ describe("parseTransportText — single task", () => {
     expect(warnings[0]).toContain("not a recognized date format");
   });
 
+  it("warns on impossible calendar dates instead of rolling them over", () => {
+    const { tasks, warnings } = parseTransportText("Fix bug #2026-02-30");
+    expect(tasks[0]?.dueDate).toBe("2026-02-30");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("2026-02-30");
+    expect(warnings[0]).toContain("not a valid calendar date");
+  });
+
+  it("warns on out-of-range day-of-month for 30-day months", () => {
+    const { warnings } = parseTransportText("Task #2026-04-31");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("2026-04-31");
+    expect(warnings[0]).toContain("not a valid calendar date");
+  });
+
+  it("warns on impossible calendar dates in T-suffixed ISO defer dates", () => {
+    const { tasks, warnings } = parseTransportText("Task ::2026-02-30T10:00:00");
+    expect(tasks[0]?.deferDate).toBe("2026-02-30T10:00:00");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("not a valid calendar date");
+  });
+
+  it("accepts Feb 29 in a leap year without warning", () => {
+    const { tasks, warnings } = parseTransportText("Task #2028-02-29");
+    expect(warnings).toHaveLength(0);
+    expect(tasks[0]?.dueDate).toMatch(/^2028-02-29T00:00:00/);
+  });
+
   it("parses combination of all tokens", () => {
     const { tasks, warnings } = parseTransportText(
       "Buy milk @errands @shopping #tomorrow ::today !! //pick up 2%",
