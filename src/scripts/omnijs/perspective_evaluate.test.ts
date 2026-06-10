@@ -303,3 +303,44 @@ describe("perspective_evaluate_dry_run.js — repetition", () => {
     expectRepetitionMapping(result.tasks ?? []);
   });
 });
+
+// ---------------------------------------------------------------------------
+// window perspective restore — no side effects contract
+// ---------------------------------------------------------------------------
+
+describe("perspective_evaluate.js — window restore", () => {
+  it("restores the user's window perspective after evaluation", () => {
+    const events: string[] = [];
+    const { win, userPerspective } = runEvaluate({ tasks: STATUS_TASKS, events });
+    expect(win.perspective).toBe(userPerspective);
+    expect(events).toEqual(["switch-perspective", "restore-perspective"]);
+  });
+
+  it("restores the user's window perspective even when the walk throws", () => {
+    const events: string[] = [];
+    expect(() => runEvaluate({ tasks: [], events, breakWalk: true })).toThrow(
+      "window has no content",
+    );
+    expect(events).toEqual(["switch-perspective", "restore-perspective"]);
+  });
+});
+
+describe("perspective_evaluate_dry_run.js — window restore", () => {
+  it("restores the user's window perspective before deleting the temp perspective", () => {
+    const events: string[] = [];
+    const { result, win, userPerspective } = runDryRun({ tasks: STATUS_TASKS, events });
+    expect(result.error).toBeUndefined();
+    expect(win.perspective).toBe(userPerspective);
+    // Restore must precede deletion so the window never displays a deleted
+    // perspective.
+    expect(events).toEqual(["switch-perspective", "restore-perspective", "delete-perspective"]);
+  });
+
+  it("restores the window and rolls back the temp perspective when the walk throws", () => {
+    const events: string[] = [];
+    const { result, win, userPerspective } = runDryRun({ tasks: [], events, breakWalk: true });
+    expect(result.error).toMatchObject({ code: "SCRIPT_ERROR" });
+    expect(win.perspective).toBe(userPerspective);
+    expect(events).toEqual(["switch-perspective", "restore-perspective", "delete-perspective"]);
+  });
+});

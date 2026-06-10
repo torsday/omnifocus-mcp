@@ -36,7 +36,12 @@
     });
   }
 
+  // Evaluation switches the visible front window — the only API surface
+  // OmniFocus exposes for custom-perspective evaluation. Remember the user's
+  // current perspective so it can be restored after the walk; the tool
+  // contract promises no side effects.
   const win = document.windows[0];
+  const prevPerspective = win.perspective;
   win.perspective = persp;
 
   function isoOrNull(d) {
@@ -208,7 +213,15 @@
     const children = node.children || [];
     for (let i = 0; i < children.length; i++) walk(children[i]);
   };
-  walk(win.content.rootNode);
+  try {
+    walk(win.content.rootNode);
+  } finally {
+    try {
+      if (prevPerspective) win.perspective = prevPerspective;
+    } catch (_e) {
+      /* best-effort restore — never mask the evaluation result */
+    }
+  }
 
   return JSON.stringify({ tasks });
 })();

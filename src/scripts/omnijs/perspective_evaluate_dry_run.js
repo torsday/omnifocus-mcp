@@ -256,9 +256,24 @@
     };
   }
 
+  // Evaluation switches the visible front window — the only API surface
+  // OmniFocus exposes for custom-perspective evaluation. Remember the user's
+  // current perspective and restore it on every exit path; the restore must
+  // run BEFORE safeDelete so the window never points at a deleted perspective.
+  let win = null;
+  let prevPerspective = null;
+  function restorePerspective() {
+    try {
+      if (win && prevPerspective) win.perspective = prevPerspective;
+    } catch (_e) {
+      /* best-effort restore — never mask the primary result */
+    }
+  }
+
   let tasks;
   try {
-    const win = document.windows[0];
+    win = document.windows[0];
+    prevPerspective = win.perspective;
     win.perspective = persp;
 
     tasks = [];
@@ -279,6 +294,7 @@
     };
     walk(win.content.rootNode);
   } catch (e) {
+    restorePerspective();
     safeDelete();
     return JSON.stringify({
       error: {
@@ -289,6 +305,7 @@
   }
 
   // ----- Step 4: cleanup (always) --------------------------------------------
+  restorePerspective();
   safeDelete();
 
   return JSON.stringify({ tasks });
