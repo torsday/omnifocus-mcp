@@ -7,7 +7,11 @@ import { InMemoryAdapter } from "../../adapter/inMemory/InMemoryAdapter.js";
 import type { ResponseMeta } from "../../envelope/index.js";
 import { TagService } from "../../services/tagService.js";
 import { handleTagGetLocation, tagGetLocationInputSchema } from "./getLocation.js";
-import { handleTagSetLocation, tagSetLocationInputSchema } from "./setLocation.js";
+import {
+  handleTagSetLocation,
+  TAG_SET_LOCATION_DESCRIPTION,
+  tagSetLocationInputSchema,
+} from "./setLocation.js";
 
 // ---------------------------------------------------------------------------
 // Harness
@@ -88,6 +92,29 @@ describe("tag_set_location — input schema", () => {
     expect(() =>
       tagSetLocationInputSchema.parse({ id: "tag_000001", ...SAMPLE_LOCATION, trigger: "never" }),
     ).toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// tag_set_location — description examples must satisfy the schema
+// ---------------------------------------------------------------------------
+
+describe("tag_set_location description examples", () => {
+  it("every documented trigger example value passes the input schema", () => {
+    // Tool descriptions are the LLM's contract — an example the schema
+    // rejects costs every agent a failed round-trip.
+    const examples = [...TAG_SET_LOCATION_DESCRIPTION.matchAll(/trigger: "([^"]+)"/g)].map(
+      (m) => m[1],
+    );
+    expect(examples.length).toBeGreaterThan(0);
+    for (const trigger of examples) {
+      const result = tagSetLocationInputSchema.safeParse({
+        id: "tag_000001",
+        ...SAMPLE_LOCATION,
+        trigger,
+      });
+      expect(result.success, `example trigger ${JSON.stringify(trigger)}`).toBe(true);
+    }
   });
 });
 

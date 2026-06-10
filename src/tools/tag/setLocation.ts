@@ -18,12 +18,12 @@ import type { TagService } from "../../services/tagService.js";
 
 export const TAG_SET_LOCATION_DESCRIPTION =
   "Set a geographic location trigger on a tag (OmniFocus Pro only). " +
-  "The trigger fires when arriving at, leaving, or both for the specified radius. " +
+  "The trigger fires when entering, leaving, or both for the specified radius. " +
   "Do not use to read the current location; prefer tag_get_location instead. " +
   "Get the tag ID from tag_list. " +
   "Returns FeatureRequiresPro on OmniFocus Standard installs. " +
   "Triggers a sync; call sync_trigger after to propagate to other devices. " +
-  'Example: tag_set_location({ id: "tag123", latitude: 37.785, longitude: -122.407, radiusMeters: 200, trigger: "arriving", name: "Office" })';
+  'Example: tag_set_location({ id: "tag123", latitude: 37.785, longitude: -122.407, radiusMeters: 200, trigger: "entering", name: "Office" })';
 
 export const tagSetLocationInputSchema = z.object({
   id: TagId.schema.describe("Persistent tag ID. Get from tag_list."),

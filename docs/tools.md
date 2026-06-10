@@ -3407,7 +3407,7 @@ Enable or disable next-action selection for a tag in OmniFocus. When true, tasks
 
 ## tag_set_location
 
-Set a geographic location trigger on a tag (OmniFocus Pro only). The trigger fires when arriving at, leaving, or both for the specified radius. Do not use to read the current location; prefer tag_get_location instead. Get the tag ID from tag_list. Returns FeatureRequiresPro on OmniFocus Standard installs. Triggers a sync; call sync_trigger after to propagate to other devices. Example: tag_set_location({ id: "tag123", latitude: 37.785, longitude: -122.407, radiusMeters: 200, trigger: "arriving", name: "Office" })
+Set a geographic location trigger on a tag (OmniFocus Pro only). The trigger fires when entering, leaving, or both for the specified radius. Do not use to read the current location; prefer tag_get_location instead. Get the tag ID from tag_list. Returns FeatureRequiresPro on OmniFocus Standard installs. Triggers a sync; call sync_trigger after to propagate to other devices. Example: tag_set_location({ id: "tag123", latitude: 37.785, longitude: -122.407, radiusMeters: 200, trigger: "entering", name: "Office" })
 
 ### Input
 
