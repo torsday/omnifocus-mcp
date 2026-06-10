@@ -70,6 +70,40 @@ describe("diffWebhookEvents — task-completed", () => {
     expect(events).toEqual([]);
   });
 
+  it("emits when a task first appears already completed (created+completed in one window)", () => {
+    // Agent flows like task_create → task_complete coalesce into a single
+    // debounce window: the task shows up in `current` with completed=true
+    // and no `previous` entry. The completion signal must not be dropped.
+    const wh = makeWebhook({ name: "all-completions", trigger: { on: "task-completed" } });
+    const events = diffWebhookEvents(
+      { tasks: [], projects: [] },
+      { tasks: [TASK_DONE], projects: [] },
+      [wh],
+      { now: NOW },
+    );
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      kind: "task-completed",
+      webhookName: "all-completions",
+      taskId: "t1",
+    });
+  });
+
+  it("emits both task-created and task-completed for a new already-completed task", () => {
+    const created = makeWebhook({ name: "creations", trigger: { on: "task-created" } });
+    const completed = makeWebhook({ name: "completions", trigger: { on: "task-completed" } });
+    const events = diffWebhookEvents(
+      { tasks: [], projects: [] },
+      { tasks: [TASK_DONE], projects: [] },
+      [created, completed],
+      { now: NOW },
+    );
+    expect(events.map((e) => [e.kind, e.webhookName])).toEqual([
+      ["task-created", "creations"],
+      ["task-completed", "completions"],
+    ]);
+  });
+
   it("does NOT emit when a task disappears (deletion is not completion)", () => {
     const wh = makeWebhook({ trigger: { on: "task-completed" } });
     const events = diffWebhookEvents(

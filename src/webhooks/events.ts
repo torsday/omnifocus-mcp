@@ -175,6 +175,14 @@ export function diffWebhookEvents(
     const prev = prevTasks.get(t.id);
     if (prev === undefined) {
       emitMatchingTaskEvents(t, "task-created", registered, occurredAt, out);
+      if (t.completed) {
+        // First observed already completed: the task was created AND
+        // completed within this observation window, so both transitions
+        // happened — emit task-completed too, or completion-triggered
+        // subscribers would permanently miss it (the next diff sees
+        // completed=true on both sides).
+        emitMatchingTaskEvents(t, "task-completed", registered, occurredAt, out);
+      }
       continue;
     }
     if (!prev.completed && t.completed) {
