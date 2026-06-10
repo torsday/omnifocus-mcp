@@ -12,6 +12,7 @@ import { ReadPool } from "../concurrency/ReadPool.js";
 import { WriteQueue } from "../concurrency/WriteQueue.js";
 import { MUTATING_METHODS, pickGate, wrapWithConcurrency } from "./concurrent.js";
 import type { OmniFocusAdapter } from "./OmniFocusAdapter.js";
+import { type AdapterMethod, ROUTING_TABLE } from "./router.js";
 
 function makeDeps() {
   return {
@@ -82,6 +83,10 @@ describe("pickGate", () => {
     // updateTask still routes to JXA. createTask was moved to OmniJS in
     // ADR-0019 / #680.
     expect(pickGate("updateTask", deps)).toBe(deps.jxaWriteQueue);
+    // Batch mutators are JXA-routed writes too — they must never land in
+    // the read pool (regression: they were missing from MUTATING_METHODS).
+    expect(pickGate("batchDeleteTasks", deps)).toBe(deps.jxaWriteQueue);
+    expect(pickGate("batchDropProjects", deps)).toBe(deps.jxaWriteQueue);
   });
 
   it("routes every OmniJS-bound method to the omnijs queue regardless of mutation flag", () => {
@@ -176,5 +181,128 @@ describe("MUTATING_METHODS coverage", () => {
       // makes which method failed obvious in the stack frame.
       expect(MUTATING_METHODS.has(m)).toBe(true);
     }
+  });
+
+  /**
+   * Exhaustive read/write classification of every adapter method. Typed as
+   * `Record<AdapterMethod, boolean>` so a new method on the interface is a
+   * compile error here until it is classified — a new write can no longer
+   * silently route through the read pool (the failure mode the module
+   * header warns about, and exactly what happened to the batch task /
+   * project mutators and `setProjectNextReviewDate`).
+   *
+   * "Mutates" means side-effects OmniFocus state (database, app, or window
+   * state). Methods that only write outside OF (e.g. `saveAttachmentToPath`
+   * writing a local file) are reads from OF's perspective.
+   */
+  const MUTATES: Record<AdapterMethod, boolean> = {
+    // -- Tasks
+    listTasks: false,
+    getTask: false,
+    getNoteHtml: false,
+    getTasksMany: false,
+    createTask: true,
+    updateTask: true,
+    completeTask: true,
+    uncompleteTask: true,
+    dropTask: true,
+    undropTask: true,
+    deleteTask: true,
+    moveTask: true,
+    convertTaskToProject: true,
+    batchMoveTasks: true,
+    reorderTask: true,
+    duplicateTask: true,
+    batchCreateTasks: true,
+    batchUpdateTasks: true,
+    batchCompleteTasks: true,
+    batchUncompleteTasks: true,
+    batchDeleteTasks: true,
+    batchDropTasks: true,
+    batchUndropTasks: true,
+    // -- Projects
+    listProjects: false,
+    getProject: false,
+    getProjectsMany: false,
+    createProject: true,
+    updateProject: true,
+    completeProject: true,
+    batchCompleteProjects: true,
+    dropProject: true,
+    batchDropProjects: true,
+    moveProject: true,
+    deleteProject: true,
+    markProjectReviewed: true,
+    listProjectsDueForReview: false,
+    setProjectReviewInterval: true,
+    setProjectNextReviewDate: true,
+    // -- Tags
+    listTags: false,
+    getTag: false,
+    getTagsMany: false,
+    createTag: true,
+    updateTag: true,
+    deleteTag: true,
+    // -- Folders
+    listFolders: false,
+    getFolder: false,
+    createFolder: true,
+    updateFolder: true,
+    deleteFolder: true,
+    // -- Search / forecast
+    searchTasks: false,
+    getForecast: false,
+    getForecastTagWithName: false,
+    setForecastTagWithName: true,
+    // -- Perspectives
+    listPerspectives: false,
+    evaluatePerspective: false,
+    evaluateCustomPerspective: false,
+    evaluatePerspectiveRules: false,
+    getCustomPerspective: false,
+    deleteCustomPerspective: true,
+    createCustomPerspective: true,
+    updateCustomPerspective: true,
+    // -- Sync
+    syncTrigger: true,
+    getLastSync: false,
+    // -- Database undo/redo
+    undoLastMutation: true,
+    redoLastMutation: true,
+    // -- Task alarms
+    setTaskAlarms: true,
+    clearTaskAlarms: true,
+    // -- Attachments
+    listAttachments: false,
+    addAttachment: true,
+    removeAttachment: true,
+    saveAttachmentToPath: false, // writes a local file, not OF state
+    // -- App lifecycle / window
+    appLaunch: true,
+    getWindowState: false,
+    setWindowPerspective: true,
+    setWindowFocus: true,
+    appWindowNew: true,
+    appWindowNewTab: true,
+    // -- Plug-in invocation
+    pluginInvoke: true,
+    // -- Change detection
+    getChangesSince: false,
+    // -- Raw escape hatches — conservative: callers can do anything inside
+    runJxaScript: true,
+    runOmniJsScript: true,
+  };
+
+  it("classifies every JXA-routed method consistently with MUTATING_METHODS", () => {
+    const jxaMethods = (Object.keys(ROUTING_TABLE) as AdapterMethod[]).filter(
+      (m) => ROUTING_TABLE[m] === "jxa",
+    );
+    // A JXA-routed mutator missing from the set would run on the read pool —
+    // concurrent writes against live OmniFocus (the ADR-0009 violation).
+    const writesOnReadPool = jxaMethods.filter((m) => MUTATES[m] && !MUTATING_METHODS.has(m));
+    expect(writesOnReadPool).toEqual([]);
+    // The reverse — a read in the set — would serialize reads needlessly.
+    const readsOnWriteQueue = jxaMethods.filter((m) => !MUTATES[m] && MUTATING_METHODS.has(m));
+    expect(readsOnWriteQueue).toEqual([]);
   });
 });

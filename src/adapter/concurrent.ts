@@ -68,15 +68,22 @@ export const MUTATING_METHODS: ReadonlySet<AdapterMethod> = new Set<AdapterMetho
   "batchCreateTasks",
   "batchUpdateTasks",
   "batchCompleteTasks",
+  "batchUncompleteTasks",
+  "batchDeleteTasks",
+  "batchDropTasks",
+  "batchUndropTasks",
   // Projects
   "createProject",
   "updateProject",
   "completeProject",
+  "batchCompleteProjects",
   "dropProject",
+  "batchDropProjects",
   "moveProject",
   "deleteProject",
   "markProjectReviewed",
   "setProjectReviewInterval",
+  "setProjectNextReviewDate",
   // Tags
   "createTag",
   "updateTag",
@@ -92,6 +99,10 @@ export const MUTATING_METHODS: ReadonlySet<AdapterMethod> = new Set<AdapterMetho
   "removeAttachment",
   // App lifecycle
   "appLaunch",
+  // Window controls — mutate front-window state (same JXA main-thread
+  // contention as data writes; sibling of appLaunch)
+  "setWindowPerspective",
+  "setWindowFocus",
   // Plug-in / OmniJS-only mutations (still routed through omniJsQueue, but
   // listed here for completeness when the routing table changes)
   "pluginInvoke",
