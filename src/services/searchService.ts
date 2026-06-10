@@ -138,10 +138,14 @@ export class SearchService {
     };
     const allTasks = await this.adapter.searchTasks(searchFilter);
 
-    // Stable sort: createdAt ASC, id ASC
+    // Stable sort: createdAt ASC, id ASC. Code-unit comparison (not
+    // localeCompare) so the ordering agrees with the cursor predicate
+    // `isAfterCursor`, which compares code units — ICU collation disagrees
+    // with code units on case-divergent ids, skipping or duplicating results
+    // across page boundaries when createdAt ties.
     const sorted = [...allTasks].sort((a, b) => {
-      const dateCompare = a.createdAt.localeCompare(b.createdAt);
-      return dateCompare !== 0 ? dateCompare : a.id.localeCompare(b.id);
+      if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? -1 : 1;
+      return a.id < b.id ? -1 : 1;
     });
 
     // Apply cursor offset (search always sorts createdAt ASC)
