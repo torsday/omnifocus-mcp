@@ -51,11 +51,13 @@ describe("parseConfig", () => {
         OMNIFOCUS_INTEGRATION: "1",
         OMNIFOCUS_E2E: "1",
         OMNIFOCUS_ALLOW_RAW_SCRIPT: "1",
+        OMNIFOCUS_LEGACY_TEXT_CONTENT: "1",
         OMNIFOCUS_PERSISTENT_OSASCRIPT: "1",
       });
       expect(config.OMNIFOCUS_INTEGRATION).toBe(true);
       expect(config.OMNIFOCUS_E2E).toBe(true);
       expect(config.OMNIFOCUS_ALLOW_RAW_SCRIPT).toBe(true);
+      expect(config.OMNIFOCUS_LEGACY_TEXT_CONTENT).toBe(true);
       expect(config.OMNIFOCUS_PERSISTENT_OSASCRIPT).toBe(true);
     });
 
@@ -185,5 +187,10 @@ describe("redactConfig", () => {
     const redacted = redactConfig(config);
     expect(redacted.OMNIFOCUS_CACHE_TTL_MS).toBe(60000);
     expect(redacted.OMNIFOCUS_LOG_LEVEL).toBe("info");
+  });
+
+  it("reflects OMNIFOCUS_LEGACY_TEXT_CONTENT in the server.started summary", () => {
+    const config = parseConfig({ OMNIFOCUS_LEGACY_TEXT_CONTENT: "1" });
+    expect(redactConfig(config).OMNIFOCUS_LEGACY_TEXT_CONTENT).toBe(true);
   });
 });
