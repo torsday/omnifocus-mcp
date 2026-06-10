@@ -31,20 +31,22 @@
 
   // Resolve the position argument for convertTasksToProjects.
   // Valid positions: library.beginning, library.ending,
-  //                 folder.children.beginning, folder.children.ending
+  //                  folder.beginning, folder.ending
+  // The folder is itself a `Section` whose `.beginning` / `.ending` are the
+  // ChildInsertionLocation values — `folder.children` is a plain SectionArray
+  // with no insertion locations (see project_create.js: `folder.children.ending`
+  // does NOT place inside the folder, verified empirically).
   let pos;
   const atBeginning = position === "beginning";
 
   if (folderId != null) {
-    const folder =
-      library.folders.filter((f) => f.id.primaryKey === folderId)[0] ??
-      flattenedFolders.filter((f) => f.id.primaryKey === folderId)[0];
+    const folder = flattenedFolders.filter((f) => f.id.primaryKey === folderId)[0];
     if (!folder) {
       return JSON.stringify({
         error: { code: "NOT_FOUND", message: `Folder not found: ${folderId}` },
       });
     }
-    pos = atBeginning ? folder.children.beginning : folder.children.ending;
+    pos = atBeginning ? folder.beginning : folder.ending;
   } else {
     pos = atBeginning ? library.beginning : library.ending;
   }
