@@ -69,9 +69,23 @@ function run(argv) {
   const fm = $.NSFileManager.defaultManager;
   const destPath = args.destPath;
 
-  // Remove existing destination so copy doesn't fail with "file exists"
-  const destExists = fm.fileExistsAtPath($(destPath));
-  if (destExists) {
+  // Remove an existing destination FILE so copy doesn't fail with "file
+  // exists" — but never a directory: removeItemAtPath deletes directories
+  // RECURSIVELY, so a directory destPath (a natural "save into this folder"
+  // mistake) would wipe the whole tree. destPath is documented as a file
+  // path; an existing directory is a caller error. attributesOfItemAtPath
+  // returns a nil proxy (`.js` undefined) when the path does not exist.
+  const statErr = $();
+  const destAttrs = fm.attributesOfItemAtPathError($(destPath), statErr);
+  if (destAttrs?.js) {
+    const destType = ObjC.unwrap(destAttrs.objectForKey($.NSFileType));
+    if (String(destType) === "NSFileTypeDirectory") {
+      throw new Error(
+        `OF_VALIDATION: destPath is an existing directory (${destPath}); ` +
+          "a full file path including the target filename is required — " +
+          "directories are never deleted or overwritten",
+      );
+    }
     const removeErr = $();
     fm.removeItemAtPathError($(destPath), removeErr);
     // ignore removal errors — copy will surface any real problem

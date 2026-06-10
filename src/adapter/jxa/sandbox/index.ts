@@ -59,9 +59,13 @@ export interface SandboxDocument {
    */
   fileManager?: {
     fileExists?: boolean;
+    /** `NSFileType` for an existing destPath; defaults to a regular file. */
+    fileType?: "NSFileTypeRegular" | "NSFileTypeDirectory";
     copyOk?: boolean;
     copyErrorMessage?: string;
     fileSize?: number;
+    /** Paths passed to `removeItemAtPathError` are appended here. */
+    removedPaths?: string[];
   };
 }
 
@@ -842,26 +846,44 @@ function buildFakeSystemEventsApp(doc: SandboxDocument) {
  */
 function buildFakeObjCBridge(doc: SandboxDocument) {
   const fmConfig = doc.fileManager ?? {};
-  const fileExists = fmConfig.fileExists ?? false;
   const copyOk = fmConfig.copyOk ?? true;
   const copyErrorMessage = fmConfig.copyErrorMessage ?? "unknown error";
   const fileSize = fmConfig.fileSize ?? 0;
+  const fileType = fmConfig.fileType ?? "NSFileTypeRegular";
+
+  // Stateful existence so the post-copy size stat sees the written file:
+  // starts from `fileExists`, flips false on remove and true on copy.
+  let destExistsNow = fmConfig.fileExists ?? false;
 
   const fakeFileManager = {
-    fileExistsAtPath: (_path: unknown) => fileExists,
-    removeItemAtPathError: (_path: unknown, _err: unknown) => true,
+    fileExistsAtPath: (_path: unknown) => destExistsNow,
+    removeItemAtPathError: (path: unknown, _err: unknown) => {
+      fmConfig.removedPaths?.push(
+        String((path as Record<string, unknown> | null)?.__wrapped ?? path),
+      );
+      destExistsNow = false;
+      return true;
+    },
     copyItemAtPathToPathError: (_src: unknown, _dest: unknown, errPtr: unknown) => {
       if (!copyOk && errPtr && typeof errPtr === "object") {
         (errPtr as Record<string, unknown>).localizedDescription = {
           __wrapped: copyErrorMessage,
         };
       }
+      if (copyOk) destExistsNow = true;
       return copyOk;
     },
-    attributesOfItemAtPathError: (_path: unknown, _err: unknown) => ({
-      js: { NSFileSize: fileSize },
-      objectForKey: (_key: unknown) => ({ __wrapped: fileSize }),
-    }),
+    // Mirrors NSFileManager: an existing path yields an attribute dictionary
+    // (keyed lookups for NSFileType / NSFileSize); a missing path yields a
+    // nil proxy — truthy, with `.js` undefined — like the live ObjC bridge.
+    attributesOfItemAtPathError: (_path: unknown, _err: unknown) =>
+      destExistsNow
+        ? {
+            js: { NSFileSize: fileSize },
+            objectForKey: (key: unknown) =>
+              key === "NSFileType" ? { __wrapped: fileType } : { __wrapped: fileSize },
+          }
+        : { js: undefined },
   };
 
   // `$()` produces a wrapper. When called with no args the script uses it
@@ -877,5 +899,6 @@ function buildFakeObjCBridge(doc: SandboxDocument) {
     ((value?: unknown) => Record<string, unknown>);
   dollarStatic.NSFileManager = { defaultManager: fakeFileManager };
   dollarStatic.NSFileSize = "NSFileSize";
+  dollarStatic.NSFileType = "NSFileType";
   return dollarStatic;
 }

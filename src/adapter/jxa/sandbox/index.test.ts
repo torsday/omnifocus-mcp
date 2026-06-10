@@ -3491,15 +3491,42 @@ describe("JXA sandbox — attachment_save_to_path", () => {
     expect(result).toEqual({ saved: true, path: "/tmp/dest.dat", sizeBytes: 1024 });
   });
 
-  it("removes existing dest before copying when fileExistsAtPath returns true", () => {
+  it("removes an existing dest FILE before copying", () => {
     const att = fakeAttachment({ id: () => "att_target" });
     const owner = fakeTask({ id: () => "task_owner", fileAttachments: () => [att] });
+    const removedPaths: string[] = [];
     const result = runJxaScriptInSandbox<{ saved: boolean }>(
       attachmentSaveToPathScript,
       { taskId: "task_owner", attachmentId: "att_target", destPath: "/tmp/exists.dat" },
-      { tasks: [owner], fileManager: { fileExists: true, copyOk: true, fileSize: 42 } },
+      {
+        tasks: [owner],
+        fileManager: { fileExists: true, copyOk: true, fileSize: 42, removedPaths },
+      },
     );
     expect(result.saved).toBe(true);
+    expect(removedPaths).toEqual(["/tmp/exists.dat"]);
+  });
+
+  it("refuses an existing directory destPath with OF_VALIDATION and never deletes it", () => {
+    const att = fakeAttachment({ id: () => "att_target" });
+    const owner = fakeTask({ id: () => "task_owner", fileAttachments: () => [att] });
+    const removedPaths: string[] = [];
+    expect(() =>
+      runJxaScriptInSandbox(
+        attachmentSaveToPathScript,
+        { taskId: "task_owner", attachmentId: "att_target", destPath: "/Users/me/Documents" },
+        {
+          tasks: [owner],
+          fileManager: {
+            fileExists: true,
+            fileType: "NSFileTypeDirectory",
+            removedPaths,
+          },
+        },
+      ),
+    ).toThrow(/OF_VALIDATION: destPath is an existing directory/);
+    // The data-loss guard: removeItemAtPathError must never run on a directory.
+    expect(removedPaths).toEqual([]);
   });
 
   it("throws when copyItemAtPathToPathError returns false", () => {
