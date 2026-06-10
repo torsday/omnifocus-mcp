@@ -148,7 +148,16 @@ function resolveExplicitSkipWeekends(date: string, opts: ResolveOptions): Resolv
   }
   // Use the input timestamp as-is, then shift forward to Monday if it lands on a weekend.
   // We don't override the time — the caller picked it deliberately.
-  const target = new Date(parsed);
+  // Bare dates parse as UTC midnight under ECMAScript rules — the *previous*
+  // local calendar day anywhere west of UTC, which both skips the promised
+  // weekend snap and defers a day early. Re-construct as local midnight (cf.
+  // the bare-date precedent in src/resources/agenda.ts; the NaN check above
+  // already rejected out-of-range components like 2026-13-45).
+  let target = new Date(parsed);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const parts = date.split("-");
+    target = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 0, 0, 0, 0);
+  }
   let shifted = false;
   while (isWeekend(target)) {
     target.setDate(target.getDate() + 1);

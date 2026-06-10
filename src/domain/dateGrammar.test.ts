@@ -7,7 +7,7 @@
  * a developer's local clock.
  */
 
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { CalendarBridgeUnavailable, ValidationError } from "../errors/index.js";
 import {
   DEFAULT_AFTERNOON_HOUR,
@@ -146,6 +146,46 @@ describe("resolveDeferIntent — explicit-with-skip-weekends", () => {
   it("rejects unparseable dates", () => {
     expect(() =>
       resolveDeferIntent({ kind: "explicit-with-skip-weekends", date: "not-a-date" }, OPTS),
+    ).toThrow(ValidationError);
+  });
+});
+
+describe("resolveDeferIntent — explicit-with-skip-weekends bare dates (local calendar day)", () => {
+  // Pin a west-of-UTC zone so the bare-date-as-UTC-midnight regression is
+  // observable regardless of the host machine's timezone. Node re-reads
+  // process.env.TZ on subsequent Date operations.
+  const ORIGINAL_TZ = process.env.TZ;
+  beforeAll(() => {
+    process.env.TZ = "America/Chicago";
+  });
+  afterAll(() => {
+    if (ORIGINAL_TZ === undefined) delete process.env.TZ;
+    else process.env.TZ = ORIGINAL_TZ;
+  });
+
+  it("bare Saturday date snaps to Monday local midnight (not the prior local Friday)", () => {
+    // 2026-04-25 is a Saturday. A UTC-midnight parse lands on Friday evening
+    // local time, silently skipping the snap and deferring a day early.
+    const result = resolveDeferIntent(
+      { kind: "explicit-with-skip-weekends", date: "2026-04-25" },
+      OPTS,
+    );
+    expect(result.reason).toContain("snapped");
+    expect(result.resolvedDeferDate).toMatch(/^2026-04-27T00:00:00[+-]\d{2}:\d{2}$/);
+  });
+
+  it("bare weekday date resolves to that local day at midnight", () => {
+    const result = resolveDeferIntent(
+      { kind: "explicit-with-skip-weekends", date: "2026-04-27" },
+      OPTS,
+    );
+    expect(result.reason).toContain("no weekend skip");
+    expect(result.resolvedDeferDate).toMatch(/^2026-04-27T00:00:00[+-]\d{2}:\d{2}$/);
+  });
+
+  it("still rejects nonsense bare dates like 2026-13-45", () => {
+    expect(() =>
+      resolveDeferIntent({ kind: "explicit-with-skip-weekends", date: "2026-13-45" }, OPTS),
     ).toThrow(ValidationError);
   });
 });
