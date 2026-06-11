@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [2.0.2](https://github.com/torsday/omnifocus-mcp/compare/v2.0.1...v2.0.2) (2026-06-10)
 
+**Summary** — A large correctness patch (~70 fixes), no new API. The dominant theme is **date & time handling**: date filters, review-due windows, agenda and retrospective bounds, and bare-date parsing now compare instants and honour the local calendar day instead of mixing UTC components with ISO-string comparisons. **Cache invalidation** is tightened so cross-entity mutations (tags ↔ projects, subtask ↔ parent, convert-to-project) and `limit`-scoped list reads no longer serve stale pages. **TaskPaper/OPML** import-export round-trips faithfully — native `@done`/`@dropped` forms, note lines, and OPML attribute escaping. The **OmniJS** read/write path reaches parity with JXA (repetition parsing, task status, completed-by-children, convert-to-project, forecast tag, perspective restore), and the **persistent transport** gains UTF-8-safe framing, typed `OF_UNSUPPORTED` / JXA error-number surfacing, and cleaner restart handling. **Webhooks**, server-health reads (`doctor`, `internal_status`), recurrence-grammar parsing, and a `changes_since` watermark fix round it out. No API, schema, or wire-format changes — a safe drop-in upgrade from v2.0.1.
+
 
 ### Fixed
 
@@ -29,8 +31,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 * **envelope:** do not report cap truncation when the lone item is kept whole ([ca39f31](https://github.com/torsday/omnifocus-mcp/commit/ca39f31a5ba44d9694b60edf00c6841e4a37f0b6))
 * **export:** dedupe project task tree fetch so subtasks export once ([7dae1a5](https://github.com/torsday/omnifocus-mcp/commit/7dae1a5dbbd7b1068a21eeec10f7d43a75efac95))
 * **export:** escape newlines, crs, and tabs in opml attribute values ([713d35a](https://github.com/torsday/omnifocus-mcp/commit/713d35acb19d2839128e9d55f1f2fb53b4c66882))
-* **export:** import [@dropped](https://github.com/dropped) tasks via droptask instead of completetask ([9b7c82b](https://github.com/torsday/omnifocus-mcp/commit/9b7c82b47696bcc1526e2bca34680273824edb8f))
-* **export:** parse the native [@done](https://github.com/done)(date) form and honour its completion date ([b9b750e](https://github.com/torsday/omnifocus-mcp/commit/b9b750e86ecdcc49f19774920fc25d92ec763b50))
+* **export:** import `@dropped` tasks via droptask instead of completetask ([9b7c82b](https://github.com/torsday/omnifocus-mcp/commit/9b7c82b47696bcc1526e2bca34680273824edb8f))
+* **export:** parse the native `@done(date)` form and honour its completion date ([b9b750e](https://github.com/torsday/omnifocus-mcp/commit/b9b750e86ecdcc49f19774920fc25d92ec763b50))
 * **export:** require whitespace before the // note delimiter in taskpaper import ([2fbd984](https://github.com/torsday/omnifocus-mcp/commit/2fbd984c7db4f516399316688586e9438d3eb508))
 * **export:** round-trip note lines instead of phantom subtasks and silent loss ([00b9d6c](https://github.com/torsday/omnifocus-mcp/commit/00b9d6c6ff57848428ae6b77a967699bbcdcac9c))
 * **export:** use local calendar day for taskpaper dates instead of utc ([54dcbf8](https://github.com/torsday/omnifocus-mcp/commit/54dcbf881f7c51cbc6413a0e2055e8aafb9ddf53))
