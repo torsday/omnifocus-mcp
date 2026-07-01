@@ -45,7 +45,7 @@ jobs:
           weekly schedule + any first-party PR touching the file."
           exit 0
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: env.GH_TOKEN != ''
 
       - name: Run verify-constants.sh
